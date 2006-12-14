@@ -18,10 +18,10 @@ CREATE TABLE `servers` (
   `identifier` varchar(64) NOT NULL,
   `baseurl` varchar(128) NOT NULL,
   `baseurl_ftp` varchar(128) NOT NULL,
-  `enabled` bool(1) DEFAULT 1 NOT NULL,
-  `status_baseurl` bool(1) DEFAULT 0 NOT NULL,
-  `status_baseurl_ftp` bool(1) DEFAULT 0 NOT NULL,
-  `status_ping` bool(1) DEFAULT 0 NOT NULL,
+  `enabled` enum('0','1') DEFAULT 1 NOT NULL,
+  `status_baseurl` enum('0','1') DEFAULT 0 NOT NULL,
+  `status_baseurl_ftp` enum('0','1') DEFAULT 0 NOT NULL,
+  `status_ping` enum('0','1') DEFAULT 0 NOT NULL,
   
   PRIMARY KEY(`id`)
 )
