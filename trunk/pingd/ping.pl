@@ -22,6 +22,7 @@
 use Net::Ping;
 use DBI;
 use strict;
+use LWP::Simple;
 
 my $verbose = 0;
 
@@ -34,17 +35,35 @@ my $ary_ref  = $dbh->selectall_arrayref( $sql )
 
 for my $row (@$ary_ref)
 {
-  my($id, $identifier, $baseurl, $baseurl_ftp, $status) = @$row;
-  my $res = ping($identifier);
+  my($id, $identifier, $baseurl, $baseurl_ftp, $status, 
+     $status_url, $status_ftp, $status_ping) = @$row;
 
-  print "$identifier : $res \n" if $verbose;
-
-  if ($res ne $status)
+  my $srvn;
+  
+  if ($baseurl =~ m{://([^:/]+)} )
   {
-    my $sql = "UPDATE servers SET status = ? WHERE ( id = ?);";
-    my $sth = $dbh->prepare( $sql );
-       $sth->execute( $res, $id );
+    $srvn = $1;
   }
+  else
+  {
+    warn "Can't parse baseurl $baseurl";
+  }
+
+  my $pingres = ping($identifier);
+
+  my $content = head($baseurl);
+  my $urlres = (defined $content ) ? 1 : 0;
+
+  print "$identifier : $pingres : $content \n" if $verbose;
+
+  $content = head($baseurl_ftp);
+  my $ftpres = (defined $content ) ? 1 : 0;
+
+  my $sql = "UPDATE servers SET status_ping = ?, status_baseurl = ?, 
+	     status_baseurl_ftp = ? WHERE ( id = ?);";
+
+  my $sth = $dbh->prepare( $sql );
+     $sth->execute( $pingres, $urlres, $ftpres, $id );
 }
 
 $dbh->disconnect();
@@ -53,10 +72,10 @@ exit 0;
 sub ping 
 {
   my $host = shift;
-  my $status = "offline";
+  my $status = 0;
 
   my $p = Net::Ping->new();
-  $status = "online" if $p->ping($host);
+  $status = 1 if $p->ping($host);
   $p->close();
 
   return $status;
