@@ -1,62 +1,94 @@
-CREATE DATABASE IF NOT EXISTS `redirector`;
 
-USE `redirector`;
+-- phpMyAdmin SQL Dump
+-- version 2.9.1.1
+-- http://www.phpmyadmin.net
+-- 
+-- Host: localhost
+-- Erstellungszeit: 19. Januar 2007 um 14:12
+-- Server Version: 5.0.26
+-- PHP-Version: 5.2.0
+-- 
+-- Datenbank: `redirector`
+-- 
 
-CREATE TABLE `files` (
-  `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `pathhash` varchar(32) NOT NULL,
-  `path` tinytext NOT NULL,
-  `timestamp` timestamp(14) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY(`id`),
-  INDEX `pathhash`(`pathhash`)
-)
-ENGINE=MYISAM
-ROW_FORMAT=dynamic;
+-- --------------------------------------------------------
 
-CREATE TABLE `servers` (
-  `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `identifier` varchar(64) NOT NULL,
-  `baseurl` varchar(128) NOT NULL,
-  `baseurl_ftp` varchar(128) NOT NULL,
-  `enabled` enum('0','1') DEFAULT 1 NOT NULL,
-  `status_baseurl` enum('0','1') DEFAULT 0 NOT NULL,
-  `status_baseurl_ftp` enum('0','1') DEFAULT 0 NOT NULL,
-  `status_ping` enum('0','1') DEFAULT 0 NOT NULL,
-  
-  PRIMARY KEY(`id`)
-)
-ENGINE=MYISAM
-ROW_FORMAT=dynamic;
+-- 
+-- Tabellenstruktur für Tabelle `country_region`
+-- 
 
 CREATE TABLE `country_region` (
-  `country` char(2) NOT NULL,
-  `regionid` int(11) UNSIGNED NOT NULL DEFAULT '0',
-  PRIMARY KEY(`country`)
-)
-ENGINE=MYISAM
-ROW_FORMAT=fixed;
+`country` char(2) NOT NULL,
+`regionid` int(11) unsigned NOT NULL default '0',
+PRIMARY KEY  (`country`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 ROW_FORMAT=FIXED;
 
-CREATE TABLE `region_server` (
-  `regionid` tinyint(4) UNSIGNED NOT NULL DEFAULT '0',
-  `serverid` int(11) NOT NULL DEFAULT '0',
-  `score` int(11) NOT NULL DEFAULT '0',
-  INDEX `regionid`(`regionid`, `serverid`, `score`)
-)
-ENGINE=MYISAM
-ROW_FORMAT=fixed;
+-- --------------------------------------------------------
+
+-- 
+-- Tabellenstruktur für Tabelle `country_server`
+-- 
 
 CREATE TABLE `country_server` (
-  `country` char(2) NOT NULL,
-  `serverid` int(11) UNSIGNED NOT NULL DEFAULT '0',
-  `score` int(11) UNSIGNED NOT NULL DEFAULT '0'
-)
-ENGINE=MYISAM
-ROW_FORMAT=fixed;
+`country` char(2) NOT NULL,
+`serverid` int(11) unsigned NOT NULL default '0',
+`score` int(11) unsigned NOT NULL default '0'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 ROW_FORMAT=FIXED;
+
+-- --------------------------------------------------------
+
+-- 
+-- Tabellenstruktur für Tabelle `file`
+-- 
+
+CREATE TABLE `file` (
+`id` int(11) unsigned NOT NULL auto_increment,
+path` varchar(512) NOT NULL,
+PRIMARY KEY  (`id`)
+) ENGINE=MyISAM  DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC AUTO_INCREMENT=84461 ;
+
+-- --------------------------------------------------------
+
+-- 
+-- Tabellenstruktur für Tabelle `file_server`
+-- 
 
 CREATE TABLE `file_server` (
-  `fileid` int(11) UNSIGNED NOT NULL DEFAULT '0',
-  `serverid` int(11) UNSIGNED NOT NULL DEFAULT '0',
-  INDEX `fileid`(`fileid`, `serverid`)
-)
-ENGINE=MYISAM
-ROW_FORMAT=fixed;
+`fileid` int(11) unsigned NOT NULL default '0',
+`serverid` int(11) unsigned NOT NULL default '0',
+`timestamp_file` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+`timestamp_scanner` timestamp NOT NULL default '0000-00-00 00:00:00',
+KEY `fileid` (`fileid`,`serverid`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 ROW_FORMAT=FIXED;
+
+-- --------------------------------------------------------
+
+-- 
+-- Tabellenstruktur für Tabelle `region_server`
+-- 
+
+CREATE TABLE `region_server` (
+`regionid` tinyint(4) unsigned NOT NULL default '0',
+`serverid` int(11) NOT NULL default '0',
+`score` int(11) NOT NULL default '0',
+KEY `regionid` (`regionid`,`serverid`,`score`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 ROW_FORMAT=FIXED;
+
+-- --------------------------------------------------------
+
+-- 
+-- Tabellenstruktur für Tabelle `server`
+-- 
+
+CREATE TABLE `server` (
+`id` int(11) unsigned NOT NULL auto_increment,
+`identifier` varchar(64) NOT NULL,
+`baseurl` varchar(128) NOT NULL,
+`baseurl_ftp` varchar(128) NOT NULL,
+`enabled` tinyint(1) NOT NULL,
+`status_baseurl` tinyint(1) NOT NULL,
+`status_baseurl_ftp` tinyint(1) NOT NULL,
+`status_ping` tinyint(1) NOT NULL,
+`last_scan` timestamp NULL default NULL,
+PRIMARY KEY  (`id`)
+) ENGINE=MyISAM  DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC AUTO_INCREMENT=9 ;
