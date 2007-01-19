@@ -6,6 +6,7 @@ It honors the enabled flags in the server table and ignores the status flags.
 
 
 TODO: 
+  - add some index hashes to the database. Currently it does a linear search.
   - implement an rsync log parser. 
     This gives fastest updates for push mirrors, when triggered after rsync.
   - implement a post rsync trigger hook for push mirrors, to do the above.
