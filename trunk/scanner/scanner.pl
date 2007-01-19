@@ -19,11 +19,19 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 ################################################################################
 
+#
+# 2007-01-19, jw: - added md5 support. Speedup of ca. factor 2. 
+#                   Requires column 'path_md5 binary(22)' in file_server;
+#                   Obsoletes 'file.id' and 'file_server.fileid';
+#                 - Usage: optional parameter serverid, to limit the crawler.
+# 
+
 use DBI;
 use Date::Parse;
 use strict;
 use LWP::UserAgent;
 use Data::Dumper;
+use Digest::MD5;
 
 $ENV{FTP_PASSIVE} = 1;
 
@@ -32,6 +40,9 @@ my $ua = LWP::UserAgent->new;
 $ua->agent("scanner/0.1");
 
 my $verbose = 1;
+my $use_md5 = 1;
+
+my $only_server_id = shift;
 
 my $dbh = DBI->connect( 'dbi:mysql:redirector', 'root', '',
      { PrintError => 0 } ) or die $DBI::errstr;
@@ -45,9 +56,11 @@ for my $row (@$ary_ref)
   my($id, $identifier, $baseurl, $baseurl_ftp, $enable, 
       $status_url, $status_ftp, $status_ping) = @$row;
 
+  next if defined($only_server_id) and $id != $only_server_id;
+
   if ($enable == 1)
   {
-    print "$baseurl_ftp : \n";
+    print "$id: $baseurl_ftp : \n" if $verbose;
     my @dirlist = ftp_readdir($id, $baseurl_ftp, '');
 
     my $sql = "DELETE FROM file_server WHERE serverid = $id 
@@ -61,7 +74,7 @@ for my $row (@$ary_ref)
     $sth = $dbh->prepare( $sql );
            $sth->execute() or die $sth->err;
 
-    print Dumper $id, \@dirlist;
+    print Dumper $id, \@dirlist if $verbose > 1;
   }
 }
 
@@ -78,11 +91,11 @@ sub ftp_readdir
   
   if ($content =~ m/^\d\d\d\s/)
   {
-    print $content if $verbose;
+    print $content if $verbose > 2;
     return;
   }  
 
-  print $content."\n" if $verbose;
+  print $content."\n" if $verbose > 2;
 
   my @text = split( "\n", $content );
 
@@ -106,6 +119,7 @@ sub ftp_readdir
       else
       {
         #save timestamp and file in database
+	my $key = $use_md5 ? 'path_md5' : 'fileid';
 
         my $fileid = getfileid($t);
 	if (checkfileserver($id, $fileid))
@@ -113,7 +127,7 @@ sub ftp_readdir
 	my $sql = "UPDATE file_server SET 
 		   timestamp_file = FROM_UNIXTIME(?),
 		   timestamp_scanner = CURRENT_TIMESTAMP()
-		   WHERE fileid = ? AND serverid = ?;";
+		   WHERE $key = ? AND serverid = ?;";
 
 	my $sth = $dbh->prepare( $sql );
 	              $sth->execute( $time, $fileid, $id ) or die $sth->err
@@ -121,7 +135,7 @@ sub ftp_readdir
 	else
 	{
 
-        my $sql = "INSERT INTO file_server SET fileid = ?,
+        my $sql = "INSERT INTO file_server SET $key = ?,
 		   serverid = ?,
 	           timestamp_file = FROM_UNIXTIME(?), 
 		   timestamp_scanner = CURRENT_TIMESTAMP();"; 
@@ -159,6 +173,16 @@ sub cont
   }        
 }
 
+
+# getfileid can operate in two modes:
+# with use_md5, it only makes sure that the path is in table file.
+# and returns an md5sum, ignoring the id.
+# 
+# else it has to bother to retrieve the id after it did an insert.
+#
+# we always update table file, so that we can ask 
+# the database to enumerate the files we have seen.
+#
 sub getfileid
 {
   my $path = shift;
@@ -169,16 +193,21 @@ sub getfileid
                      or die $dbh->errstr();
   my $id = $ary_ref->[0][0];
   return $id if defined $id;
+
+  return ($use_md5 ? Digest::MD5::md5_base64($path) : $id) if defined $id;
   
   $sql = "INSERT INTO file SET path = ?;";
 
   my $sth = $dbh->prepare( $sql );
                 $sth->execute( $path ) or die $sth->err;
 
+  return Digest::MD5::md5_base64($path) if $use_md5;
+
   $sql = "SELECT id FROM file WHERE path = " . $dbh->quote($path);
 
   $ary_ref = $dbh->selectall_arrayref( $sql )
                        or die $dbh->errstr();
+
   $id = $ary_ref->[0][0];
 
   return $id;
@@ -188,7 +217,9 @@ sub checkfileserver
 {
   my ($serverid, $fileid) = @_;
 
-  my $sql = "SELECT 1 FROM file_server WHERE fileid = $fileid AND serverid = $serverid;";
+  my $sql = $use_md5 ?
+    "SELECT 1 FROM file_server WHERE path_md5 = '$fileid' AND serverid = $serverid;" :
+    "SELECT 1 FROM file_server WHERE fileid = $fileid AND serverid = $serverid;";
 
   my $ary_ref = $dbh->selectall_arrayref( $sql )
                        or die $dbh->errstr();
