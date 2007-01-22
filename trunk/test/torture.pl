@@ -12,6 +12,11 @@
 # or 
 #   torture.pl
 # (to run an infinte benchmark without random files.)
+#
+# to enable remote access:
+#   GRANT select on *.* TO 'root'@'%';
+#   FLUSH PRIVILEGES;
+# sigh, grant '%'@'%' does not work, so let us use 'root'.
 
 use DBI;
 use strict;
@@ -22,7 +27,8 @@ use Digest::MD5;
 my $howmany = 10;	## an initial value, will increment...
 my $verbose = 1;
 my $log_sql;
-my $file_count = 0;
+my $file_count = 0;		## different names
+my $mirror_files_count = 0;	## mirror locations.
 
 my $db = { name=>'dbi:mysql:dbname=redirector;host=galerkin.suse.de', user=>'root', pass=>"" };
 # my $db = { name=>'dbi:mysql:dbname=redirector', user=>'root', pass=>"" };
@@ -72,6 +78,7 @@ for (;;)
 #      }
 #exit;
 
+    my $total =  table_fetch($db, 'file_server', ['count(*) as total'], undef, 'ARRAY');
     my $server = table_fetch($db, 'server', [qw[id enabled status_baseurl status_baseurl_ftp]]);
     my $active = fixup_server($server);
 
@@ -83,8 +90,11 @@ for (;;)
 	next;
       }
     my $new_file_count = scalar @files;
+    my $new_mirror_files_count = $total->{rows}[0]{total};
     print "$new_file_count files known.\n" if $new_file_count != $file_count;
-    $file_count = scalar @files;
+    print "$new_mirror_files_count mirror files.\n" if $new_mirror_files_count != $mirror_files_count;
+    $file_count = $new_file_count;
+    $mirror_files_count = $new_mirror_files_count;
     for my $i (1..$howmany)
       {
 	my $file = $files[int(rand scalar @files)];
