@@ -43,7 +43,7 @@ CREATE TABLE `country_server` (
 
 CREATE TABLE `file` (
 `id` int(11) unsigned NOT NULL auto_increment,
-path` varchar(512) NOT NULL,
+`path` varchar(512) NOT NULL,
 PRIMARY KEY  (`id`)
 ) ENGINE=MyISAM  DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC AUTO_INCREMENT=84461 ;
 
