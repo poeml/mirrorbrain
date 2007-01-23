@@ -90,5 +90,8 @@ CREATE TABLE `server` (
 `status_baseurl_ftp` tinyint(1) NOT NULL,
 `status_ping` tinyint(1) NOT NULL,
 `last_scan` timestamp NULL default NULL,
+`country` char(2),
+`region` varchar(10),
+`score` tinyint(1),
 PRIMARY KEY  (`id`)
 ) ENGINE=MyISAM  DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC AUTO_INCREMENT=9 ;
