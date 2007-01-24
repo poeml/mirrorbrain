@@ -108,7 +108,7 @@ for (;;)
         unless ($loopcount % 32)
 	  {
 	    my $new_by_server = table_fetch($db, 'file_server', ['serverid', 'count(fileid) as count'], 'group by serverid');
-	    for my $s (sort { $a->{count} <=> $b->{count} } values %{$new_by_server->{rows}})
+	    for my $s (sort { $a->{serverid} <=> $b->{serverid} } values %{$new_by_server->{rows}})
 	      {
 		my $id = $s->{serverid};
 		printf "%3d:%40s%10d files.\n", $id, $server->{rows}{$id}{identifier}, $s->{count}

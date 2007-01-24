@@ -32,6 +32,7 @@ use strict;
 use LWP::UserAgent;
 use Data::Dumper;
 use Digest::MD5;
+use Time::HiRes;
 
 $ENV{FTP_PASSIVE} = 1;
 
@@ -61,7 +62,12 @@ for my $row (@$ary_ref)
   if ($enable == 1)
   {
     print "$id: $baseurl_ftp : \n" if $verbose;
+
+    my $start = time();
     my @dirlist = ftp_readdir($id, $baseurl_ftp, '');
+    my $duration = time() - $start;
+    $duration = 1 if $duration < 1;
+    my $fps = int(scalar(@dirlist)/$duration);
 
     my $sql = "DELETE FROM file_server WHERE serverid = $id 
     	       AND timestamp_scanner <= (SELECT last_scan FROM server 
@@ -70,7 +76,7 @@ for my $row (@$ary_ref)
     my $sth = $dbh->prepare( $sql );
               $sth->execute() or die $sth->errstr;
 
-    $sql = "UPDATE server SET last_scan = CURRENT_TIMESTAMP WHERE id = $id;";
+    $sql = "UPDATE server SET last_scan = CURRENT_TIMESTAMP, scan_fps = $fps WHERE id = $id;";
     $sth = $dbh->prepare( $sql );
            $sth->execute() or die $sth->err;
 
