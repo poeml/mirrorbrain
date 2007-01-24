@@ -27,8 +27,11 @@ use Digest::MD5;
 my $howmany = 10;	## an initial value, will increment...
 my $verbose = 1;
 my $log_sql;
-my $file_count = 0;		## different names
-my $mirror_files_count = 0;	## mirror locations.
+my $file_count = 0;		## different file names
+my $mirror_files_count = 0;	## mirrored files.
+my $mirror_count = 0;		## mirrors.
+my $by_server_count;		## mirrored files by mirror.
+
 
 my $db = { name=>'dbi:mysql:dbname=redirector;host=galerkin.suse.de', user=>'root', pass=>"" };
 # my $db = { name=>'dbi:mysql:dbname=redirector', user=>'root', pass=>"" };
@@ -65,6 +68,7 @@ if (@ARGV)
     exit 0;
   }
 
+my $loopcount = 0;
 for (;;)
   {
     my $files = table_fetch($db, 'file', [qw[path]], '', 'ARRAY');
@@ -78,23 +82,45 @@ for (;;)
 #      }
 #exit;
 
-    my $total =  table_fetch($db, 'file_server', ['count(*) as total'], undef, 'ARRAY');
-    my $server = table_fetch($db, 'server', [qw[id enabled status_baseurl status_baseurl_ftp]]);
-    my $active = fixup_server($server);
+    my $active;
+    unless ($loopcount % 8)
+      {
+	my $total =  table_fetch($db, 'file_server', ['count(*) as total'], undef, 'ARRAY');
+	my $server = table_fetch($db, 'server', [qw[id identifier enabled status_baseurl status_baseurl_ftp]]);
+	$active = fixup_server($server);
+
+	if (!@files)
+	  {
+	    warn "empty table: redirector.file\n";
+	    sleep 10;
+	    next;
+	  }
+	my $new_file_count = scalar @files;
+	my $new_mirror_files_count = $total->{rows}[0]{total};
+	my $new_mirror_count = keys %{$server->{rows}};
+	print "$new_mirror_count mirrors known.\n" if $new_mirror_count != $mirror_count;
+	print "$new_file_count files known.\n" if $new_file_count != $file_count;
+	print "$new_mirror_files_count mirror files.\n" if $new_mirror_files_count != $mirror_files_count;
+	$file_count = $new_file_count;
+	$mirror_count = $new_mirror_count;
+	$mirror_files_count = $new_mirror_files_count;
+
+        unless ($loopcount % 32)
+	  {
+	    my $new_by_server = table_fetch($db, 'file_server', ['serverid', 'count(fileid) as count'], 'group by serverid');
+	    for my $s (sort { $a->{count} <=> $b->{count} } values %{$new_by_server->{rows}})
+	      {
+		my $id = $s->{serverid};
+		printf "%3d:%40s%10d files.\n", $id, $server->{rows}{$id}{identifier}, $s->{count}
+		  if $s->{count} != ($by_server_count->{$id}||0);
+		$by_server_count->{$id} = $s->{count};
+	      }
+	  }
+      }
+    $loopcount++;
 
     my $start = Time::HiRes::time();
-    if (!@files)
-      {
-	warn "empty table: redirector.file\n";
-        sleep 10;
-	next;
-      }
-    my $new_file_count = scalar @files;
-    my $new_mirror_files_count = $total->{rows}[0]{total};
-    print "$new_file_count files known.\n" if $new_file_count != $file_count;
-    print "$new_mirror_files_count mirror files.\n" if $new_mirror_files_count != $mirror_files_count;
-    $file_count = $new_file_count;
-    $mirror_files_count = $new_mirror_files_count;
+
     for my $i (1..$howmany)
       {
 	my $file = $files[int(rand scalar @files)];
