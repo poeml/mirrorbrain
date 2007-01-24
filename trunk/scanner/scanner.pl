@@ -218,6 +218,7 @@ sub save_file
   my ($path, $serverid, $file_tstamp) = @_;
 
   my ($fileid, $md5) = getfileid($path);
+  die "save_file: md5 undef" unless defined $md5;
 
   if ($use_md5)
     {
@@ -317,8 +318,6 @@ sub getfileid
   my $sth = $dbh->prepare( $sql );
                 $sth->execute( $path ) or die $sth->err;
 
-  return Digest::MD5::md5_base64($path) if $use_md5;
-
   $sql = "SELECT id FROM file WHERE path = " . $dbh->quote($path);
 
   $ary_ref = $dbh->selectall_arrayref( $sql )
@@ -343,7 +342,6 @@ sub checkfileserver_md5
 {
   my ($serverid, $md5) = @_;
 
-  warn "checkfileserver_md5: md5 undef" unless defined $md5;
   my $sql = "SELECT 1 FROM file_server WHERE path_md5 = '$md5' AND serverid = $serverid";
   my $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
 
