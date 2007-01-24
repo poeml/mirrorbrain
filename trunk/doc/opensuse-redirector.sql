@@ -90,6 +90,7 @@ CREATE TABLE `server` (
 `status_baseurl_ftp` tinyint(1) NOT NULL,
 `status_ping` tinyint(1) NOT NULL,
 `last_scan` timestamp NULL default NULL,
+`scan_fps` int(11),
 `country` char(2),
 `region` varchar(10),
 `score` tinyint(1),
