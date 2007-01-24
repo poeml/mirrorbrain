@@ -24,6 +24,10 @@
 #                   Requires column 'path_md5 binary(22)' in file_server;
 #                   Obsoletes 'file.id' and 'file_server.fileid';
 #                 - Usage: optional parameter serverid, to limit the crawler.
+# 2007-01-24, jw  - Multiple server ids as parameter accepted. 
+#                   recording scan_fpm for benchmarking, 
+#                   and inserting both, fileid and path_md5 in file_server.
+#                   http_readdir added.
 # 
 
 use DBI;
@@ -38,14 +42,14 @@ $ENV{FTP_PASSIVE} = 1;
 
 # Create a user agent object
 my $ua = LWP::UserAgent->new;
-$ua->agent("scanner/0.1");
+$ua->agent("scanner/0.2");
 
 my $verbose = 1;
 my $use_md5 = 1;
 
-my $only_server_id = shift;
+my %only_server_ids = map { $_ => 1 } @ARGV;
 
-my $dbh = DBI->connect( 'dbi:mysql:redirector', 'root', '',
+my $dbh = DBI->connect( 'dbi:mysql:dbname=redirector;host=galerkin.suse.de', 'root', '',
      { PrintError => 0 } ) or die $DBI::errstr;
 
 my $sql = qq{SELECT * FROM server};
@@ -57,17 +61,19 @@ for my $row (@$ary_ref)
   my($id, $identifier, $baseurl, $baseurl_ftp, $enable, 
       $status_url, $status_ftp, $status_ping) = @$row;
 
-  next if defined($only_server_id) and $id != $only_server_id;
+  next if keys %only_server_ids and !defined $only_server_ids{$id};
 
   if ($enable == 1)
   {
-    print "$id: $baseurl_ftp : \n" if $verbose;
+    print "$id: $identifier : \n" if $verbose;
 
     my $start = time();
     my @dirlist = ftp_readdir($id, $baseurl_ftp, '');
+    @dirlist = http_readdir($id, $baseurl, '') if !@dirlist and $baseurl;
+
     my $duration = time() - $start;
     $duration = 1 if $duration < 1;
-    my $fps = int(scalar(@dirlist)/$duration);
+    my $fpm = int(60*scalar(@dirlist)/$duration);
 
     my $sql = "DELETE FROM file_server WHERE serverid = $id 
     	       AND timestamp_scanner <= (SELECT last_scan FROM server 
@@ -76,7 +82,7 @@ for my $row (@$ary_ref)
     my $sth = $dbh->prepare( $sql );
               $sth->execute() or die $sth->errstr;
 
-    $sql = "UPDATE server SET last_scan = CURRENT_TIMESTAMP, scan_fps = $fps WHERE id = $id;";
+    $sql = "UPDATE server SET last_scan = CURRENT_TIMESTAMP, scan_fpm = $fpm WHERE id = $id;";
     $sth = $dbh->prepare( $sql );
            $sth->execute() or die $sth->err;
 
@@ -87,10 +93,79 @@ for my $row (@$ary_ref)
 $dbh->disconnect();
 exit;
 
+sub http_readdir
+{
+  my ($id, $url, $name) = @_;
+  $url =~ s{/+$}{};	# we add our own trailing slashes...
+  $name =~ s{/+$}{};
+
+  my @r;
+  print "$id $url/$name\n" if $verbose;
+  my $contents = cont("$url/$name");
+  if ($contents =~ s{^.*<pre>.*<a href="\?C=.;O=.">}{}s)
+    {
+      ## good, we know that. it is a standard apache dir-listing.
+      ## 
+      ## bad, apache shows symlinks as a copy of the file or dir they point to.
+      ## no way to avoid duplicate crawls.
+      ##
+      $contents =~ s{</pre>.*$}{}s;
+      for my $line (split "\n", $contents)
+        {
+	  if ($line =~ m{^(.*)href="([^"]+)">([^<]+)</a>\s+([\w\s:-]+)\s+(-|[\d\.]+[KMG]?)})
+	    {
+	      my ($pre, $name1, $name2, $date, $size) = ($1, $2, $3, $4, $5);
+	      next if $name1 =~ m{^/} or $name1 =~ m{^\.\.};
+	      $name1 =~ s{%([\da-fA-F]{2})}{pack 'c', hex $1}ge;
+	      $name1 =~ s{^\./}{};
+	      my $dir = 1 if $pre =~ m{"\[DIR\]"};
+	      print "$pre^$name1^$date^$size\n" if $verbose > 1;
+              my $t = length($name) ? "$name/$name1" : $name1;
+	      if ($size eq '-' and ($dir or $name =~ m{/$}))
+	        {
+		  ## we must be really sure it is a directory, when we come here.
+		  ## otherwise, we'll retrieve the contents of a file!
+                  push @r, http_readdir($id, $url, $t);
+		}
+	      else
+	        {
+		  ## it is a file.
+		  my $time = str2time($date);
+		  my $len = byte_size($size);
+
+                  #save timestamp and file in database
+	          save_file($t, $id, $time);
+
+                  push @r, [ $t , $time ];
+		}
+	    }
+	}
+    }
+  else
+    {
+      ## we come here, whenever we stumble into an automatic index.html 
+      $contents = substr($contents, 0, 500);
+      warn Dumper $contents, "http_readdir: unknown HTML format";
+    }
+
+  return @r;
+}
+
+sub byte_size
+{
+  my ($len) = @_;
+  return $len unless $len =~ m{(.*)([KMG])$};
+  my ($n, $l) = ($1,$2);
+  return int($n*1024)           if $l eq 'K';
+  return int($1*1024*1024)      if $l eq 'M';
+  return int($1*1024*1024*1024) if $l eq 'G';
+  die;
+}
 
 sub ftp_readdir
 {
   my ($id, $url, $name) = @_;
+  $url =~ s{/+$}{};	# we add our own trailing slashes...
 
   print "$id $url/$name\n" if $verbose;
   my $content = cont("$url/$name");
@@ -108,7 +183,7 @@ sub ftp_readdir
   my @r;
   for my $i (0..$#text)
   {
-    if ($text[$i] =~ m/^([d-]).*(\w\w\w\s+\d\d?\s+\d\d:?\d\d)\s+([\S]+)$/)
+    if ($text[$i] =~ m/^([dl-]).*(\w\w\w\s+\d\d?\s+\d\d:?\d\d)\s+([\S]+)$/)
     {
       next if $3 eq "." or $3 eq "..";
       my $timestamp = $2;
@@ -122,40 +197,78 @@ sub ftp_readdir
       {
         push @r, ftp_readdir($id, $url, $t);
       }
+      if ($1 eq 'l')
+        {
+	  warn "symlink($t) not impl.";
+	}
       else
       {
         #save timestamp and file in database
-	my $key = $use_md5 ? 'path_md5' : 'fileid';
-
-        my $fileid = getfileid($t);
-	if (checkfileserver($id, $fileid))
-	{
-	my $sql = "UPDATE file_server SET 
-		   timestamp_file = FROM_UNIXTIME(?),
-		   timestamp_scanner = CURRENT_TIMESTAMP()
-		   WHERE $key = ? AND serverid = ?;";
-
-	my $sth = $dbh->prepare( $sql );
-	              $sth->execute( $time, $fileid, $id ) or die $sth->err
-	}  
-	else
-	{
-
-        my $sql = "INSERT INTO file_server SET $key = ?,
-		   serverid = ?,
-	           timestamp_file = FROM_UNIXTIME(?), 
-		   timestamp_scanner = CURRENT_TIMESTAMP();"; 
-		   #convert timestamp to mysql timestamp
-
-        my $sth = $dbh->prepare( $sql );
-		      $sth->execute( $fileid, $id, $time ) or die $sth->err;
-        }
+	save_file($t, $id, $time);
 
         push @r, [ $t , $time ];
       }
     }
   }
   return @r;
+}
+
+sub save_file
+{
+  my ($path, $serverid, $file_tstamp) = @_;
+
+  my ($fileid, $md5) = getfileid($path);
+
+  if ($use_md5)
+    {
+      if (checkfileserver_md5($serverid, $md5))
+      {
+      my $sql = "UPDATE file_server SET 
+		 timestamp_file = FROM_UNIXTIME(?),
+		 timestamp_scanner = CURRENT_TIMESTAMP()
+		 WHERE path_md5 = ? AND serverid = ?;";
+
+      my $sth = $dbh->prepare( $sql );
+		    $sth->execute( $file_tstamp, $md5, $serverid ) or die $sth->errstr;
+      }  
+      else
+      {
+
+      my $sql = "INSERT INTO file_server SET path_md5 = ?,
+		 fileid = ?, serverid = ?,
+		 timestamp_file = FROM_UNIXTIME(?), 
+		 timestamp_scanner = CURRENT_TIMESTAMP();"; 
+		 #convert timestamp to mysql timestamp
+
+      my $sth = $dbh->prepare( $sql );
+		    $sth->execute( $md5, $fileid, $serverid, $file_tstamp ) or die $sth->errstr;
+      }
+    }
+  else
+    {
+      if (checkfileserver_fileid($serverid, $fileid))
+      {
+      my $sql = "UPDATE file_server SET 
+		 timestamp_file = FROM_UNIXTIME(?),
+		 timestamp_scanner = CURRENT_TIMESTAMP()
+		 WHERE fileid = ? AND serverid = ?;";
+
+      my $sth = $dbh->prepare( $sql );
+		    $sth->execute( $file_tstamp, $fileid, $serverid ) or die $sth->errstr;
+      }  
+      else
+      {
+
+      my $sql = "INSERT INTO file_server SET fileid = ?,
+		 serverid = ?,
+		 timestamp_file = FROM_UNIXTIME(?), 
+		 timestamp_scanner = CURRENT_TIMESTAMP();"; 
+		 #convert timestamp to mysql timestamp
+
+      my $sth = $dbh->prepare( $sql );
+		    $sth->execute( $fileid, $serverid, $file_tstamp ) or die $sth->errstr;
+      }
+    }
 }
 
 sub cont 
@@ -180,14 +293,12 @@ sub cont
 }
 
 
-# getfileid can operate in two modes:
-# with use_md5, it only makes sure that the path is in table file.
-# and returns an md5sum, ignoring the id.
-# 
-# else it has to bother to retrieve the id after it did an insert.
+# getfileid returns the id as inserted in table file and the md5sum.
 #
-# we always update table file, so that we can ask 
-# the database to enumerate the files we have seen.
+# using md5 hashes, we still populate table file, 
+# so that we can ask the database to enumerate the files 
+# we have seen. Caller should still write the ids to file_server table, so that
+# a reverse lookup can be done. ("list me all files matching foo on server bar")
 #
 sub getfileid
 {
@@ -198,9 +309,8 @@ sub getfileid
   my $ary_ref = $dbh->selectall_arrayref( $sql )
                      or die $dbh->errstr();
   my $id = $ary_ref->[0][0];
-  return $id if defined $id;
 
-  return ($use_md5 ? Digest::MD5::md5_base64($path) : $id) if defined $id;
+  return $id, Digest::MD5::md5_base64($path) if defined $id;
   
   $sql = "INSERT INTO file SET path = ?;";
 
@@ -216,26 +326,26 @@ sub getfileid
 
   $id = $ary_ref->[0][0];
 
-  return $id;
+  return $id, Digest::MD5::md5_base64($path);
 }
 
-sub checkfileserver
+sub checkfileserver_fileid
 {
   my ($serverid, $fileid) = @_;
 
-  my $sql = $use_md5 ?
-    "SELECT 1 FROM file_server WHERE path_md5 = '$fileid' AND serverid = $serverid;" :
-    "SELECT 1 FROM file_server WHERE fileid = $fileid AND serverid = $serverid;";
+  my $sql = "SELECT 1 FROM file_server WHERE fileid = $fileid AND serverid = $serverid;";
+  my $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
 
-  my $ary_ref = $dbh->selectall_arrayref( $sql )
-                       or die $dbh->errstr();
+  return defined($ary_ref->[0]) ? 1 : 0;
+}  
 
-  if (defined $ary_ref->[0])
-  {
-    return 1
-  } 
-  else
-  {
-    return 0;
-  }
+sub checkfileserver_md5
+{
+  my ($serverid, $md5) = @_;
+
+  warn "checkfileserver_md5: md5 undef" unless defined $md5;
+  my $sql = "SELECT 1 FROM file_server WHERE path_md5 = '$md5' AND serverid = $serverid";
+  my $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
+
+  return defined($ary_ref->[0]) ? 1 : 0;
 }  
