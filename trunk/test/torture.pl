@@ -25,6 +25,7 @@ use Time::HiRes;
 use Digest::MD5;
 
 my $howmany = 10;	## an initial value, will increment...
+my $rand_size = 1000;	## how many random paths we draw from table file to test drive.
 my $verbose = 1;
 my $log_sql;
 my $file_count = 0;		## different file names
@@ -71,8 +72,17 @@ if (@ARGV)
 my $loopcount = 0;
 for (;;)
   {
-    my $files = table_fetch($db, 'file', [qw[path]], '', 'ARRAY');
-    my @files = map { $_->{path} } @{$files->{rows}};
+    ## shitty SQL gives me no random, when I ask
+    ## SELECT round(rand()*(max(id)-min(id)))+min(id) as r,id from file GROUP BY id LIMIT 10;
+    ## min() and max() are simply ignored, when select is forced to loop.
+
+    ## get 1000 random path names from the file table.
+    my $st = table_fetch($db, 'file', [1, 'max(id) as max', 'min(id) as min', 'count(id) as count']);
+    my @r = map { int(rand($st->{rows}{1}{max}-$st->{rows}{1}{min}))+$st->{rows}{1}{min} } (0..$rand_size);
+    my $where = "WHERE id IN (" . join(',',@r) . ")";
+    my $files = table_fetch($db, 'file', [qw[id path]], $where);
+    my @files = map { $_->{path} } values %{$files->{rows}};
+    ## got them.
 
 #    for my $file (@{$files->{rows}})
 #      {
@@ -92,10 +102,10 @@ for (;;)
 	if (!@files)
 	  {
 	    warn "empty table: redirector.file\n";
-	    sleep 10;
+	    sleep 5;
 	    next;
 	  }
-	my $new_file_count = scalar @files;
+	my $new_file_count = $st->{rows}{1}{count};
 	my $new_mirror_files_count = $total->{rows}[0]{total};
 	my $new_mirror_count = keys %{$server->{rows}};
 	print "$new_mirror_count mirrors known.\n" if $new_mirror_count != $mirror_count;
