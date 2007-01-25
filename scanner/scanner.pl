@@ -42,7 +42,7 @@ $ENV{FTP_PASSIVE} = 1;
 
 # Create a user agent object
 my $ua = LWP::UserAgent->new;
-$ua->agent("scanner/0.2");
+$ua->agent("openSUSE Scanner/0.2 (See http://en.opensuse.org/Mirrors/Scanner)");
 
 my $verbose = 1;
 my $use_md5 = 1;
