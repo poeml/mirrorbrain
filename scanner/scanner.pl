@@ -53,40 +53,38 @@ my $dbh = DBI->connect( 'dbi:mysql:dbname=redirector;host=galerkin.suse.de', 'ro
      { PrintError => 0 } ) or die $DBI::errstr;
 
 my $sql = qq{SELECT * FROM server};
-my $ary_ref = $dbh->selectall_arrayref( $sql )
+my $ary_ref = $dbh->selectall_hashref($sql, 'id')
 		   or die $dbh->errstr();
 
-for my $row (@$ary_ref)
+for my $row (sort { $a->{id} <=> $b->{id} } values %$ary_ref)
 {
-  my($id, $identifier, $baseurl, $baseurl_ftp, $enable, 
-      $status_url, $status_ftp, $status_ping) = @$row;
+  next if keys %only_server_ids and !defined $only_server_ids{$row->{id}};
 
-  next if keys %only_server_ids and !defined $only_server_ids{$id};
-
-  if ($enable == 1)
+  if ($row->{enabled} == 1)
   {
-    print "$id: $identifier : \n" if $verbose;
+    print "$row->{id}: $row->{identifier} : \n" if $verbose;
 
     my $start = time();
-    my @dirlist = ftp_readdir($id, $baseurl_ftp, '');
-    @dirlist = http_readdir($id, $baseurl, '') if !@dirlist and $baseurl;
+    my @dirlist = rsync_readdir($row->{id}, $row->{baseurl_rsync}, '');
+    @dirlist    =   ftp_readdir($row->{id}, $row->{baseurl_ftp}, '') if !@dirlist and $row->{baseurl_ftp};
+    @dirlist    =  http_readdir($row->{id}, $row->{baseurl}, '')     if !@dirlist and $row->{baseurl};
 
     my $duration = time() - $start;
     $duration = 1 if $duration < 1;
     my $fpm = int(60*scalar(@dirlist)/$duration);
 
-    my $sql = "DELETE FROM file_server WHERE serverid = $id 
+    my $sql = "DELETE FROM file_server WHERE serverid = $row->{id} 
     	       AND timestamp_scanner <= (SELECT last_scan FROM server 
-	       WHERE serverid = $id limit 1);";
+	       WHERE serverid = $row->{id} limit 1);";
 
     my $sth = $dbh->prepare( $sql );
               $sth->execute() or die $sth->errstr;
 
-    $sql = "UPDATE server SET last_scan = CURRENT_TIMESTAMP, scan_fpm = $fpm WHERE id = $id;";
+    $sql = "UPDATE server SET last_scan = CURRENT_TIMESTAMP, scan_fpm = $fpm WHERE id = $row->{id};";
     $sth = $dbh->prepare( $sql );
            $sth->execute() or die $sth->err;
 
-    print Dumper $id, \@dirlist if $verbose > 1;
+    print Dumper $row->{id}, \@dirlist if $verbose > 1;
   }
 }
 
@@ -347,3 +345,9 @@ sub checkfileserver_md5
 
   return defined($ary_ref->[0]) ? 1 : 0;
 }  
+
+sub rsync_readdir
+{
+  my ($url) = @_;
+  return ();
+}

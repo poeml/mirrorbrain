@@ -10,4 +10,7 @@ CREATE INDEX file_server_fileid_serverid_idx ON file_server (fileid,serverid);
 ALTER TABLE file_server ADD COLUMN path_md5 BINARY(22);
 CREATE INDEX file_server_path_md5_idx ON file_server (path_md5);
 
+-- for rsync
+ALTER TABLE server ADD COLUMN baseurl_rsync varchar(128);
+ALTER TABLE server ADD COLUMN rsync_is_staged tinyint;
 
