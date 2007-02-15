@@ -28,15 +28,44 @@
 #                   recording scan_fpm for benchmarking, 
 #                   and inserting both, fileid and path_md5 in file_server.
 #                   http_readdir added.
+# 2007-02-15, jw  - rsync_readdir added.
+# 		    
+# FIXME: 
+# should do optimize table file, file_server;
+# once in a while.
+#
 # 
+#######################################################################
+# rsync protocol
+#######################################################################
+#
+# Copyright (c) 2005 Michael Schroeder (mls@suse.de)
+#
+# This program is licensed under the BSD license, read LICENSE.BSD
+# for further information
+#
+#######################################################################
+
+use strict;
 
 use DBI;
 use Date::Parse;
-use strict;
 use LWP::UserAgent;
 use Data::Dumper;
 use Digest::MD5;
 use Time::HiRes;
+use Socket;
+use bytes;
+
+$SIG{'PIPE'} = 'IGNORE';
+my $rsync_muxbuf = '';
+
+$SIG{__DIE__} = sub 
+{
+  my @a = ((caller 3)[1..3], '=>', (caller 2)[1..3], '=>', (caller 1)[1..3]);
+  print "__DIE__: (@a)\n";
+  die @_;
+};
 
 $ENV{FTP_PASSIVE} = 1;
 
@@ -215,6 +244,7 @@ sub save_file
 {
   my ($path, $serverid, $file_tstamp) = @_;
 
+  $path =~ s{^/+}{};	# be sure we have no leading slashes.
   my ($fileid, $md5) = getfileid($path);
   die "save_file: md5 undef" unless defined $md5;
 
@@ -346,8 +376,234 @@ sub checkfileserver_md5
   return defined($ary_ref->[0]) ? 1 : 0;
 }  
 
+sub rsync_cb
+{
+  my ($priv, $name, $len, $mode, $mtime, @info) = @_;
+  return if $name eq '.' or $name eq '..';
+  if ($mode & 0x1000)	 # directories have 0 here.
+    {
+      save_file($name, $priv->{serverid}, $mtime);
+    }
+  else
+    {
+      printf "%03o %8d %-25s %-50s\n", ($mode & 0777), $len, scalar(localtime $mtime), $name;
+    }
+  return;
+}
+
 sub rsync_readdir
 {
-  my ($url) = @_;
-  return ();
+  my ($serverid, $url) = @_;
+
+  $url =~ s{^rsync://}{}s;
+  my $cred = $1 if $url =~ s{^(.*?)@}{};
+  die "rsync_scan: cannot parse '$url'\n" unless $url =~ m{^([^:/]+)(:(\d*))?(.*)$};
+  my ($host, $dummy, $port, $path) = ($1,$2,$3,$4);
+  $port = 873 unless $port;
+  $path =~ s{^/}{};
+
+  my $peer = { addr => inet_aton($host), port => $port, serverid => $serverid };
+  $peer->{pass} = $1 if $cred and $cred =~ s{:(.*)}{};
+  $peer->{user} = $cred if $cred;
+  return rsync_get_filelist($peer, $path, 0, \&rsync_cb, $peer);
 }
+
+
+
+#######################################################################
+# rsync protocol
+#######################################################################
+#
+# Copyright (c) 2005 Michael Schroeder (mls@suse.de)
+#
+# This program is licensed under the BSD license, read LICENSE.BSD
+# for further information
+#
+
+sub sread {
+  local *SS = shift;
+  my $len = shift;
+  my $ret = '';
+  while ($len > 0) {
+    my $r = sysread(SS, $ret, $len, length($ret));
+    die("read error") unless $r;
+    $len -= $r;
+    die("read too much") if $r < 0;
+  }
+  return $ret;
+}
+
+sub swrite {
+  local *SS = shift;
+  my ($var, $len) = @_;
+  $len = length($var) unless defined $len;
+  (syswrite(SS, $var, $len) || 0) == $len || die("syswrite: $!\n");
+}
+
+sub muxread {
+  local *SS = shift;
+  my $len = shift;
+
+  #print "muxread $len\n";
+  while(length($rsync_muxbuf) < $len) {
+    #print "muxbuf len now ".length($muxbuf)."\n";
+    my $tag = '';
+    $tag = sread(*SS, 4);
+    $tag = unpack('V', $tag);
+    my $tlen = 0+$tag & 0xffffff;
+    $tag >>= 24;
+    if ($tag == 7) {
+      $rsync_muxbuf .= sread(*SS, $tlen);
+      next;
+    }
+    if ($tag == 8 || $tag == 9) {
+      my $msg = sread(*SS, $tlen);
+      die("$msg\n") if $tag == 8;
+      print "info: $msg\n";
+      next;
+    }
+    die("unknown tag: $tag\n");
+  }
+  my $ret = substr($rsync_muxbuf, 0, $len);
+  $rsync_muxbuf = substr($rsync_muxbuf, $len);
+  return $ret;
+}
+
+sub rsync_get_filelist {
+  my ($peer, $syncroot, $norecurse, $callback, $priv) = @_;
+  my $syncaddr = $peer->{addr};
+  my $syncport = $peer->{port};
+
+  if (!defined($peer->{have_md4})) {
+    ## why not rely on %INC here?
+    $peer->{have_md4} = 0;
+    eval {
+      require Digest::MD4;
+      $peer->{have_md4} = 1;
+    };
+  }
+  $syncroot =~ s/^\/+//;
+  my $module = $syncroot;
+  $module =~ s/\/.*//;
+  my $tcpproto = getprotobyname('tcp');
+  socket(S, PF_INET, SOCK_STREAM, $tcpproto) || die("socket: $!\n");
+  connect(S, sockaddr_in($syncport, $syncaddr)) || die("connect: $!\n");
+  my $hello = "\@RSYNCD: 28\n";
+  swrite(*S, $hello);
+  my $buf = '';
+  sysread(S, $buf, 4096);
+  die("protocol error [$buf]\n") if $buf !~ /^\@RSYNCD: (\d+)\n/s;
+  $peer->{rsync_protocol} = $1;
+  $peer->{rsync_protocol} = 28 if $peer->{rsync_protocol} > 28;
+  swrite(*S, "$module\n");
+  while(1) {
+    sysread(S, $buf, 4096);
+    die("protocol error [$buf]\n") if $buf !~ s/\n//s;
+    last if $buf eq "\@RSYNCD: OK";
+    die("$buf\n") if $buf =~ /^\@ERROR/s;
+    if ($buf =~ /^\@RSYNCD: AUTHREQD /) {
+      die("'$module' needs authentification, but Digest::MD4 is not installed\n") unless $peer->{have_md4};
+      my $user = "nobody" if !defined($peer->{user}) || $peer->{user} eq '';
+      my $password = '' unless defined $peer->{password};
+      my $digest = "$user ".Digest::MD4::md4_base64("\0\0\0\0$password".substr($buf, 18))."\n";
+      swrite(*S, $digest);
+      next;
+    }
+  }
+  my @args = ('--server', '--sender', '-rl');
+  push @args, '--exclude=/*/*' if $norecurse;
+  for my $arg (@args, '.', "$syncroot/.", '') {
+    swrite(*S, "$arg\n");
+  }
+  sread(*S, 4);	# checksum seed
+  swrite(*S, "\0\0\0\0");
+  my @filelist;
+  my $name = '';
+  my $mtime = 0;
+  my $mode = 0;
+  my $uid = 0;
+  my $gid = 0;
+  my $flags;
+  while(1) {
+    $flags = muxread(*S, 1);
+    $flags = ord($flags);
+    # printf "flags = %02x\n", $flags;
+    last if $flags == 0;
+    $flags |= ord(muxread(*S, 1)) << 8 if $peer->{rsync_protocol} >= 28 && ($flags & 0x04) != 0;
+    my $l1 = $flags & 0x20 ? ord(muxread(*S, 1)) : 0;
+    my $l2 = $flags & 0x40 ? unpack('V', muxread(*S, 4)) : ord(muxread(*S, 1));
+    $name = substr($name, 0, $l1).muxread(*S, $l2);
+    my $len = unpack('V', muxread(*S, 4));
+    if ($len == 0xffffffff) {
+      $len = unpack('V', muxread(*S, 4));
+      my $len2 = unpack('V', muxread(*S, 4));
+      $len += $len2 * 4294967296;
+    }
+    $mtime = unpack('V', muxread(*S, 4)) unless $flags & 0x80;
+    $mode = unpack('V', muxread(*S, 4)) unless $flags & 0x02;
+    my @info = ();
+    my $mmode = $mode & 07777;
+    if (($mode & 0170000) == 0100000) {
+      $mmode |= 0x1000;
+    } elsif (($mode & 0170000) == 0040000) {
+      $mmode |= 0x0000;
+    } elsif (($mode & 0170000) == 0120000) {
+      $mmode |= 0x2000;
+      my $ln = muxread(*S, unpack('V', muxread(*S, 4)));
+      @info = ($ln);
+    } else {
+      print "$name: unknown mode: $mode\n";
+      next;
+    }
+    if ($callback)
+      {
+        my $r = &$callback($priv, $name, $len, $mmode, $mtime, @info);
+        push @filelist, $r if $r;
+      }
+    else
+      {
+        push @filelist, [$name, $len, $mmode, $mtime, @info];
+      }
+  }
+  my $io_error = unpack('V', muxread(*S, 4));
+
+  # rsync_send_fin
+  swrite(*S, pack('V', -1));      # switch to phase 2
+  swrite(*S, pack('V', -1));      # switch to phase 3
+  if ($peer->{rsync_protocol} >= 24) {
+    swrite(*S, pack('V', -1));    # goodbye
+  }
+  close(S);
+  return @filelist;
+}
+
+sub cb_print
+{
+  my ($priv, $name, $len, $mode, $mtime, @info) = @_;
+  return if $name eq '.' or $name eq '..';
+  my $d = ($mode & 0x1000) ? '-' : 'd';		# directories have 0 here.
+  printf "$d %03o %8d %-25s %-50s\n", ($mode & 0777), $len, scalar(localtime $mtime), $name;
+  return;
+}
+
+# rsync://ftp5.gwdg.de/pub/opensuse/tools
+# rsync://ftp5.gwdg.de:873/pub/opensuse/tools
+sub rsync_scan
+{
+  my ($url, $norecurse) = @_;
+
+  $url =~ s{^rsync://}{}s;
+  my $cred = $1 if $url =~ s{^(.*?)@}{};
+  die "rsync_scan: cannot parse '$url'\n" unless $url =~ m{^([^:/]+)(:(\d*))?(.*)$};
+  my ($host, $dummy, $port, $path) = ($1,$2,$3,$4);
+  $port = 873 unless $port;
+  $path =~ s{^/}{};
+
+  my $peer = { addr => inet_aton($host), port => $port };
+  $peer->{pass} = $1 if $cred and $cred =~ s{:(.*)}{};
+  $peer->{user} = $cred if $cred;
+  return rsync_get_filelist($peer, $path, $norecurse, \&cb_print, $peer);
+}
+
+my @fl = rsync_scan($ARGV[0], $ARGV[1]);
+print Dumper(\@fl);
