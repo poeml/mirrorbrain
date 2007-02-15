@@ -6,21 +6,31 @@
 # via http put request.
 
 
+#------------------------------------
 # <CONFIG>
 #
+# DB:
+#
 db_host  = 'localhost'
-db_port  = 3306
 db_user  = 'root'
 db_pass  = ''
 db_name  = 'redirector'
 db_table = 'redirect_stats'
 #
+# API:
+#
+api_user = 'Admin'
+api_pass = 'opensuse'
+api_url  = 'http://davey.suse.de:3001/statistics/redirect_stats'
+#
 # </CONFIG>
+#------------------------------------
 
 
-##########################################################################
-
-
+require 'uri'
+require 'base64'
+require 'net/http'
+require 'tempfile'
 require 'rubygems'
 require_gem 'activesupport'
 require_gem 'activerecord'
@@ -30,7 +40,6 @@ require_gem 'activerecord'
 ActiveRecord::Base.establish_connection(
   :adapter  => 'mysql',
   :host     => db_host,
-  :port     => db_port,
   :username => db_user,
   :password => db_pass,
   :database => db_name
@@ -42,7 +51,12 @@ class RedirectStats < ActiveRecord::Base ; end
 
 
 # get all entries from database
-db_stats = RedirectStats.find :all
+begin
+  db_stats = RedirectStats.find :all
+rescue
+  puts "ERROR while getting redirect_stats from database. Abort."
+  exit false
+end
 
 
 # build nested hash with counters
@@ -104,8 +118,23 @@ xml.redirect_stats do
 end # outer 'redirect_stats' xml tag
 
 
+# write xml to file, for later inspection (for debugging only atm)
+file = File.new( '/tmp/redirect_stats.xml', 'w+' )
+file << xml_output
+file.close
+puts "XML written to #{file.path} ..."
 
 
-# for now, just print it on stdout
-puts xml_output
+# prepare api connection
+url = URI.parse api_url
+header = {}
+header['Authorization'] = 'Basic ' + Base64.encode64("#{api_user}:#{api_pass}")
+
+
+# send xml via put request to the build service api
+puts "Send XML to build service API ..."
+response = Net::HTTP.start url.host, url.port do |http|
+  http.put url.path, xml_output, header
+end
+puts "===== API RESPONSE =====\n#{response}"
 
