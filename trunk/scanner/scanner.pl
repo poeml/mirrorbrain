@@ -402,7 +402,7 @@ sub rsync_cb
     }
   elsif ($verbose)
     {
-      printf "rsync %03o %8d %-25s %-50s\n", ($mode & 0777), $len, scalar(localtime $mtime), $name;
+      printf "rsync(%d) %03o %8d %-25s %-50s\n", $priv->{serverid}, ($mode & 0777), $len, scalar(localtime $mtime), $name;
     }
   return;
 }
@@ -415,7 +415,7 @@ sub rsync_readdir
   $url =~ s{^rsync://}{}s;
   my $pat  = $1 if $url =~ s{#(.*?)$}{};
   my $cred = $1 if $url =~ s{^(.*?)@}{};
-  die "rsync_scan: cannot parse '$url'\n" unless $url =~ m{^([^:/]+)(:(\d*))?(.*)$};
+  die "rsync_readdir: cannot parse '$url'\n" unless $url =~ m{^([^:/]+)(:(\d*))?(.*)$};
   my ($host, $dummy, $port, $path) = ($1,$2,$3,$4);
   $port = 873 unless $port;
   $path =~ s{^/}{};
@@ -596,34 +596,3 @@ sub rsync_get_filelist {
   close(S);
   return @filelist;
 }
-
-sub cb_print
-{
-  my ($priv, $name, $len, $mode, $mtime, @info) = @_;
-  return if $name eq '.' or $name eq '..';
-  my $d = ($mode & 0x1000) ? '-' : 'd';		# directories have 0 here.
-  printf "$d %03o %8d %-25s %-50s\n", ($mode & 0777), $len, scalar(localtime $mtime), $name;
-  return;
-}
-
-# rsync://ftp5.gwdg.de/pub/opensuse/tools
-# rsync://ftp5.gwdg.de:873/pub/opensuse/tools
-sub rsync_scan
-{
-  my ($url, $norecurse) = @_;
-
-  $url =~ s{^rsync://}{}s;
-  my $cred = $1 if $url =~ s{^(.*?)@}{};
-  die "rsync_scan: cannot parse '$url'\n" unless $url =~ m{^([^:/]+)(:(\d*))?(.*)$};
-  my ($host, $dummy, $port, $path) = ($1,$2,$3,$4);
-  $port = 873 unless $port;
-  $path =~ s{^/}{};
-
-  my $peer = { addr => inet_aton($host), port => $port };
-  $peer->{pass} = $1 if $cred and $cred =~ s{:(.*)}{};
-  $peer->{user} = $cred if $cred;
-  return rsync_get_filelist($peer, $path, $norecurse, \&cb_print, $peer);
-}
-
-my @fl = rsync_scan($ARGV[0], $ARGV[1]);
-print Dumper(\@fl);
