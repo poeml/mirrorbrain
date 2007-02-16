@@ -412,11 +412,12 @@ sub rsync_cb
 sub rsync_readdir
 {
   my ($serverid, $url) = @_;
+  return 0 unless $url;
 
   $url =~ s{^rsync://}{}s;
   my $pat  = $1 if $url =~ s{#(.*?)$}{};
   my $cred = $1 if $url =~ s{^(.*?)@}{};
-  die "rsync_readdir: cannot parse '$url'\n" unless $url =~ m{^([^:/]+)(:(\d*))?(.*)$};
+  die "rsync_readdir: cannot parse url '$url'\n" unless $url =~ m{^([^:/]+)(:(\d*))?(.*)$};
   my ($host, $dummy, $port, $path) = ($1,$2,$3,$4);
   $port = 873 unless $port;
   $path =~ s{^/}{};
