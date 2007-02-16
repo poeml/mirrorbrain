@@ -94,13 +94,21 @@ for my $row (sort { $a->{id} <=> $b->{id} } values %$ary_ref)
     print "$row->{id}: $row->{identifier} : \n" if $verbose;
 
     my $start = time();
-    my @dirlist = rsync_readdir($row->{id}, $row->{baseurl_rsync}, '');
-    @dirlist    =   ftp_readdir($row->{id}, $row->{baseurl_ftp}, '') if !@dirlist and $row->{baseurl_ftp};
-    @dirlist    =  http_readdir($row->{id}, $row->{baseurl}, '')     if !@dirlist and $row->{baseurl};
+    my $file_count = rsync_readdir($row->{id}, $row->{baseurl_rsync}, '');
+    if (!$file_count and $row->{baseurl_ftp})
+      {
+        print "no rsync, trying ftp\n" if $verbose;
+        $file_count = scalar ftp_readdir($row->{id}, $row->{baseurl_ftp}, '') 
+      }
+    if (!$file_count and $row->{baseurl})
+      {
+        print "no rsync, no ftp, trying http\n" if $verbose;
+        $file_count = scalar http_readdir($row->{id}, $row->{baseurl}, '')     
+      }
 
     my $duration = time() - $start;
     $duration = 1 if $duration < 1;
-    my $fpm = int(60*scalar(@dirlist)/$duration);
+    my $fpm = int(60*$file_count/$duration);
 
     my $sql = "DELETE FROM file_server WHERE serverid = $row->{id} 
     	       AND timestamp_scanner <= (SELECT last_scan FROM server 
@@ -113,7 +121,7 @@ for my $row (sort { $a->{id} <=> $b->{id} } values %$ary_ref)
     $sth = $dbh->prepare( $sql );
            $sth->execute() or die $sth->err;
 
-    print Dumper $row->{id}, \@dirlist if $verbose > 1;
+    print "server $row->{id}, $file_count files.\n" if $verbose > 1;
   }
 }
 
@@ -380,22 +388,32 @@ sub rsync_cb
 {
   my ($priv, $name, $len, $mode, $mtime, @info) = @_;
   return if $name eq '.' or $name eq '..';
+
+  if ($priv->{pat} && $priv->{pat} =~ m{@([^@]*)@([^@]*)})
+    {
+      my ($m, $r) = ($1, $2);
+      $name =~ s{$m}{$r};
+    }
+
   if ($mode & 0x1000)	 # directories have 0 here.
     {
       save_file($name, $priv->{serverid}, $mtime);
+      $priv->{counter}++;
     }
-  else
+  elsif ($verbose)
     {
-      printf "%03o %8d %-25s %-50s\n", ($mode & 0777), $len, scalar(localtime $mtime), $name;
+      printf "rsync %03o %8d %-25s %-50s\n", ($mode & 0777), $len, scalar(localtime $mtime), $name;
     }
   return;
 }
 
+# rsync://ftp.sunet.se/pub/Linux/distributions/opensuse/#@^opensuse/@@
 sub rsync_readdir
 {
   my ($serverid, $url) = @_;
 
   $url =~ s{^rsync://}{}s;
+  my $pat  = $1 if $url =~ s{#(.*?)$}{};
   my $cred = $1 if $url =~ s{^(.*?)@}{};
   die "rsync_scan: cannot parse '$url'\n" unless $url =~ m{^([^:/]+)(:(\d*))?(.*)$};
   my ($host, $dummy, $port, $path) = ($1,$2,$3,$4);
@@ -403,9 +421,11 @@ sub rsync_readdir
   $path =~ s{^/}{};
 
   my $peer = { addr => inet_aton($host), port => $port, serverid => $serverid };
+  $peer->{pat} = $pat if $pat;
   $peer->{pass} = $1 if $cred and $cred =~ s{:(.*)}{};
   $peer->{user} = $cred if $cred;
-  return rsync_get_filelist($peer, $path, 0, \&rsync_cb, $peer);
+  rsync_get_filelist($peer, $path, 0, \&rsync_cb, $peer);
+  return $peer->{counter};
 }
 
 
