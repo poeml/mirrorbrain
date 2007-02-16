@@ -114,6 +114,7 @@ for my $row (sort { $a->{id} <=> $b->{id} } values %$ary_ref)
     	       AND timestamp_scanner <= (SELECT last_scan FROM server 
 	       WHERE serverid = $row->{id} limit 1);";
 
+    print "$sql\n" if $verbose;
     my $sth = $dbh->prepare( $sql );
               $sth->execute() or die $sth->errstr;
 
@@ -478,7 +479,7 @@ sub muxread {
     }
     if ($tag == 8 || $tag == 9) {
       my $msg = sread(*SS, $tlen);
-      die("$msg\n") if $tag == 8;
+      warn("tag=8 $msg\n") if $tag == 8;
       print "info: $msg\n";
       next;
     }
