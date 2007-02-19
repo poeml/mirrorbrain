@@ -2,7 +2,7 @@
 
 ################################################################################
 # ping.pl daemon for probing the opensuse mirror server.
-# Copyright (C) 2006 Martin Polster, Novell Inc.
+# Copyright (C) 2006 - 2007 Martin Polster, Novell Inc.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -19,6 +19,11 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 ################################################################################
 
+#
+# 2007-02-19, mpolster: - added galerkin.suse.de as host for dbi connection
+#			- changed name of tables in source code
+#
+
 use Net::Ping;
 use DBI;
 use strict;
@@ -26,10 +31,10 @@ use LWP::Simple;
 
 my $verbose = 0;
 
-my $dbh = DBI->connect( 'dbi:mysql:redirector', 'root', '',
+my $dbh = DBI->connect( 'dbi:mysql:dbname=redirector;host=galerkin.suse.de', 'root', '',
     { PrintError => 0 } ) or die $DBI::errstr;
 
-my $sql = qq{SELECT * FROM servers};
+my $sql = qq{SELECT * FROM server};
 my $ary_ref  = $dbh->selectall_arrayref( $sql )
 		   or die $dbh->errstr();
 
@@ -59,7 +64,7 @@ for my $row (@$ary_ref)
   $content = head($baseurl_ftp);
   my $ftpres = (defined $content ) ? 1 : 0;
 
-  my $sql = "UPDATE servers SET status_ping = ?, status_baseurl = ?, 
+  my $sql = "UPDATE server SET status_ping = ?, status_baseurl = ?, 
 	     status_baseurl_ftp = ? WHERE ( id = ?);";
 
   my $sth = $dbh->prepare( $sql );
