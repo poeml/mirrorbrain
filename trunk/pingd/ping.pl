@@ -22,17 +22,18 @@
 #
 # 2007-02-19, mpolster: - added galerkin.suse.de as host for dbi connection
 #			- changed name of tables in source code
-#
+#			- include config for dbi connection
 
 use Net::Ping;
 use DBI;
 use strict;
 use LWP::Simple;
 
-my $verbose = 0;
+my $cfg = do "../config/config.pl";
 
-my $dbh = DBI->connect( 'dbi:mysql:dbname=redirector;host=galerkin.suse.de', 'root', '',
-    { PrintError => 0 } ) or die $DBI::errstr;
+my $verbose = 1;
+
+my $dbh = DBI->connect( "dbi:$cfg->{db_driver}:dbname=$cfg->{db_name};host=$cfg->{db_host}", $cfg->{db_user}, $cfg->{db_pass}, { PrintError => 0 } ) or die $DBI::errstr;
 
 my $sql = qq{SELECT * FROM server};
 my $ary_ref  = $dbh->selectall_arrayref( $sql )
