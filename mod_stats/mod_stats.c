@@ -211,7 +211,6 @@ static char *stats_getlastword(apr_pool_t *atrans, char **line, char stop)
 static download_t *stats_parse_req(request_rec *r, stats_dir_conf *cfg, 
                                    char *req_filename, download_t *d) {
     char *file;
-    char *res;
     int i, len;
     int j = 0;
 
