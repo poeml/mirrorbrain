@@ -7,7 +7,7 @@ RPM packages are here:
 http://software.opensuse.org/download/Apache:/Modules/
 
 It requires libGeoIP, libapr_memcache, and mod_form.
-It can be build manually with
+It can be built manually with
 apxs2 -c -lGeoIP -lapr_memcache -Wc,"-Wall -g" mod_zrkadlo.c
 
 
