@@ -3,8 +3,11 @@ This is a redirector module for apache.
 It requires a backend to work with, which can be found at
 https://forgesvn1.novell.com/svn/opensuse/trunk/tools/download-redirector-v2
 
+RPM packages are here:
+http://software.opensuse.org/download/Apache:/Modules/
+
 It requires libGeoIP, libapr_memcache, and mod_form.
-It can be build build with
+It can be build manually with
 apxs2 -c -lGeoIP -lapr_memcache -Wc,"-Wall -g" mod_zrkadlo.c
 
 
