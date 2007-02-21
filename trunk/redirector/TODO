@@ -1,0 +1,13 @@
+might need patch for
+http://issues.apache.org/bugzilla/show_bug.cgi?id=39329
+
+might need patch for
+http://www.nabble.com/apr_memcache-memory-leak-t3146183.html
+http://issues.outoforder.cc/view.php?id=68
+
+evaluate if it makes sense to memcache database query results, which may not be
+practicable for all objects, but for some particular objects, like those with
+mime type application/x-cd-image. They should not be cached for a significant
+amount of time, but a few minutes shouldn't be a problem.
+As a key for the memcache object, one could use the label of the prepared SQL
+statement combined with the filename.
