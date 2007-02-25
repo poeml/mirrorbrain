@@ -10,7 +10,7 @@
  * This module was inspired by mod_offload, written by
  * Ryan C. Gordon <icculus@icculus.org>.
  *
- * It also uses code from mod_authn_dbd, mod_authnz_ldap, mod_status, 
+ * It uses code from mod_authn_dbd, mod_authnz_ldap, mod_status, 
  * apr_memcache, ssl_scache_memcache.c
  *
  */
@@ -55,6 +55,10 @@
 #define DEFAULT_GEOIPFILE "/usr/share/GeoIP/GeoIP.dat"
 #define MEMCACHED_HOST "127.0.0.1"
 #define MEMCACHED_PORT "11211"
+#define DEFAULT_MEMCACHED_MIN 0
+#define DEFAULT_MEMCACHED_SOFTMAX 1
+#define DEFAULT_MEMCACHED_LIFETIME 600
+
 #define DEFAULT_MIN_MIRROR_SIZE 4096
 
 module AP_MODULE_DECLARE_DATA zrkadlo_module;
@@ -99,6 +103,10 @@ typedef struct
 typedef struct
 {
     const char *memcached_addr;
+    int memcached_min;
+    int memcached_softmax;
+    int memcached_hardmax;
+    int memcached_lifetime;
     apr_table_t *treat_country_as; /* treat country as another country */
 } zrkadlo_server_conf;
 
@@ -191,17 +199,40 @@ static void zrkadlo_mc_init(server_rec *s, apr_pool_t *p)
         }
 
         if (port == 0) {
-            port = 11211; /* default port */
+            port = atoi(MEMCACHED_PORT);
         }
 
+        /* default pool size */
+        if (conf->memcached_min == UNSET)
+            conf->memcached_min = DEFAULT_MEMCACHED_MIN;
+        if (conf->memcached_softmax == UNSET)
+            conf->memcached_softmax = DEFAULT_MEMCACHED_SOFTMAX;
         /* Should Max Conns be (thread_limit / nservers) ? */
-        rv = apr_memcache_server_create(p,
-                                        host_str, port,
-                                        0,
-                                        1,
-                                        thread_limit,
-                                        600,
-                                        &st);
+        if (conf->memcached_hardmax == UNSET)
+            conf->memcached_hardmax = thread_limit;
+
+        /* sanity checks */
+        if (conf->memcached_hardmax > thread_limit) {
+            ap_log_error(APLOG_MARK, APLOG_CRIT, rv, s, "ZrkadloMemcachedConnHardMax: "
+                         "must be equal to ThreadLimit or less");
+            zrkadlo_die();
+        }
+        if (conf->memcached_softmax > conf->memcached_hardmax) {
+            ap_log_error(APLOG_MARK, APLOG_CRIT, rv, s, "ZrkadloMemcachedConnSoftMax: "
+                         "must not be larger than ZrkadloMemcachedConnHardMax");
+            zrkadlo_die();
+        }
+        if (conf->memcached_min > conf->memcached_softmax) {
+            ap_log_error(APLOG_MARK, APLOG_CRIT, rv, s, "ZrkadloMemcachedConnMin: "
+                         "must not be larger than ZrkadloMemcachedConnSoftMax");
+            zrkadlo_die();
+        }
+
+        rv = apr_memcache_server_create(p, host_str, port, 
+                                        conf->memcached_min,
+                                        conf->memcached_softmax,
+                                        conf->memcached_hardmax,
+                                        600, &st);
         if (rv != APR_SUCCESS) {
             ap_log_error(APLOG_MARK, APLOG_CRIT, rv, s,
                          "ZrkadloMemcachedAddrPort: Failed to Create Server: %s:%d",
@@ -307,6 +338,10 @@ static void *create_zrkadlo_server_config(apr_pool_t *p, server_rec *s)
             "zrkadlo: creating server config");
 
     new->memcached_addr = MEMCACHED_HOST ":" MEMCACHED_PORT;
+    new->memcached_min= UNSET;
+    new->memcached_softmax = UNSET;
+    new->memcached_hardmax = UNSET;
+    new->memcached_lifetime = UNSET;
     new->treat_country_as = apr_table_make(p, 0);
 
     return (void *) new;
@@ -322,6 +357,10 @@ static void *merge_zrkadlo_server_config(apr_pool_t *p, void *basev, void *addv)
             "zrkadlo: merging server config");
 
     mrg->memcached_addr = (add->memcached_addr == NULL) ? base->memcached_addr : add->memcached_addr;
+    cfgMergeInt(memcached_min);
+    cfgMergeInt(memcached_softmax);
+    cfgMergeInt(memcached_hardmax);
+    cfgMergeInt(memcached_lifetime);
     mrg->treat_country_as = apr_table_overlay(p, add->treat_country_as, base->treat_country_as);
 
     return (void *) mrg;
@@ -408,6 +447,58 @@ static const char *zrkadlo_cmd_memcached_addr(cmd_parms *cmd, void *config,
     return NULL;
 }
 
+static const char *zrkadlo_cmd_memcached_min(cmd_parms *cmd, void *config,
+                                const char *arg1)
+{
+    server_rec *s = cmd->server;
+    zrkadlo_server_conf *cfg = 
+        ap_get_module_config(s->module_config, &zrkadlo_module);
+
+    cfg->memcached_min = atoi(arg1);
+    if (cfg->memcached_min <= 0)
+        return "ZrkadloMemcachedConnMin requires a non-negative integer.";
+    return NULL;
+}
+
+static const char *zrkadlo_cmd_memcached_softmax(cmd_parms *cmd, void *config,
+                                const char *arg1)
+{
+    server_rec *s = cmd->server;
+    zrkadlo_server_conf *cfg = 
+        ap_get_module_config(s->module_config, &zrkadlo_module);
+
+    cfg->memcached_softmax = atoi(arg1);
+    if (cfg->memcached_softmax <= 0)
+        return "ZrkadloMemcachedConnSoftMax requires an integer > 0.";
+    return NULL;
+}
+
+static const char *zrkadlo_cmd_memcached_hardmax(cmd_parms *cmd, void *config,
+                                const char *arg1)
+{
+    server_rec *s = cmd->server;
+    zrkadlo_server_conf *cfg = 
+        ap_get_module_config(s->module_config, &zrkadlo_module);
+
+    cfg->memcached_hardmax = atoi(arg1);
+    if (cfg->memcached_hardmax <= 0)
+        return "ZrkadloMemcachedConnHardMax requires an integer > 0.";
+    return NULL;
+}
+
+static const char *zrkadlo_cmd_memcached_lifetime(cmd_parms *cmd, void *config,
+                                const char *arg1)
+{
+    server_rec *s = cmd->server;
+    zrkadlo_server_conf *cfg = 
+        ap_get_module_config(s->module_config, &zrkadlo_module);
+
+    cfg->memcached_lifetime = atoi(arg1);
+    if (cfg->memcached_lifetime <= 0)
+        return "ZrkadloMemcachedLifeTime requires an integer > 0.";
+    return NULL;
+}
+
 static const char *zrkadlo_cmd_treat_country_as(cmd_parms *cmd, void *config,
                                 const char *arg1, const char *arg2)
 {
@@ -476,7 +567,6 @@ static int zrkadlo_handler(request_rec *r)
     int cached_id;
     int mirror_cnt;
     int unusable;
-    int lifetime = 600;                         /* memcache timeout in seconds */
     char *m_res;
     char *m_key, *m_val;
     apr_size_t len;
@@ -775,6 +865,7 @@ static int zrkadlo_handler(request_rec *r)
             new->baseurl = apr_pstrdup(r->pool, val);
 
         /* this mirror comes from the database */
+        /* XXX not implemented: statically configured fallback mirrors */
         new->is_static = 0;
 
         /* now, take some decisions */
@@ -816,38 +907,41 @@ static int zrkadlo_handler(request_rec *r)
     }
 #endif
 
-    /* list the same-country mirrors */
-    /* Brad's mod_edir hdir.c helped me here.. thanks to his kind help */
-    mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
-    mirror = NULL;
+    if (cfg->debug) {
 
-    for (i = 0; i < mirrors_same_country->nelts; i++) {
-        mirror = mirrorp[i];
-        debugLog(r, cfg, "same country: %s (%d) (%d)", 
-                mirror->identifier, mirror->score, mirror->rank);
+        /* list the same-country mirrors */
+        /* Brad's mod_edir hdir.c helped me here.. thanks to his kind help */
+        mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
+        mirror = NULL;
+
+        for (i = 0; i < mirrors_same_country->nelts; i++) {
+            mirror = mirrorp[i];
+            debugLog(r, cfg, "same country: %s (%d) (%d)", 
+                    mirror->identifier, mirror->score, mirror->rank);
+        }
+
+        /* list the same-region mirrors */
+        mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
+        for (i = 0; i < mirrors_same_region->nelts; i++) {
+            mirror = mirrorp[i];
+            debugLog(r, cfg, "same region: %s (%d) (%d)", 
+                    mirror->identifier, mirror->score, mirror->rank);
+        }
+
+        /* list all other mirrors */
+        mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
+        for (i = 0; i < mirrors_elsewhere->nelts; i++) {
+            mirror = mirrorp[i];
+            debugLog(r, cfg, "elsewhere: %s (%d) (%d)", 
+                    mirror->identifier, mirror->score, mirror->rank);
+        }
+
+        debugLog(r, cfg, "Found %d mirror%s: %d country, %d region, %d elsewhere", mirror_cnt,
+                (mirror_cnt == 1) ? "" : "s",
+                mirrors_same_country->nelts,
+                mirrors_same_region->nelts,
+                mirrors_elsewhere->nelts);
     }
-
-    /* list the same-region mirrors */
-    mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
-    for (i = 0; i < mirrors_same_region->nelts; i++) {
-        mirror = mirrorp[i];
-        debugLog(r, cfg, "same region: %s (%d) (%d)", 
-                mirror->identifier, mirror->score, mirror->rank);
-    }
-
-    /* list all other mirrors */
-    mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
-    for (i = 0; i < mirrors_elsewhere->nelts; i++) {
-        mirror = mirrorp[i];
-        debugLog(r, cfg, "elsewhere: %s (%d) (%d)", 
-                mirror->identifier, mirror->score, mirror->rank);
-    }
-
-    debugLog(r, cfg, "Found %d mirror%s: %d country, %d region, %d elsewhere", mirror_cnt,
-            (mirror_cnt == 1) ? "" : "s",
-            mirrors_same_country->nelts,
-            mirrors_same_region->nelts,
-            mirrors_elsewhere->nelts);
 
     /* choose from country, then from region, then from elsewhere */
     if (!chosen) {
@@ -878,11 +972,13 @@ static int zrkadlo_handler(request_rec *r)
     //apr_table_setn(r->err_headers_out, "X-Zrkadlo", "Have a lot of fun...");
     apr_table_setn(r->headers_out, "Location", uri);
 
-    m_val = apr_itoa(r->pool, chosen->id);
 
     /* memorize IP<->mirror association in memcache */
+    m_val = apr_itoa(r->pool, chosen->id);
     debugLog(r, cfg, "memcache insert: '%s' -> '%s'", m_key, m_val);
-    rv = apr_memcache_set(memctxt, m_key, m_val, strlen(m_val), lifetime, 0);
+    if (scfg->memcached_lifetime == UNSET)
+        scfg->memcached_lifetime = DEFAULT_MEMCACHED_LIFETIME;
+    rv = apr_memcache_set(memctxt, m_key, m_val, strlen(m_val), scfg->memcached_lifetime, 0);
     if (rv != APR_SUCCESS)
         ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r,
                      "[mod_zrkadlo] memcache error setting key '%s' "
@@ -992,6 +1088,27 @@ static const command_rec zrkadlo_cmds[] =
                   RSRC_CONF, 
                   "ip or host adresse(s) and port (':' separated) of "
                   "memcache daemon(s) to be used, comma separated"),
+
+    AP_INIT_TAKE1("ZrkadloMemcachedConnMin", zrkadlo_cmd_memcached_min, NULL,
+                  RSRC_CONF, 
+                  "Minimum number of connections that will be opened to the "
+                  "memcache daemon(s). Default is 0."),
+
+    AP_INIT_TAKE1("ZrkadloMemcachedConnSoftMax", zrkadlo_cmd_memcached_softmax, NULL,
+                  RSRC_CONF, 
+                  "Soft maximum number of connections that will be opened to the "
+                  "memcache daemon(s). Default is 1."),
+
+    AP_INIT_TAKE1("ZrkadloMemcachedConnHardMax", zrkadlo_cmd_memcached_hardmax, NULL,
+                  RSRC_CONF, 
+                  "Hard maximum number of connections that will be opened to the "
+                  "memcache daemon(s). If unset, the value of ThreadLimit will be used."),
+
+    AP_INIT_TAKE1("ZrkadloMemcachedLifeTime", zrkadlo_cmd_memcached_lifetime, NULL,
+                  RSRC_CONF, 
+                  "Lifetime (in seconds) associated with stored objects in "
+                  "memcache daemon(s). Default is 600 s."),
+
     AP_INIT_TAKE2("ZrkadloTreatCountryAs", zrkadlo_cmd_treat_country_as, NULL, 
                   OR_FILEINFO,
                   "Set country to be treated as another. E.g.: nz au"),
