@@ -44,26 +44,16 @@ for my $row (@$ary_ref)
   my($id, $identifier, $baseurl, $baseurl_ftp, $status, 
      $status_url, $status_ftp, $status_ping) = @$row;
 
-  my $srvn;
-  
-  if ($baseurl =~ m{://([^:/]+)} )
-  {
-    $srvn = $1;
-  }
-  else
-  {
-    warn "Can't parse baseurl $baseurl";
-  }
-
   my $pingres = ping($identifier);
 
   my $content = head($baseurl);
   my $urlres = (defined $content ) ? 1 : 0;
 
-  print "$identifier : $pingres : $content \n" if $verbose;
 
   $content = head($baseurl_ftp);
   my $ftpres = (defined $content ) ? 1 : 0;
+
+  printf "%-20s : ping=%s http=%s ftp=%s\n", $identifier, $pingres, $urlres, $ftpres if $verbose;
 
   my $sql = "UPDATE server SET status_ping = ?, status_baseurl = ?, 
 	     status_baseurl_ftp = ? WHERE ( id = ?);";
