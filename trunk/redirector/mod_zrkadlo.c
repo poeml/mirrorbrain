@@ -97,6 +97,7 @@ typedef struct
     const char *mirror_base;
     apr_array_header_t *exclude_mime;
     apr_array_header_t *exclude_agents;
+    ap_regex_t *exclude_filemask;
 } zrkadlo_dir_conf;
 
 /* per-server configuration */
@@ -219,7 +220,8 @@ static void zrkadlo_mc_init(server_rec *s, apr_pool_t *p)
         }
         if (conf->memcached_softmax > conf->memcached_hardmax) {
             ap_log_error(APLOG_MARK, APLOG_CRIT, rv, s, "ZrkadloMemcachedConnSoftMax: "
-                         "must not be larger than ZrkadloMemcachedConnHardMax");
+                         "must not be larger than ZrkadloMemcachedConnHardMax (%d)", 
+                         conf->memcached_hardmax);
             zrkadlo_die();
         }
         if (conf->memcached_min > conf->memcached_softmax) {
@@ -228,6 +230,11 @@ static void zrkadlo_mc_init(server_rec *s, apr_pool_t *p)
             zrkadlo_die();
         }
 
+        ap_log_error(APLOG_MARK, APLOG_NOTICE, rv, s,
+                     "Creating memcached connection pool; min %d, softmax %d, hardmax %d",
+                                        conf->memcached_min,
+                                        conf->memcached_softmax,
+                                        conf->memcached_hardmax);
         rv = apr_memcache_server_create(p, host_str, port, 
                                         conf->memcached_min,
                                         conf->memcached_softmax,
@@ -303,6 +310,7 @@ static void *create_zrkadlo_dir_config(apr_pool_t *p, char *dirspec)
     new->mirror_base = NULL;
     new->exclude_mime = apr_array_make(p, 0, sizeof (char *));
     new->exclude_agents = apr_array_make(p, 0, sizeof (char *));
+    new->exclude_filemask = NULL;
 
     return (void *) new;
 }
@@ -325,6 +333,7 @@ static void *merge_zrkadlo_dir_config(apr_pool_t *p, void *basev, void *addv)
     cfgMergeString(mirror_base);
     mrg->exclude_mime = apr_array_append(p, base->exclude_mime, add->exclude_mime);
     mrg->exclude_agents = apr_array_append(p, base->exclude_agents, add->exclude_agents);
+    mrg->exclude_filemask = (add->exclude_filemask == NULL) ? base->exclude_filemask : add->exclude_filemask;
 
     return (void *) mrg;
 }
@@ -406,6 +415,16 @@ static const char *zrkadlo_cmd_excludeagent(cmd_parms *cmd, void *config,
     zrkadlo_dir_conf *cfg = (zrkadlo_dir_conf *) config;
     char **agentpattern = (char **) apr_array_push(cfg->exclude_agents);
     *agentpattern = apr_pstrdup(cmd->pool, arg1);
+    return NULL;
+}
+
+static const char *zrkadlo_cmd_exclude_filemask(cmd_parms *cmd, void *config, const char *arg)
+{
+    zrkadlo_dir_conf *cfg = (zrkadlo_dir_conf *) config;
+    cfg->exclude_filemask = ap_pregcomp(cmd->pool, arg, AP_REG_EXTENDED);
+    if (cfg->exclude_filemask == NULL) {
+        return "ZrkadloExcludeFileMask regex could not be compiled";
+    }
     return NULL;
 }
 
@@ -664,6 +683,12 @@ static int zrkadlo_handler(request_rec *r)
         }
     }
 
+    /* is this file excluded from mirroring? */
+    if (cfg->exclude_filemask && !ap_regexec(cfg->exclude_filemask, r->uri, 0, NULL, 0)) {
+        debugLog(r, cfg, "File '%s' is excluded by ZrkadloExcludeFileMask", r->uri);
+        return DECLINED;
+    }
+
     /* is the file in the list of mimetypes to never mirror? */
     if ((r->content_type) && (cfg->exclude_mime->nelts)) {
 
@@ -776,11 +801,13 @@ static int zrkadlo_handler(request_rec *r)
     }
 
     mirror_cnt = apr_dbd_num_tuples(dbd->driver, res);
-    if (mirror_cnt > 0)
+    if (mirror_cnt > 0) {
         debugLog(r, cfg, "Found %d mirror%s", mirror_cnt,
                 (mirror_cnt == 1) ? "" : "s");
+    }
     else {
-        debugLog(r, cfg, "No mirror found");
+        ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, 
+                "no mirrors found for %s", filename);
         return DECLINED;
     }
 
@@ -916,7 +943,7 @@ static int zrkadlo_handler(request_rec *r)
 
         for (i = 0; i < mirrors_same_country->nelts; i++) {
             mirror = mirrorp[i];
-            debugLog(r, cfg, "same country: %s (%d) (%d)", 
+            debugLog(r, cfg, "same country: %s (score %d) (rank %d)", 
                     mirror->identifier, mirror->score, mirror->rank);
         }
 
@@ -924,7 +951,7 @@ static int zrkadlo_handler(request_rec *r)
         mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
         for (i = 0; i < mirrors_same_region->nelts; i++) {
             mirror = mirrorp[i];
-            debugLog(r, cfg, "same region: %s (%d) (%d)", 
+            debugLog(r, cfg, "same region: %s (score %d) (rank %d)", 
                     mirror->identifier, mirror->score, mirror->rank);
         }
 
@@ -932,7 +959,7 @@ static int zrkadlo_handler(request_rec *r)
         mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
         for (i = 0; i < mirrors_elsewhere->nelts; i++) {
             mirror = mirrorp[i];
-            debugLog(r, cfg, "elsewhere: %s (%d) (%d)", 
+            debugLog(r, cfg, "elsewhere: %s (score %d) (rank %d)", 
                     mirror->identifier, mirror->score, mirror->rank);
         }
 
@@ -958,7 +985,8 @@ static int zrkadlo_handler(request_rec *r)
     }
 
     if (!chosen) {
-        debugLog(r, cfg, "Could not chose a server. Shouldn't have happened.");
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+            "could not chose a server. Shouldn't have happened.");
         return DECLINED;
     }
 
@@ -985,7 +1013,7 @@ static int zrkadlo_handler(request_rec *r)
                      "with %d bytes of data", 
                      m_key, (int) strlen(m_val));
 
-    return HTTP_TEMPORARY_REDIRECT;
+    return HTTP_MOVED_TEMPORARILY;
 }
 
 static int zrkadlo_status_hook(request_rec *r, int flags)
@@ -1068,6 +1096,10 @@ static const command_rec zrkadlo_cmds[] =
     AP_INIT_TAKE1("ZrkadloExcludeUserAgent", zrkadlo_cmd_excludeagent, 0, 
                   OR_OPTIONS,
                   "User-Agent to always exclude from redirecting (wildcards allowed)"),
+    AP_INIT_TAKE1("ZrkadloExcludeFileMask", zrkadlo_cmd_exclude_filemask, NULL,
+                  ACCESS_CONF,
+                  "Regexp which determines which files will be excluded form redirecting"),
+
     AP_INIT_FLAG("ZrkadloHandleDirectoryIndexLocally", zrkadlo_cmd_handle_dirindex_locally, NULL, 
                   OR_OPTIONS,
                   "Set to On/Off to handle directory listings locally (don't redirect)"),
