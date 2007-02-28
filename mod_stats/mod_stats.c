@@ -50,6 +50,7 @@ typedef struct
     char *type;
     char *vers;
     char *rel;
+    char *pac;
 } download_t;
 
 /* per-dir configuration */
@@ -186,7 +187,7 @@ static char *stats_getlastword(apr_pool_t *atrans, char **line, char stop)
 
     pos = *line + strlen(*line);
     --pos;
-    while ((*pos != stop) && *pos) {
+    while ((pos >= *line) && (*pos != stop) && *pos) {
         --pos;
         ++len;
     }
@@ -241,18 +242,41 @@ static download_t *stats_parse_req(request_rec *r, stats_dir_conf *cfg,
     file[strlen(file) - strlen(d->arch) -1] = 0;
     debugLog(r, cfg, "stats_parse_req(): file: '%s' after stripping arch", file);
 
-    d->rel = stats_getlastword(r->pool, &file, '-');
-    debugLog(r, cfg, "stats_parse_req(): file: '%s' after stripping release", file);
+    if (apr_strnatcmp(d->type, "deb") == 0) { /* deb package */
+        /* deb package names cannot contain underscores */
+        /* http://www.debian.org/doc/debian-policy/ch-controlfields.html#s-f-Package */
+        /* http://www.debian.org/doc/debian-policy/ch-controlfields.html#s-f-Version */
+        d->pac = ap_getword_nc(r->pool, &file, '_');
+        debugLog(r, cfg, "stats_parse_req(): file: '%s' after stripping package name", file);
 
-    /* XXX don't know whether version of deb files can contain underscores */
-    if (apr_strnatcmp(d->type, "deb") == 0)
+        /* release is optional. Do we have one? */
+        if (ap_strstr(file, "-"))
+            d->rel = stats_getlastword(r->pool, &file, '-');
+        else 
+            d->rel = "";
+        debugLog(r, cfg, "stats_parse_req(): file: '%s' after stripping release", file);
+        debugLog(r, cfg, "rel '%s'", d->rel);
+
         d->vers = stats_getlastword(r->pool, &file, '_');
-    else
+
+    } else { /* rpm  package */
+        d->rel = stats_getlastword(r->pool, &file, '-');
+        debugLog(r, cfg, "stats_parse_req(): file: '%s' after stripping release", file);
+
         d->vers = stats_getlastword(r->pool, &file, '-');
+        d->pac = file;
+    }
+
     debugLog(r, cfg, "stats_parse_req(): file: '%s' after stripping version", file);
 
     return d;
 }
+
+/* XXX
+ * ?cmd=setpackage&package=foo
+ * ?cmd=deleted
+ * AllowInsertsAndDeletesFrom ...
+ */
 
 static int stats_logger(request_rec *r)
 {
@@ -275,8 +299,8 @@ static int stats_logger(request_rec *r)
                 "No StatsFilemask configured!");
         return DECLINED;
     }
-    if (ap_regexec(cfg->filemask, r->filename, 0, NULL, 0)) {
-        debugLog(r, cfg, "File '%s' does not match StatsFileMask", r->filename);
+    if (ap_regexec(cfg->filemask, r->uri, 0, NULL, 0)) {
+        debugLog(r, cfg, "File '%s' does not match StatsFileMask", r->uri);
         return DECLINED;
     }
 
@@ -291,19 +315,23 @@ static int stats_logger(request_rec *r)
             return DECLINED;
     }
 
-    req_filename = r->filename + strlen(cfg->stats_base);
+    debugLog(r, cfg, "filename: '%s'", r->filename);
+    debugLog(r, cfg, "uri: '%s'", r->uri);
+    //req_filename = r->filename + strlen(cfg->stats_base);
+    req_filename = r->uri + strlen("/download/");
     debugLog(r, cfg, "req_filename: '%s'", req_filename);
 
     d = (download_t *) apr_pcalloc(r->pool, sizeof(download_t));
     stats_parse_req(r, cfg, req_filename, d);
 
     debugLog(r, cfg, "fname:   '%s'", d->fname);
-    debugLog(r, cfg, "type:    '%s'", d->type);
     debugLog(r, cfg, "project: '%s'", d->prj);
     debugLog(r, cfg, "repo:    '%s'", d->repo);
-    debugLog(r, cfg, "arch:    '%s'", d->arch);
+    debugLog(r, cfg, "package: '%s'", d->pac);
     debugLog(r, cfg, "version: '%s'", d->vers);
     debugLog(r, cfg, "release: '%s'", d->rel);
+    debugLog(r, cfg, "arch:    '%s'", d->arch);
+    debugLog(r, cfg, "type:    '%s'", d->type);
 
     if (!cfg->query) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
@@ -328,7 +356,7 @@ static int stats_logger(request_rec *r)
             return DECLINED;
         }
         if (apr_dbd_pvselect(dbd->driver, r->pool, dbd->handle, &res, statement, 1, 
-                    d->prj, d->repo, d->arch, d->fname, d->type, d->vers, d->rel, NULL) != 0) {
+                    d->prj, d->repo, d->arch, d->pac, d->type, d->vers, d->rel, NULL) != 0) {
             ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
                     "Error looking up %s in database", r->filename);
         }
@@ -345,7 +373,7 @@ static int stats_logger(request_rec *r)
             if (apr_dbd_pvquery(dbd->driver, r->pool, dbd->handle, 
                         &nrows, statement,
                         d->prj, d->repo, d->arch, 
-                        d->fname, d->type, d->vers, d->rel) != 0) {
+                        d->pac, d->type, d->vers, d->rel) != 0) {
                 ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
                         "Error inserting %s into database", r->filename);
             }
@@ -362,7 +390,7 @@ static int stats_logger(request_rec *r)
     if (apr_dbd_pvquery(dbd->driver, r->pool, dbd->handle, 
                 &nrows, statement, 
                 d->prj, d->repo, d->arch, 
-                d->fname, d->type, d->vers, d->rel) != 0) {
+                d->pac, d->type, d->vers, d->rel) != 0) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
                 "Got error with update query for %s", r->filename);
         return DECLINED;
