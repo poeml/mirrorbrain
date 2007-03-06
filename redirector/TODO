@@ -1,3 +1,6 @@
+if mirror has country_code="all", put it into the country pool
+needed for cache.novell.com
+
 might need patch for
 http://issues.apache.org/bugzilla/show_bug.cgi?id=39329
 

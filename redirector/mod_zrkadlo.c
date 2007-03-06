@@ -103,6 +103,7 @@ typedef struct
 /* per-server configuration */
 typedef struct
 {
+    int memcached_on;
     const char *memcached_addr;
     int memcached_min;
     int memcached_softmax;
@@ -143,7 +144,7 @@ static void zrkadlo_die(void)
 static apr_status_t zrkadlo_cleanup()
 {
         GeoIP_delete(gip);
-        ap_log_error(APLOG_MARK, APLOG_INFO, 0, NULL, "mod_zrkadlo: cleaned up geoipfile");
+        ap_log_error(APLOG_MARK, APLOG_INFO, 0, NULL, "[mod_zrkadlo] cleaned up geoipfile");
         return APR_SUCCESS;
 }
 
@@ -160,6 +161,9 @@ static void zrkadlo_mc_init(server_rec *s, apr_pool_t *p)
 
     ap_mpm_query(AP_MPMQ_HARD_LIMIT_THREADS, &thread_limit);
 
+    if (!conf->memcached_on) 
+        return;
+
     /* find all the servers in the first run to get a total count */
     cache_config = apr_pstrdup(p, conf->memcached_addr);
     split = apr_strtok(cache_config, ",", &tok);
@@ -171,7 +175,7 @@ static void zrkadlo_mc_init(server_rec *s, apr_pool_t *p)
     rv = apr_memcache_create(p, nservers, 0, &memctxt);
     if (rv != APR_SUCCESS) {
         ap_log_error(APLOG_MARK, APLOG_CRIT, rv, s,
-                    "ZrkadloMemcachedAddrPort: Failed to create Memcache Object of '%d' size.",
+                    "[mod_zrkadlo] ZrkadloMemcachedAddrPort: Failed to create Memcache Object of '%d' size.",
                      nservers);
         zrkadlo_die();
     }
@@ -188,13 +192,13 @@ static void zrkadlo_mc_init(server_rec *s, apr_pool_t *p)
         rv = apr_parse_addr_port(&host_str, &scope_id, &port, split, p);
         if (rv != APR_SUCCESS) {
             ap_log_error(APLOG_MARK, APLOG_CRIT, rv, s,
-                         "ZrkadloMemcachedAddrPort: Failed to Parse Server: '%s'", split);
+                         "[mod_zrkadlo] ZrkadloMemcachedAddrPort: Failed to Parse Server: '%s'", split);
             zrkadlo_die();
         }
 
         if (host_str == NULL) {
             ap_log_error(APLOG_MARK, APLOG_CRIT, rv, s,
-                         "ZrkadloMemcachedAddrPort: Failed to Parse Server, "
+                         "[mod_zrkadlo] ZrkadloMemcachedAddrPort: Failed to Parse Server, "
                          "no hostname specified: '%s'", split);
             zrkadlo_die();
         }
@@ -214,24 +218,24 @@ static void zrkadlo_mc_init(server_rec *s, apr_pool_t *p)
 
         /* sanity checks */
         if (conf->memcached_hardmax > thread_limit) {
-            ap_log_error(APLOG_MARK, APLOG_CRIT, rv, s, "ZrkadloMemcachedConnHardMax: "
+            ap_log_error(APLOG_MARK, APLOG_CRIT, rv, s, "[mod_zrkadlo] ZrkadloMemcachedConnHardMax: "
                          "must be equal to ThreadLimit or less");
             zrkadlo_die();
         }
         if (conf->memcached_softmax > conf->memcached_hardmax) {
-            ap_log_error(APLOG_MARK, APLOG_CRIT, rv, s, "ZrkadloMemcachedConnSoftMax: "
+            ap_log_error(APLOG_MARK, APLOG_CRIT, rv, s, "[mod_zrkadlo] ZrkadloMemcachedConnSoftMax: "
                          "must not be larger than ZrkadloMemcachedConnHardMax (%d)", 
                          conf->memcached_hardmax);
             zrkadlo_die();
         }
         if (conf->memcached_min > conf->memcached_softmax) {
-            ap_log_error(APLOG_MARK, APLOG_CRIT, rv, s, "ZrkadloMemcachedConnMin: "
+            ap_log_error(APLOG_MARK, APLOG_CRIT, rv, s, "[mod_zrkadlo] ZrkadloMemcachedConnMin: "
                          "must not be larger than ZrkadloMemcachedConnSoftMax");
             zrkadlo_die();
         }
 
         ap_log_error(APLOG_MARK, APLOG_NOTICE, rv, s,
-                     "Creating memcached connection pool; min %d, softmax %d, hardmax %d",
+                     "[mod_zrkadlo] Creating memcached connection pool; min %d, softmax %d, hardmax %d",
                                         conf->memcached_min,
                                         conf->memcached_softmax,
                                         conf->memcached_hardmax);
@@ -242,7 +246,7 @@ static void zrkadlo_mc_init(server_rec *s, apr_pool_t *p)
                                         600, &st);
         if (rv != APR_SUCCESS) {
             ap_log_error(APLOG_MARK, APLOG_CRIT, rv, s,
-                         "ZrkadloMemcachedAddrPort: Failed to Create Server: %s:%d",
+                         "[mod_zrkadlo] ZrkadloMemcachedAddrPort: Failed to Create Server: %s:%d",
                          host_str, port);
             zrkadlo_die();
         }
@@ -250,7 +254,7 @@ static void zrkadlo_mc_init(server_rec *s, apr_pool_t *p)
         rv = apr_memcache_add_server(memctxt, st);
         if (rv != APR_SUCCESS) {
             ap_log_error(APLOG_MARK, APLOG_CRIT, rv, s,
-                         "ZrkadloMemcachedAddrPort: Failed to Add Server: %s:%d",
+                         "[mod_zrkadlo] ZrkadloMemcachedAddrPort: Failed to Add Server: %s:%d",
                          host_str, port);
             zrkadlo_die();
         }
@@ -265,12 +269,12 @@ static void zrkadlo_child_init(apr_pool_t *p, server_rec *s)
 {
     if (!gip) {
         ap_log_error(APLOG_MARK, APLOG_INFO, 0, s, 
-                "mod_zrkadlo: opening geoip file %s", geoipfilename);
+                "[mod_zrkadlo] opening geoip file %s", geoipfilename);
         gip = GeoIP_open(geoipfilename, GEOIP_MEMORY_CACHE);
     }
     if(!gip) {
         ap_log_error(APLOG_MARK, APLOG_CRIT, 0, s, 
-                "mod_zrkadlo: Error while opening geoip file '%s'", geoipfilename);
+                "[mod_zrkadlo] Error while opening geoip file '%s'", geoipfilename);
     }
     apr_pool_cleanup_register(p, NULL, zrkadlo_cleanup, zrkadlo_cleanup);
 
@@ -287,7 +291,7 @@ static int zrkadlo_post_config(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptem
     /* make sure that mod_form is loaded */
     if (ap_find_linked_module("mod_form.c") == NULL) {
         ap_log_error(APLOG_MARK, APLOG_ERR, 0, s,
-                     "Module mod_form missing. Mod_form "
+                     "[mod_zrkadlo] Module mod_form missing. Mod_form "
                      "must be loaded in order for mod_zrkadlo to function properly");
         return HTTP_INTERNAL_SERVER_ERROR;
     }
@@ -344,10 +348,11 @@ static void *create_zrkadlo_server_config(apr_pool_t *p, server_rec *s)
       (zrkadlo_server_conf *) apr_pcalloc(p, sizeof(zrkadlo_server_conf));
 
     ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, s, 
-            "zrkadlo: creating server config");
+            "[mod_zrkadlo] creating server config");
 
+    new->memcached_on = UNSET;
     new->memcached_addr = MEMCACHED_HOST ":" MEMCACHED_PORT;
-    new->memcached_min= UNSET;
+    new->memcached_min = UNSET;
     new->memcached_softmax = UNSET;
     new->memcached_hardmax = UNSET;
     new->memcached_lifetime = UNSET;
@@ -363,8 +368,9 @@ static void *merge_zrkadlo_server_config(apr_pool_t *p, void *basev, void *addv)
     zrkadlo_server_conf *mrg = apr_pcalloc(p, sizeof(zrkadlo_server_conf));
 
     ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, NULL, 
-            "zrkadlo: merging server config");
+            "[mod_zrkadlo] merging server config");
 
+    cfgMergeBool(memcached_on);
     mrg->memcached_addr = (add->memcached_addr == NULL) ? base->memcached_addr : add->memcached_addr;
     cfgMergeInt(memcached_min);
     cfgMergeInt(memcached_softmax);
@@ -450,8 +456,19 @@ static const char *zrkadlo_cmd_geoip_filename(cmd_parms *cmd, void *config,
     geoipfilename = apr_pstrdup(cmd->pool, arg1);
 
     ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, NULL,
-                 "Setting GeoIPFilename: '%s'", 
+                 "[mod_zrkadlo] Setting GeoIPFilename: '%s'", 
                  geoipfilename);
+    return NULL;
+}
+
+static const char *zrkadlo_cmd_memcached_on(cmd_parms *cmd, void *config,
+                                int flag)
+{
+    server_rec *s = cmd->server;
+    zrkadlo_server_conf *cfg = 
+        ap_get_module_config(s->module_config, &zrkadlo_module);
+
+    cfg->memcached_on = flag;
     return NULL;
 }
 
@@ -579,6 +596,7 @@ static int zrkadlo_handler(request_rec *r)
     const char *clientip = NULL;
     const char *fakefile = NULL;
     const char *newmirror = NULL;
+    const char *mirrorlist = NULL;
     short int country_id;
     char* country_code;
     const char* continent_code;
@@ -643,6 +661,7 @@ static int zrkadlo_handler(request_rec *r)
         fakefile = form_lookup(r, "fakefile");
         clientip = form_lookup(r, "clientip");
         newmirror = form_lookup(r, "newmirror");
+        mirrorlist = form_lookup(r, "mirrorlist");
     }
     if (clientip)
         debugLog(r, cfg, "FAKE Client IP: '%s'", clientip);
@@ -726,24 +745,26 @@ static int zrkadlo_handler(request_rec *r)
 
     /* look for associated mirror in memcache */
     cached_id = 0;
-    m_key = apr_pstrcat(r->pool, "z_", clientip, NULL);
-    if (newmirror) {
-            debugLog(r, cfg, "client requested new mirror");
-    } else {
-        rv = apr_memcache_getp(memctxt, r->pool, m_key, &m_res, &len, NULL);
-        if (rv == APR_SUCCESS) {
-            cached_id = atoi(m_res);
-            debugLog(r, cfg, "IP known in memcache: mirror id %d", cached_id);
-        }
-        else {
-            debugLog(r, cfg, "IP unknown in memcache");
+    if (scfg->memcached_on) {
+        m_key = apr_pstrcat(r->pool, "z_", clientip, NULL);
+        if (newmirror) {
+                debugLog(r, cfg, "client requested new mirror");
+        } else {
+            rv = apr_memcache_getp(memctxt, r->pool, m_key, &m_res, &len, NULL);
+            if (rv == APR_SUCCESS) {
+                cached_id = atoi(m_res);
+                debugLog(r, cfg, "IP known in memcache: mirror id %d", cached_id);
+            }
+            else {
+                debugLog(r, cfg, "IP unknown in memcache");
+            }
         }
     }
 
 
     if (cfg->query == NULL) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-                "No ZrkadloDBDQuery configured!");
+                "[mod_zrkadlo] No ZrkadloDBDQuery configured!");
         return DECLINED;
     }
 
@@ -771,17 +792,19 @@ static int zrkadlo_handler(request_rec *r)
 
     /* ask the database and pick the matching server according to region */
 
+    ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, "[mod_zrkadlo] Acquiring database connection");
     ap_dbd_t *dbd = zrkadlo_dbd_acquire_fn(r);
     if (dbd == NULL) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-                "Error acquiring database connection");
+                "[mod_zrkadlo] Error acquiring database connection");
         return DECLINED; /* fail gracefully */
     }
+    ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, "[mod_zrkadlo] Successfully acquired database connection.");
     debugLog(r, cfg, "Successfully acquired database connection.");
 
     statement = apr_hash_get(dbd->prepared, cfg->query, APR_HASH_KEY_STRING);
     if (statement == NULL) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "No ZrkadloDBDQuery configured!");
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] No ZrkadloDBDQuery configured!");
         return DECLINED;
     }
 
@@ -796,7 +819,7 @@ static int zrkadlo_handler(request_rec *r)
                       without it the mysql driver doesn't return results...  */
                 filename, NULL) != 0) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-                "Error looking up %s in database", filename);
+                "[mod_zrkadlo] Error looking up %s in database", filename);
         return DECLINED;
     }
 
@@ -807,7 +830,7 @@ static int zrkadlo_handler(request_rec *r)
     }
     else {
         ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, 
-                "no mirrors found for %s", filename);
+                "[mod_zrkadlo] no mirrors found for %s", filename);
         return DECLINED;
     }
 
@@ -825,7 +848,7 @@ static int zrkadlo_handler(request_rec *r)
      * void **new_same = (void **)apr_array_push(mirrors_same_country);
      * *new_same = new;
      *
-     * ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, "new_same->identifier: %s",
+     * ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, "[mod_zrkadlo] new_same->identifier: %s",
      *        ((mirror_entry_t *)*new_same)->identifier);
      *
      * 2) one line version
@@ -839,7 +862,7 @@ static int zrkadlo_handler(request_rec *r)
              rv = apr_dbd_get_row(dbd->driver, r->pool, res, &row, -1)) {
         if (rv != 0) {
             ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r,
-                      "Error looking up %s in database", filename);
+                      "[mod_zrkadlo] Error looking up %s in database", filename);
             return DECLINED;
         }
 
@@ -855,38 +878,38 @@ static int zrkadlo_handler(request_rec *r)
 
         /* id */
         if ((val = apr_dbd_get_entry(dbd->driver, row, 0)) == NULL) 
-            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "zrkadlo: apr_dbd_get_entry found NULL for id");
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] apr_dbd_get_entry found NULL for id");
         else
             new->id = atoi(val);
 
         /* identifier */
         if ((val = apr_dbd_get_entry(dbd->driver, row, 1)) == NULL)
-            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "zrkadlo: apr_dbd_get_entry found NULL for identifier");
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] apr_dbd_get_entry found NULL for identifier");
         else 
             new->identifier = apr_pstrdup(r->pool, val);
 
         /* country_code */
         if ((val = apr_dbd_get_entry(dbd->driver, row, 2)) == NULL)
-            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "zrkadlo: apr_dbd_get_entry found NULL for country_code");
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] apr_dbd_get_entry found NULL for country_code");
         else
             apr_cpystrn(new->country_code, val, sizeof(new->country_code)); /* fixed length, two bytes */
 
         /* region */
         if ((val = apr_dbd_get_entry(dbd->driver, row, 3)) == NULL)
-            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "zrkadlo: apr_dbd_get_entry found NULL for region");
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] apr_dbd_get_entry found NULL for region");
         else
             new->region = apr_pstrdup(r->pool, val);
 
         /* score */
         if ((val = apr_dbd_get_entry(dbd->driver, row, 4)) == NULL) {
-            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "zrkadlo: apr_dbd_get_entry found NULL for score");
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] apr_dbd_get_entry found NULL for score");
             unusable = 1;
         } else
             new->score = atoi(val);
 
         /* baseurl */
         if ((val = apr_dbd_get_entry(dbd->driver, row, 5)) == NULL) {
-            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "zrkadlo: apr_dbd_get_entry found NULL for baseurl");
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] apr_dbd_get_entry found NULL for baseurl");
             unusable = 1;
         } else
             new->baseurl = apr_pstrdup(r->pool, val);
@@ -986,11 +1009,67 @@ static int zrkadlo_handler(request_rec *r)
 
     if (!chosen) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-            "could not chose a server. Shouldn't have happened.");
+            "[mod_zrkadlo] could not chose a server. Shouldn't have happened.");
         return DECLINED;
     }
 
     debugLog(r, cfg, "Chose server %s", chosen->identifier);
+
+    /* send a HTML list instead of doing a redirect? */
+    if (mirrorlist) {
+        debugLog(r, cfg, "mirrorlist");
+        ap_set_content_type(r, "text/html");
+        ap_rputs(DOCTYPE_HTML_3_2
+                 "<html><head>\n<title>Mirror List</title>\n</head><body>\n",
+                 r);
+
+        ap_rprintf(r, "Found %d mirror%s: %d country, %d region, %d elsewhere\n", mirror_cnt,
+                (mirror_cnt == 1) ? "" : "s",
+                mirrors_same_country->nelts,
+                mirrors_same_region->nelts,
+                mirrors_elsewhere->nelts);
+
+        mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
+        mirror = NULL;
+
+        ap_rputs("<h3>Mirrors in the same country:</h3>", r);
+        ap_rputs("<pre>", r);
+        for (i = 0; i < mirrors_same_country->nelts; i++) {
+            mirror = mirrorp[i];
+            ap_rprintf(r, "<a href=\"%s%s\">%s%s</a> (score %d)<br>", 
+                    mirror->baseurl, filename, 
+                    mirror->baseurl, filename, 
+                    mirror->score);
+        }
+        ap_rputs("</pre>", r);
+
+        ap_rputs("<pre>", r);
+        ap_rputs("<h3>Mirrors in the same region:</h3>", r);
+        mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
+        for (i = 0; i < mirrors_same_region->nelts; i++) {
+            mirror = mirrorp[i];
+            ap_rprintf(r, "<a href=\"%s%s\">%s%s</a> (score %d)<br>", 
+                    mirror->baseurl, filename, 
+                    mirror->baseurl, filename, 
+                    mirror->score);
+        }
+        ap_rputs("</pre>", r);
+
+        ap_rputs("<pre>", r);
+        ap_rputs("<h3>Mirrors in the rest of the world:</h3>", r);
+        mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
+        for (i = 0; i < mirrors_elsewhere->nelts; i++) {
+            mirror = mirrorp[i];
+            ap_rprintf(r, "<a href=\"%s%s\">%s%s</a> (score %d)<br>", 
+                    mirror->baseurl, filename, 
+                    mirror->baseurl, filename, 
+                    mirror->score);
+        }
+        ap_rputs("</pre>", r);
+
+        ap_rputs("</body>\n", r);
+        return OK;
+    }
 
     /* Send it away: set a "Location:" header and 302 redirect. */
     uri = apr_pstrcat(r->pool, chosen->baseurl, filename, NULL);
@@ -1001,17 +1080,19 @@ static int zrkadlo_handler(request_rec *r)
     apr_table_setn(r->headers_out, "Location", uri);
 
 
-    /* memorize IP<->mirror association in memcache */
-    m_val = apr_itoa(r->pool, chosen->id);
-    debugLog(r, cfg, "memcache insert: '%s' -> '%s'", m_key, m_val);
-    if (scfg->memcached_lifetime == UNSET)
-        scfg->memcached_lifetime = DEFAULT_MEMCACHED_LIFETIME;
-    rv = apr_memcache_set(memctxt, m_key, m_val, strlen(m_val), scfg->memcached_lifetime, 0);
-    if (rv != APR_SUCCESS)
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r,
-                     "[mod_zrkadlo] memcache error setting key '%s' "
-                     "with %d bytes of data", 
-                     m_key, (int) strlen(m_val));
+    if (scfg->memcached_on) {
+        /* memorize IP<->mirror association in memcache */
+        m_val = apr_itoa(r->pool, chosen->id);
+        debugLog(r, cfg, "memcache insert: '%s' -> '%s'", m_key, m_val);
+        if (scfg->memcached_lifetime == UNSET)
+            scfg->memcached_lifetime = DEFAULT_MEMCACHED_LIFETIME;
+        rv = apr_memcache_set(memctxt, m_key, m_val, strlen(m_val), scfg->memcached_lifetime, 0);
+        if (rv != APR_SUCCESS)
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r,
+                         "[mod_zrkadlo] memcache error setting key '%s' "
+                         "with %d bytes of data", 
+                         m_key, (int) strlen(m_val));
+    }
 
     return HTTP_MOVED_TEMPORARILY;
 }
@@ -1024,6 +1105,9 @@ static int zrkadlo_status_hook(request_rec *r, int flags)
     zrkadlo_server_conf *sc = ap_get_module_config(r->server->module_config, &zrkadlo_module);
 
     if (sc == NULL || flags & AP_STATUS_SHORT)
+        return OK;
+
+    if (!sc->memcached_on)
         return OK;
 
     for (i = 0; i < memctxt->ntotal; i++) {
@@ -1115,6 +1199,10 @@ static const command_rec zrkadlo_cmds[] =
     AP_INIT_TAKE1("ZrkadloGeoIPFile", zrkadlo_cmd_geoip_filename, NULL, 
                   RSRC_CONF, 
                   "Path to GeoIP Data File"),
+
+    AP_INIT_FLAG("ZrkadloMemcached", zrkadlo_cmd_memcached_on, NULL,
+                  RSRC_CONF, 
+                  "Set to On/Off to use memcached to give clients repeatedly the same mirror"),
 
     AP_INIT_TAKE1("ZrkadloMemcachedAddrPort", zrkadlo_cmd_memcached_addr, NULL,
                   RSRC_CONF, 
