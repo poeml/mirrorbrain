@@ -22,13 +22,14 @@
 #include "apr_lib.h"
 #include "apr_dbd.h"
 #include "mod_dbd.h"
+#include "mod_form.h"
 
 
 #ifndef UNSET
 #define UNSET (-1)
 #endif
 
-#define MOD_STATS_VER "0.1"
+#define MOD_STATS_VER "0.2"
 #define VERSION_COMPONENT "mod_stats/"MOD_STATS_VER
 
 /* from ssl/ssl_engine_config.c */
@@ -61,8 +62,11 @@ typedef struct
     const char *query;
     const char *select_query;
     const char *insert_query;
+    const char *delete_query;
     const char *stats_base;
     ap_regex_t *filemask;
+    apr_array_header_t *admin_hosts;
+    apr_array_header_t *admin_ips;
 
 } stats_dir_conf;
 
@@ -95,6 +99,14 @@ static int stats_post_config(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptemp,
 {
     ap_add_version_component(p, VERSION_COMPONENT);
 
+    /* make sure that mod_form is loaded */
+    if (ap_find_linked_module("mod_form.c") == NULL) {
+        ap_log_error(APLOG_MARK, APLOG_ERR, 0, s,
+                     "[mod_stats] Module mod_form missing. Mod_form "
+                     "must be loaded in order for mod_zrkadlo to function properly");
+        return HTTP_INTERNAL_SERVER_ERROR;
+    }
+
     return OK;
 }
 
@@ -108,8 +120,11 @@ static void *create_stats_dir_config(apr_pool_t *p, char *dirspec)
     new->query          = NULL;
     new->select_query   = NULL;
     new->insert_query   = NULL;
+    new->delete_query   = NULL;
     new->stats_base     = NULL;
     new->filemask       = NULL;
+    new->admin_hosts = apr_array_make(p, 1, sizeof (char *));
+    new->admin_ips = apr_array_make(p, 1, sizeof (apr_sockaddr_t));
 
     return (void *) new;
 }
@@ -128,8 +143,11 @@ static void *merge_stats_dir_config(apr_pool_t *p, void *basev, void *addv)
     cfgMergeString(query);
     cfgMergeString(select_query);
     cfgMergeString(insert_query);
+    cfgMergeString(delete_query);
     cfgMergeString(stats_base);
     mrg->filemask = (add->filemask == NULL) ? base->filemask : add->filemask;
+    mrg->admin_hosts = apr_array_append(p, add->admin_hosts, base->admin_hosts);
+    mrg->admin_ips = apr_array_append(p, add->admin_ips, base->admin_ips);
 
     return (void *) mrg;
 }
@@ -158,6 +176,28 @@ static const char *stats_cmd_filemask(cmd_parms *cmd, void *config, const char *
     }
     return NULL;
 }
+
+static const char *stats_cmd_admin_hosts(cmd_parms *cmd, void *config,
+                                const char *arg)
+{
+    stats_dir_conf *cfg = (stats_dir_conf *) config;
+    char **hostelem = (char **) apr_array_push(cfg->admin_hosts);
+    apr_sockaddr_t *addr = (apr_sockaddr_t *) apr_array_push(cfg->admin_ips);
+
+    apr_sockaddr_t *resolved = NULL;
+    apr_status_t rc;
+    rc = apr_sockaddr_info_get(&resolved, arg, APR_UNSPEC, 0, 0, cmd->pool);
+    if (rc != APR_SUCCESS) {
+        apr_array_pop(cfg->admin_hosts);
+        apr_array_pop(cfg->admin_ips);
+        return "DNS lookup failure!";
+    }
+    memcpy(addr, resolved, sizeof (apr_sockaddr_t));
+
+    *hostelem = apr_pstrdup(cmd->pool, arg);
+    return NULL;
+}
+
 
 static const char *stats_dbd_prepare(cmd_parms *cmd, void *cfg, const char *query)
 {
@@ -272,31 +312,31 @@ static download_t *stats_parse_req(request_rec *r, stats_dir_conf *cfg,
     return d;
 }
 
-/* XXX
- * ?cmd=setpackage&package=foo
- * ?cmd=deleted
- * AllowInsertsAndDeletesFrom ...
- */
-
 static int stats_logger(request_rec *r)
 {
     download_t *d;
-    int nrows = 0;
+    int i, nrows = 0;
     char *req_filename = NULL;
     apr_dbd_prepared_t *statement;
     apr_dbd_results_t *res = NULL;
     stats_dir_conf *cfg = NULL;
+    const char* (*form_lookup)(request_rec*, const char*);
+    const char* qs_cmd = NULL;      /* query string command */
+    const char* qs_package = NULL;  /* query string package name */
+    apr_sockaddr_t *list = NULL;
+    char *admin_host = NULL;
+    int admin_allowed = 0;
 
     cfg = (stats_dir_conf *) ap_get_module_config(r->per_dir_config,
                                                       &stats_module);
     if (cfg->stats_enabled != 1) {
         return DECLINED;
     }
-    debugLog(r, cfg, "Stats are enabled stats_base is '%s'", cfg->stats_base);
+    debugLog(r, cfg, "Stats enabled, stats_base '%s'", cfg->stats_base);
 
     if (!cfg->filemask) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-                "No StatsFilemask configured!");
+                "[mod_stats] No StatsFilemask configured!");
         return DECLINED;
     }
     if (ap_regexec(cfg->filemask, r->uri, 0, NULL, 0)) {
@@ -317,8 +357,12 @@ static int stats_logger(request_rec *r)
 
     debugLog(r, cfg, "filename: '%s'", r->filename);
     debugLog(r, cfg, "uri: '%s'", r->uri);
-    //req_filename = r->filename + strlen(cfg->stats_base);
-    req_filename = r->uri + strlen("/download/");
+    req_filename = r->filename + strlen(cfg->stats_base);
+
+    /* workaround for the old redirector */
+    if (apr_strnatcmp(r->filename, "redirect:/redirect.php") == 0) {
+        req_filename = r->uri + strlen("/download/");
+    }
     debugLog(r, cfg, "req_filename: '%s'", req_filename);
 
     d = (download_t *) apr_pcalloc(r->pool, sizeof(download_t));
@@ -335,56 +379,125 @@ static int stats_logger(request_rec *r)
 
     if (!cfg->query) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-                "No StatsDBDQuery configured!");
+                "[mod_stats] No StatsDBDQuery configured!");
         return DECLINED;
     }
 
     ap_dbd_t *dbd = stats_dbd_acquire_fn(r);
     if (dbd == NULL) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-                "Error acquiring database connection");
+                "[mod_stats] Error acquiring database connection");
         return DECLINED;
     }
     debugLog(r, cfg, "Successfully acquired database connection.");
 
-    /* optionally, check for existence */
-    if (cfg->select_query && cfg->insert_query) {
+
+
+    /* parse query arguments if present, */
+    /* using mod_form's form_value() */
+    /* XXX
+     * ?cmd=setpackage&package=foo
+     * ?cmd=deleted
+     */
+    form_lookup = APR_RETRIEVE_OPTIONAL_FN(form_value);
+    if (form_lookup && r->args) {
+        qs_cmd = form_lookup(r, "cmd");
+        qs_package = form_lookup(r, "package");
+    }
+    if (qs_cmd) 
+        debugLog(r, cfg, "cmd=%s", qs_cmd);
+    if (qs_package) 
+        debugLog(r, cfg, "package=%s", qs_package);
+
+    /* actions triggered by optional query string are allowed only to certain hosts */
+    /* is this request from one of the listed admin servers? */
+    list = (apr_sockaddr_t *) cfg->admin_ips->elts;
+    for (i = 0; i < cfg->admin_ips->nelts; i++) {
+        if (apr_sockaddr_equal(r->connection->remote_addr, &list[i])) {
+            admin_allowed = 1;
+            admin_host = ((char **) cfg->admin_hosts->elts)[i];
+            debugLog(r, cfg, "Host %s is an StatsAdminHost", admin_host);
+            continue;
+        }
+    }
+
+    if (qs_cmd && !admin_allowed) {
+        ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, 
+                "[mod_stats] Admin access attempted, but host is not configured as StatsAdminHost");
+        return DECLINED;
+    }
+
+    /* delete a package? */
+    if ( qs_cmd && cfg->delete_query && (apr_strnatcmp(qs_cmd, "deleted") == 0) ) {
+        statement = apr_hash_get(dbd->prepared, cfg->delete_query, APR_HASH_KEY_STRING);
+        if (statement == NULL) {
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+                    "[mod_stats] Could not get StatsDBDDeleteQuery prepared statement");
+            return DECLINED;
+        }
+        if (apr_dbd_pvquery(dbd->driver, r->pool, dbd->handle, 
+                    &nrows, statement,
+                    d->prj, d->repo, d->arch, d->pac, d->type, d->vers, d->rel, NULL) != 0) {
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+                    "[mod_stats] Error deleting %s in database", r->filename);
+        }
+        /* done */
+        return DECLINED;
+    }
+
+    /* create new package? */
+    if ( qs_cmd && cfg->select_query 
+            && cfg->insert_query 
+            && qs_package 
+            && (apr_strnatcmp(qs_cmd, "setpackage") == 0) ) {
+
+        debugLog(r, cfg, "checking if file %s exists", r->filename);
+
         statement = apr_hash_get(dbd->prepared, cfg->select_query, APR_HASH_KEY_STRING);
         if (statement == NULL) {
             ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-                    "Could not get StatsDBDSelectQuery prepared statement");
+                    "[mod_stats] Could not get StatsDBDSelectQuery prepared statement");
             return DECLINED;
         }
         if (apr_dbd_pvselect(dbd->driver, r->pool, dbd->handle, &res, statement, 1, 
-                    d->prj, d->repo, d->arch, d->pac, d->type, d->vers, d->rel, NULL) != 0) {
+                             d->prj, d->repo, d->arch, d->pac, d->type, d->vers, d->rel, NULL) != 0) {
             ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-                    "Error looking up %s in database", r->filename);
+                    "[mod_stats] Error looking up %s in database", r->filename);
         }
 
         nrows = apr_dbd_num_tuples(dbd->driver, res);
-        if (!nrows) {
-            /* insert */
-            statement = apr_hash_get(dbd->prepared, cfg->insert_query, APR_HASH_KEY_STRING);
-            if (statement == NULL) {
-                ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-                        "Could not get StatsDBDInsertQuery prepared statement");
-                return DECLINED;
-            }
-            if (apr_dbd_pvquery(dbd->driver, r->pool, dbd->handle, 
-                        &nrows, statement,
-                        d->prj, d->repo, d->arch, 
-                        d->pac, d->type, d->vers, d->rel) != 0) {
-                ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-                        "Error inserting %s into database", r->filename);
-            }
+        debugLog(r, cfg, "nrows: %d", nrows);
+        if (nrows > 0) {
+            ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, 
+                    "[mod_stats] File %s does already exist. Not inserting", r->filename);
+            return DECLINED;
         }
 
+        /* insert */
+        debugLog(r, cfg, "inserting package %s, file %s", qs_package, r->filename);
+        statement = apr_hash_get(dbd->prepared, cfg->insert_query, APR_HASH_KEY_STRING);
+        if (statement == NULL) {
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+                    "[mod_stats] Could not get StatsDBDInsertQuery prepared statement");
+            return DECLINED;
+        }
+        if (apr_dbd_pvquery(dbd->driver, r->pool, dbd->handle, 
+                    &nrows, statement,
+                    d->prj, d->repo, d->arch, 
+                    d->pac, d->type, d->vers, d->rel,
+                    qs_package) != 0) {
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+                    "[mod_stats] Error inserting %s into database", r->filename);
+        }
+        /* done; we don't want to update the new package's counter from this request */
+        return DECLINED;
     }
+
 
     /* update */
     statement = apr_hash_get(dbd->prepared, cfg->query, APR_HASH_KEY_STRING);
     if (statement == NULL) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "No StatsDBDQuery configured!");
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_stats] No StatsDBDQuery configured!");
         return DECLINED;
     }
     if (apr_dbd_pvquery(dbd->driver, r->pool, dbd->handle, 
@@ -392,7 +505,7 @@ static int stats_logger(request_rec *r)
                 d->prj, d->repo, d->arch, 
                 d->pac, d->type, d->vers, d->rel) != 0) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-                "Got error with update query for %s", r->filename);
+                "[mod_stats] Got error with update query for %s", r->filename);
         return DECLINED;
     }
 
@@ -415,6 +528,9 @@ static const command_rec stats_cmds[] =
     AP_INIT_TAKE1("StatsFileMask", stats_cmd_filemask, NULL, 
                  ACCESS_CONF,
                  "Regexp which determines for which files stats will be done"),
+    AP_INIT_TAKE1("StatsAdminHost", stats_cmd_admin_hosts, NULL, OR_OPTIONS,
+                  "Hostname or IP address of server allowed to issue deletes and inserts "
+                  "via optional query args appended to the URL"),
 
     /* to be used only in server context */
     AP_INIT_TAKE1("StatsDBDQuery", stats_dbd_prepare, 
@@ -424,11 +540,16 @@ static const command_rec stats_cmds[] =
     AP_INIT_TAKE1("StatsDBDSelectQuery", stats_dbd_prepare, 
                       (void *)APR_OFFSETOF(stats_dir_conf, select_query), 
                   RSRC_CONF,
-                  "optional SQL query string to check for existence objects"),
+                  "optional SQL query string to check for existance of objects"),
     AP_INIT_TAKE1("StatsDBDInsertQuery", stats_dbd_prepare, 
                       (void *)APR_OFFSETOF(stats_dir_conf, insert_query), 
                   RSRC_CONF,
                   "optional SQL query string to create non-existant objects"),
+    AP_INIT_TAKE1("StatsDBDDeleteQuery", stats_dbd_prepare, 
+                      (void *)APR_OFFSETOF(stats_dir_conf, delete_query), 
+                  RSRC_CONF,
+                  "optional SQL query string to delete existing objects"),
+
     { NULL }
 };
 
