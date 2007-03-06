@@ -348,10 +348,12 @@ static int stats_logger(request_rec *r)
     switch(r->status) {
         case HTTP_OK:
         case HTTP_MOVED_PERMANENTLY:
+        case HTTP_MOVED_TEMPORARILY:
         case HTTP_TEMPORARY_REDIRECT:
         case HTTP_SEE_OTHER:
             break;
         default:
+            debugLog(r, cfg, "not counting for status code %d", r->status);
             return DECLINED;
     }
 
