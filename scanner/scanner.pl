@@ -29,6 +29,8 @@
 #                   and inserting both, fileid and path_md5 in file_server.
 #                   http_readdir added.
 # 2007-02-15, jw  - rsync_readdir added.
+#
+# 2007-03-08, jw  - option parser added. -l -ll implemented.
 # 		    
 # FIXME: 
 # should do optimize table file, file_server;
@@ -68,15 +70,41 @@ $SIG{__DIE__} = sub
 };
 
 $ENV{FTP_PASSIVE} = 1;
+my $version = '0.3';
 
 # Create a user agent object
 my $ua = LWP::UserAgent->new;
-$ua->agent("openSUSE Scanner/0.2 (See http://en.opensuse.org/Mirrors/Scanner)");
+$ua->agent("openSUSE Scanner/$version (See http://en.opensuse.org/Mirrors/Scanner)");
 
 my $verbose = 1;
 my $use_md5 = 1;
+my $all_servers = 0;
+my $start_dir = '/';
+my $parallel = 1;
+my $list_only = 0;
+
+
+exit usage() unless @ARGV;
+while (defined (my $arg = shift))
+  {
+    if    ($arg !~ m{^-})                  { unshift @ARGV, $arg; last; }
+    elsif ($arg =~ m{^(-h|--help|-\?)})    { exit usage(); }
+    elsif ($arg =~ m{^-q})                 { $verbose = 0; }
+    elsif ($arg =~ m{^-v})                 { $verbose++; }
+    elsif ($arg =~ m{^-a})                 { $all_servers++; }
+    elsif ($arg =~ m{^-d})                 { $start_dir = shift; }
+    elsif ($arg =~ m{^-l})                 { $list_only++; $list_only++ if $arg =~ m{ll}; }
+    elsif ($arg =~ m{^-})		   { exit usage("unknown option '$arg'"); }
+  }
 
 my %only_server_ids = map { $_ => 1 } @ARGV;
+
+exit usage("Please specify list of server IDs (or -a for all) to scan\n") unless $all_servers or %only_server_ids or $list_only;
+exit usage("-a takes no parameters (or try without -a ).\n") if $all_servers and %only_server_ids;
+
+
+die "option -d not impl.\n" if $start_dir ne '/';
+die "option -j not impl.\n" if $parallel != 1;
 
 my $dbh = DBI->connect( 'dbi:mysql:dbname=redirector;host=galerkin.suse.de', 'root', '',
      { PrintError => 0 } ) or die $DBI::errstr;
@@ -85,13 +113,40 @@ my $sql = qq{SELECT * FROM server};
 my $ary_ref = $dbh->selectall_hashref($sql, 'id')
 		   or die $dbh->errstr();
 
+my @scan_list;
+
 for my $row (sort { $a->{id} <=> $b->{id} } values %$ary_ref)
 {
   next if keys %only_server_ids and !defined $only_server_ids{$row->{id}};
 
   if ($row->{enabled} == 1)
   {
+    push @scan_list, $row;
+  }
+}
+
+if ($list_only)
+  {
+    print " id name                      scan_speed   last_scan\n";
+    print "---+-------------------------+-----------+-------------\n";
+    for my $row (@scan_list)
+      {
+        printf "%3d %-30s %5d   %s\n", $row->{id}, $row->{identifier}||'--', $row->{scan_fpm}||0, $row->{last_scan}||'';
+	if ($list_only > 1)
+	  {
+	    print "\t$row->{baseurl_rsync}\n" if length($row->{baseurl_rsync}||'') > 0;
+	    print "\t$row->{baseurl_ftp}\n"   if length($row->{baseurl_ftp}||'') > 0;
+	    print "\t$row->{baseurl}\n"       if length($row->{baseurl}||'') > 0;
+	    print "\n";
+	  }
+      }
+    exit 0;
+  }
+
+for my $row (@scan_list)
+  {
     print "$row->{id}: $row->{identifier} : \n" if $verbose;
+
 
     my $start = time();
     my $file_count = rsync_readdir($row->{id}, $row->{baseurl_rsync}, '');
@@ -124,10 +179,34 @@ for my $row (sort { $a->{id} <=> $b->{id} } values %$ary_ref)
 
     print "server $row->{id}, $file_count files.\n" if $verbose > 1;
   }
-}
 
 $dbh->disconnect();
 exit;
+###################################################################################################
+
+sub usage
+{
+  my ($msg) = @_;
+
+  print STDERR qq{$0 V$version usage:
+
+scanner [options] [server_ids ...]
+
+  -v        Be more verbose (Default: $verbose).
+  -q        Do not be verbose.
+            Default: '$start_dir'.
+  -a        Scan all servers. Alternative to providing a list of server_ids.
+  -l        Do not scan. List enabled servers only.
+  -ll       As -l but include scanner baseurls.
+};
+#  -j N      Run up to N scanner queries in parallel.
+#  -d dir    Start scanning in subdirectory dir (below servers baseurl).
+
+  print STDERR "\nERROR: $msg\n" if $msg;
+  return 0;
+}
+
+
 
 sub http_readdir
 {
