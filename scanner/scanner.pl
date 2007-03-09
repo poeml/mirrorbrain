@@ -2,7 +2,7 @@
 
 ################################################################################
 # scanner.pl daemon for working through opensuse directories.
-# Copyright (C) 2006 Martin Polster, Novell Inc.
+# Copyright (C) 2006-2007 Martin Polster, Juergen Weigert, Novell Inc.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -31,6 +31,7 @@
 # 2007-02-15, jw  - rsync_readdir added.
 #
 # 2007-03-08, jw  - option parser added. -l -ll implemented.
+#                   -d subdir done. -x, -k done.
 # 		    
 # FIXME: 
 # should do optimize table file, file_server;
@@ -70,7 +71,7 @@ $SIG{__DIE__} = sub
 };
 
 $ENV{FTP_PASSIVE} = 1;
-my $version = '0.3';
+my $version = '0.4';
 
 # Create a user agent object
 my $ua = LWP::UserAgent->new;
@@ -82,6 +83,8 @@ my $all_servers = 0;
 my $start_dir = '/';
 my $parallel = 1;
 my $list_only = 0;
+my $extra_schedule_run = 0;
+my $keep_dead_files = 0;
 
 
 exit usage() unless @ARGV;
@@ -92,6 +95,9 @@ while (defined (my $arg = shift))
     elsif ($arg =~ m{^-q})                 { $verbose = 0; }
     elsif ($arg =~ m{^-v})                 { $verbose++; }
     elsif ($arg =~ m{^-a})                 { $all_servers++; }
+    elsif ($arg =~ m{^-j})                 { $parallel = shift; }
+    elsif ($arg =~ m{^-x})                 { $extra_schedule_run++; }
+    elsif ($arg =~ m{^-k})                 { $keep_dead_files++; }
     elsif ($arg =~ m{^-d})                 { $start_dir = shift; }
     elsif ($arg =~ m{^-l})                 { $list_only++; $list_only++ if $arg =~ m{ll}; }
     elsif ($arg =~ m{^-})		   { exit usage("unknown option '$arg'"); }
@@ -103,7 +109,7 @@ exit usage("Please specify list of server IDs (or -a for all) to scan\n") unless
 exit usage("-a takes no parameters (or try without -a ).\n") if $all_servers and %only_server_ids;
 
 
-die "option -d not impl.\n" if $start_dir ne '/';
+exit usage("-j requires a positive number") unless $parallel =~ m{^\d+$} and $parallel > 0;
 die "option -j not impl.\n" if $parallel != 1;
 
 my $dbh = DBI->connect( 'dbi:mysql:dbname=redirector;host=galerkin.suse.de', 'root', '',
@@ -143,39 +149,57 @@ if ($list_only)
     exit 0;
   }
 
+###################
+# Keep in sync with "$start_dir/%" in unless ($keep_dead_files) below!
+$start_dir =~ s{^/+}{};	# leading slash is implicit; leads to '' per default.
+$start_dir =~ s{/+$}{};	# trailing slashes likewise. 
+##################
+
 for my $row (@scan_list)
   {
     print "$row->{id}: $row->{identifier} : \n" if $verbose;
 
-
     my $start = time();
-    my $file_count = rsync_readdir($row->{id}, $row->{baseurl_rsync}, '');
+    my $file_count = rsync_readdir($row->{id}, $row->{baseurl_rsync}, $start_dir);
     if (!$file_count and $row->{baseurl_ftp})
       {
         print "no rsync, trying ftp\n" if $verbose;
-        $file_count = scalar ftp_readdir($row->{id}, $row->{baseurl_ftp}, '') 
+        $file_count = scalar ftp_readdir($row->{id}, $row->{baseurl_ftp}, $start_dir);
       }
     if (!$file_count and $row->{baseurl})
       {
         print "no rsync, no ftp, trying http\n" if $verbose;
-        $file_count = scalar http_readdir($row->{id}, $row->{baseurl}, '')     
+        $file_count = scalar http_readdir($row->{id}, $row->{baseurl}, $start_dir);
       }
 
     my $duration = time() - $start;
     $duration = 1 if $duration < 1;
     my $fpm = int(60*$file_count/$duration);
 
-    my $sql = "DELETE FROM file_server WHERE serverid = $row->{id} 
-    	       AND timestamp_scanner <= (SELECT last_scan FROM server 
-	       WHERE serverid = $row->{id} limit 1);";
+    unless ($keep_dead_files)
+      {
+	my $sql = "DELETE FROM file_server WHERE serverid = $row->{id} 
+		   AND timestamp_scanner <= (SELECT last_scan FROM server 
+		   WHERE serverid = $row->{id} limit 1)";
 
-    print "$sql\n" if $verbose;
-    my $sth = $dbh->prepare( $sql );
-              $sth->execute() or die $sth->errstr;
+	if (length $start_dir)
+	  {
+	    ## let us hope subselects with paramaters work in mysql.
+	    $sql .= "AND fileid IN (SELECT id FROM file WHERE path LIKE ?)";
+	  }
 
-    $sql = "UPDATE server SET last_scan = CURRENT_TIMESTAMP, scan_fpm = $fpm WHERE id = $row->{id};";
-    $sth = $dbh->prepare( $sql );
-           $sth->execute() or die $sth->err;
+	print "$sql\n" if $verbose;
+	# Keep in sync with $start_dir setup above!
+	my $sth = $dbh->prepare( $sql );
+		  $sth->execute(length($start_dir) ? "$start_dir/%" : ()) or die $sth->errstr;
+      }
+
+    unless ($extra_schedule_run)
+      {
+        $sql = "UPDATE server SET last_scan = CURRENT_TIMESTAMP, scan_fpm = $fpm WHERE id = $row->{id};";
+        my $sth = $dbh->prepare( $sql );
+                  $sth->execute() or die $sth->err;
+      }
 
     print "server $row->{id}, $file_count files.\n" if $verbose > 1;
   }
@@ -193,14 +217,19 @@ sub usage
 scanner [options] [server_ids ...]
 
   -v        Be more verbose (Default: $verbose).
-  -q        Do not be verbose.
-            Default: '$start_dir'.
-  -a        Scan all servers. Alternative to providing a list of server_ids.
+  -q        Be quiet.
   -l        Do not scan. List enabled servers only.
   -ll       As -l but include scanner baseurls.
+
+  -a        Scan all servers. Alternative to providing a list of server_ids.
+  -d dir    Scan only in dir under servers baseurl. 
+            Default: start at baseurl. Consider using -x and or -k with -d .
+  -x        Extra-Schedule run. Do not update 'scanner.last_scan' tstamp.
+            Default: 'scanner.last_scan' is updated after each run.
+  -k        Keep dead files. Default: Entries not found again are removed.
+
 };
 #  -j N      Run up to N scanner queries in parallel.
-#  -d dir    Start scanning in subdirectory dir (below servers baseurl).
 
   print STDERR "\nERROR: $msg\n" if $msg;
   return 0;
@@ -219,7 +248,7 @@ sub http_readdir
   my $contents = cont("$url/$name");
   if ($contents =~ s{^.*<pre>.*<a href="\?C=.;O=.">}{}s)
     {
-      ## good, we know that. it is a standard apache dir-listing.
+      ## good, we know that one. It is a standard apache dir-listing.
       ## 
       ## bad, apache shows symlinks as a copy of the file or dir they point to.
       ## no way to avoid duplicate crawls.
@@ -285,7 +314,7 @@ sub ftp_readdir
   print "$id $url/$name\n" if $verbose;
   my $content = cont("$url/$name");
   
-  if ($content =~ m/^\d\d\d\s/)
+  if ($content =~ m/^\d\d\d\s/)		# some FTP status code? Not good.
   {
     print $content if $verbose > 2;
     return;
@@ -416,7 +445,7 @@ sub cont
 # so that we can ask the database to enumerate the files 
 # we have seen. Caller should still write the ids to file_server table, so that
 # a reverse lookup can be done. ("list me all files matching foo on server bar")
-#
+# E.g. Option -d needs to list all files below a certain path prefix.
 sub getfileid
 {
   my $path = shift;
@@ -490,7 +519,7 @@ sub rsync_cb
 # rsync://ftp.sunet.se/pub/Linux/distributions/opensuse/#@^opensuse/@@
 sub rsync_readdir
 {
-  my ($serverid, $url) = @_;
+  my ($serverid, $url, $d) = @_;
   return 0 unless $url;
 
   $url =~ s{^rsync://}{}s;
@@ -499,12 +528,13 @@ sub rsync_readdir
   die "rsync_readdir: cannot parse url '$url'\n" unless $url =~ m{^([^:/]+)(:(\d*))?(.*)$};
   my ($host, $dummy, $port, $path) = ($1,$2,$3,$4);
   $port = 873 unless $port;
-  $path =~ s{^/}{};
+  $path =~ s{^/+}{};
 
   my $peer = { addr => inet_aton($host), port => $port, serverid => $serverid };
   $peer->{pat} = $pat if $pat;
   $peer->{pass} = $1 if $cred and $cred =~ s{:(.*)}{};
   $peer->{user} = $cred if $cred;
+  $path .= "/". $d if length $d;
   rsync_get_filelist($peer, $path, 0, \&rsync_cb, $peer);
   return $peer->{counter};
 }
