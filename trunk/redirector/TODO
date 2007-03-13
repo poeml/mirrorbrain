@@ -1,6 +1,8 @@
 if mirror has country_code="all", put it into the country pool
 needed for cache.novell.com
 
+add directive to exclude IP address/network from redirecting
+
 might need patch for
 http://issues.apache.org/bugzilla/show_bug.cgi?id=39329
 
@@ -14,3 +16,24 @@ mime type application/x-cd-image. They should not be cached for a significant
 amount of time, but a few minutes shouldn't be a problem.
 As a key for the memcache object, one could use the label of the prepared SQL
 statement combined with the filename.
+
+stickyness of (large) files to certain mirrors, to make better use of buffer caches?
+
+test whether usage of explicit ap_dbd_open/ap_dbd_close, instead of the
+ap_dbd_acquire wrapping function, results in better utilization of the database
+connection pool
+
+12:18 < DuDE> niq: I have a question. I am using two apache modules, one in the handler phase and one in the logging phase. Both use ap_dbd_acquire. Does that make sense?
+12:18 < DuDE> niq: or is it better to use open/close explicitely?
+12:19 < DuDE> niq: I read the acquired connection needs to stay "clean and unencumbered" to be able to use acquire, but I don't understand exactly what this means
+13:38 -!- nick_ [n=nick@walkham.free-online.co.uk] has quit [Read error: 110 (Connection timed out)]
+13:44 < niq> that should be fine
+13:48 < DuDE> acquire should be fine?
+14:00 < niq> yep
+14:01 < niq> just so long as you don't leave things like dangling cursors or transactions
+14:02 < DuDE> niq: okay
+14:05 < DuDE> niq: would I get a dangling cursor, if I do a apr_dbd_pvselect, and don't read the complete results (with apr_dbd_get_row)?
+14:05 < niq> yes
+14:06 < DuDE> niq: okay
+14:06 < DuDE> niq: thanks
+14:06 < niq> if you don't want to loop-until-done, you can execute a random-access select, then read an invalid row to kill the cursor
