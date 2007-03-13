@@ -85,6 +85,7 @@ my $parallel = 1;
 my $list_only = 0;
 my $extra_schedule_run = 0;
 my $keep_dead_files = 0;
+my $new_url = undef;
 
 
 exit usage() unless @ARGV;
@@ -100,12 +101,13 @@ while (defined (my $arg = shift))
     elsif ($arg =~ m{^-k})                 { $keep_dead_files++; }
     elsif ($arg =~ m{^-d})                 { $start_dir = shift; }
     elsif ($arg =~ m{^-l})                 { $list_only++; $list_only++ if $arg =~ m{ll}; }
+    elsif ($arg =~ m{^-N})                 { $new_url = shift; }
     elsif ($arg =~ m{^-})		   { exit usage("unknown option '$arg'"); }
   }
 
 my %only_server_ids = map { $_ => 1 } @ARGV;
 
-exit usage("Please specify list of server IDs (or -a for all) to scan\n") unless $all_servers or %only_server_ids or $list_only;
+exit usage("Please specify list of server IDs (or -a for all) to scan\n") unless $all_servers or %only_server_ids or $list_only or $new_url;
 exit usage("-a takes no parameters (or try without -a ).\n") if $all_servers and %only_server_ids;
 
 
@@ -118,6 +120,8 @@ my $dbh = DBI->connect( 'dbi:mysql:dbname=redirector;host=galerkin.suse.de', 'ro
 my $sql = qq{SELECT * FROM server};
 my $ary_ref = $dbh->selectall_hashref($sql, 'id')
 		   or die $dbh->errstr();
+
+exit new_url($dbh, $new_url, $ary_ref) if defined $new_url;
 
 my @scan_list;
 
@@ -176,16 +180,17 @@ for my $row (@scan_list)
     $duration = 1 if $duration < 1;
     my $fpm = int(60*$file_count/$duration);
 
+    print "file_count: $file_count\n";
     unless ($keep_dead_files)
       {
 	my $sql = "DELETE FROM file_server WHERE serverid = $row->{id} 
 		   AND timestamp_scanner <= (SELECT last_scan FROM server 
-		   WHERE serverid = $row->{id} limit 1)";
+		   WHERE id = $row->{id} limit 1)";
 
 	if (length $start_dir)
 	  {
 	    ## let us hope subselects with paramaters work in mysql.
-	    $sql .= "AND fileid IN (SELECT id FROM file WHERE path LIKE ?)";
+	    $sql .= " AND fileid IN (SELECT id FROM file WHERE path LIKE ?)";
 	  }
 
 	print "$sql\n" if $verbose;
@@ -227,11 +232,54 @@ scanner [options] [server_ids ...]
   -x        Extra-Schedule run. Do not update 'scanner.last_scan' tstamp.
             Default: 'scanner.last_scan' is updated after each run.
   -k        Keep dead files. Default: Entries not found again are removed.
+  -N url    Add a new url to the scanner database.
 
 };
 #  -j N      Run up to N scanner queries in parallel.
 
   print STDERR "\nERROR: $msg\n" if $msg;
+  return 0;
+}
+
+sub new_url
+{
+  my ($dbh, $new_url, $old) = @_;
+
+  die "new_url: try (http|ftp|rsync)://hostname/path\n (seen '$new_url')\n"
+    unless $new_url =~ m{^(http|ftp|rsync:?)://([^/]+)/(.*)$};
+
+  my ($proto, $host, $path) = ($1,$2,$3);
+
+  if ($path =~ s{/(distribution|tools|repositories)(/.*?)?$}{})
+    {
+      warn qq{path truncated before component "/$1/": $path\n};
+    }
+  my %proto2field = (http => 'baseurl', ftp => 'baseurl_ftp', rsync => 'baseurl_rsync', 'rsync:' => 'baseurl_rsync');
+
+  my $id;
+  for my $m (values %$old)
+    {
+      if (lc $m->{identifier} eq lc $host)
+        {
+	  $id = $m->{id};
+	  last;
+	}
+    }
+
+  if ($id)	# we knew him already
+    {
+      warn "overwriting id=$id: $old->{$id}{$proto2field{$proto}}\n"
+        if defined $old->{$id}{$proto2field{$proto}} and length $old->{$id}{$proto2field{$proto}};
+      my $sth = $dbh->prepare(qq{UPDATE server SET $proto2field{$proto} = ? WHERE id = $id});
+      $sth->execute("$proto://$host/$path") or die $sth->errstr;
+    }
+  else
+    {
+      my $sth = $dbh->prepare(qq{INSERT INTO server SET $proto2field{$proto} = ?, identifier = ?, country = ?, enabled = 1});
+      my $country = undef;
+      $country = $1 if $host =~ m{\.(\w\w)$};
+      $sth->execute("$proto://$host/$path", $host, $country) or die $sth->errstr;
+    }
   return 0;
 }
 
