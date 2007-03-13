@@ -5,9 +5,8 @@
 # Copyright (C) 2006-2007 Martin Polster, Juergen Weigert, Novell Inc.
 #
 # This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# modify it under the terms of the GNU General Public License version 2
+# as published by the Free Software Foundation; 
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -32,6 +31,7 @@
 #
 # 2007-03-08, jw  - option parser added. -l -ll implemented.
 #                   -d subdir done. -x, -k done.
+# 2007-03-13, jw  - V0.5 option -j added. 
 # 		    
 # FIXME: 
 # should do optimize table file, file_server;
@@ -71,7 +71,7 @@ $SIG{__DIE__} = sub
 };
 
 $ENV{FTP_PASSIVE} = 1;
-my $version = '0.4';
+my $version = '0.5';
 
 # Create a user agent object
 my $ua = LWP::UserAgent->new;
@@ -112,7 +112,6 @@ exit usage("-a takes no parameters (or try without -a ).\n") if $all_servers and
 
 
 exit usage("-j requires a positive number") unless $parallel =~ m{^\d+$} and $parallel > 0;
-die "option -j not impl.\n" if $parallel != 1;
 
 my $dbh = DBI->connect( 'dbi:mysql:dbname=redirector;host=galerkin.suse.de', 'root', '',
      { PrintError => 0 } ) or die $DBI::errstr;
@@ -159,6 +158,36 @@ $start_dir =~ s{^/+}{};	# leading slash is implicit; leads to '' per default.
 $start_dir =~ s{/+$}{};	# trailing slashes likewise. 
 ##################
 
+# be sure not to parallelize if there is exactly one server to scan.
+$parallel = 1 if scalar keys %only_server_ids == 1;
+
+if ($parallel > 1)
+  {
+    my @worker;
+    my @cmd = ($0);
+    push @cmd, '-q' unless $verbose;
+    push @cmd, ('-v') x ($verbose - 1) if $verbose > 1;
+    push @cmd, '-x' if $extra_schedule_run;
+    push @cmd, '-k' if $keep_dead_files;
+    push @cmd, '-d', $start_dir if length $start_dir;
+    # We must not propagate -j here.
+    # All other options we should propagate.
+
+    for my $row (@scan_list)
+      {
+        # check if one of the workers is idle
+        my $worker_id = wait_worker(\@worker, $parallel);
+	$worker[$worker_id] = { serverid => $row->{id}, pid => fork_child($worker_id, @cmd, $row->{id}) };
+      }
+
+    while (wait > -1)
+      {
+        print "reap\n" if $verbose;
+        ;	# reap all children
+      }
+    exit 0;
+  }
+
 for my $row (@scan_list)
   {
     print "$row->{id}: $row->{identifier} : \n" if $verbose;
@@ -180,7 +209,6 @@ for my $row (@scan_list)
     $duration = 1 if $duration < 1;
     my $fpm = int(60*$file_count/$duration);
 
-    print "file_count: $file_count\n";
     unless ($keep_dead_files)
       {
 	my $sql = "DELETE FROM file_server WHERE serverid = $row->{id} 
@@ -193,7 +221,7 @@ for my $row (@scan_list)
 	    $sql .= " AND fileid IN (SELECT id FROM file WHERE path LIKE ?)";
 	  }
 
-	print "$sql\n" if $verbose;
+	print "$sql\n" if $verbose > 1;
 	# Keep in sync with $start_dir setup above!
 	my $sth = $dbh->prepare( $sql );
 		  $sth->execute(length($start_dir) ? "$start_dir/%" : ()) or die $sth->errstr;
@@ -202,11 +230,12 @@ for my $row (@scan_list)
     unless ($extra_schedule_run)
       {
         $sql = "UPDATE server SET last_scan = CURRENT_TIMESTAMP, scan_fpm = $fpm WHERE id = $row->{id};";
+	print "$sql\n" if $verbose > 1;
         my $sth = $dbh->prepare( $sql );
                   $sth->execute() or die $sth->err;
       }
 
-    print "server $row->{id}, $file_count files.\n" if $verbose > 1;
+    print "server $row->{id}, $file_count files.\n" if $verbose > 0;
   }
 
 $dbh->disconnect();
@@ -283,6 +312,52 @@ sub new_url
   return 0;
 }
 
+
+sub wait_worker
+{
+  my ($a, $n) = @_;
+  die if $n < 1;
+  my %pids;
+
+  for (;;)
+    {
+      for (my $i = 0; $i < $n; $i++)
+	{
+	  return $i unless $a->[$i];
+	  my $p = $a->[$i]{pid};
+	  unless (kill(0, $p)) 		# already dead? okay take him home.
+	    {
+	      print "kill(0, $p) returned 0. reusing $i!\n" if $verbose;
+	      undef $a->[$i];	
+	      return $i;
+	    }
+	  $pids{$p} = $i;		# not? okay wait.
+	}
+      my $p = wait;
+      if (defined(my $i = $pids{$p}))
+        {
+	  print "[#$i, id=$a->[$i]{serverid} pid=$p exit: $?]\n" if $verbose;
+	  undef $a->[$i];
+	  return $i;			# now, been there, done that.
+	}
+      # $p = -1 or other silly things...
+      warn "wait failed: $!, $?\n";
+      die "wait failed" if $p < 0;
+    }
+}
+
+sub fork_child
+{
+  my ($idx, @args) = @_;
+  if (my $p = fork())
+    {
+      # parent 
+      print "worker $idx, pid=$p start.\n" if $verbose > 1;
+      return $p;
+    }
+  my $cmd = shift @args;
+  exec { $cmd } "scanner [#$idx]", @args;	# ourselves with a false name and some data.
+}
 
 
 sub http_readdir
@@ -554,12 +629,20 @@ sub rsync_cb
 
   if ($mode & 0x1000)	 # directories have 0 here.
     {
-      save_file($name, $priv->{serverid}, $mtime);
-      $priv->{counter}++;
+      if ($mode & 004)		# readable for the world is good.
+        {
+          save_file($name, $priv->{serverid}, $mtime);
+          $priv->{counter}++;
+	  printf "rsync(%d) ADD: %03o %10d %-25s %-50s\n", $priv->{serverid}, ($mode & 0777), $len, scalar(localtime $mtime), $name if $verbose > 2;
+	}
+      else 
+        {
+	  printf "rsync(%d) skip: %03o %10d %-25s %-50s\n", $priv->{serverid}, ($mode & 0777), $len, scalar(localtime $mtime), $name if $verbose > 1;
+	}
     }
   elsif ($verbose)
     {
-      printf "rsync(%d) %03o %8d %-25s %-50s\n", $priv->{serverid}, ($mode & 0777), $len, scalar(localtime $mtime), $name;
+      printf "rsync(%d) dir: %03o %10d %-25s %-50s\n", $priv->{serverid}, ($mode & 0777), $len, scalar(localtime $mtime), $name;
     }
   return;
 }
