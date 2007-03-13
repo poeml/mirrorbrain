@@ -1,12 +1,26 @@
 /*
+ * Copyright (c) 2007 Peter Poeml <poeml@suse.de> / Novell Inc.
+ * All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ *
  * mod_zrkadlo
  *
  * redirect clients to mirror servers, based on sql database
  *
- * Copyright (c) 2007 Peter Poeml <poeml@suse.de> / Novell Inc.
+ * Credits:
  *
- *
- * Credit:
  * This module was inspired by mod_offload, written by
  * Ryan C. Gordon <icculus@icculus.org>.
  *
@@ -650,7 +664,7 @@ static int zrkadlo_handler(request_rec *r)
     }
 
     debugLog(r, cfg, "URI: '%s'", r->unparsed_uri);
-    //debugLog(r, cfg, "Request for file '%s'", r->filename);
+    debugLog(r, cfg, "filename: '%s'", r->filename);
     //debugLog(r, cfg, "server_hostname: '%s'", r->server->server_hostname);
 
 
@@ -792,14 +806,14 @@ static int zrkadlo_handler(request_rec *r)
 
     /* ask the database and pick the matching server according to region */
 
-    ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, "[mod_zrkadlo] Acquiring database connection");
+    //ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, "[mod_zrkadlo] Acquiring database connection");
     ap_dbd_t *dbd = zrkadlo_dbd_acquire_fn(r);
     if (dbd == NULL) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
                 "[mod_zrkadlo] Error acquiring database connection");
         return DECLINED; /* fail gracefully */
     }
-    ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, "[mod_zrkadlo] Successfully acquired database connection.");
+    //ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, "[mod_zrkadlo] Successfully acquired database connection.");
     debugLog(r, cfg, "Successfully acquired database connection.");
 
     statement = apr_hash_get(dbd->prepared, cfg->query, APR_HASH_KEY_STRING);
@@ -811,8 +825,17 @@ static int zrkadlo_handler(request_rec *r)
     /* strip the leading directory
      * no need to escape it for the SQL query because we use a prepared 
      * statement with bound parameter */
-    filename = r->filename + strlen(cfg->mirror_base);
-    debugLog(r, cfg, "SQL lookup for '%s'", filename);
+
+    char *ptr = canonicalize_file_name(r->filename);
+    if (ptr == NULL) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+                "[mod_zrkadlo] Error canonicalizing filename '%s'", r->filename);
+        return HTTP_INTERNAL_SERVER_ERROR;
+    }
+    /* XXX we should forbid symlinks in mirror_base */
+    filename = apr_pstrdup(r->pool, ptr + strlen(cfg->mirror_base));
+    free(ptr);
+    debugLog(r, cfg, "SQL lookup for (canonicalized) '%s'", filename);
 
     if (apr_dbd_pvselect(dbd->driver, r->pool, dbd->handle, &res, statement, 
                 1, /* we don't need random access actually, but 
@@ -916,6 +939,8 @@ static int zrkadlo_handler(request_rec *r)
 
         /* this mirror comes from the database */
         /* XXX not implemented: statically configured fallback mirrors */
+        /* such mirrors could be entered in the database like any other mirrors,
+         * but simply skipped by the scanner -- probably a no_scan flag is needed */
         new->is_static = 0;
 
         /* now, take some decisions */
@@ -1023,6 +1048,8 @@ static int zrkadlo_handler(request_rec *r)
                  "<html><head>\n<title>Mirror List</title>\n</head><body>\n",
                  r);
 
+        ap_rprintf(r, "Filename: %s<br>\n", filename);
+        ap_rprintf(r, "Client IP address: %s<br>\n", clientip);
         ap_rprintf(r, "Found %d mirror%s: %d country, %d region, %d elsewhere\n", mirror_cnt,
                 (mirror_cnt == 1) ? "" : "s",
                 mirrors_same_country->nelts,
@@ -1032,7 +1059,7 @@ static int zrkadlo_handler(request_rec *r)
         mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
         mirror = NULL;
 
-        ap_rputs("<h3>Mirrors in the same country:</h3>", r);
+        ap_rprintf(r, "<h3>Mirrors in the same country (%s):</h3>", country_code);
         ap_rputs("<pre>", r);
         for (i = 0; i < mirrors_same_country->nelts; i++) {
             mirror = mirrorp[i];
@@ -1043,8 +1070,8 @@ static int zrkadlo_handler(request_rec *r)
         }
         ap_rputs("</pre>", r);
 
+        ap_rprintf(r, "<h3>Mirrors in the same continent (%s):</h3>", continent_code);
         ap_rputs("<pre>", r);
-        ap_rputs("<h3>Mirrors in the same region:</h3>", r);
         mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
         for (i = 0; i < mirrors_same_region->nelts; i++) {
             mirror = mirrorp[i];
@@ -1055,8 +1082,8 @@ static int zrkadlo_handler(request_rec *r)
         }
         ap_rputs("</pre>", r);
 
-        ap_rputs("<pre>", r);
         ap_rputs("<h3>Mirrors in the rest of the world:</h3>", r);
+        ap_rputs("<pre>", r);
         mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
         for (i = 0; i < mirrors_elsewhere->nelts; i++) {
             mirror = mirrorp[i];
