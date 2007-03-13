@@ -43,7 +43,7 @@
 #define UNSET (-1)
 #endif
 
-#define MOD_STATS_VER "0.2"
+#define MOD_STATS_VER "1.1"
 #define VERSION_COMPONENT "mod_stats/"MOD_STATS_VER
 
 /* from ssl/ssl_engine_config.c */
