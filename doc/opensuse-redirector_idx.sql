@@ -14,3 +14,5 @@ CREATE INDEX file_server_path_md5_idx ON file_server (path_md5);
 ALTER TABLE server ADD COLUMN baseurl_rsync varchar(128);
 ALTER TABLE server ADD COLUMN rsync_is_staged tinyint;
 
+-- for peter
+ALTER TABLE server ADD COLUMN comment text;
