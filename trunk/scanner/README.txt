@@ -12,9 +12,34 @@ Galerkin now can serve ca 1000 redirects per second
 
 
 TODO: 
-  - implement an rsync log parser. 
-    This gives fastest updates for push mirrors, when triggered after rsync.
+  - accept names as well as IDs.
+
+  - add to -N option:
+    -N baseurl -s score -c country -r region(continent)
+    -N baseurl_ftp 
+    -N baseurl_rsync
+
+  - ~/config.pl  or -c configfile
+    config: exclude list
+    .xml
+    .xml.gz
+    .asc
+    .repo
+    /repoview/*
+
+  - option -A serverid path | [url]
+  - option -D serverid path | [url]
+
+  - loop mode with timeout after last scan.
+
+  - slowscan: default 2 sec pause after each directory
+
   - implement a post rsync trigger hook for push mirrors, to do the above.
   - implement a pre rsync trigger hook for push mirrors, to disable them 
     while they are being updated.
   - add geoip DB
+
+  - implement an rsync log parser. 
+    This gives fastest updates for push mirrors, when triggered after rsync.
+
+  - http head request to check files > 2 GB
