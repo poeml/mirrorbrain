@@ -12,8 +12,6 @@ Galerkin now can serve ca 1000 redirects per second
 
 
 TODO: 
-  - accept names as well as IDs.
-
   - add to -N option:
     -N baseurl -s score -c country -r region(continent)
     -N baseurl_ftp 
