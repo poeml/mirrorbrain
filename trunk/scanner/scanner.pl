@@ -32,6 +32,8 @@
 # 2007-03-08, jw  - option parser added. -l -ll implemented.
 #                   -d subdir done. -x, -k done.
 # 2007-03-13, jw  - V0.5 option -j added. 
+# 2007-03-15, jw  - V0.6, allow identifier as well as ID on command line.
+#                   added recursion_delay = 2 sec, fixed rsync with -d.
 # 		    
 # FIXME: 
 # should do optimize table file, file_server;
@@ -71,7 +73,7 @@ $SIG{__DIE__} = sub
 };
 
 $ENV{FTP_PASSIVE} = 1;
-my $version = '0.5';
+my $version = '0.6';
 
 # Create a user agent object
 my $ua = LWP::UserAgent->new;
@@ -86,6 +88,7 @@ my $list_only = 0;
 my $extra_schedule_run = 0;
 my $keep_dead_files = 0;
 my $new_url = undef;
+my $recursion_delay = 2;	# seconds delay per readdir_* recuursion
 
 
 exit usage() unless @ARGV;
@@ -126,7 +129,8 @@ my @scan_list;
 
 for my $row (sort { $a->{id} <=> $b->{id} } values %$ary_ref)
 {
-  next if keys %only_server_ids and !defined $only_server_ids{$row->{id}};
+  next if keys %only_server_ids and !defined $only_server_ids{$row->{id}}
+  				and !defined $only_server_ids{$row->{identifier}};
 
   if ($row->{enabled} == 1)
   {
@@ -263,8 +267,10 @@ scanner [options] [server_ids ...]
   -k        Keep dead files. Default: Entries not found again are removed.
   -N url    Add a new url to the scanner database.
 
+  -j N      Run up to N scanner queries in parallel.
+
+Both, names(identifier) and numbers(id) are accepted as server_ids.
 };
-#  -j N      Run up to N scanner queries in parallel.
 
   print STDERR "\nERROR: $msg\n" if $msg;
   return 0;
@@ -392,6 +398,7 @@ sub http_readdir
 	        {
 		  ## we must be really sure it is a directory, when we come here.
 		  ## otherwise, we'll retrieve the contents of a file!
+                  sleep($recursion_delay) if $recursion_delay;
                   push @r, http_readdir($id, $url, $t);
 		}
 	      else
@@ -462,6 +469,7 @@ sub ftp_readdir
 
       if ($1 eq "d")
       {
+        sleep($recursion_delay) if $recursion_delay;
         push @r, ftp_readdir($id, $url, $t);
       }
       if ($1 eq 'l')
@@ -487,6 +495,7 @@ sub save_file
   $path =~ s{^/+}{};	# be sure we have no leading slashes.
   my ($fileid, $md5) = getfileid($path);
   die "save_file: md5 undef" unless defined $md5;
+
 
   if ($use_md5)
     {
@@ -621,6 +630,12 @@ sub rsync_cb
   my ($priv, $name, $len, $mode, $mtime, @info) = @_;
   return if $name eq '.' or $name eq '..';
 
+  if ($priv->{subdir})
+    {
+      # subdir is expected not to start or end in slashes.
+      $name = $priv->{subdir} . '/' . $name;
+    }
+
   if ($priv->{pat} && $priv->{pat} =~ m{@([^@]*)@([^@]*)})
     {
       my ($m, $r) = ($1, $2);
@@ -665,6 +680,7 @@ sub rsync_readdir
   $peer->{pat} = $pat if $pat;
   $peer->{pass} = $1 if $cred and $cred =~ s{:(.*)}{};
   $peer->{user} = $cred if $cred;
+  $peer->{subdir} = $d if length $d;
   $path .= "/". $d if length $d;
   rsync_get_filelist($peer, $path, 0, \&rsync_cb, $peer);
   return $peer->{counter};
