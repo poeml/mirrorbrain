@@ -15,20 +15,39 @@ if (scalar @ARGV)
       {
         print "$$: sleep $i ...\n";
 	sleep $i;
-	print "$$: \t ... done.\n";
+	print "$$: \t ... $i done.\n";
       }
     exit 0;
   }
 
-my @n = qw(12 3 34 5 6 23 8 11 9 2 4 1 7 10 3 15 1);
+my @n = qw(12 3 34 3 5 6 8 1 7 5);
 my $w = 4;
 my @w;
-for my $n (@n)
+my %where;
+
+my $loop = 1;
+
+do
   {
-    # check if one of the workers is idle
-    my $i = wait_worker(\@w, $w);
-    $w[$i]{pid} = fork_child($i, $n);
+    for my $n (@n)
+      {
+	my $skip = 0;
+	map { $skip++ if $_->{id} == $n } @w;
+	if ($skip)
+	  {
+	    sleep 1;
+	    print "skipping $n\n";
+	    next;
+	  }
+
+	# check if one of the workers is idle
+	my $i = wait_worker(\@w, $w);
+	$w[$i] = { id => $n, pid => fork_child($i, $n) };
+	my $l = join(',', map { sprintf "%3d", $_->{id} } @w);
+	print "\t\t\t\t$l\n";
+      }
   }
+while ($loop);
 
 while (wait > -1)
   {
@@ -50,6 +69,7 @@ sub wait_worker
 	{
 	  return $i unless $a->[$i];
 	  my $p = $a->[$i]{pid};
+	  my $id = $a->[$i]{id};
 	  unless (kill(0, $p)) 		# already dead? okay take him home.
 	    {
 	      print "kill(0, $p) returned 0. reusing $i!\n";
@@ -76,7 +96,7 @@ sub fork_child
   if (my $p = fork())
     {
       # parent 
-      print "worker $idx, pid=$p start.\n";
+      print "worker $idx, ($data[0]) pid=$p start.\n";
       return $p;
     }
   exec { $0 } "scanner [#$idx]", @data;	# ourselves with a false name and some data.
