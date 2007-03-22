@@ -34,6 +34,7 @@
 # 2007-03-13, jw  - V0.5 option -j added. 
 # 2007-03-15, jw  - V0.6, allow identifier as well as ID on command line.
 #                   added recursion_delay = 2 sec, fixed rsync with -d.
+# 2007-03-22, jw  - V0.7, skipping unreadable files in ftp-scan.
 # 		    
 # FIXME: 
 # should do optimize table file, file_server;
@@ -73,7 +74,7 @@ $SIG{__DIE__} = sub
 };
 
 $ENV{FTP_PASSIVE} = 1;
-my $version = '0.6';
+my $version = '0.7';
 
 # Create a user agent object
 my $ua = LWP::UserAgent->new;
@@ -456,35 +457,45 @@ sub ftp_readdir
 
   my @r;
   for my $i (0..$#text)
-  {
-    if ($text[$i] =~ m/^([dl-]).*(\w\w\w\s+\d\d?\s+\d\d:?\d\d)\s+([\S]+)$/)
     {
-      next if $3 eq "." or $3 eq "..";
-      my $timestamp = $2;
+      if ($text[$i] =~ m/^([dl-])(.........).*(\w\w\w\s+\d\d?\s+\d\d:?\d\d)\s+([\S]+)$/)
+	{
+	  my ($type, $mode, $timestamp, $fname) = ($1, $2, $3, $4);
+	  next if $fname eq "." or $fname eq "..";
 
-      #convert to timestamp
-      my $time = str2time($timestamp);
-	
-      my $t = length($name) ? "$name/$3" : $3;
+	  #convert to timestamp
+	  my $time = str2time($timestamp);
+	    
+	  my $t = length($name) ? "$name/$fname" : $fname;
 
-      if ($1 eq "d")
-      {
-        sleep($recursion_delay) if $recursion_delay;
-        push @r, ftp_readdir($id, $url, $t);
-      }
-      if ($1 eq 'l')
-        {
-	  warn "symlink($t) not impl.";
+	  if ($type eq "d")
+	    {
+	      if ($mode !~ m{r.xr.xr.x})
+		{
+		  print "bad mode $mode, skipping directory $fname\n" if $verbose;
+		  next;
+		}
+	      sleep($recursion_delay) if $recursion_delay;
+	      push @r, ftp_readdir($id, $url, $t);
+	    }
+	  if ($type eq 'l')
+	    {
+	      warn "symlink($t) not impl.";
+	    }
+	  else
+	    {
+	      if ($mode !~ m{r..r..r..})
+		{
+		  print "bad mode $mode, skipping file $fname\n" if $verbose;
+		  next;
+		}
+	      #save timestamp and file in database
+	      save_file($t, $id, $time);
+
+	      push @r, [ $t , $time ];
+	    }
 	}
-      else
-      {
-        #save timestamp and file in database
-	save_file($t, $id, $time);
-
-        push @r, [ $t , $time ];
-      }
     }
-  }
   return @r;
 }
 

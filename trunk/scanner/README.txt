@@ -29,8 +29,10 @@ TODO:
   - option -D serverid path | [url]
 
   - loop mode with timeout after last scan.
+    -> parallel_test.pl
 
   - slowscan: default 2 sec pause after each directory
+    -> done.
 
   - implement a post rsync trigger hook for push mirrors, to do the above.
   - implement a pre rsync trigger hook for push mirrors, to disable them 
@@ -41,3 +43,5 @@ TODO:
     This gives fastest updates for push mirrors, when triggered after rsync.
 
   - http head request to check files > 2 GB
+
+  - find http 403 error from darix/deckel.
