@@ -12,10 +12,14 @@ Galerkin now can serve ca 1000 redirects per second
 
 
 TODO: 
-  - add to -N option:
-    -N baseurl -s score -c country -r region(continent)
-    -N baseurl_ftp 
-    -N baseurl_rsync
+DONE  - add to -N option:
+DONE    -N baseurl score=score country=country region=continent enable=1 name=identifier
+DONE    -N ftp=baseurl_ftp 
+DONE    -N rsync=baseurl_rsync
+DONE
+DONE  - option -A serverid path | [url]
+
+  - option -D serverid path | [url]
 
   - ~/config.pl  or -c configfile
     config: exclude list
@@ -25,14 +29,11 @@ TODO:
     .repo
     /repoview/*
 
-  - option -A serverid path | [url]
-  - option -D serverid path | [url]
 
   - loop mode with timeout after last scan.
     -> parallel_test.pl
 
-  - slowscan: default 2 sec pause after each directory
-    -> done.
+DONE  - slowscan: default 2 sec pause after each directory
 
   - implement a post rsync trigger hook for push mirrors, to do the above.
   - implement a pre rsync trigger hook for push mirrors, to disable them 
@@ -45,3 +46,5 @@ TODO:
   - http head request to check files > 2 GB
 
   - find http 403 error from darix/deckel.
+
+  - port to postgresql, so that mysql or postgres can be selected by config option.
