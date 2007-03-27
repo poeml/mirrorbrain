@@ -35,7 +35,7 @@
 # 2007-03-15, jw  - V0.6, allow identifier as well as ID on command line.
 #                   added recursion_delay = 2 sec, fixed rsync with -d.
 # 2007-03-22, jw  - V0.7, skipping unreadable files in ftp-scan.
-# 2007-03-27, jw  - V0.8, -N, -Z and -A fully implemented.
+# 2007-03-27, jw  - V0.8a, -N, -Z and -A fully implemented.
 #                   -D started, delete_file() tbd.
 # 		    
 # FIXME: 
@@ -76,7 +76,7 @@ $SIG{__DIE__} = sub
 };
 
 $ENV{FTP_PASSIVE} = 1;
-my $version = '0.8';
+my $version = '0.8a';
 
 # Create a user agent object
 my $ua = LWP::UserAgent->new;
@@ -128,7 +128,7 @@ exit usage("-a takes no parameters (or try without -a ).\n") if $all_servers and
 exit usage("-j requires a positive number") unless $parallel =~ m{^\d+$} and $parallel > 0;
 
 my $dbh = DBI->connect( 'dbi:mysql:dbname=redirector;host=galerkin.suse.de', 'root', '',
-     { PrintError => 0 } ) or die $DBI::errstr;
+                        { PrintError => 0 } ) or die $DBI::errstr;
 
 my $sql = qq{SELECT * FROM server};
 my $ary_ref = $dbh->selectall_hashref($sql, 'id')
@@ -137,15 +137,15 @@ my $ary_ref = $dbh->selectall_hashref($sql, 'id')
 my @scan_list;
 
 for my $row (sort { $a->{id} <=> $b->{id} } values %$ary_ref)
-{
-  next if keys %only_server_ids and !defined $only_server_ids{$row->{id}}
-  				and !defined $only_server_ids{$row->{identifier}};
-
-  if ($row->{enabled} == 1)
   {
-    push @scan_list, $row;
+    next if keys %only_server_ids and !defined $only_server_ids{$row->{id}}
+				  and !defined $only_server_ids{$row->{identifier}};
+
+    if ($row->{enabled} == 1 or $list_only > 1 or $mirror_new or $mirror_zap)
+      {
+	push @scan_list, $row;
+      }
   }
-}
 
 exit mirror_new($dbh, $mirror_new, \@scan_list) if defined $mirror_new;
 exit mirror_zap($dbh, \@scan_list) if $mirror_zap;
@@ -254,7 +254,7 @@ scanner [options] [mirror_ids ...]
   -v        Be more verbose (Default: $verbose).
   -q        Be quiet.
   -l        Do not scan. List enabled servers only.
-  -ll       As -l but include scanner baseurls.
+  -ll       As -l but include disabled mirrors and print urls.
 
   -a        Scan all servers. Alternative to providing a list of server_ids.
   -d dir    Scan only in dir under servers baseurl. 
@@ -272,8 +272,8 @@ scanner [options] [mirror_ids ...]
 
   -Z mirror_id
 	    Delete the named mirror completly from the database.
-	    (Use -N enable=0 mirror_id to disable a mirror.
-	     Use -N http='' mirror_id to delete an url.)
+	    (Use "-N enable=0 mirror_id" to disable a mirror.
+	     Use "-N http='' mirror_id" to delete an url.)
 
   -A mirror_id path
   -A url
@@ -319,7 +319,14 @@ sub mirror_list
 sub mirror_zap
 {
   my ($dbh, $list) = @_;
-  my $sql = "DELETE FROM server WHERE id IN (".join(',', map { $_->{id} } @$list).")";
+  my $ids = join(',', map { $_->{id} } @$list).")";
+  die "mirror_zap: list empty\n" unless $ids;
+
+  my $sql = "DELETE FROM server WHERE id IN ($ids)";
+  print "$sql\n" if $verbose;
+  $dbh->do($sql) or die "$sql: ".$dbh->errstr;
+  $sql = "DELETE FROM file_server WHERE serverid IN ($ids)";
+  print "$sql\n" if $verbose;
   $dbh->do($sql) or die "$sql: ".$dbh->errstr;
 }
 
@@ -375,6 +382,7 @@ sub mirror_new
       	join(', ', map { "$_ = ".$dbh->quote($fields->{$_}) } keys %$fields) . 
 	" WHERE id = $old->[0]{id}";
 
+      print "$sql\n" if $verbose;
       $dbh->do($sql) or die "$sql: ".$dbh->errstr;
     }
   else
@@ -388,7 +396,7 @@ sub mirror_new
       my $dup_id;
       for my $o (@$old)
         {
-	  $dup_id = "$o->{id}: identifier"    if lc $o->{identifier} eq lc $name;
+	  $dup_id = "$o->{id}: identifier"    if lc $o->{identifier} eq lc $fields->{identifier};
 	  $dup_id = "$o->{id}: baseurl"       if $fields->{baseurl} and $fields->{baseurl} eq ($o->{baseurl}||'');
 	  $dup_id = "$o->{id}: baseurl_ftp"   if $fields->{baseurl_ftp} and $fields->{baseurl_ftp} eq ($o->{baseurl_ftp}||'');
 	  $dup_id = "$o->{id}: baseurl_rsync" if $fields->{baseurl_rsync} and $fields->{baseurl_rsync} eq ($o->{baseurl_rsync}||'');
@@ -396,9 +404,10 @@ sub mirror_new
       die "new mirror and existing $dup_id is identical\n" if $dup_id;
 
       my $sql = "INSERT INTO server SET " . 
-      	join(',', map { "$_ = ".$dbh->quote($fields->{$_}) } keys %$fields);
+      	join(', ', map { "$_ = ".$dbh->quote($fields->{$_}) } keys %$fields);
 
-      $dbh->do($sql) or die "$sql: ".$dbh->errstr;
+      print "$sql\n" if $verbose;
+#      $dbh->do($sql) or die "$sql: ".$dbh->errstr;
     }
   return 0;
 }
