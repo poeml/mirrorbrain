@@ -35,6 +35,8 @@
 # 2007-03-15, jw  - V0.6, allow identifier as well as ID on command line.
 #                   added recursion_delay = 2 sec, fixed rsync with -d.
 # 2007-03-22, jw  - V0.7, skipping unreadable files in ftp-scan.
+# 2007-03-27, jw  - V0.8, -N, -Z and -A fully implemented.
+#                   -D started, delete_file() tbd.
 # 		    
 # FIXME: 
 # should do optimize table file, file_server;
@@ -74,7 +76,7 @@ $SIG{__DIE__} = sub
 };
 
 $ENV{FTP_PASSIVE} = 1;
-my $version = '0.7';
+my $version = '0.8';
 
 # Create a user agent object
 my $ua = LWP::UserAgent->new;
@@ -88,8 +90,11 @@ my $parallel = 1;
 my $list_only = 0;
 my $extra_schedule_run = 0;
 my $keep_dead_files = 0;
-my $new_url = undef;
 my $recursion_delay = 2;	# seconds delay per readdir_* recuursion
+my $mirror_new = undef;
+my $mirror_zap = 0;
+my $mirror_url_add = undef;
+my $mirror_url_del = undef;
 
 
 exit usage() unless @ARGV;
@@ -105,15 +110,20 @@ while (defined (my $arg = shift))
     elsif ($arg =~ m{^-k})                 { $keep_dead_files++; }
     elsif ($arg =~ m{^-d})                 { $start_dir = shift; }
     elsif ($arg =~ m{^-l})                 { $list_only++; $list_only++ if $arg =~ m{ll}; }
-    elsif ($arg =~ m{^-N})                 { $new_url = shift; }
+    elsif ($arg =~ m{^-N})                 { $mirror_new = [ shift ]; 
+    				             while ($ARGV[0] and $ARGV[0] =~ m{=}) { push @$mirror_new, shift; } }
+    elsif ($arg =~ m{^-Z})                 { $mirror_zap++; }
+    elsif ($arg =~ m{^-A})                 { $mirror_url_add = [ @ARGV ]; @ARGV = (); }
+    elsif ($arg =~ m{^-D})                 { $mirror_url_del = [ @ARGV ]; @ARGV = (); }
     elsif ($arg =~ m{^-})		   { exit usage("unknown option '$arg'"); }
   }
 
 my %only_server_ids = map { $_ => 1 } @ARGV;
 
-exit usage("Please specify list of server IDs (or -a for all) to scan\n") unless $all_servers or %only_server_ids or $list_only or $new_url;
-exit usage("-a takes no parameters (or try without -a ).\n") if $all_servers and %only_server_ids;
+exit usage("Please specify list of server IDs (or -a for all) to scan\n") 
+  unless $all_servers or %only_server_ids or $list_only or $mirror_new or $mirror_url_del or $mirror_url_add;
 
+exit usage("-a takes no parameters (or try without -a ).\n") if $all_servers and %only_server_ids;
 
 exit usage("-j requires a positive number") unless $parallel =~ m{^\d+$} and $parallel > 0;
 
@@ -123,8 +133,6 @@ my $dbh = DBI->connect( 'dbi:mysql:dbname=redirector;host=galerkin.suse.de', 'ro
 my $sql = qq{SELECT * FROM server};
 my $ary_ref = $dbh->selectall_hashref($sql, 'id')
 		   or die $dbh->errstr();
-
-exit new_url($dbh, $new_url, $ary_ref) if defined $new_url;
 
 my @scan_list;
 
@@ -139,23 +147,11 @@ for my $row (sort { $a->{id} <=> $b->{id} } values %$ary_ref)
   }
 }
 
-if ($list_only)
-  {
-    print " id name                      scan_speed   last_scan\n";
-    print "---+-------------------------+-----------+-------------\n";
-    for my $row (@scan_list)
-      {
-        printf "%3d %-30s %5d   %s\n", $row->{id}, $row->{identifier}||'--', $row->{scan_fpm}||0, $row->{last_scan}||'';
-	if ($list_only > 1)
-	  {
-	    print "\t$row->{baseurl_rsync}\n" if length($row->{baseurl_rsync}||'') > 0;
-	    print "\t$row->{baseurl_ftp}\n"   if length($row->{baseurl_ftp}||'') > 0;
-	    print "\t$row->{baseurl}\n"       if length($row->{baseurl}||'') > 0;
-	    print "\n";
-	  }
-      }
-    exit 0;
-  }
+exit mirror_new($dbh, $mirror_new, \@scan_list) if defined $mirror_new;
+exit mirror_zap($dbh, \@scan_list) if $mirror_zap;
+exit mirror_list(\@scan_list, $list_only-1) if $list_only;
+exit mirror_url($dbh, $mirror_url_add, \@scan_list, 0) if $mirror_url_add;
+exit mirror_url($dbh, $mirror_url_del, \@scan_list, 1) if $mirror_url_del;
 
 ###################
 # Keep in sync with "$start_dir/%" in unless ($keep_dead_files) below!
@@ -253,7 +249,7 @@ sub usage
 
   print STDERR qq{$0 V$version usage:
 
-scanner [options] [server_ids ...]
+scanner [options] [mirror_ids ...]
 
   -v        Be more verbose (Default: $verbose).
   -q        Be quiet.
@@ -266,59 +262,202 @@ scanner [options] [server_ids ...]
   -x        Extra-Schedule run. Do not update 'scanner.last_scan' tstamp.
             Default: 'scanner.last_scan' is updated after each run.
   -k        Keep dead files. Default: Entries not found again are removed.
-  -N url    Add a new url to the scanner database.
+
+  -N url mirror_id
+            Add (or replace) a new url to the named mirror.
+  -N enable=1 mirror_id
+  	    Enable a mirror.
+  -N url rsync=url ftp=url score=100 country=de region=europe name=identifier
+            Create a new mirror.
+
+  -Z mirror_id
+	    Delete the named mirror completly from the database.
+	    (Use -N enable=0 mirror_id to disable a mirror.
+	     Use -N http='' mirror_id to delete an url.)
+
+  -A mirror_id path
+  -A url
+  	    Add an url to the mirror (as if it was found by scanning).
+	    If only one parameter is given, mirror_id is derived from url.
 
   -j N      Run up to N scanner queries in parallel.
 
-Both, names(identifier) and numbers(id) are accepted as server_ids.
+Both, names(identifier) and numbers(id) are accepted as mirror_ids.
+};
+ my $hide = qq{
+            
+  -D mirror_id path
+  -D url
+  	    As -A, but removes an url from a mirror.
 };
 
   print STDERR "\nERROR: $msg\n" if $msg;
   return 0;
 }
 
-sub new_url
+sub mirror_list
 {
-  my ($dbh, $new_url, $old) = @_;
-
-  die "new_url: try (http|ftp|rsync)://hostname/path\n (seen '$new_url')\n"
-    unless $new_url =~ m{^(http|ftp|rsync:?)://([^/]+)/(.*)$};
-
-  my ($proto, $host, $path) = ($1,$2,$3);
-
-  if ($path =~ s{/(distribution|tools|repositories)(/.*?)?$}{})
+  my ($list, $longflag) = @_;
+  print " id name                      scan_speed   last_scan\n";
+  print "---+-------------------------+-----------+-------------\n";
+  for my $row (@$list)
     {
-      warn qq{path truncated before component "/$1/": $path\n};
-    }
-  my %proto2field = (http => 'baseurl', ftp => 'baseurl_ftp', rsync => 'baseurl_rsync', 'rsync:' => 'baseurl_rsync');
-
-  my $id;
-  for my $m (values %$old)
-    {
-      if (lc $m->{identifier} eq lc $host)
-        {
-	  $id = $m->{id};
-	  last;
+      printf "%3d %-30s %5d   %s\n", $row->{id}, $row->{identifier}||'--', $row->{scan_fpm}||0, $row->{last_scan}||'';
+      if ($longflag)
+	{
+	  print "\t$row->{baseurl_rsync}\n" if length($row->{baseurl_rsync}||'') > 0;
+	  print "\t$row->{baseurl_ftp}\n"   if length($row->{baseurl_ftp}||'') > 0;
+	  print "\t$row->{baseurl}\n"       if length($row->{baseurl}||'') > 0;
+	  printf "\tscore=%d country=%s region=%s enabled=%d\n", 
+	  	$row->{score}||0, $row->{country}||'', $row->{region}||'', $row->{enabled}||0;
+	  print "\n";
 	}
-    }
-
-  if ($id)	# we knew him already
-    {
-      warn "overwriting id=$id: $old->{$id}{$proto2field{$proto}}\n"
-        if defined $old->{$id}{$proto2field{$proto}} and length $old->{$id}{$proto2field{$proto}};
-      my $sth = $dbh->prepare(qq{UPDATE server SET $proto2field{$proto} = ? WHERE id = $id});
-      $sth->execute("$proto://$host/$path") or die $sth->errstr;
-    }
-  else
-    {
-      my $sth = $dbh->prepare(qq{INSERT INTO server SET $proto2field{$proto} = ?, identifier = ?, country = ?, enabled = 1});
-      my $country = undef;
-      $country = $1 if $host =~ m{\.(\w\w)$};
-      $sth->execute("$proto://$host/$path", $host, $country) or die $sth->errstr;
     }
   return 0;
 }
 
+sub mirror_zap
+{
+  my ($dbh, $list) = @_;
+  my $sql = "DELETE FROM server WHERE id IN (".join(',', map { $_->{id} } @$list).")";
+  $dbh->do($sql) or die "$sql: ".$dbh->errstr;
+}
+
+sub mirror_new
+{
+  my ($dbh, $mirror_new, $old) = @_;
+
+  my $fields;
+  my %proto2field = 
+    (
+      http => 'baseurl', ftp => 'baseurl_ftp', rsync => 'baseurl_rsync', 'rsync:' => 'baseurl_rsync',
+      name => 'identifier'
+    );
+
+  my $name;
+  if ($mirror_new->[0] =~ m{^(http|ftp|rsync:?)://([^/]+)/(.*)$})
+    {
+      my ($proto, $host, $path) = ($1,$2,$3);
+      if ($path =~ s{/(distribution|tools|repositories)(/.*?)?$}{})
+	{
+	  warn qq{path truncated before component "/$1/": $path\n};
+	}
+      $fields->{$proto2field{$proto}} = "$proto://$host/$path";
+      shift @$mirror_new;
+      $name = $host;
+    }
+
+  die "mirror_new: try (http|ftp|rsync)://hostname/path\n (seen '$mirror_new')\n"
+    unless scalar @$mirror_new;
+
+  for my $i (0..$#$mirror_new)
+    {
+      die "mirror_new: cannot parse $mirror_new->[$i]" unless $mirror_new->[$i] =~ m{^([^=]+)=(.*)$};
+      my ($key, $val) = ($1, $2);
+      $key = $proto2field{$key} if defined $proto2field{$key};
+      $fields->{$key} = $val;
+    }
+
+  if ($#$old == 0)	# exactly one id given.
+    {
+      for my $k (keys %$fields)
+        {
+	  delete $fields->{$k} if $fields->{$k} eq ($old->[0]{$k}||'');
+	}
+
+      unless (keys %$fields)
+        {
+          warn "nothing changes.\n";
+	  return 1;
+	}
+      warn "updating id=$old->[0]{id}: @{[keys %$fields]}\n";
+      my $sql = "UPDATE server SET " . 
+      	join(', ', map { "$_ = ".$dbh->quote($fields->{$_}) } keys %$fields) . 
+	" WHERE id = $old->[0]{id}";
+
+      $dbh->do($sql) or die "$sql: ".$dbh->errstr;
+    }
+  else
+    {
+      $fields->{identifier} ||= $name||'';
+      $fields->{country} = $1 if !$fields->{country} and $fields->{identifier} =~ m{\.(\w\w)$};
+      die "cannot create new mirror without name or url.\n" unless $fields->{identifier};
+
+      $fields->{score} = 100 unless defined $fields->{score};
+      $fields->{enabled} = 1 unless defined $fields->{enabled};
+      my $dup_id;
+      for my $o (@$old)
+        {
+	  $dup_id = "$o->{id}: identifier"    if lc $o->{identifier} eq lc $name;
+	  $dup_id = "$o->{id}: baseurl"       if $fields->{baseurl} and $fields->{baseurl} eq ($o->{baseurl}||'');
+	  $dup_id = "$o->{id}: baseurl_ftp"   if $fields->{baseurl_ftp} and $fields->{baseurl_ftp} eq ($o->{baseurl_ftp}||'');
+	  $dup_id = "$o->{id}: baseurl_rsync" if $fields->{baseurl_rsync} and $fields->{baseurl_rsync} eq ($o->{baseurl_rsync}||'');
+	}
+      die "new mirror and existing $dup_id is identical\n" if $dup_id;
+
+      my $sql = "INSERT INTO server SET " . 
+      	join(',', map { "$_ = ".$dbh->quote($fields->{$_}) } keys %$fields);
+
+      $dbh->do($sql) or die "$sql: ".$dbh->errstr;
+    }
+  return 0;
+}
+
+sub mirror_url
+{
+  my ($dbh, $list, $ml, $del) = @_;
+  my $act = $del ? 'del' : 'add';
+
+  while (my $item = shift @$list)
+    {
+      my ($p, $id);
+      if ($item =~ m{/})	# aha, it is should be an url
+        {
+	  die "mirror_url $act: cannot parse '$item'\n" unless $item =~ m{^(http|ftp|rsync:?)://([^/]+)/(.*)$};
+	  my ($proto, $host, $path) = ($1,$2,$3);
+	  my $base = "$proto://$host";
+	  for my $m (@$ml)
+	    {
+	      $p = $1 if $m->{baseurl}       and $item =~ m{^\Q$m->{baseurl}\E(.*)};
+	      $p = $1 if $m->{baseurl_ftp}   and $item =~ m{^\Q$m->{baseurl_ftp}\E(.*)};
+	      $p = $1 if $m->{baseurl_rsync} and $item =~ m{^\Q$m->{baseurl_rsync}\E(.*)};
+	      if ($p)
+	        {
+		  $id = $m->{id};
+		  last;
+		}
+	    }
+	  die "mirror_url $act: could not find mirror for url '$item'\n" unless defined $id;
+	}
+      else	# aha, it is id plus path.
+        {
+	  for my $m (@$ml)
+	    {
+	      if ($m->{id} eq $item || $m->{identifier} eq $item)
+	        {
+	          $id = $m->{id};
+	          $p = shift @$list;
+	          last;
+		}
+	    }
+	  die "mirror_url $act: unknown mirror '$item'\n" unless defined $id;
+	}
+
+      $p =~ s{^/+}{} if $p;
+      die "mirror_url $act: item=$item, no path.\n" unless $p;
+
+      print "mirror_url $act $id '$p'\n" if $verbose;
+      if ($del)
+        {
+	  delete_file($dbh, $id, $p);
+	}
+      else
+        {
+	  save_file($p, $id, time);
+	}
+    }
+  return 0;
+}
 
 sub wait_worker
 {
@@ -558,6 +697,12 @@ sub save_file
 		    $sth->execute( $fileid, $serverid, $file_tstamp ) or die $sth->errstr;
       }
     }
+}
+
+sub delete_file
+{
+  my ($dbh, $serverid, $path) = @_;
+  warn "FIXME: delete_file() not impl.\n";
 }
 
 sub cont 
