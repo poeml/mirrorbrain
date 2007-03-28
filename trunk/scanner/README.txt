@@ -12,6 +12,11 @@ Galerkin now can serve ca 1000 redirects per second
 
 
 TODO: 
+
+- Timeout 20min -> fallback to next protocol
+  (readdir_rsync to ftp5.gwdg.de apparently hangs sometimes)
+
+
 DONE  - add to -N option:
 DONE    -N baseurl score=score country=country region=continent enable=1 name=identifier
 DONE    -N ftp=baseurl_ftp 
