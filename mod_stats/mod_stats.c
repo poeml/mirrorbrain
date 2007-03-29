@@ -373,11 +373,11 @@ static int stats_logger(request_rec *r)
 
     debugLog(r, cfg, "filename: '%s'", r->filename);
     debugLog(r, cfg, "uri: '%s'", r->uri);
-    req_filename = r->filename + strlen(cfg->stats_base);
+    req_filename = apr_pstrdup(r->pool, r->filename + strlen(cfg->stats_base));
 
     /* workaround for the old redirector */
     if (apr_strnatcmp(r->filename, "redirect:/redirect.php") == 0) {
-        req_filename = r->uri + strlen("/download/");
+        req_filename = apr_pstrdup(r->pool, r->uri + strlen("/download/"));
     }
     debugLog(r, cfg, "req_filename: '%s'", req_filename);
 
@@ -432,7 +432,7 @@ static int stats_logger(request_rec *r)
         if (apr_sockaddr_equal(r->connection->remote_addr, &list[i])) {
             admin_allowed = 1;
             admin_host = ((char **) cfg->admin_hosts->elts)[i];
-            debugLog(r, cfg, "Host %s is an StatsAdminHost", admin_host);
+            debugLog(r, cfg, "Host %s is a StatsAdminHost", admin_host);
             continue;
         }
     }
