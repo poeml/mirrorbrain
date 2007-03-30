@@ -37,6 +37,7 @@
 # 2007-03-22, jw  - V0.7, skipping unreadable files in ftp-scan.
 # 2007-03-27, jw  - V0.8a, -N, -Z and -A fully implemented.
 #                   -D started, delete_file() tbd.
+# 2007-03-30, jw  - V0.8b, -lll list long format all in one line for easier grep.
 # 		    
 # FIXME: 
 # should do optimize table file, file_server;
@@ -76,7 +77,7 @@ $SIG{__DIE__} = sub
 };
 
 $ENV{FTP_PASSIVE} = 1;
-my $version = '0.8a';
+my $version = '0.8b';
 
 # Create a user agent object
 my $ua = LWP::UserAgent->new;
@@ -109,7 +110,9 @@ while (defined (my $arg = shift))
     elsif ($arg =~ m{^-x})                 { $extra_schedule_run++; }
     elsif ($arg =~ m{^-k})                 { $keep_dead_files++; }
     elsif ($arg =~ m{^-d})                 { $start_dir = shift; }
-    elsif ($arg =~ m{^-l})                 { $list_only++; $list_only++ if $arg =~ m{ll}; }
+    elsif ($arg =~ m{^-l})                 { $list_only++; 
+                                             $list_only++ if $arg =~ m{ll}; 
+                                             $list_only++ if $arg =~ m{lll}; }
     elsif ($arg =~ m{^-N})                 { $mirror_new = [ shift ]; 
     				             while ($ARGV[0] and $ARGV[0] =~ m{=}) { push @$mirror_new, shift; } }
     elsif ($arg =~ m{^-Z})                 { $mirror_zap++; }
@@ -253,11 +256,12 @@ scanner [options] [mirror_ids ...]
 
   -v        Be more verbose (Default: $verbose).
   -q        Be quiet.
-  -l        Do not scan. List enabled servers only.
-  -ll       As -l but include disabled mirrors and print urls.
+  -l        Do not scan. List enabled mirrors only.
+  -ll       As -l, but include disabled mirrors and print urls.
+  -lll      As -ll, but all in one grep-friendly line.
 
-  -a        Scan all servers. Alternative to providing a list of server_ids.
-  -d dir    Scan only in dir under servers baseurl. 
+  -a        Scan all mirrors. Alternative to providing a list of mirror_ids.
+  -d dir    Scan only in dir under mirror's baseurl. 
             Default: start at baseurl. Consider using -x and or -k with -d .
   -x        Extra-Schedule run. Do not update 'scanner.last_scan' tstamp.
             Default: 'scanner.last_scan' is updated after each run.
@@ -300,15 +304,16 @@ sub mirror_list
   my ($list, $longflag) = @_;
   print " id name                      scan_speed   last_scan\n";
   print "---+-------------------------+-----------+-------------\n";
+  my $nl = ($longflag > 1) ? "\t" : "\n";
   for my $row (@$list)
     {
-      printf "%3d %-30s %5d   %s\n", $row->{id}, $row->{identifier}||'--', $row->{scan_fpm}||0, $row->{last_scan}||'';
+      printf "%3d %-30s %5d   %s$nl", $row->{id}, $row->{identifier}||'--', $row->{scan_fpm}||0, $row->{last_scan}||'';
       if ($longflag)
 	{
-	  print "\t$row->{baseurl_rsync}\n" if length($row->{baseurl_rsync}||'') > 0;
-	  print "\t$row->{baseurl_ftp}\n"   if length($row->{baseurl_ftp}||'') > 0;
-	  print "\t$row->{baseurl}\n"       if length($row->{baseurl}||'') > 0;
-	  printf "\tscore=%d country=%s region=%s enabled=%d\n", 
+	  print "\t$row->{baseurl_rsync}$nl" if length($row->{baseurl_rsync}||'') > 0;
+	  print "\t$row->{baseurl_ftp}$nl"   if length($row->{baseurl_ftp}||'') > 0;
+	  print "\t$row->{baseurl}$nl"       if length($row->{baseurl}||'') > 0;
+	  printf "\tscore=%d country=%s region=%s enabled=%d$nl", 
 	  	$row->{score}||0, $row->{country}||'', $row->{region}||'', $row->{enabled}||0;
 	  print "\n";
 	}
