@@ -38,6 +38,8 @@
 # 2007-03-27, jw  - V0.8a, -N, -Z and -A fully implemented.
 #                   -D started, delete_file() tbd.
 # 2007-03-30, jw  - V0.8b, -lll list long format all in one line for easier grep.
+# 2007-04-04, jw  - V0.8c, implemented #@..@..@ url suffix for all backends.
+#                          it is now in save_file, (was in rsync_readdir before)
 # 		    
 # FIXME: 
 # should do optimize table file, file_server;
@@ -77,7 +79,9 @@ $SIG{__DIE__} = sub
 };
 
 $ENV{FTP_PASSIVE} = 1;
-my $version = '0.8b';
+my $version = '0.8c';
+
+my $topdirs = 'distribution|tools|repositories';
 
 # Create a user agent object
 my $ua = LWP::UserAgent->new;
@@ -273,6 +277,9 @@ scanner [options] [mirror_ids ...]
   	    Enable a mirror.
   -N url rsync=url ftp=url score=100 country=de region=europe name=identifier
             Create a new mirror.
+	    Scanned path names (starting after url) should start with 
+	    '$topdirs'.
+	    Urls may be suffixed with #\@^foo/\@bar/\@ to modify scanned path names.
 
   -Z mirror_id
 	    Delete the named mirror completly from the database.
@@ -324,7 +331,7 @@ sub mirror_list
 sub mirror_zap
 {
   my ($dbh, $list) = @_;
-  my $ids = join(',', map { $_->{id} } @$list).")";
+  my $ids = join(',', map { $_->{id} } @$list);
   die "mirror_zap: list empty\n" unless $ids;
 
   my $sql = "DELETE FROM server WHERE id IN ($ids)";
@@ -351,7 +358,7 @@ sub mirror_new
     {
       my ($proto, $host, $path) = ($1,$2,$3);
 
-      if ($path !~ m{#} and $path =~ s{(^|/)(distribution|tools|repositories)(/.*?)?$}{})
+      if ($path !~ m{#} and $path =~ s{(^|/)($topdirs)(/.*?)?$}{})
 	{
 	  warn qq{path truncated before component "/$2/": $path\n};
 	  warn qq{Press Enter to continue, CTRL-C to abort\n};
@@ -435,6 +442,7 @@ sub mirror_url
 	  my $base = "$proto://$host";
 	  for my $m (@$ml)
 	    {
+	      ## FIXME: this does not work, if baseurl* ends in #@..@..@
 	      $p = $1 if $m->{baseurl}       and $item =~ m{^\Q$m->{baseurl}\E(.*)};
 	      $p = $1 if $m->{baseurl_ftp}   and $item =~ m{^\Q$m->{baseurl_ftp}\E(.*)};
 	      $p = $1 if $m->{baseurl_rsync} and $item =~ m{^\Q$m->{baseurl_rsync}\E(.*)};
@@ -522,10 +530,14 @@ sub fork_child
   exec { $cmd } "scanner [#$idx]", @args;	# ourselves with a false name and some data.
 }
 
-
+# http://ftp1.opensuse.org/repositories/#@^@repositories/@@
 sub http_readdir
 {
   my ($id, $url, $name) = @_;
+
+  my $urlraw = $url;
+  my $re  = $1 if $url =~ s{#(.*?)$}{};
+  print "http_readdir: url=$url re=$re\n" if $verbose;
   $url =~ s{/+$}{};	# we add our own trailing slashes...
   $name =~ s{/+$}{};
 
@@ -556,7 +568,7 @@ sub http_readdir
 		  ## we must be really sure it is a directory, when we come here.
 		  ## otherwise, we'll retrieve the contents of a file!
                   sleep($recursion_delay) if $recursion_delay;
-                  push @r, http_readdir($id, $url, $t);
+                  push @r, http_readdir($id, $urlraw, $t);
 		}
 	      else
 	        {
@@ -565,7 +577,7 @@ sub http_readdir
 		  my $len = byte_size($size);
 
                   #save timestamp and file in database
-	          save_file($t, $id, $time);
+	          save_file($t, $id, $time, $re);
 
                   push @r, [ $t , $time ];
 		}
@@ -596,6 +608,9 @@ sub byte_size
 sub ftp_readdir
 {
   my ($id, $url, $name) = @_;
+
+  my $urlraw = $url;
+  my $re  = $1 if $url =~ s{#(.*?)$}{};
   $url =~ s{/+$}{};	# we add our own trailing slashes...
 
   print "$id $url/$name\n" if $verbose;
@@ -632,7 +647,7 @@ sub ftp_readdir
 		  next;
 		}
 	      sleep($recursion_delay) if $recursion_delay;
-	      push @r, ftp_readdir($id, $url, $t);
+	      push @r, ftp_readdir($id, $urlraw, $t);
 	    }
 	  if ($type eq 'l')
 	    {
@@ -646,7 +661,7 @@ sub ftp_readdir
 		  next;
 		}
 	      #save timestamp and file in database
-	      save_file($t, $id, $time);
+	      save_file($t, $id, $time, $re);
 
 	      push @r, [ $t , $time ];
 	    }
@@ -657,9 +672,25 @@ sub ftp_readdir
 
 sub save_file
 {
-  my ($path, $serverid, $file_tstamp) = @_;
+  my ($path, $serverid, $file_tstamp, $re) = @_;
+
+  #
+  # optional patch the file names by adding or removing components.
+  # you never know what strange paths mirror admins choose.
+  #
+
+  if ($re and $re =~ m{@([^@]*)@([^@]*)})
+    {
+      print "save_file: $path + #$re -> " if $verbose > 2;
+      my ($m, $r) = ($1, $2);
+      $path =~ s{$m}{$r};
+      print "$path\n" if $verbose > 2;
+    }
 
   $path =~ s{^/+}{};	# be sure we have no leading slashes.
+  $path =~ s{//+}{/}g;	# double slashes easily fool md5sums. Avoid them.
+
+
   my ($fileid, $md5) = getfileid($path);
   die "save_file: md5 undef" unless defined $md5;
 
@@ -714,6 +745,7 @@ sub save_file
 		    $sth->execute( $fileid, $serverid, $file_tstamp ) or die $sth->errstr;
       }
     }
+  return $path;
 }
 
 sub delete_file
@@ -809,17 +841,11 @@ sub rsync_cb
       $name = $priv->{subdir} . '/' . $name;
     }
 
-  if ($priv->{pat} && $priv->{pat} =~ m{@([^@]*)@([^@]*)})
-    {
-      my ($m, $r) = ($1, $2);
-      $name =~ s{$m}{$r};
-    }
-
   if ($mode & 0x1000)	 # directories have 0 here.
     {
       if ($mode & 004)		# readable for the world is good.
         {
-          save_file($name, $priv->{serverid}, $mtime);
+          $name = save_file($name, $priv->{serverid}, $mtime, $priv->{re});
           $priv->{counter}++;
 	  printf "rsync(%d) ADD: %03o %10d %-25s %-50s\n", $priv->{serverid}, ($mode & 0777), $len, scalar(localtime $mtime), $name if $verbose > 2;
 	}
@@ -842,7 +868,7 @@ sub rsync_readdir
   return 0 unless $url;
 
   $url =~ s{^rsync://}{}s;
-  my $pat  = $1 if $url =~ s{#(.*?)$}{};
+  my $re  = $1 if $url =~ s{#(.*?)$}{};
   my $cred = $1 if $url =~ s{^(.*?)@}{};
   die "rsync_readdir: cannot parse url '$url'\n" unless $url =~ m{^([^:/]+)(:(\d*))?(.*)$};
   my ($host, $dummy, $port, $path) = ($1,$2,$3,$4);
@@ -850,7 +876,7 @@ sub rsync_readdir
   $path =~ s{^/+}{};
 
   my $peer = { addr => inet_aton($host), port => $port, serverid => $serverid };
-  $peer->{pat} = $pat if $pat;
+  $peer->{re} = $re if $re;
   $peer->{pass} = $1 if $cred and $cred =~ s{:(.*)}{};
   $peer->{user} = $cred if $cred;
   $peer->{subdir} = $d if length $d;
