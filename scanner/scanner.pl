@@ -350,9 +350,10 @@ sub mirror_new
   if ($mirror_new->[0] =~ m{^(http|ftp|rsync:?)://([^/]+)/(.*)$})
     {
       my ($proto, $host, $path) = ($1,$2,$3);
-      if ($path =~ s{/(distribution|tools|repositories)(/.*?)?$}{})
+
+      if ($path =~ s{(^|/)(distribution|tools|repositories)(/.*?)?$}{})
 	{
-	  warn qq{path truncated before component "/$1/": $path\n};
+	  warn qq{path truncated before component "/$2/": $path\n};
 	}
       $fields->{$proto2field{$proto}} = "$proto://$host/$path";
       shift @$mirror_new;
@@ -412,7 +413,7 @@ sub mirror_new
       	join(', ', map { "$_ = ".$dbh->quote($fields->{$_}) } keys %$fields);
 
       print "$sql\n" if $verbose;
-#      $dbh->do($sql) or die "$sql: ".$dbh->errstr;
+      $dbh->do($sql) or die "$sql: ".$dbh->errstr;
     }
   return 0;
 }
