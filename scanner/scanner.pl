@@ -351,9 +351,11 @@ sub mirror_new
     {
       my ($proto, $host, $path) = ($1,$2,$3);
 
-      if ($path =~ s{(^|/)(distribution|tools|repositories)(/.*?)?$}{})
+      if ($path !~ m{#} and $path =~ s{(^|/)(distribution|tools|repositories)(/.*?)?$}{})
 	{
 	  warn qq{path truncated before component "/$2/": $path\n};
+	  warn qq{Press Enter to continue, CTRL-C to abort\n};
+	  <STDIN>;
 	}
       $fields->{$proto2field{$proto}} = "$proto://$host/$path";
       shift @$mirror_new;
