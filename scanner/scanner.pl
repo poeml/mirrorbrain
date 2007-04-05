@@ -147,12 +147,16 @@ for my $row (sort { $a->{id} <=> $b->{id} } values %$ary_ref)
   {
     next if keys %only_server_ids and !defined $only_server_ids{$row->{id}}
 				  and !defined $only_server_ids{$row->{identifier}};
+    delete $only_server_ids{$row->{id}};
+    delete $only_server_ids{$row->{identifier}};
 
     if ($row->{enabled} == 1 or $list_only > 1 or $mirror_new or $mirror_zap)
       {
 	push @scan_list, $row;
       }
   }
+
+die sprintf "serverid not found: %s\n", join(', ', keys %only_server_ids) if keys %only_server_ids;
 
 exit mirror_new($dbh, $mirror_new, \@scan_list) if defined $mirror_new;
 exit mirror_zap($dbh, \@scan_list) if $mirror_zap;
@@ -370,7 +374,7 @@ sub mirror_new
     }
 
   die "mirror_new: try (http|ftp|rsync)://hostname/path\n (seen '$mirror_new')\n"
-    unless scalar @$mirror_new;
+    unless $name or scalar @$mirror_new;
 
   for my $i (0..$#$mirror_new)
     {
