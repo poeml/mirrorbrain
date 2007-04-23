@@ -128,7 +128,7 @@ def main():
     logging.basicConfig(level=logging.getLevelName(options.loglevel),
                         format=LOGFORMAT,
                         datefmt=DATEFORMAT,
-                        filename=options.loglevel,
+                        filename=options.logfile,
                         filemode='a')
     # to console
     console = logging.StreamHandler()
