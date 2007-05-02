@@ -148,7 +148,8 @@ for my $row (sort { $a->{id} <=> $b->{id} } values %$ary_ref)
   {
     next if keys %only_server_ids and !defined $only_server_ids{$row->{id}}
 				  and !defined $only_server_ids{$row->{identifier}};
-    undef $only_server_ids{$row->{id}};		# keep some keys in %only_server_ids!
+    # keep some keys in %only_server_ids!
+    undef $only_server_ids{$row->{id}} if defined $only_server_ids{$row->{id}};		
     delete $only_server_ids{$row->{identifier}};
 
 
