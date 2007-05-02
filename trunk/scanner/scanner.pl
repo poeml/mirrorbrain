@@ -546,7 +546,7 @@ sub http_readdir
   my ($id, $url, $name) = @_;
 
   my $urlraw = $url;
-  my $re  = $1 if $url =~ s{#(.*?)$}{};
+  my $re = ''; $re = $1 if $url =~ s{#(.*?)$}{};
   print "http_readdir: url=$url re=$re\n" if $verbose;
   $url =~ s{/+$}{};	# we add our own trailing slashes...
   $name =~ s{/+$}{};
@@ -612,7 +612,7 @@ sub byte_size
   return int($n*1024)           if $l eq 'K';
   return int($1*1024*1024)      if $l eq 'M';
   return int($1*1024*1024*1024) if $l eq 'G';
-  die;
+  die "byte_size: $len not impl\n";
 }
 
 sub ftp_readdir
@@ -620,7 +620,7 @@ sub ftp_readdir
   my ($id, $url, $name) = @_;
 
   my $urlraw = $url;
-  my $re  = $1 if $url =~ s{#(.*?)$}{};
+  my $re = ''; $re = $1 if $url =~ s{#(.*?)$}{};
   $url =~ s{/+$}{};	# we add our own trailing slashes...
 
   print "$id $url/$name\n" if $verbose;
@@ -878,7 +878,7 @@ sub rsync_readdir
   return 0 unless $url;
 
   $url =~ s{^rsync://}{}s;
-  my $re  = $1 if $url =~ s{#(.*?)$}{};
+  my $re = ''; $re = $1 if $url =~ s{#(.*?)$}{};
   my $cred = $1 if $url =~ s{^(.*?)@}{};
   die "rsync_readdir: cannot parse url '$url'\n" unless $url =~ m{^([^:/]+)(:(\d*))?(.*)$};
   my ($host, $dummy, $port, $path) = ($1,$2,$3,$4);
@@ -924,7 +924,8 @@ sub swrite {
   local *SS = shift;
   my ($var, $len) = @_;
   $len = length($var) unless defined $len;
-  (syswrite(SS, $var, $len) || 0) == $len || die("syswrite: $!\n");
+  return if $len == (syswrite(SS, $var, $len) || 0); 
+  warn "syswrite: $!\n";
 }
 
 sub muxread {
@@ -949,7 +950,8 @@ sub muxread {
       print "info: $msg\n";
       next;
     }
-    die("unknown tag: $tag\n");
+    warn("unknown tag: $tag\n");
+    return undef;
   }
   my $ret = substr($rsync_muxbuf, 0, $len);
   $rsync_muxbuf = substr($rsync_muxbuf, $len);
