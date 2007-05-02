@@ -40,6 +40,7 @@
 # 2007-03-30, jw  - V0.8b, -lll list long format all in one line for easier grep.
 # 2007-04-04, jw  - V0.8c, implemented #@..@..@ url suffix for all backends.
 #                          it is now in save_file, (was in rsync_readdir before)
+# 2007-05-02, jw  - V0.8d, bugzilla 267245 fix
 # 		    
 # FIXME: 
 # should do optimize table file, file_server;
@@ -79,7 +80,7 @@ $SIG{__DIE__} = sub
 };
 
 $ENV{FTP_PASSIVE} = 1;
-my $version = '0.8c';
+my $version = '0.8d';
 
 my $topdirs = 'distribution|tools|repositories';
 
@@ -147,8 +148,9 @@ for my $row (sort { $a->{id} <=> $b->{id} } values %$ary_ref)
   {
     next if keys %only_server_ids and !defined $only_server_ids{$row->{id}}
 				  and !defined $only_server_ids{$row->{identifier}};
-    delete $only_server_ids{$row->{id}};
+    undef $only_server_ids{$row->{id}};		# keep some keys in %only_server_ids!
     delete $only_server_ids{$row->{identifier}};
+
 
     if ($row->{enabled} == 1 or $list_only > 1 or $mirror_new or $mirror_zap)
       {
@@ -156,7 +158,10 @@ for my $row (sort { $a->{id} <=> $b->{id} } values %$ary_ref)
       }
   }
 
-die sprintf "serverid not found: %s\n", join(', ', keys %only_server_ids) if keys %only_server_ids;
+
+
+my @missing = grep { defined $only_server_ids{$_} } keys %only_server_ids;
+die sprintf "serverid not found: %s\n", @missing if @missing;
 
 exit mirror_new($dbh, $mirror_new, \@scan_list) if defined $mirror_new;
 exit mirror_zap($dbh, \@scan_list) if $mirror_zap;
@@ -171,7 +176,7 @@ $start_dir =~ s{/+$}{};	# trailing slashes likewise.
 ##################
 
 # be sure not to parallelize if there is exactly one server to scan.
-$parallel = 1 if scalar keys %only_server_ids == 1;
+$parallel = 1 if scalar @scan_list == 1;
 
 if ($parallel > 1)
   {
