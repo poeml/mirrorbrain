@@ -283,7 +283,7 @@ scanner [options] [mirror_ids ...]
 
   -N url mirror_id
             Add (or replace) a new url to the named mirror.
-  -N enable=1 mirror_id
+  -N enabled=1 mirror_id
   	    Enable a mirror.
   -N url rsync=url ftp=url score=100 country=de region=europe name=identifier
             Create a new mirror.
@@ -293,7 +293,7 @@ scanner [options] [mirror_ids ...]
 
   -Z mirror_id
 	    Delete the named mirror completly from the database.
-	    (Use "-N enable=0 mirror_id" to disable a mirror.
+	    (Use "-N enabled=0 mirror_id" to disable a mirror.
 	     Use "-N http='' mirror_id" to delete an url.)
 
   -A mirror_id path
