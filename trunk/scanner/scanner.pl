@@ -1,7 +1,8 @@
 #!/usr/bin/perl -w
 
 ################################################################################
-# scanner.pl daemon for working through opensuse directories.
+# scanner.pl -- daemon for working through opensuse directories.
+#
 # Copyright (C) 2006-2007 Martin Polster, Juergen Weigert, Novell Inc.
 #
 # This program is free software; you can redistribute it and/or
@@ -41,6 +42,8 @@
 # 2007-04-04, jw  - V0.8c, implemented #@..@..@ url suffix for all backends.
 #                          it is now in save_file, (was in rsync_readdir before)
 # 2007-05-02, jw  - V0.8d, bugzilla 267245 fix
+# 2007-05-15, jw  - V0.8e, -f added, %only_server_ids usage fixed, so that 
+#                          a disabled id no longer scans the next enabled ids.
 # 		    
 # FIXME: 
 # should do optimize table file, file_server;
@@ -80,7 +83,7 @@ $SIG{__DIE__} = sub
 };
 
 $ENV{FTP_PASSIVE} = 1;
-my $version = '0.8d';
+my $version = '0.8e';
 
 my $topdirs = 'distribution|tools|repositories';
 
@@ -99,6 +102,7 @@ my $keep_dead_files = 0;
 my $recursion_delay = 2;	# seconds delay per readdir_* recuursion
 my $mirror_new = undef;
 my $mirror_zap = 0;
+my $force_scan = 0;
 my $mirror_url_add = undef;
 my $mirror_url_del = undef;
 
@@ -112,6 +116,7 @@ while (defined (my $arg = shift))
     elsif ($arg =~ m{^-v})                 { $verbose++; }
     elsif ($arg =~ m{^-a})                 { $all_servers++; }
     elsif ($arg =~ m{^-j})                 { $parallel = shift; }
+    elsif ($arg =~ m{^-f})                 { $force_scan++; }
     elsif ($arg =~ m{^-x})                 { $extra_schedule_run++; }
     elsif ($arg =~ m{^-k})                 { $keep_dead_files++; }
     elsif ($arg =~ m{^-d})                 { $start_dir = shift; }
@@ -146,20 +151,27 @@ my @scan_list;
 
 for my $row (sort { $a->{id} <=> $b->{id} } values %$ary_ref)
   {
-    next if keys %only_server_ids and !defined $only_server_ids{$row->{id}}
-				  and !defined $only_server_ids{$row->{identifier}};
-    # keep some keys in %only_server_ids!
-    undef $only_server_ids{$row->{id}} if defined $only_server_ids{$row->{id}};		
-    delete $only_server_ids{$row->{identifier}};
+    if (keys %only_server_ids)
+      {
+        next if !defined $only_server_ids{$row->{id}} and !defined $only_server_ids{$row->{identifier}};
 
+        # keep some keys in %only_server_ids!
+        undef $only_server_ids{$row->{id}};
+        undef $only_server_ids{$row->{identifier}};
+      }
 
-    if ($row->{enabled} == 1 or $list_only > 1 or $mirror_new or $mirror_zap)
+    if ($row->{enabled} == 1 or $force_scan or $list_only > 1 or $mirror_new or $mirror_zap)
       {
 	push @scan_list, $row;
       }
   }
 
-
+if (scalar(keys %only_server_ids) > 2 * scalar(@scan_list))
+  {
+    # print Dumper \%only_server_ids, \@scan_list;
+    warn "You specified some disabled mirror_ids, use -f to scan them all.\n";
+    sleep 2 if scalar @scan_list;
+  }
 
 my @missing = grep { defined $only_server_ids{$_} } keys %only_server_ids;
 die sprintf "serverid not found: %s\n", @missing if @missing;
@@ -274,7 +286,8 @@ scanner [options] [mirror_ids ...]
   -ll       As -l, but include disabled mirrors and print urls.
   -lll      As -ll, but all in one grep-friendly line.
 
-  -a        Scan all mirrors. Alternative to providing a list of mirror_ids.
+  -a        Scan all enabled mirrors. Alternative to providing a list of mirror_ids.
+  -f        Force. Scan listed mirror_ids even if they are not enabled.
   -d dir    Scan only in dir under mirror's baseurl. 
             Default: start at baseurl. Consider using -x and or -k with -d .
   -x        Extra-Schedule run. Do not update 'scanner.last_scan' tstamp.
@@ -547,7 +560,7 @@ sub http_readdir
 
   my $urlraw = $url;
   my $re = ''; $re = $1 if $url =~ s{#(.*?)$}{};
-  print "http_readdir: url=$url re=$re\n" if $verbose;
+  print "http_readdir: url=$url re=$re\n" if $verbose > 1;
   $url =~ s{/+$}{};	# we add our own trailing slashes...
   $name =~ s{/+$}{};
 
