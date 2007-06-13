@@ -44,6 +44,7 @@
 # 2007-05-02, jw  - V0.8d, bugzilla 267245 fix
 # 2007-05-15, jw  - V0.8e, -f added, %only_server_ids usage fixed, so that 
 #                          a disabled id no longer scans the next enabled ids.
+# 2007-06-13, jw  - V0.8f, s-bits accepted in ftp_readdir
 # 		    
 # FIXME: 
 # should do optimize table file, file_server;
@@ -664,7 +665,7 @@ sub ftp_readdir
 
 	  if ($type eq "d")
 	    {
-	      if ($mode !~ m{r.xr.xr.x})
+	      if ($mode !~ m{r.[xs]r.[xs]r.[xs]})
 		{
 		  print "bad mode $mode, skipping directory $fname\n" if $verbose;
 		  next;
