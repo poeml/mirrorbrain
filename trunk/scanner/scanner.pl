@@ -990,6 +990,7 @@ sub rsync_get_filelist {
   $module =~ s/\/.*//;
   my $tcpproto = getprotobyname('tcp');
   socket(S, PF_INET, SOCK_STREAM, $tcpproto) || die("socket: $!\n");
+  setsockopt(S, SOL_SOCKET, SO_KEEPALIVE, pack("l",1));
   connect(S, sockaddr_in($syncport, $syncaddr)) || die("connect: $!\n");
   my $hello = "\@RSYNCD: 28\n";
   swrite(*S, $hello);
