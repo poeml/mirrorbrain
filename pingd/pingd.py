@@ -101,7 +101,7 @@ def main():
 
     parser.add_option("-t", "--timeout",
                       dest="timeout",
-                      default=30,
+                      default=60,
                       help="Timeout in seconds",
                       metavar="TIMEOUT")
 
@@ -119,7 +119,7 @@ def main():
 
     (options, args) = parser.parse_args()
 
-    socket.setdefaulttimeout(options.timeout)
+    socket.setdefaulttimeout(int(options.timeout))
 
     #
     # set up logging
@@ -162,6 +162,7 @@ def main():
     #
     mirrors = []
     dbh = MySQLdb.connect(config['dbhost'], config['dbuser'], config['dbpass'], config['dbname'])
+    dbh.autocommit(1)
     cursor = dbh.cursor(MySQLdb.cursors.DictCursor)
     cursor.execute(sql_select_raw)
     if not args:
@@ -178,7 +179,7 @@ def main():
     #
     # start work
     #
-    logging.info('----- checking %s mirrors' % len(mirrors))
+    logging.info('----- %s mirrors to check' % len(mirrors))
 
     for i, mirror in enumerate(mirrors):
 
