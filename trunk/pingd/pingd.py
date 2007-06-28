@@ -79,7 +79,7 @@ def main():
     #
     # parse commandline
     #
-    parser = OptionParser()
+    parser = OptionParser(usage="%prog [options] [<mirror identifier>+]", version="%prog 1.0")
 
     parser.add_option("-l", "--log",
                       dest="logfile",
