@@ -7,82 +7,68 @@ __license__ = "GPL"
 import sys, os, os.path, time, threading, socket, urllib2, httplib
 import logging, logging.handlers
 from optparse import OptionParser
-import ConfigParser, MySQLdb
+import ConfigParser
+from sqlobject import *
+from sqlobject.sqlbuilder import AND
 
 LOGLEVEL = 'INFO'
 USER_AGENT = 'pingd/openSUSE (see http://en.opensuse.org/Build_Service/Redirector)'
 LOGFORMAT = '%(asctime)s %(levelname)-8s %(message)s'
 DATEFORMAT = '%b %d %H:%M:%S'
 
-dbtable = 'server'
-#
-# prepare SQL statements
-#
-sql_select_raw = 'select id, identifier, baseurl, status_baseurl, enabled from %s where baseurl != ""' % dbtable
-sql_update_raw = 'update %s set status_baseurl=%%s where id=%%s' % dbtable
-sql_enable_raw = 'update %s set enabled=%%s, comment=%%s where id=%%s' % dbtable
-sql_select_comment_raw = 'select comment from %s where id=%%s' % dbtable
-sql_enabled_raw = 'update %s set enabled=%%s, comment=%%s where id=%%s' % dbtable
-
-# globals
-cursor = None
-options = None
-
 def reenable(mirror):
-    logging.info('re-enabling %s' % mirror['identifier'])
-    if not options.no_run:
-        cursor.execute(sql_select_comment_raw, (mirror['id']))
-        comment = cursor.fetchone()['comment'] or ''
-        comment = comment[:comment.find('*** ')]
-        cursor.execute(sql_enable_raw, (1, comment, mirror['id']))
+    comment = mirror.comment or ''
+    comment = comment[:comment.find('*** ')]
+    mirror.enabled = 1
+    mirror.comment = comment
 
 
 def ping_http(mirror):
     """Try to reach host at baseurl. 
     Set status_baseurl_new."""
 
-    logging.debug("%s pinging %s" % (threading.currentThread().getName(), mirror['identifier']))
+    logging.debug("%s pinging %s" % (threading.currentThread().getName(), mirror.identifier))
 
     #req = urllib2.Request('http://old-cherry.suse.de') # never works
     #req = urllib2.Request('http://doozer.poeml.de/')   # always works
-    req = urllib2.Request(mirror['baseurl'])
+    req = urllib2.Request(mirror.baseurl)
 
     req.add_header('User-Agent', USER_AGENT)
     req.get_method = lambda: "HEAD"
 
-    mirror['status_baseurl_new'] = False
-    mirror['timed_out'] = True
+    mirror.status_baseurl_new = False
+    mirror.timed_out = True
 
     try:
         response = urllib2.urlopen(req)
-        logging.debug('%s got response for %s: %s' % (threading.currentThread().getName(), mirror['identifier'], response))
+        logging.debug('%s got response for %s: %s' % (threading.currentThread().getName(), mirror.identifier, response))
         try:
-            mirror['response_code'] = response.code
+            mirror.response_code = response.code
             # if the web server redirects to an ftp:// URL, our response won't have a code attribute
             # (except we are going via a proxy)
         except AttributeError:
             if response.url.startswith('ftp://'):
                 # count as success
-                mirror['response_code'] = 200
-            logging.debug('mirror %s redirects to ftp:// URL' % mirror['identifier'])
-        mirror['response'] = response.read()
-        mirror['status_baseurl_new'] = True
+                mirror.response_code = 200
+            logging.debug('mirror %s redirects to ftp:// URL' % mirror.identifier)
+        mirror.response = response.read()
+        mirror.status_baseurl_new = True
 
     except httplib.BadStatusLine:
-        mirror['response_code'] = None
-        mirror['response'] = None
+        mirror.response_code = None
+        mirror.response = None
         
     except urllib2.HTTPError, e:
-        mirror['response_code'] = e.code
-        mirror['response'] = e.read()
+        mirror.response_code = e.code
+        mirror.response = e.read()
 
     except urllib2.URLError, e:
-        mirror['response_code'] = 0
-        mirror['response'] = "%s" % e.reason
+        mirror.response_code = 0
+        mirror.response = "%s" % e.reason
 
 
     # not reached, if the timeout goes off
-    mirror['timed_out'] = False
+    mirror.timed_out = False
 
 
 def main():
@@ -139,7 +125,6 @@ def main():
                       action="store_true", 
                       help="enable revived servers")
 
-    global options
     (options, args) = parser.parse_args()
 
     socket.setdefaulttimeout(int(options.timeout))
@@ -172,22 +157,35 @@ def main():
 
 
     #
+    # setup database connection
+    #
+    uri_str = 'mysql://%s:%s@%s/%s'
+    if options.loglevel == 'DEBUG':
+        uri_str += '?debug=1'
+    uri = uri_str % (config['dbuser'], config['dbpass'], config['dbhost'], config['dbname'])
+
+    sqlhub.processConnection = connectionForURI(uri)
+
+    class Server(SQLObject):
+        class sqlmeta:
+            fromDatabase = True
+
+    #
     # get mirrors from database
     #
     mirrors = []
-    dbh = MySQLdb.connect(config['dbhost'], config['dbuser'], config['dbpass'], config['dbname'])
-    dbh.autocommit(1)
-    global cursor
-    cursor = dbh.cursor(MySQLdb.cursors.DictCursor)
-    cursor.execute(sql_select_raw)
-    if not args:
-        for mirror in cursor.fetchall():
-            if mirror['enabled'] == 1:
-                mirrors.append(mirror)
+    if args:
+        # select all mirrors matching the given identifiers
+        result = Server.select(Server.q.baseurl != '')
+        for i in result:
+            if i.identifier in args:
+                mirrors.append(i)
     else:
-        for mirror in cursor.fetchall():
-            if mirror['identifier'] in args:
-                mirrors.append(mirror)
+        # select all enabled mirrors
+        result = Server.select(AND(Server.q.enabled == 1, Server.q.baseurl != ''))
+        for i in result:
+            mirrors.append(i)
+
     if not mirrors:
         sys.exit('no mirrors found')
 
@@ -197,10 +195,12 @@ def main():
     logging.info('----- %s mirrors to check' % len(mirrors))
 
     for i, mirror in enumerate(mirrors):
+        #mirror.status_baseurl_new = False
+        #mirror.timed_out = True
 
         t = threading.Thread(target=ping_http, 
                              args=[mirrors[i]], 
-                             name="pingThread-%s" % mirror['id'])
+                             name="pingThread-%s" % mirror.id)
         # thread will keep the program from terminating.
         t.setDaemon(0)
         t.start()
@@ -209,47 +209,57 @@ def main():
         logging.debug('waiting for %s threads to exit' % (threading.activeCount() - 1))
         time.sleep(1)
 
+
     for mirror in mirrors:
 
         # old failure
-        if not mirror['status_baseurl'] and not mirror['status_baseurl_new']:
+        if not mirror.statusBaseurl and not mirror.status_baseurl_new:
 
-            if mirror['response_code'] and (mirror['response_code'] != 200):
-                logging.warning("""%(identifier)s: (%(baseurl)s): response code not 200: %(response_code)s: %(response)s
+            if mirror.response_code and (mirror.response_code != 200):
+                logging.warning("""%s: (%s): response code not 200: %s: %s
 
 Disabling. 
 Manual enabling will be needed.
-Use pingd.py -e <identifier>""" % mirror)
+Use pingd.py -e <identifier>
 
-                cursor.execute(sql_select_comment_raw, (mirror['id']))
-                comment = cursor.fetchone()['comment'] or ''
-                comment += (' *** set enabled=0 by pingd at %s due to status code %s' % (time.ctime(), mirror['response_code']))
-                logging.debug(sql_enabled_raw % (0, comment, mirror['id']))
-                cursor.execute(sql_enabled_raw, (0, comment, mirror['id']))
+And, if the mirror has been disabled for a while, scan it before enabling
+it again!
+""" % (mirror.identifier, mirror.baseurl, mirror.response_code, mirror.response))
 
-            logging.debug('still dead: %(identifier)s (%(baseurl)s): %(response_code)s: %(response)s' % mirror)
+                comment = mirror.comment or ''
+                comment += (' *** set enabled=0 by pingd at %s due to status code %s' % (time.ctime(), mirror.response_code))
+                logging.debug('setting enabled=0 for %s' % (mirror.identifier))
+                if not options.no_run:
+                    mirror.enabled = 0
+                    mirror.comment = comment
+
+            logging.debug('still dead: %s (%s): %s: %s' % (mirror.identifier, mirror.baseurl, mirror.response_code, mirror.response))
 
         # alive
-        elif mirror['status_baseurl'] and mirror['status_baseurl_new']:
-            logging.debug('alive: %(identifier)s: %(response)s' % mirror)
-            if mirror['enabled'] == 0 and options.enable_revived:
-                reenable(mirror)
+        elif mirror.statusBaseurl and mirror.status_baseurl_new:
+            logging.debug('alive: %s: %s' % (mirror.identifier, mirror.response))
+            if mirror.enabled == 0 and options.enable_revived:
+                logging.info('re-enabling %s' % mirror.identifier)
+                if not options.no_run:
+                    reenable(mirror)
 
         # new failure
-        elif not mirror['status_baseurl_new'] and mirror['status_baseurl']:
-            logging.info('FAIL: %(identifier)s (%(baseurl)s): %(response)s' % mirror)
-            logging.debug(sql_update_raw % (0, mirror['id']))
+        elif not mirror.status_baseurl_new and mirror.statusBaseurl:
+            logging.info('FAIL: %s (%s): %s' % (mirror.identifier, mirror.baseurl, mirror.response))
+            logging.debug('setting status_baseurl=0 for %s (id=%s)' % (mirror.identifier, mirror.id))
             if not options.no_run:
-                cursor.execute(sql_update_raw, (0, mirror['id']))
+                mirror.statusBaseurl = 0
 
         # revived
-        elif not mirror['status_baseurl'] and mirror['status_baseurl_new'] == 1:
-            logging.info('REVIVED: %s' % mirror['identifier'])
-            logging.debug(sql_update_raw % (1, mirror['id']))
+        elif not mirror.statusBaseurl and mirror.status_baseurl_new == 1:
+            logging.info('REVIVED: %s' % mirror.identifier)
+            logging.debug('setting status_baseurl=1 for %s (id=%s)' % (mirror.identifier, mirror.id))
             if not options.no_run:
-                cursor.execute(sql_update_raw, (1, mirror['id']))
+                mirror.statusBaseurl = 1
             if options.enable_revived:
-                reenable(mirror)
+                logging.info('re-enabling %s' % mirror.identifier)
+                if not options.no_run:
+                    reenable(mirror)
 
 
 
