@@ -235,14 +235,6 @@ Use pingd.py -e <identifier>""" % mirror)
             if mirror['enabled'] == 0 and options.enable_revived:
                 reenable(mirror)
 
-        # alive, but status not OK
-        elif mirror['status_baseurl'] and mirror['status_baseurl_new']:
-            if mirror['response_code'] != 200:
-                logging.warning('%(identifier)s: (%(baseurl)s): response code not 200: %(response_code)s: %(response)s' % mirror)
-                logging.debug(sql_enabled_raw % (0, mirror['id']))
-                if not options.no_run:
-                    cursor.execute(sql_enabled_raw, (0, mirror['id']))
-
         # new failure
         elif not mirror['status_baseurl_new'] and mirror['status_baseurl']:
             logging.info('FAIL: %(identifier)s (%(baseurl)s): %(response)s' % mirror)
