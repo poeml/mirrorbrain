@@ -14,6 +14,28 @@ USER_AGENT = 'pingd/openSUSE (see http://en.opensuse.org/Build_Service/Redirecto
 LOGFORMAT = '%(asctime)s %(levelname)-8s %(message)s'
 DATEFORMAT = '%b %d %H:%M:%S'
 
+dbtable = 'server'
+#
+# prepare SQL statements
+#
+sql_select_raw = 'select id, identifier, baseurl, status_baseurl, enabled from %s where baseurl != ""' % dbtable
+sql_update_raw = 'update %s set status_baseurl=%%s where id=%%s' % dbtable
+sql_enable_raw = 'update %s set enabled=%%s, comment=%%s where id=%%s' % dbtable
+sql_select_comment_raw = 'select comment from %s where id=%%s' % dbtable
+sql_enabled_raw = 'update %s set enabled=%%s, comment=%%s where id=%%s' % dbtable
+
+# globals
+cursor = None
+options = None
+
+def reenable(mirror):
+    logging.info('re-enabling %s' % mirror['identifier'])
+    if not options.no_run:
+        cursor.execute(sql_select_comment_raw, (mirror['id']))
+        comment = cursor.fetchone()['comment'] or ''
+        comment = comment[:comment.find('*** ')]
+        cursor.execute(sql_enable_raw, (1, comment, mirror['id']))
+
 
 def ping_http(mirror):
     """Try to reach host at baseurl. 
@@ -117,6 +139,7 @@ def main():
                       action="store_true", 
                       help="enable revived servers")
 
+    global options
     (options, args) = parser.parse_args()
 
     socket.setdefaulttimeout(int(options.timeout))
@@ -149,20 +172,12 @@ def main():
 
 
     #
-    # prepare SQL statements
-    #
-    sql_select_raw = 'select id, identifier, baseurl, status_baseurl, enabled from %s where baseurl != ""' % config['dbtable']
-    sql_update_raw = 'update %s set status_baseurl=%%s where id=%%s' % config['dbtable']
-    sql_enable_raw = 'update %s set enabled=%%s, comment=%%s where id=%%s' % config['dbtable']
-    sql_select_comment_raw = 'select comment from %s where id=%%s' % config['dbtable']
-    sql_enabled_raw = 'update %s set enabled=%%s, comment=%%s where id=%%s' % config['dbtable']
-
-    #
     # get mirrors from database
     #
     mirrors = []
     dbh = MySQLdb.connect(config['dbhost'], config['dbuser'], config['dbpass'], config['dbname'])
     dbh.autocommit(1)
+    global cursor
     cursor = dbh.cursor(MySQLdb.cursors.DictCursor)
     cursor.execute(sql_select_raw)
     if not args:
@@ -217,6 +232,8 @@ Use pingd.py -e <identifier>""" % mirror)
         # alive
         elif mirror['status_baseurl'] and mirror['status_baseurl_new']:
             logging.debug('alive: %(identifier)s: %(response)s' % mirror)
+            if mirror['enabled'] == 0 and options.enable_revived:
+                reenable(mirror)
 
         # alive, but status not OK
         elif mirror['status_baseurl'] and mirror['status_baseurl_new']:
@@ -240,12 +257,7 @@ Use pingd.py -e <identifier>""" % mirror)
             if not options.no_run:
                 cursor.execute(sql_update_raw, (1, mirror['id']))
             if options.enable_revived:
-                logging.info('re-enabling %s' % mirror['identifier'])
-                if not options.no_run:
-                    cursor.execute(sql_select_comment_raw, (mirror['id']))
-                    comment = cursor.fetchone()['comment'] or ''
-                    comment = comment[:comment.find('*** ')]
-                    cursor.execute(sql_enable_raw, (1, comment, mirror['id']))
+                reenable(mirror)
 
 
 
