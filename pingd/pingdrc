@@ -3,7 +3,6 @@ dbuser = wwwrun
 dbpass = password
 dbhost = dbhost.example.org
 dbname = redirector
-dbtable = server
 
 logfile = /tmp/pingd.log
 loglevel = INFO
