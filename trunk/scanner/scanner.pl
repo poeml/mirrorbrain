@@ -213,7 +213,7 @@ if ($parallel > 1)
       {
         # check if one of the workers is idle
         my $worker_id = wait_worker(\@worker, $parallel);
-	$worker[$worker_id] = { serverid => $row->{id}, pid => fork_child($worker_id, @cmd, $row->{id}) };
+	$worker[$worker_id] = { serverid => $row->{id}, pid => fork_child($worker_id, @cmd, $row->{identifier}) };
       }
 
     while (wait > -1)
