@@ -45,6 +45,7 @@
 # 2007-05-15, jw  - V0.8e, -f added, %only_server_ids usage fixed, so that 
 #                          a disabled id no longer scans the next enabled ids.
 # 2007-06-13, jw  - V0.8f, s-bits accepted in ftp_readdir
+# 2007-07-03, jw  - V0.8g, -e added.
 # 		    
 # FIXME: 
 # should do optimize table file, file_server;
@@ -84,7 +85,7 @@ $SIG{__DIE__} = sub
 };
 
 $ENV{FTP_PASSIVE} = 1;
-my $version = '0.8e';
+my $version = '0.8g';
 
 my $topdirs = 'distribution|tools|repositories';
 
@@ -104,6 +105,7 @@ my $recursion_delay = 2;	# seconds delay per readdir_* recuursion
 my $mirror_new = undef;
 my $mirror_zap = 0;
 my $force_scan = 0;
+my $enable_after_scan = 0;
 my $mirror_url_add = undef;
 my $mirror_url_del = undef;
 
@@ -117,6 +119,7 @@ while (defined (my $arg = shift))
     elsif ($arg =~ m{^-v})                 { $verbose++; }
     elsif ($arg =~ m{^-a})                 { $all_servers++; }
     elsif ($arg =~ m{^-j})                 { $parallel = shift; }
+    elsif ($arg =~ m{^-e})                 { $enable_after_scan++; }
     elsif ($arg =~ m{^-f})                 { $force_scan++; }
     elsif ($arg =~ m{^-x})                 { $extra_schedule_run++; }
     elsif ($arg =~ m{^-k})                 { $keep_dead_files++; }
@@ -138,6 +141,8 @@ exit usage("Please specify list of server IDs (or -a for all) to scan\n")
   unless $all_servers or %only_server_ids or $list_only or $mirror_new or $mirror_url_del or $mirror_url_add;
 
 exit usage("-a takes no parameters (or try without -a ).\n") if $all_servers and %only_server_ids;
+
+exit usage("-e is useless without -f\n") if $enable_after_scan and !$force_scan;
 
 exit usage("-j requires a positive number") unless $parallel =~ m{^\d+$} and $parallel > 0;
 
@@ -266,11 +271,20 @@ for my $row (@scan_list)
                   $sth->execute() or die $sth->err;
       }
 
+    if ($enable_after_scan && $file_count > 1 && !$row->{enabled})
+      {
+        $sql = "UPDATE server SET enabled = 1 WHERE id = $row->{id};";
+	print "$sql\n" if $verbose > 1;
+        my $sth = $dbh->prepare( $sql );
+                  $sth->execute() or die $sth->err;
+        print "server $row->{id} is now enabled.\n" if $verbose > 0;
+      }
+
     print "server $row->{id}, $file_count files.\n" if $verbose > 0;
   }
 
 $dbh->disconnect();
-exit;
+exit 0;
 ###################################################################################################
 
 sub usage
@@ -288,6 +302,7 @@ scanner [options] [mirror_ids ...]
   -lll      As -ll, but all in one grep-friendly line.
 
   -a        Scan all enabled mirrors. Alternative to providing a list of mirror_ids.
+  -e        Enable mirror, after it was scanned. Useful with -f.
   -f        Force. Scan listed mirror_ids even if they are not enabled.
   -d dir    Scan only in dir under mirror's baseurl. 
             Default: start at baseurl. Consider using -x and or -k with -d .
