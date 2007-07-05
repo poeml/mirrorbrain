@@ -46,6 +46,8 @@
 #                          a disabled id no longer scans the next enabled ids.
 # 2007-06-13, jw  - V0.8f, s-bits accepted in ftp_readdir
 # 2007-07-03, jw  - V0.8g, -e added.
+# 2007-07-05, jw  - V0.8h, reimplemented ftp_readdir() with Net::FTP
+#                   to avoid silly one shot LWP.
 # 		    
 # FIXME: 
 # should do optimize table file, file_server;
@@ -68,6 +70,8 @@ use strict;
 use DBI;
 use Date::Parse;
 use LWP::UserAgent;
+use Net::FTP;
+use Net::Domain;
 use Data::Dumper;
 use Digest::MD5;
 use Time::HiRes;
@@ -84,8 +88,8 @@ $SIG{__DIE__} = sub
   die @_;
 };
 
-$ENV{FTP_PASSIVE} = 1;
-my $version = '0.8g';
+$ENV{FTP_PASSIVE} = 1;	# used in LWP only, Net::FTP ignores this.
+my $version = '0.8h';
 
 my $topdirs = 'distribution|tools|repositories';
 
@@ -101,7 +105,7 @@ my $parallel = 1;
 my $list_only = 0;
 my $extra_schedule_run = 0;
 my $keep_dead_files = 0;
-my $recursion_delay = 2;	# seconds delay per readdir_* recuursion
+my $recursion_delay = 2;	# seconds delay per *_readdir recuursion
 my $mirror_new = undef;
 my $mirror_zap = 0;
 my $force_scan = 0;
@@ -646,29 +650,32 @@ sub byte_size
 
 sub ftp_readdir
 {
-  my ($id, $url, $name) = @_;
+  my ($id, $url, $name, $ftp) = @_;
 
   my $urlraw = $url;
   my $re = ''; $re = $1 if $url =~ s{#(.*?)$}{};
   $url =~ s{/+$}{};	# we add our own trailing slashes...
 
   print "$id $url/$name\n" if $verbose;
-  my $content = cont("$url/$name");
+
+  my $toplevel = ($ftp) ? 0 : 1;
+  $ftp = ftp_connect("$url/$name") unless defined $ftp;
+  my $text = ftp_cont($ftp, "$url/$name");
   
-  if ($content =~ m/^\d\d\d\s/)		# some FTP status code? Not good.
+  if (!ref($text) && $text =~ m/^\d\d\d\s/)		# some FTP status code? Not good.
   {
-    print $content if $verbose > 2;
+    print $text if $verbose > 2;
+    ftp_close($ftp);
     return;
   }  
 
-  print $content."\n" if $verbose > 2;
+  print join("\n", @$text)."\n" if $verbose > 2;
 
-  my @text = split( "\n", $content );
 
   my @r;
-  for my $i (0..$#text)
+  for my $i (0..$#$text)
     {
-      if ($text[$i] =~ m/^([dl-])(.........).*(\w\w\w\s+\d\d?\s+\d\d:?\d\d)\s+([\S]+)$/)
+      if ($text->[$i] =~ m/^([dl-])(.........).*(\w\w\w\s+\d\d?\s+\d\d:?\d\d)\s+([\S]+)$/)
 	{
 	  my ($type, $mode, $timestamp, $fname) = ($1, $2, $3, $4);
 	  next if $fname eq "." or $fname eq "..";
@@ -686,7 +693,7 @@ sub ftp_readdir
 		  next;
 		}
 	      sleep($recursion_delay) if $recursion_delay;
-	      push @r, ftp_readdir($id, $urlraw, $t);
+	      push @r, ftp_readdir($id, $urlraw, $t, $ftp);
 	    }
 	  if ($type eq 'l')
 	    {
@@ -706,6 +713,8 @@ sub ftp_readdir
 	    }
 	}
     }
+
+  ftp_close($ftp) if $toplevel;
   return @r;
 }
 
@@ -1094,4 +1103,58 @@ sub rsync_get_filelist {
   }
   close(S);
   return @filelist;
+}
+
+sub ftp_connect
+{
+  my ($url) = @_;
+  my $port = 21;
+  my $user ||= 'anonymous';
+  my $pass ||= "$0@" . Net::Domain::hostfqdn;
+
+  if ($url =~ s{^(\w+)://}{})	# no protocol prefix please
+    {
+      if (lc $1 ne 'ftp')
+        {
+          warn "ftp_connect: not an ftp url: '$1://$url'\n";
+	  return undef;
+	}
+    }
+  $url =~ s{/.*$}{};		# no path components please
+  $port = $1 if $url =~ s{:(\d+)$}{};	# port number?
+  my $ftp = Net::FTP->new($url, Timeout => 360, Port => $port, Debug => (($verbose||0)>1)?1:0, Passive => 1, Hash => 0);
+  unless (defined $ftp)
+    {
+      warn "ftp_connect($url, $port) failed: $! $@\n";
+      return undef;
+    }
+  $ftp->login($user, $pass) or warn "ftp-login failed: $! $@\n";
+  $ftp->type('I');		# binary mode please.
+  print STDERR "connected to $url, ($user,$pass)\n";
+  return $ftp;
+}
+
+sub ftp_close
+{
+  my ($ftp) = @_;
+  $ftp->quit;
+}
+
+sub ftp_cont
+{
+  my ($ftp, $path) = @_;
+  $path =~ s{^\w+://[^/:]+(:\d+)?/}{/};	# no proto host port prefix, please.
+  $ftp->cwd($path) or return "550 failed: ftp-cwd($path): $! $@";
+
+  $ftp->dir();
+  # In an array context, returns a list of lines returned from the server. 
+  # In a scalar context, returns a reference to a list.
+  #
+  ## should use File::Listing to parse this 
+  #
+  # [
+  #   'drwx-wx-wt    2 incoming 49           4096 Jul 03 23:00 incoming',
+  #   '-rw-r--r--    1 root     root     16146417 Jul 04 23:12 ls-Ral.txt'
+  # ], 
+
 }
