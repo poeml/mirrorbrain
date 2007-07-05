@@ -92,6 +92,8 @@ $ENV{FTP_PASSIVE} = 1;	# used in LWP only, Net::FTP ignores this.
 my $version = '0.8h';
 
 my $topdirs = 'distribution|tools|repositories';
+my $scanner_email = 'poeml@suse.de';
+
 
 # Create a user agent object
 my $ua = LWP::UserAgent->new;
@@ -659,7 +661,7 @@ sub ftp_readdir
   print "$id $url/$name\n" if $verbose;
 
   my $toplevel = ($ftp) ? 0 : 1;
-  $ftp = ftp_connect("$url/$name") unless defined $ftp;
+  $ftp = ftp_connect("$url/$name", "anonymous", $scanner_email) unless defined $ftp;
   my $text = ftp_cont($ftp, "$url/$name");
   
   if (!ref($text) && $text =~ m/^\d\d\d\s/)		# some FTP status code? Not good.
