@@ -48,6 +48,7 @@
 # 2007-07-03, jw  - V0.8g, -e added.
 # 2007-07-05, jw  - V0.8h, reimplemented ftp_readdir() with Net::FTP
 #                   to avoid silly one shot LWP.
+# 2007-08-02, jw  - V0.8i, exiting ftp_readdir early, if connect fails.
 # 		    
 # FIXME: 
 # should do optimize table file, file_server;
@@ -78,8 +79,10 @@ use Time::HiRes;
 use Socket;
 use bytes;
 
+my $version = '0.8i';
+
+
 $SIG{'PIPE'} = 'IGNORE';
-my $rsync_muxbuf = '';
 
 $SIG{__DIE__} = sub 
 {
@@ -89,8 +92,8 @@ $SIG{__DIE__} = sub
 };
 
 $ENV{FTP_PASSIVE} = 1;	# used in LWP only, Net::FTP ignores this.
-my $version = '0.8h';
 
+my $rsync_muxbuf = '';
 my $topdirs = 'distribution|tools|repositories';
 my $scanner_email = 'poeml@suse.de';
 
@@ -662,6 +665,7 @@ sub ftp_readdir
 
   my $toplevel = ($ftp) ? 0 : 1;
   $ftp = ftp_connect("$url/$name", "anonymous", $scanner_email) unless defined $ftp;
+  return unless defined $ftp;
   my $text = ftp_cont($ftp, "$url/$name");
   
   if (!ref($text) && $text =~ m/^\d\d\d\s/)		# some FTP status code? Not good.
