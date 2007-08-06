@@ -1,1 +1,1 @@
-use delayed inserts?
+Handle "cmd=deleted" requests, to allow marking packages as deleted.
