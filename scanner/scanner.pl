@@ -353,7 +353,8 @@ scanner [options] [mirror_ids ...]
   -j N      Run up to N scanner queries in parallel.
 
   -i regexp 
-            Define regexp-pattern for path names to ignore. Default $global_ign_re
+            Define regexp-pattern for path names to ignore. 
+	    Use '-i 0' to disable any ignore patterns. Default: $global_ign_re
 
 Both, names(identifier) and numbers(id) are accepted as mirror_ids.
 };
