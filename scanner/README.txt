@@ -13,6 +13,11 @@ Galerkin now can serve ca 1000 redirects per second
 
 TODO: 
 
+- remove files belonging to disabled mirrors. 
+  if a mirror is not scanned for a long time, our redirector remembers 
+  its old stat. this should time out. Raising last_scan of these
+  mirrors without touching their files would do the job.
+
 - Timeout 20min -> fallback to next protocol
   (readdir_rsync to ftp5.gwdg.de apparently hangs sometimes)
 
