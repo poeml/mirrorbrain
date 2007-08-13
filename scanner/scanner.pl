@@ -49,6 +49,7 @@
 # 2007-07-05, jw  - V0.8h, reimplemented ftp_readdir() with Net::FTP
 #                   to avoid silly one shot LWP.
 # 2007-08-02, jw  - V0.8i, exiting ftp_readdir early, if connect fails.
+# 2007-08-13, jw  - V0.9a, $global_ign_re added to save_file(); -i option added.
 # 		    
 # FIXME: 
 # should do optimize table file, file_server;
@@ -79,7 +80,7 @@ use Time::HiRes;
 use Socket;
 use bytes;
 
-my $version = '0.8i';
+my $version = '0.9a';
 
 
 $SIG{'PIPE'} = 'IGNORE';
@@ -118,6 +119,16 @@ my $enable_after_scan = 0;
 my $mirror_url_add = undef;
 my $mirror_url_del = undef;
 
+my $global_ign_re = qr{(
+  \.xml$	|
+  \.xml\.gz$	|
+  \.asc$	|
+  \.repo$	|
+  /repoview/	|
+  /drpmsync/
+)}x;
+my $db_cred = { dbi => 'dbi:mysql:dbname=redirector;host=galerkin.suse.de', 
+                user => 'root', pass => '', opt => { PrintError => 0 } };
 
 exit usage() unless @ARGV;
 while (defined (my $arg = shift))
@@ -128,6 +139,7 @@ while (defined (my $arg = shift))
     elsif ($arg =~ m{^-v})                 { $verbose++; }
     elsif ($arg =~ m{^-a})                 { $all_servers++; }
     elsif ($arg =~ m{^-j})                 { $parallel = shift; }
+    elsif ($arg =~ m{^-i})                 { $global_ign_re = shift; }
     elsif ($arg =~ m{^-e})                 { $enable_after_scan++; }
     elsif ($arg =~ m{^-f})                 { $force_scan++; }
     elsif ($arg =~ m{^-x})                 { $extra_schedule_run++; }
@@ -155,8 +167,7 @@ exit usage("-e is useless without -f\n") if $enable_after_scan and !$force_scan;
 
 exit usage("-j requires a positive number") unless $parallel =~ m{^\d+$} and $parallel > 0;
 
-my $dbh = DBI->connect( 'dbi:mysql:dbname=redirector;host=galerkin.suse.de', 'root', '',
-                        { PrintError => 0 } ) or die $DBI::errstr;
+my $dbh = DBI->connect( $db_cred->{dbi}, $db_cred->{user}, $db_cred->{pass}, $db_cred->{opt}) or die $DBI::errstr;
 
 my $sql = qq{SELECT * FROM server};
 my $ary_ref = $dbh->selectall_hashref($sql, 'id')
@@ -340,6 +351,9 @@ scanner [options] [mirror_ids ...]
 	    If only one parameter is given, mirror_id is derived from url.
 
   -j N      Run up to N scanner queries in parallel.
+
+  -i regexp 
+            Define regexp-pattern for path names to ignore. Default $global_ign_re
 
 Both, names(identifier) and numbers(id) are accepted as mirror_ids.
 };
@@ -526,7 +540,10 @@ sub mirror_url
 	}
       else
         {
-	  save_file($p, $id, time);
+	  if (!save_file($p, $id, time))
+	    {
+              print "$p ignored.\n" if $verbose;
+	    }
 	}
     }
   return 0;
@@ -625,9 +642,10 @@ sub http_readdir
 		  my $len = byte_size($size);
 
                   #save timestamp and file in database
-	          save_file($t, $id, $time, $re);
-
-                  push @r, [ $t , $time ];
+	          if (save_file($t, $id, $time, $re, $global_ign_re))
+		    {
+                      push @r, [ $t , $time ];
+		    }
 		}
 	    }
 	}
@@ -713,9 +731,10 @@ sub ftp_readdir
 		  next;
 		}
 	      #save timestamp and file in database
-	      save_file($t, $id, $time, $re);
-
-	      push @r, [ $t , $time ];
+	      if (save_file($t, $id, $time, $re, $global_ign_re))
+	        {
+	          push @r, [ $t , $time ];
+		}
 	    }
 	}
     }
@@ -726,16 +745,18 @@ sub ftp_readdir
 
 sub save_file
 {
-  my ($path, $serverid, $file_tstamp, $re) = @_;
+  my ($path, $serverid, $file_tstamp, $mod_re, $ign_re) = @_;
+
+  return undef if $ign_re and $path =~ m{$ign_re};
 
   #
   # optional patch the file names by adding or removing components.
   # you never know what strange paths mirror admins choose.
   #
 
-  if ($re and $re =~ m{@([^@]*)@([^@]*)})
+  if ($mod_re and $mod_re =~ m{@([^@]*)@([^@]*)})
     {
-      print "save_file: $path + #$re -> " if $verbose > 2;
+      print "save_file: $path + #$mod_re -> " if $verbose > 2;
       my ($m, $r) = ($1, $2);
       $path =~ s{$m}{$r};
       print "$path\n" if $verbose > 2;
@@ -887,7 +908,8 @@ sub checkfileserver_md5
 sub rsync_cb
 {
   my ($priv, $name, $len, $mode, $mtime, @info) = @_;
-  return if $name eq '.' or $name eq '..';
+  return 0 if $name eq '.' or $name eq '..';
+  my $r = 0;
 
   if ($priv->{subdir})
     {
@@ -899,8 +921,9 @@ sub rsync_cb
     {
       if ($mode & 004)		# readable for the world is good.
         {
-          $name = save_file($name, $priv->{serverid}, $mtime, $priv->{re});
+          $name = save_file($name, $priv->{serverid}, $mtime, $priv->{re}, $global_ign_re);
           $priv->{counter}++;
+	  $r = [$name, $len, $mode, $mtime, @info];
 	  printf "rsync(%d) ADD: %03o %10d %-25s %-50s\n", $priv->{serverid}, ($mode & 0777), $len, scalar(localtime $mtime), $name if $verbose > 2;
 	}
       else 
@@ -912,7 +935,7 @@ sub rsync_cb
     {
       printf "rsync(%d) dir: %03o %10d %-25s %-50s\n", $priv->{serverid}, ($mode & 0777), $len, scalar(localtime $mtime), $name;
     }
-  return;
+  return $r;
 }
 
 # rsync://ftp.sunet.se/pub/Linux/distributions/opensuse/#@^opensuse/@@
