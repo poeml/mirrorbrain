@@ -1149,6 +1149,7 @@ static int zrkadlo_status_hook(request_rec *r, int flags)
         ap_rprintf(r, "<tr><td>version:               </td><td>%s</td>\n", stats->version); 
         ap_rprintf(r, "<tr><td>pid:                   </td><td>%d</td>\n", stats->pid);
         ap_rprintf(r, "<tr><td>uptime:                </td><td>\t%d</td>\n", stats->uptime);
+        ap_rprintf(r, "<tr><td>pointer_size:          </td><td>\t%d</td>\n", stats->pointer_size);
         ap_rprintf(r, "<tr><td>rusage_user:           </td><td>\t%" APR_INT64_T_FMT "</td>\n", stats->rusage_user);
         ap_rprintf(r, "<tr><td>rusage_system:         </td><td>\t%" APR_INT64_T_FMT "</td>\n", stats->rusage_system);
         ap_rprintf(r, "<tr><td>curr_items:            </td><td>\t%d</td>\n", stats->curr_items);
@@ -1161,9 +1162,11 @@ static int zrkadlo_status_hook(request_rec *r, int flags)
         ap_rprintf(r, "<tr><td>cmd_set:               </td><td>\t%d</td>\n", stats->cmd_set);
         ap_rprintf(r, "<tr><td>get_hits:              </td><td>\t%d</td>\n", stats->get_hits);
         ap_rprintf(r, "<tr><td>get_misses:            </td><td>\t%d</td>\n", stats->get_misses);
+        ap_rprintf(r, "<tr><td>evictions:             </td><td>\t%" APR_UINT64_T_FMT "</td>\n", stats->evictions);
         ap_rprintf(r, "<tr><td>bytes_read:            </td><td>\t%" APR_UINT64_T_FMT "</td>\n", stats->bytes_read);
         ap_rprintf(r, "<tr><td>bytes_written:         </td><td>\t%" APR_UINT64_T_FMT "</td>\n", stats->bytes_written);
         ap_rprintf(r, "<tr><td>limit_maxbytes:        </td><td>\t%d</td>\n", stats->limit_maxbytes);
+        ap_rprintf(r, "<tr><td>threads:               </td><td>\t%d</td>\n", stats->threads);
         ap_rputs("</table>\n", r);
     }
 
