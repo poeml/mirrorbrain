@@ -663,6 +663,16 @@ static int zrkadlo_handler(request_rec *r)
         return DECLINED;
     }
 
+    /* do we redirect if the request is for directories? */
+    /* XXX should one actually respect all strings which are configured
+     * as DirectoryIndex ? */
+    if (cfg->handle_dirindex_locally && ap_strcasestr(r->uri, "index.html")) {
+        debugLog(r, cfg, "serving index.html locally "
+                "(ZrkadloHandleDirectoryIndexLocally)");
+        return DECLINED;
+    }
+
+
     debugLog(r, cfg, "URI: '%s'", r->unparsed_uri);
     debugLog(r, cfg, "filename: '%s'", r->filename);
     //debugLog(r, cfg, "server_hostname: '%s'", r->server->server_hostname);
@@ -681,15 +691,6 @@ static int zrkadlo_handler(request_rec *r)
         debugLog(r, cfg, "FAKE Client IP: '%s'", clientip);
     else
         clientip = apr_pstrdup(r->pool, r->connection->remote_ip);
-
-    /* do we redirect if the request is for directories? */
-    /* XXX one should actually respect all strings which are configured
-     * as DirectoryIndex */
-    if (cfg->handle_dirindex_locally && ap_strcasestr(r->uri, "index.html")) {
-        debugLog(r, cfg, "serving index.html locally "
-                "(ZrkadloHandleDirectoryIndexLocally)");
-        return DECLINED;
-    }
 
     /* These checks apply only if the server response is not faked for testing */
     if (fakefile) {
