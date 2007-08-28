@@ -50,6 +50,7 @@
 #                   to avoid silly one shot LWP.
 # 2007-08-02, jw  - V0.8i, exiting ftp_readdir early, if connect fails.
 # 2007-08-13, jw  - V0.9a, $global_ign_re added to save_file(); -i option added.
+# 2007-08-28, jw  - V0.9b, sigusr1/sigusr2 added to switch verbosity level.
 # 		    
 # FIXME: 
 # should do optimize table file, file_server;
@@ -80,8 +81,9 @@ use Time::HiRes;
 use Socket;
 use bytes;
 
-my $version = '0.9a';
-
+my $version = '0.9b';
+my $scanner_email = 'poeml@suse.de';
+my $verbose = 1;
 
 $SIG{'PIPE'} = 'IGNORE';
 
@@ -92,18 +94,17 @@ $SIG{__DIE__} = sub
   die @_;
 };
 
-$ENV{FTP_PASSIVE} = 1;	# used in LWP only, Net::FTP ignores this.
+$SIG{USR1} = sub { $verbose++; warn "sigusr1 seen. ++verbose = $verbose\n"; };
+$SIG{USR2} = sub { $verbose--; warn "sigusr2 seen. --verbose = $verbose\n"; };
 
-my $rsync_muxbuf = '';
-my $topdirs = 'distribution|tools|repositories';
-my $scanner_email = 'poeml@suse.de';
+$ENV{FTP_PASSIVE} = 1;	# used in LWP only, Net::FTP ignores this.
 
 
 # Create a user agent object
 my $ua = LWP::UserAgent->new;
 $ua->agent("openSUSE Scanner/$version (See http://en.opensuse.org/Mirrors/Scanner)");
 
-my $verbose = 1;
+my $rsync_muxbuf = '';
 my $use_md5 = 1;
 my $all_servers = 0;
 my $start_dir = '/';
@@ -118,6 +119,7 @@ my $force_scan = 0;
 my $enable_after_scan = 0;
 my $mirror_url_add = undef;
 my $mirror_url_del = undef;
+my $topdirs = 'distribution|tools|repositories';
 
 my $global_ign_re = qr{(
   \.xml$	|
@@ -687,8 +689,9 @@ sub ftp_readdir
   return unless defined $ftp;
   my $text = ftp_cont($ftp, "$url/$name");
   
-  if (!ref($text) && $text =~ m/^\d\d\d\s/)		# some FTP status code? Not good.
+  if (!ref($text) && $text =~ m/^(\d\d\d)\s/)		# some FTP status code? Not good.
   {
+    warn "ftp status code $1, closing.\n";
     print $text if $verbose > 2;
     ftp_close($ftp);
     return;
