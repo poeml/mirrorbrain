@@ -63,7 +63,7 @@
 #define UNSET (-1)
 #endif
 
-#define MOD_ZRKADLO_VER "1.0"
+#define MOD_ZRKADLO_VER "1.1"
 #define VERSION_COMPONENT "mod_zrkadlo/"MOD_ZRKADLO_VER
 
 #define DEFAULT_GEOIPFILE "/usr/share/GeoIP/GeoIP.dat"
@@ -853,8 +853,10 @@ static int zrkadlo_handler(request_rec *r)
                 (mirror_cnt == 1) ? "" : "s");
     }
     else {
-        ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, 
+        ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, 
                 "[mod_zrkadlo] no mirrors found for %s", filename);
+        /* can be used for a CustomLog */
+        apr_table_setn(r->subprocess_env, "ZRKADLO_NOMIRROR", "1");
         return DECLINED;
     }
 
@@ -1103,10 +1105,12 @@ static int zrkadlo_handler(request_rec *r)
     uri = apr_pstrcat(r->pool, chosen->baseurl, filename, NULL);
     debugLog(r, cfg, "Redirect to '%s'", uri);
 
-    apr_table_setn(r->err_headers_out, "X-Zrkadlo-Chose-Mirror", chosen->identifier);
-    //apr_table_setn(r->err_headers_out, "X-Zrkadlo", "Have a lot of fun...");
-    apr_table_setn(r->headers_out, "Location", uri);
+    /* can be used for a CustomLog: */
+    apr_table_setn(r->subprocess_env, "ZRKADLO_REDIRECTED", "1");
 
+    apr_table_setn(r->err_headers_out, "X-Zrkadlo-Chose-Mirror", chosen->identifier);
+    apr_table_setn(r->err_headers_out, "X-Have-a-lot-of", "Pfannkuchen");
+    apr_table_setn(r->headers_out, "Location", uri);
 
     if (scfg->memcached_on) {
         /* memorize IP<->mirror association in memcache */
