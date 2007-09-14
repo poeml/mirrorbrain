@@ -1,14 +1,15 @@
 This is a redirector module for apache.
+http://en.opensuse.org/Build_Service/Redirector give a rough outline how it works.
 
 It requires a backend to work with, which can be found at
 https://forgesvn1.novell.com/svn/opensuse/trunk/tools/download-redirector-v2
 
 RPM packages are here:
-http://software.opensuse.org/download/Apache:/Modules/
+http://download.opensuse.org/repositories/Apache:/Modules/
 
 It requires libGeoIP, libapr_memcache, and mod_form.
-It can be built manually with
-apxs2 -c -lGeoIP -lapr_memcache -Wc,"-Wall -g" mod_zrkadlo.c
+It can be built with
+apxs2 -c -lGeoIP -lapr_memcache -Wc,"-Wall -g -D_GNU_SOURCE" mod_zrkadlo.c
 
 
 The module understands query arguments (optionally appended to the URL) for 
@@ -16,39 +17,73 @@ diagnostic or other uses. See the config example for details.
 
 
 Q: What does "zrkadlo" mean?
-A: 'zrkadlo' is slovakian for 'mirror'.
+A: A word found when travelling in Slovakia in 2006. 'zrkadlo' is Slovakian 
+   for 'mirror'. It is one of about three words of Slovakian I know.
+
+   Here is a picture: http://sk.wikiquote.org/wiki/Zrkadlo :-)
 
 
+Q: What is the effect of the score values?
+A: Higher score means a greater chance of being picked. Some kind of
+   weighted randomization. In the end, it matters how it compares to the 
+   other scores. i.e., if all server have a score of 30, there are picked  
+   with the same frequency. If only one mirror has a given file, its score
+   is meaningless.
 
-This should give a picture how the score values behave:
+   This should give a picture how the score values behave (output captured from a
+   test program), comparing 3 scores:
+   
+    % ./rand.py 100000 100 100 100
+   score:   100 count: 33279 (33%)
+   score:   100 count: 33378 (33%)
+   score:   100 count: 33343 (33%)
+    % ./rand.py 100000 100 50 50 
+   score:   100 count: 58148 (58%)
+   score:    50 count: 20893 (20%)
+   score:    50 count: 20959 (20%)
+    % ./rand.py 100000 100 200 10 
+   score:   100 count: 24359 (24%)
+   score:   200 count: 73588 (73%)
+   score:    10 count:  2053 (2%)
+   
+    % ./randint 100000 100 100 100
+   score:   100 count: 33474 (33.47%)
+   score:   100 count: 33118 (33.12%)
+   score:   100 count: 33408 (33.41%)
+                         (100.00%)
+    % ./randint 100000 100 50 50  
+   score:   100 count: 58301 (58.30%)
+   score:    50 count: 20840 (20.84%)
+   score:    50 count: 20859 (20.86%)
+                         (100.00%)
+    % ./randint 100000 100 200 10
+   score:   100 count: 24620 (24.62%)
+   score:   200 count: 73337 (73.34%)
+   score:    10 count:  2043 (2.04%)
+                         (100.00%)
 
- % ./rand.py 100000 100 100 100
-score:   100 count: 33279 (33%)
-score:   100 count: 33378 (33%)
-score:   100 count: 33343 (33%)
- % ./rand.py 100000 100 50 50 
-score:   100 count: 58148 (58%)
-score:    50 count: 20893 (20%)
-score:    50 count: 20959 (20%)
- % ./rand.py 100000 100 200 10 
-score:   100 count: 24359 (24%)
-score:   200 count: 73588 (73%)
-score:    10 count:  2053 (2%)
 
- % ./randint 100000 100 100 100
-score:   100 count: 33474 (33.47%)
-score:   100 count: 33118 (33.12%)
-score:   100 count: 33408 (33.41%)
-                      (100.00%)
- % ./randint 100000 100 50 50  
-score:   100 count: 58301 (58.30%)
-score:    50 count: 20840 (20.84%)
-score:    50 count: 20859 (20.86%)
-                      (100.00%)
- % ./randint 100000 100 200 10
-score:   100 count: 24620 (24.62%)
-score:   200 count: 73337 (73.34%)
-score:    10 count:  2043 (2.04%)
-                      (100.00%)
+Q: How often does the scan take place? What I am wondering is; if I chose to
+   delete something, how long before the distribution server sees it? I
+   would not want anyone to get an error when they try to download
+   something.
 
+A: Good question. For now, the "best" is to send a note that one is going to
+   delete something... the  master site can then disable redirection to the 
+   mirror, and re-enable it after a scan once they are done...
 
+   A brute-force approach would be to make the server return a 404, or take it 
+   offline for some minutes, because every (e.g.) 5 minutes the redirector 
+   checks with a request to '/' that the host is alive,  and disables
+   redirection if that returns an error. 
+   Yes, too ugly.
+
+   The plan is, to provide admin access to the redirector database, so 
+   mirrors could
+    * disable redirection themselves,
+    * trigger a scan, and re-enable it
+    * maybe even mark parts of the tree as deleted in the database, so 
+      they can safely delete them without further action required.
+
+   This could possibly solved to a satisfactory degree by more frequent 
+   scanning, of random files, basically simulating a (very light) workload.
