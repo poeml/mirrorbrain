@@ -1,0 +1,79 @@
+#!/usr/bin/python
+
+import sys, os, MySQLdb
+
+pwfile = '/root/.mytop'
+
+try:
+    passwd = open(pwfile).read().split('=')[1].strip()
+except IOError, e:
+    print e
+    sys.exit (1)
+except IndexError, e:
+    print 'cannot parse conffile:', pwfile
+    sys.exit (1)
+
+try:
+    conn = MySQLdb.connect('localhost', 'root', passwd, 'redirector_innodb')
+except MySQLdb.Error, e:
+    print "Error %d: %s" % (e.args[0], e.args[1])
+    sys.exit (1)
+
+cursor = conn.cursor()
+
+# cursor.execute('insert into file_server set fileid=13, serverid=1333, path_md5=%s', ['no md5, just a test']);
+# print 'file_server inserted:         %10d' % cursor.rowcount
+
+# cursor.execute('select count(*) from file_server')
+# cursor.execute('select count(*) from file_server')
+# cursor.execute('select count(*) from file_server')
+# cursor.execute('select count(*) from file_server')
+# print 'file_server total:            %10d' % cursor.fetchone()[0]
+# conn.commit()
+
+
+# file_server table
+cursor.execute('select count(*) from file_server as fs left outer join server as s on fs.serverid = s.id where isnull(s.id)')
+print 'file_server stale:            %10d' % cursor.fetchone()[0]
+
+cursor.execute('select count(*) from file_server as fs left outer join server as s on fs.serverid = s.id where isnull(s.id) or s.enabled = 0')
+print 'file_server stale/disabled:   %10d' % cursor.fetchone()[0]
+
+print 
+
+
+# file table
+cursor.execute('select count(*) from file')
+print 'file total:                   %10d' % cursor.fetchone()[0]
+
+cursor.execute('select count(*) from file as f left outer join file_server as fs on f.id = fs.fileid where isnull(fs.fileid)')
+print 'file stale:                   %10d' % cursor.fetchone()[0]
+
+print 
+
+
+#
+# now, delete...
+#
+
+cursor.execute('delete fs from file_server fs left outer join server s on fs.serverid = s.id where isnull(s.id) or s.enabled = 0')
+print 'file_server rows to delete:   %10d' % cursor.rowcount
+cursor.execute('select count(*) from file_server')
+print 'file_server remaining:        %10d' % cursor.fetchone()[0]
+
+print 
+
+cursor.execute('delete f from file as f left outer join file_server as fs on f.id = fs.fileid where isnull(fs.fileid)')
+print 'file rows to delete:          %10d' % cursor.rowcount
+cursor.execute('select count(*) from file_server')
+print 'file remaining:               %10d' % cursor.fetchone()[0]
+
+print 
+
+
+cursor.close()
+
+print 'committing...'
+conn.commit()
+print 'done.'
+conn.close()

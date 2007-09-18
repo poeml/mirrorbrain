@@ -1,0 +1,18 @@
+#!/usr/bin/python
+
+import sys, os, MySQLdb
+
+servername = sys.argv[1]
+score = sys.argv[2]
+
+passwd = open('/root/.mytop').read().split('=')[1].strip()
+
+dbh = MySQLdb.connect('localhost', 'root', passwd, 'redirector')
+cursor = dbh.cursor(MySQLdb.cursors.DictCursor)
+
+sqlraw = 'update server set score=%s where identifier=%s'
+cursor.execute(sqlraw, [score, servername])
+
+cursor.close()
+dbh.commit()
+dbh.close()
