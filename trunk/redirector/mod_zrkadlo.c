@@ -37,6 +37,7 @@
 #include "http_log.h"
 #include "http_main.h"
 #include "http_protocol.h"
+#include "util_md5.h"
 
 #include "apr_strings.h"
 #include "apr_lib.h"
@@ -599,12 +600,24 @@ static int find_lowest_rank(apr_array_header_t *arr)
     return lowest_id;
 }
 
+/* return base64 encoded string of a (binary) md5 hash */
+static char *zrkadlo_md5b64_enc(apr_pool_t *p, char *s)
+{
+    apr_md5_ctx_t context;
+
+    apr_md5_init(&context);
+    apr_md5_update(&context, s, strlen(s));
+    return ap_md5contextTo64(p, &context);
+}
+
+
 static int zrkadlo_handler(request_rec *r)
 {
     zrkadlo_dir_conf *cfg = NULL;
     zrkadlo_server_conf *scfg = NULL;
     char *uri = NULL;
     char *filename = NULL;
+    char *filename_hash = NULL;
     const char *user_agent = NULL;
     const char *val = NULL;
     const char *clientip = NULL;
@@ -838,10 +851,20 @@ static int zrkadlo_handler(request_rec *r)
     free(ptr);
     debugLog(r, cfg, "SQL lookup for (canonicalized) '%s'", filename);
 
+    filename_hash = zrkadlo_md5b64_enc(r->pool, filename);
+    if (strlen(filename_hash) != 24) {
+        ap_log_rerror(APLOG_MARK, APLOG_CRIT, 0, r, 
+                "[mod_zrkadlo] Error hashing filename '%s'", r->filename);
+        return HTTP_INTERNAL_SERVER_ERROR;
+    }
+    /* strip the '==' trailing the base64 encoding */
+    filename_hash[22] = '\0';
+    debugLog(r, cfg, "filename_hash: %s", filename_hash);
+
     if (apr_dbd_pvselect(dbd->driver, r->pool, dbd->handle, &res, statement, 
                 1, /* we don't need random access actually, but 
                       without it the mysql driver doesn't return results...  */
-                filename, NULL) != 0) {
+                filename_hash, NULL) != 0) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
                 "[mod_zrkadlo] Error looking up %s in database", filename);
         return DECLINED;
