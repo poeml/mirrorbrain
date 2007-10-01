@@ -13,6 +13,10 @@ Missing features:
   (needed for cache.novell.com)
 
 
+Improvements:
+* make ZrkadloTreatCountryAs optional, so it becomes effective only if there is
+  no country mirror. Now: "treat as xy". Better: "treat as xy, if no mirror in
+  my country".
 
 Further ideas:
 
