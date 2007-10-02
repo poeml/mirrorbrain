@@ -113,6 +113,7 @@ typedef struct
     apr_array_header_t *exclude_mime;
     apr_array_header_t *exclude_agents;
     apr_array_header_t *exclude_networks;
+    apr_array_header_t *exclude_ips;
     ap_regex_t *exclude_filemask;
 } zrkadlo_dir_conf;
 
@@ -331,6 +332,7 @@ static void *create_zrkadlo_dir_config(apr_pool_t *p, char *dirspec)
     new->exclude_mime = apr_array_make(p, 0, sizeof (char *));
     new->exclude_agents = apr_array_make(p, 0, sizeof (char *));
     new->exclude_networks = apr_array_make(p, 4, sizeof (char *));
+    new->exclude_ips = apr_array_make(p, 4, sizeof (char *));
     new->exclude_filemask = NULL;
 
     return (void *) new;
@@ -355,6 +357,7 @@ static void *merge_zrkadlo_dir_config(apr_pool_t *p, void *basev, void *addv)
     mrg->exclude_mime = apr_array_append(p, base->exclude_mime, add->exclude_mime);
     mrg->exclude_agents = apr_array_append(p, base->exclude_agents, add->exclude_agents);
     mrg->exclude_networks = apr_array_append(p, base->exclude_networks, add->exclude_networks);
+    mrg->exclude_ips = apr_array_append(p, base->exclude_ips, add->exclude_ips);
     mrg->exclude_filemask = (add->exclude_filemask == NULL) ? base->exclude_filemask : add->exclude_filemask;
 
     return (void *) mrg;
@@ -448,6 +451,15 @@ static const char *zrkadlo_cmd_excludenetwork(cmd_parms *cmd, void *config,
     zrkadlo_dir_conf *cfg = (zrkadlo_dir_conf *) config;
     char **network = (char **) apr_array_push(cfg->exclude_networks);
     *network = apr_pstrdup(cmd->pool, arg1);
+    return NULL;
+}
+
+static const char *zrkadlo_cmd_excludeip(cmd_parms *cmd, void *config,
+                                        const char *arg1)
+{
+    zrkadlo_dir_conf *cfg = (zrkadlo_dir_conf *) config;
+    char **ip = (char **) apr_array_push(cfg->exclude_ips);
+    *ip = apr_pstrdup(cmd->pool, arg1);
     return NULL;
 }
 
@@ -747,6 +759,24 @@ static int zrkadlo_handler(request_rec *r)
         debugLog(r, cfg, "File '%s' is excluded by ZrkadloExcludeFileMask", r->uri);
         return DECLINED;
     }
+
+    /* is the request originating from an ip address excluded from redirecting? */
+    if (cfg->exclude_ips->nelts) {
+
+        for (i = 0; i < cfg->exclude_ips->nelts; i++) {
+
+            char *ip = ((char **) cfg->exclude_ips->elts)[i];
+
+            if (strcmp(ip, clientip) == 0) {
+                debugLog(r, cfg,
+                    "URI request '%s' from ip '%s' is excluded from"
+                    " redirecting because it matches IP '%s'",
+                    r->unparsed_uri, clientip, ip);
+                return DECLINED;
+            }
+        }
+    }
+
 
     /* is the request originating from a network excluded from redirecting? */
     if (cfg->exclude_networks->nelts) {
@@ -1280,6 +1310,9 @@ static const command_rec zrkadlo_cmds[] =
     AP_INIT_TAKE1("ZrkadloExcludeNetwork", zrkadlo_cmd_excludenetwork, 0, 
                   OR_OPTIONS,
                   "Network to always exclude from redirecting (simple string prefix)"),
+    AP_INIT_TAKE1("ZrkadloExcludeIP", zrkadlo_cmd_excludeip, 0,
+                  OR_OPTIONS,
+                  "IP address to always exclude from redirecting"),
     AP_INIT_TAKE1("ZrkadloExcludeFileMask", zrkadlo_cmd_exclude_filemask, NULL,
                   ACCESS_CONF,
                   "Regexp which determines which files will be excluded form redirecting"),
