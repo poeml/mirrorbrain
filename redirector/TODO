@@ -3,20 +3,19 @@ Missing features:
 * match client to mirror by net prefix (pwhois), to keep local traffic local
   (server's prefixes can be filled in the database from whois -h whois.pwhois.org)
 
-* optimize DB query by looking up hashed filename instead of filename (saves
-  lookup in one table resp. one of the two joins)
-
 * hardcoded mapping to specific mirror identifier for ip/network
-* add directive to exclude IP address/network from redirecting
-  using apr_ipsubnet_create() and apr_ipsubnet_test() as mod_authz_host does
-* if mirror has country_code="all", put it into the country pool
-  (needed for cache.novell.com)
+
+* make ZrkadloExcludeNetwork work by prefix match, instead of simple string
+  prefix comparison using apr_ipsubnet_create() and apr_ipsubnet_test() as 
+  mod_authz_host does
 
 
 Improvements:
+
 * make ZrkadloTreatCountryAs optional, so it becomes effective only if there is
   no country mirror. Now: "treat as xy". Better: "treat as xy, if no mirror in
   my country".
+
 
 Further ideas:
 
