@@ -64,7 +64,7 @@
 #define UNSET (-1)
 #endif
 
-#define MOD_ZRKADLO_VER "1.2"
+#define MOD_ZRKADLO_VER "1.3"
 #define VERSION_COMPONENT "mod_zrkadlo/"MOD_ZRKADLO_VER
 
 #define DEFAULT_GEOIPFILE "/usr/share/GeoIP/GeoIP.dat"
@@ -112,6 +112,7 @@ typedef struct
     const char *mirror_base;
     apr_array_header_t *exclude_mime;
     apr_array_header_t *exclude_agents;
+    apr_array_header_t *exclude_networks;
     ap_regex_t *exclude_filemask;
 } zrkadlo_dir_conf;
 
@@ -329,6 +330,7 @@ static void *create_zrkadlo_dir_config(apr_pool_t *p, char *dirspec)
     new->mirror_base = NULL;
     new->exclude_mime = apr_array_make(p, 0, sizeof (char *));
     new->exclude_agents = apr_array_make(p, 0, sizeof (char *));
+    new->exclude_networks = apr_array_make(p, 4, sizeof (char *));
     new->exclude_filemask = NULL;
 
     return (void *) new;
@@ -352,6 +354,7 @@ static void *merge_zrkadlo_dir_config(apr_pool_t *p, void *basev, void *addv)
     cfgMergeString(mirror_base);
     mrg->exclude_mime = apr_array_append(p, base->exclude_mime, add->exclude_mime);
     mrg->exclude_agents = apr_array_append(p, base->exclude_agents, add->exclude_agents);
+    mrg->exclude_networks = apr_array_append(p, base->exclude_networks, add->exclude_networks);
     mrg->exclude_filemask = (add->exclude_filemask == NULL) ? base->exclude_filemask : add->exclude_filemask;
 
     return (void *) mrg;
@@ -436,6 +439,15 @@ static const char *zrkadlo_cmd_excludeagent(cmd_parms *cmd, void *config,
     zrkadlo_dir_conf *cfg = (zrkadlo_dir_conf *) config;
     char **agentpattern = (char **) apr_array_push(cfg->exclude_agents);
     *agentpattern = apr_pstrdup(cmd->pool, arg1);
+    return NULL;
+}
+
+static const char *zrkadlo_cmd_excludenetwork(cmd_parms *cmd, void *config,
+                                        const char *arg1)
+{
+    zrkadlo_dir_conf *cfg = (zrkadlo_dir_conf *) config;
+    char **network = (char **) apr_array_push(cfg->exclude_networks);
+    *network = apr_pstrdup(cmd->pool, arg1);
     return NULL;
 }
 
@@ -735,6 +747,24 @@ static int zrkadlo_handler(request_rec *r)
         debugLog(r, cfg, "File '%s' is excluded by ZrkadloExcludeFileMask", r->uri);
         return DECLINED;
     }
+
+    /* is the request originating from a network excluded from redirecting? */
+    if (cfg->exclude_networks->nelts) {
+
+        for (i = 0; i < cfg->exclude_networks->nelts; i++) {
+
+            char *network = ((char **) cfg->exclude_networks->elts)[i];
+
+            if (strncmp(network, clientip, strlen(network)) == 0) {
+                debugLog(r, cfg,
+                    "URI request '%s' from ip '%s' is excluded from"
+                    " redirecting because it matches network '%s'",
+                    r->unparsed_uri, clientip, network);
+                return DECLINED;
+            }
+        }
+    }
+
 
     /* is the file in the list of mimetypes to never mirror? */
     if ((r->content_type) && (cfg->exclude_mime->nelts)) {
@@ -1247,6 +1277,9 @@ static const command_rec zrkadlo_cmds[] =
     AP_INIT_TAKE1("ZrkadloExcludeUserAgent", zrkadlo_cmd_excludeagent, 0, 
                   OR_OPTIONS,
                   "User-Agent to always exclude from redirecting (wildcards allowed)"),
+    AP_INIT_TAKE1("ZrkadloExcludeNetwork", zrkadlo_cmd_excludenetwork, 0, 
+                  OR_OPTIONS,
+                  "Network to always exclude from redirecting (simple string prefix)"),
     AP_INIT_TAKE1("ZrkadloExcludeFileMask", zrkadlo_cmd_exclude_filemask, NULL,
                   ACCESS_CONF,
                   "Regexp which determines which files will be excluded form redirecting"),
