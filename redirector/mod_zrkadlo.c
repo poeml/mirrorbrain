@@ -989,17 +989,17 @@ static int zrkadlo_handler(request_rec *r)
         }
 
         /* same country? */
-        if (apr_strnatcasecmp(new->country_code, country_code) == 0) {
+        if (strcasecmp(new->country_code, country_code) == 0) {
             *(void **)apr_array_push(mirrors_same_country) = new;
 
         /* is country_code a wildcard indicating that the mirror should be
          * considered for every country?
          * if so, forget memcache association, so the mirror is not ruled out */
-        } else if (apr_strnatcmp(new->country_code, "**") == 0) {
+        } else if (strcmp(new->country_code, "**") == 0) {
             *(void **)apr_array_push(mirrors_same_country) = new;
             chosen = NULL; 
 
-        } else if (apr_strnatcasecmp(new->region, continent_code) == 0) {
+        } else if (strcasecmp(new->region, continent_code) == 0) {
         /* same region? */
             *(void **)apr_array_push(mirrors_same_region) = new;
 
