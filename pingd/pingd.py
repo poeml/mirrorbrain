@@ -159,10 +159,10 @@ def main():
     #
     # setup database connection
     #
-    uri_str = 'mysql://%s:%s@%s/%s'
+    uri_str = 'mysql://%s:%s@%s:%s/%s'
     if options.loglevel == 'DEBUG':
         uri_str += '?debug=1'
-    uri = uri_str % (config['dbuser'], config['dbpass'], config['dbhost'], config['dbname'])
+    uri = uri_str % (config['dbuser'], config['dbpass'], config['dbhost'], config['dbport'], config['dbname'])
 
     sqlhub.processConnection = connectionForURI(uri)
 
@@ -182,7 +182,7 @@ def main():
                 mirrors.append(i)
     else:
         # select all enabled mirrors
-        result = Server.select(AND(Server.q.enabled == 1, Server.q.baseurl != ''))
+        result = Server.select(AND(Server.q.enabled == 1, Server.q.baseurl != '', Server.q.country != '**'))
         for i in result:
             mirrors.append(i)
 
