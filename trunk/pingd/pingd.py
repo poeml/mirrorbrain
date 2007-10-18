@@ -39,6 +39,11 @@ def ping_http(mirror):
     mirror.status_baseurl_new = False
     mirror.timed_out = True
 
+    if mirror.baseurl == '':
+        mirror.response_code = None
+        mirror.response = None
+        return None
+
     try:
         response = urllib2.urlopen(req)
         logging.debug('%s got response for %s: %s' % (threading.currentThread().getName(), mirror.identifier, response))
@@ -176,13 +181,16 @@ def main():
     mirrors = []
     if args:
         # select all mirrors matching the given identifiers
-        result = Server.select(Server.q.baseurl != '')
+        result = Server.select()
         for i in result:
             if i.identifier in args:
                 mirrors.append(i)
     else:
         # select all enabled mirrors
-        result = Server.select(AND(Server.q.enabled == 1, Server.q.baseurl != None, Server.q.country != '**'))
+        #
+        # ignore wildcard mirrors, assuming that they can't be checked by normal means (i.e., baseurl itself may
+        # not give a 200. Just some files are served maybe...
+        result = Server.select(AND(Server.q.enabled == 1, Server.q.country != '**'))
         for i in result:
             mirrors.append(i)
 
