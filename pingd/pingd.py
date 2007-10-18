@@ -182,7 +182,7 @@ def main():
                 mirrors.append(i)
     else:
         # select all enabled mirrors
-        result = Server.select(AND(Server.q.enabled == 1, Server.q.baseurl != '', Server.q.country != '**'))
+        result = Server.select(AND(Server.q.enabled == 1, Server.q.baseurl != None, Server.q.country != '**'))
         for i in result:
             mirrors.append(i)
 
