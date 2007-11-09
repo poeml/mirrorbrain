@@ -122,12 +122,9 @@ my $mirror_url_del = undef;
 my $topdirs = 'distribution|tools|repositories';
 
 my $global_ign_re = qr{(
-  \.xml$	|
-  \.xml\.gz$	|
-  \.asc$	|
-  \.repo$	|
   /repoview/	|
-  /drpmsync/
+  /drpmsync/  |
+  /.~tmp~/
 )}x;
 my $db_cred = { dbi => 'dbi:mysql:dbname=redirector;host=galerkin.suse.de', 
                 user => 'root', pass => '', opt => { PrintError => 0 } };
