@@ -96,6 +96,7 @@ $SIG{__DIE__} = sub
 
 $SIG{USR1} = sub { $verbose++; warn "sigusr1 seen. ++verbose = $verbose\n"; };
 $SIG{USR2} = sub { $verbose--; warn "sigusr2 seen. --verbose = $verbose\n"; };
+$SIG{ALRM} = sub { $verbose++; $verbose++; warn "rsync timout...\n" };
 
 $ENV{FTP_PASSIVE} = 1;	# used in LWP only, Net::FTP ignores this.
 
@@ -980,7 +981,9 @@ sub sread {
   my $len = shift;
   my $ret = '';
   while ($len > 0) {
+    alarm 600;
     my $r = sysread(SS, $ret, $len, length($ret));
+    alarm 0;
     die("read error") unless $r;
     $len -= $r;
     die("read too much") if $r < 0;
@@ -1049,13 +1052,17 @@ sub rsync_get_filelist {
   my $hello = "\@RSYNCD: 28\n";
   swrite(*S, $hello);
   my $buf = '';
+  alarm 600;
   sysread(S, $buf, 4096);
+  alarm 0;
   die("protocol error [$buf]\n") if $buf !~ /^\@RSYNCD: (\d+)\n/s;
   $peer->{rsync_protocol} = $1;
   $peer->{rsync_protocol} = 28 if $peer->{rsync_protocol} > 28;
   swrite(*S, "$module\n");
   while(1) {
+    alarm 600;
     sysread(S, $buf, 4096);
+    alarm 0;
     die("protocol error [$buf]\n") if $buf !~ s/\n//s;
     last if $buf eq "\@RSYNCD: OK";
     die("$buf\n") if $buf =~ /^\@ERROR/s;
