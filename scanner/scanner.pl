@@ -168,7 +168,7 @@ exit usage("-j requires a positive number") unless $parallel =~ m{^\d+$} and $pa
 
 my $dbh = DBI->connect( $db_cred->{dbi}, $db_cred->{user}, $db_cred->{pass}, $db_cred->{opt}) or die $DBI::errstr;
 
-my $sql = qq{SELECT * FROM server};
+my $sql = qq{SELECT * FROM server where country != '**'};
 my $ary_ref = $dbh->selectall_hashref($sql, 'id')
 		   or die $dbh->errstr();
 
