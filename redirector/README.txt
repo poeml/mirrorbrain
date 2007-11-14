@@ -63,6 +63,15 @@ A: Higher score means a greater chance of being picked. Some kind of
                          (100.00%)
 
 
+   Or as a more real-life example, imagine that you have a mirror with
+   score=50, and other mirrors in the same country with the following scores:
+   150, 100, 100, 100, 100, 50, 50, 30 -- then you can estimate:
+
+   50 / (150+100+100+100+100+50+50+30) = 0.7
+
+   Thus, about 7% of requests will routed to the mirror.
+
+
 Q: How often does the scan take place? What I am wondering is; if I chose to
    delete something, how long before the distribution server sees it? I
    would not want anyone to get an error when they try to download
