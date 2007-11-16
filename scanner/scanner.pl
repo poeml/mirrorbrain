@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl -w -d
 
 ################################################################################
 # scanner.pl -- daemon for working through opensuse directories.
@@ -122,12 +122,19 @@ my $mirror_url_add = undef;
 my $mirror_url_del = undef;
 my $topdirs = 'distribution|tools|repositories';
 
-my $global_ign_re = qr{(
-  /repoview/	|
-  /drpmsync/  |
-  /.~tmp~/
-)}x;
-my $db_cred = { dbi => 'dbi:mysql:dbname=redirector;host=galerkin.suse.de', 
+#my $global_ign_re = qr{(
+#  /repoview/	|
+#  /drpmsync/  |
+#  /.~tmp~/
+#)}x;
+
+# default ignores:
+my @norecurse_list;# = ();
+push @norecurse_list, '/repoview/';
+push @norecurse_list, '/drpmsync/';
+push @norecurse_list, '/.~tmp~/';
+
+my $db_cred = { dbi => 'dbi:mysql:dbname=redirector;host=localhost', 
                 user => 'root', pass => '', opt => { PrintError => 0 } };
 
 exit usage() unless @ARGV;
@@ -135,11 +142,12 @@ while (defined (my $arg = shift))
   {
     if    ($arg !~ m{^-})                  { unshift @ARGV, $arg; last; }
     elsif ($arg =~ m{^(-h|--help|-\?)})    { exit usage(); }
+    elsif ($arg =~ m{^(-i|--ignore)})      { push @norecurse_list, shift; }
     elsif ($arg =~ m{^-q})                 { $verbose = 0; }
     elsif ($arg =~ m{^-v})                 { $verbose++; }
     elsif ($arg =~ m{^-a})                 { $all_servers++; }
     elsif ($arg =~ m{^-j})                 { $parallel = shift; }
-    elsif ($arg =~ m{^-i})                 { $global_ign_re = shift; }
+    #elsif ($arg =~ m{^-i})                 { $global_ign_re = shift; }
     elsif ($arg =~ m{^-e})                 { $enable_after_scan++; }
     elsif ($arg =~ m{^-f})                 { $force_scan++; }
     elsif ($arg =~ m{^-x})                 { $extra_schedule_run++; }
@@ -307,6 +315,8 @@ $dbh->disconnect();
 exit 0;
 ###################################################################################################
 
+
+
 sub usage
 {
   my ($msg) = @_;
@@ -354,7 +364,7 @@ scanner [options] [mirror_ids ...]
 
   -i regexp 
             Define regexp-pattern for path names to ignore. 
-	    Use '-i 0' to disable any ignore patterns. Default: $global_ign_re
+	    Use '-i 0' to disable any ignore patterns. Default: @norecurse_list
 
 Both, names(identifier) and numbers(id) are accepted as mirror_ids.
 };
@@ -369,27 +379,29 @@ Both, names(identifier) and numbers(id) are accepted as mirror_ids.
   return 0;
 }
 
+
+
 sub mirror_list
 {
-  my ($list, $longflag) = @_;
-  print " id name                      scan_speed   last_scan\n";
-  print "---+-------------------------+-----------+-------------\n";
-  my $nl = ($longflag > 1) ? "\t" : "\n";
-  for my $row (@$list)
-    {
-      printf "%3d %-30s %5d   %s$nl", $row->{id}, $row->{identifier}||'--', $row->{scan_fpm}||0, $row->{last_scan}||'';
-      if ($longflag)
-	{
-	  print "\t$row->{baseurl_rsync}$nl" if length($row->{baseurl_rsync}||'') > 0;
-	  print "\t$row->{baseurl_ftp}$nl"   if length($row->{baseurl_ftp}||'') > 0;
-	  print "\t$row->{baseurl}$nl"       if length($row->{baseurl}||'') > 0;
-	  printf "\tscore=%d country=%s region=%s enabled=%d$nl", 
-	  	$row->{score}||0, $row->{country}||'', $row->{region}||'', $row->{enabled}||0;
-	  print "\n";
+	my ($list, $longflag) = @_;
+	print " id name                      scan_speed   last_scan\n";
+	print "---+-------------------------+-----------+-------------\n";
+	my $nl = ($longflag > 1) ? "\t" : "\n";
+	for my $row(@$list) {
+		printf "%3d %-30s %5d   %s$nl", $row->{id}, $row->{identifier}||'--', $row->{scan_fpm}||0, $row->{last_scan}||'';
+		if($longflag) {
+			print "\t$row->{baseurl_rsync}$nl" if length($row->{baseurl_rsync}||'') > 0;
+			print "\t$row->{baseurl_ftp}$nl"   if length($row->{baseurl_ftp}||'') > 0;
+			print "\t$row->{baseurl}$nl"       if length($row->{baseurl}||'') > 0;
+			printf "\tscore=%d country=%s region=%s enabled=%d$nl", 
+			$row->{score}||0, $row->{country}||'', $row->{region}||'', $row->{enabled}||0;
+			print "\n";
+		}
 	}
-    }
-  return 0;
+	return 0;
 }
+
+
 
 sub mirror_zap
 {
@@ -405,196 +417,183 @@ sub mirror_zap
   $dbh->do($sql) or die "$sql: ".$dbh->errstr;
 }
 
+
+
 sub mirror_new
 {
-  my ($dbh, $mirror_new, $old) = @_;
+	my ($dbh, $mirror_new, $old) = @_;
 
-  my $fields;
-  my %proto2field = 
+	my $fields;
+	my %proto2field = 
     (
       http => 'baseurl', ftp => 'baseurl_ftp', rsync => 'baseurl_rsync', 'rsync:' => 'baseurl_rsync',
       name => 'identifier'
     );
 
-  my $name;
-  if ($mirror_new->[0] =~ m{^(http|ftp|rsync:?)://([^/]+)/(.*)$})
-    {
-      my ($proto, $host, $path) = ($1,$2,$3);
+	my $name;
+	if($mirror_new->[0] =~ m{^(http|ftp|rsync:?)://([^/]+)/(.*)$}) {
+		my ($proto, $host, $path) = ($1,$2,$3);
 
-      if ($path !~ m{#} and $path =~ s{(^|/)($topdirs)(/.*?)?$}{})
-	{
-	  warn qq{path truncated before component "/$2/": $path\n};
-	  warn qq{Press Enter to continue, CTRL-C to abort\n};
-	  <STDIN>;
-	}
-      $fields->{$proto2field{$proto}} = "$proto://$host/$path";
-      shift @$mirror_new;
-      $name = $host;
-    }
-
-  die "mirror_new: try (http|ftp|rsync)://hostname/path\n (seen '$mirror_new')\n"
-    unless $name or scalar @$mirror_new;
-
-  for my $i (0..$#$mirror_new)
-    {
-      die "mirror_new: cannot parse $mirror_new->[$i]" unless $mirror_new->[$i] =~ m{^([^=]+)=(.*)$};
-      my ($key, $val) = ($1, $2);
-      $key = $proto2field{$key} if defined $proto2field{$key};
-      $fields->{$key} = $val;
-    }
-
-  if ($#$old == 0)	# exactly one id given.
-    {
-      for my $k (keys %$fields)
-        {
-	  delete $fields->{$k} if $fields->{$k} eq ($old->[0]{$k}||'');
+		if($path !~ m{#} and $path =~ s{(^|/)($topdirs)(/.*?)?$}{}) {
+			warn qq{path truncated before component "/$2/": $path\n};
+			warn qq{Press Enter to continue, CTRL-C to abort\n};
+			<STDIN>;
+		}
+		$fields->{$proto2field{$proto}} = "$proto://$host/$path";
+		shift @$mirror_new;
+		$name = $host;
 	}
 
-      unless (keys %$fields)
-        {
-          warn "nothing changes.\n";
-	  return 1;
+	die "mirror_new: try (http|ftp|rsync)://hostname/path\n (seen '$mirror_new')\n"
+		unless $name or scalar @$mirror_new;
+
+	for my $i (0..$#$mirror_new) {
+		die "mirror_new: cannot parse $mirror_new->[$i]" unless $mirror_new->[$i] =~ m{^([^=]+)=(.*)$};
+		my ($key, $val) = ($1, $2);
+		$key = $proto2field{$key} if defined $proto2field{$key};
+		$fields->{$key} = $val;
 	}
-      warn "updating id=$old->[0]{id}: @{[keys %$fields]}\n";
-      my $sql = "UPDATE server SET " . 
-      	join(', ', map { "$_ = ".$dbh->quote($fields->{$_}) } keys %$fields) . 
-	" WHERE id = $old->[0]{id}";
 
-      print "$sql\n" if $verbose;
-      $dbh->do($sql) or die "$sql: ".$dbh->errstr;
-    }
-  else
-    {
-      $fields->{identifier} ||= $name||'';
-      $fields->{country} = $1 if !$fields->{country} and $fields->{identifier} =~ m{\.(\w\w)$};
-      die "cannot create new mirror without name or url.\n" unless $fields->{identifier};
+	if($#$old == 0) {	# exactly one id given.
+		for my $k (keys %$fields) {
+			delete $fields->{$k} if $fields->{$k} eq ($old->[0]{$k}||'');
+		}
 
-      $fields->{score} = 100 unless defined $fields->{score};
-      $fields->{enabled} = 1 unless defined $fields->{enabled};
-      my $dup_id;
-      for my $o (@$old)
-        {
-	  $dup_id = "$o->{id}: identifier"    if lc $o->{identifier} eq lc $fields->{identifier};
-	  $dup_id = "$o->{id}: baseurl"       if $fields->{baseurl} and $fields->{baseurl} eq ($o->{baseurl}||'');
-	  $dup_id = "$o->{id}: baseurl_ftp"   if $fields->{baseurl_ftp} and $fields->{baseurl_ftp} eq ($o->{baseurl_ftp}||'');
-	  $dup_id = "$o->{id}: baseurl_rsync" if $fields->{baseurl_rsync} and $fields->{baseurl_rsync} eq ($o->{baseurl_rsync}||'');
+		unless (keys %$fields) {
+			warn "nothing changes.\n";
+			return 1;
+		}
+		warn "updating id=$old->[0]{id}: @{[keys %$fields]}\n";
+		my $sql = "UPDATE server SET " . 
+		join(', ', map { "$_ = ".$dbh->quote($fields->{$_}) } keys %$fields) . 
+			" WHERE id = $old->[0]{id}";
+
+		print "$sql\n" if $verbose;
+		$dbh->do($sql) or die "$sql: ".$dbh->errstr;
 	}
-      die "new mirror and existing $dup_id is identical\n" if $dup_id;
+	else {
+		$fields->{identifier} ||= $name||'';
+		$fields->{country} = $1 if !$fields->{country} and $fields->{identifier} =~ m{\.(\w\w)$};
+		die "cannot create new mirror without name or url.\n" unless $fields->{identifier};
 
-      my $sql = "INSERT INTO server SET " . 
-      	join(', ', map { "$_ = ".$dbh->quote($fields->{$_}) } keys %$fields);
+		$fields->{score} = 100 unless defined $fields->{score};
+		$fields->{enabled} = 1 unless defined $fields->{enabled};
+		my $dup_id;
+		for my $o(@$old) {
+			$dup_id = "$o->{id}: identifier"    if lc $o->{identifier} eq lc $fields->{identifier};
+			$dup_id = "$o->{id}: baseurl"       if $fields->{baseurl} and $fields->{baseurl} eq ($o->{baseurl}||'');
+			$dup_id = "$o->{id}: baseurl_ftp"   if $fields->{baseurl_ftp} and $fields->{baseurl_ftp} eq ($o->{baseurl_ftp}||'');
+			$dup_id = "$o->{id}: baseurl_rsync" if $fields->{baseurl_rsync} and $fields->{baseurl_rsync} eq ($o->{baseurl_rsync}||'');
+		}
+		die "new mirror and existing $dup_id is identical\n" if $dup_id;
 
-      print "$sql\n" if $verbose;
-      $dbh->do($sql) or die "$sql: ".$dbh->errstr;
-    }
-  return 0;
+		my $sql = "INSERT INTO server SET " . 
+			join(', ', map { "$_ = ".$dbh->quote($fields->{$_}) } keys %$fields);
+
+		print "$sql\n" if $verbose;
+		$dbh->do($sql) or die "$sql: ".$dbh->errstr;
+	}
+	return 0;
 }
+
+
 
 sub mirror_url
 {
-  my ($dbh, $list, $ml, $del) = @_;
-  my $act = $del ? 'del' : 'add';
+	my ($dbh, $list, $ml, $del) = @_;
+	my $act = $del ? 'del' : 'add';
 
-  while (my $item = shift @$list)
-    {
-      my ($p, $id);
-      if ($item =~ m{/})	# aha, it is should be an url
-        {
-	  die "mirror_url $act: cannot parse '$item'\n" unless $item =~ m{^(http|ftp|rsync:?)://([^/]+)/(.*)$};
-	  my ($proto, $host, $path) = ($1,$2,$3);
-	  my $base = "$proto://$host";
-	  for my $m (@$ml)
-	    {
+	while(my $item = shift @$list) {
+		my ($p, $id);
+		if($item =~ m{/}) {	# aha, it is should be an url
+			die "mirror_url $act: cannot parse '$item'\n" unless $item =~ m{^(http|ftp|rsync:?)://([^/]+)/(.*)$};
+			my ($proto, $host, $path) = ($1,$2,$3);
+			my $base = "$proto://$host";
+			for my $m (@$ml) {
 	      ## FIXME: this does not work, if baseurl* ends in #@..@..@
 	      $p = $1 if $m->{baseurl}       and $item =~ m{^\Q$m->{baseurl}\E(.*)};
 	      $p = $1 if $m->{baseurl_ftp}   and $item =~ m{^\Q$m->{baseurl_ftp}\E(.*)};
 	      $p = $1 if $m->{baseurl_rsync} and $item =~ m{^\Q$m->{baseurl_rsync}\E(.*)};
-	      if ($p)
-	        {
-		  $id = $m->{id};
-		  last;
+	      if ($p) {
+					$id = $m->{id};
+					last;
+				}
+			}
+			die "mirror_url $act: could not find mirror for url '$item'\n" unless defined $id;
 		}
-	    }
-	  die "mirror_url $act: could not find mirror for url '$item'\n" unless defined $id;
-	}
-      else	# aha, it is id plus path.
-        {
-	  for my $m (@$ml)
-	    {
-	      if ($m->{id} eq $item || $m->{identifier} eq $item)
-	        {
-	          $id = $m->{id};
-	          $p = shift @$list;
-	          last;
+		else {	# aha, it is id plus path.
+			for my $m (@$ml) {
+				if($m->{id} eq $item || $m->{identifier} eq $item) {
+					$id = $m->{id};
+					$p = shift @$list;
+					last;
+				}
+			}
+			die "mirror_url $act: unknown mirror '$item'\n" unless defined $id;
 		}
-	    }
-	  die "mirror_url $act: unknown mirror '$item'\n" unless defined $id;
-	}
 
-      $p =~ s{^/+}{} if $p;
-      die "mirror_url $act: item=$item, no path.\n" unless $p;
+		$p =~ s{^/+}{} if $p;
+		die "mirror_url $act: item=$item, no path.\n" unless $p;
 
-      print "mirror_url $act $id '$p'\n" if $verbose;
-      if ($del)
-        {
-	  delete_file($dbh, $id, $p);
+		print "mirror_url $act $id '$p'\n" if $verbose;
+		if($del) {
+			delete_file($dbh, $id, $p);
+		}
+		else {
+		  if(!save_file($p, $id, time)) {
+				print "$p ignored.\n" if $verbose;
+			}
+		}
 	}
-      else
-        {
-	  if (!save_file($p, $id, time))
-	    {
-              print "$p ignored.\n" if $verbose;
-	    }
-	}
-    }
-  return 0;
+	return 0;
 }
+
+
 
 sub wait_worker
 {
-  my ($a, $n) = @_;
-  die if $n < 1;
-  my %pids;
+	my ($a, $n) = @_;
+	die if $n < 1;
+	my %pids;
 
-  for (;;)
-    {
-      for (my $i = 0; $i < $n; $i++)
-	{
-	  return $i unless $a->[$i];
-	  my $p = $a->[$i]{pid};
-	  unless (kill(0, $p)) 		# already dead? okay take him home.
-	    {
-	      print "kill(0, $p) returned 0. reusing $i!\n" if $verbose;
-	      undef $a->[$i];	
-	      return $i;
-	    }
-	  $pids{$p} = $i;		# not? okay wait.
+	for(;;) {
+		for(my $i = 0; $i < $n; $i++) {
+			return $i unless $a->[$i];
+			my $p = $a->[$i]{pid};
+			unless (kill(0, $p)) {		# already dead? okay take him home.
+				print "kill(0, $p) returned 0. reusing $i!\n" if $verbose;
+				undef $a->[$i];	
+				return $i;
+			}
+			$pids{$p} = $i;		# not? okay wait.
+		}
+		my $p = wait;
+		if(defined(my $i = $pids{$p})) {
+			print "[#$i, id=$a->[$i]{serverid} pid=$p exit: $?]\n" if $verbose;
+			undef $a->[$i];
+			return $i;			# now, been there, done that.
+		}
+		# $p = -1 or other silly things...
+		warn "wait failed: $!, $?\n";
+		die "wait failed" if $p < 0;
 	}
-      my $p = wait;
-      if (defined(my $i = $pids{$p}))
-        {
-	  print "[#$i, id=$a->[$i]{serverid} pid=$p exit: $?]\n" if $verbose;
-	  undef $a->[$i];
-	  return $i;			# now, been there, done that.
-	}
-      # $p = -1 or other silly things...
-      warn "wait failed: $!, $?\n";
-      die "wait failed" if $p < 0;
-    }
 }
+
+
 
 sub fork_child
 {
-  my ($idx, @args) = @_;
-  if (my $p = fork())
-    {
-      # parent 
-      print "worker $idx, pid=$p start.\n" if $verbose > 1;
-      return $p;
-    }
-  my $cmd = shift @args;
-  exec { $cmd } "scanner [#$idx]", @args;	# ourselves with a false name and some data.
+	my ($idx, @args) = @_;
+	if (my $p = fork()) {
+		# parent 
+		print "worker $idx, pid=$p start.\n" if $verbose > 1;
+		return $p;
+	}
+	my $cmd = shift @args;
+	exec { $cmd } "scanner [#$idx]", @args;	# ourselves with a false name and some data.
 }
+
+
 
 # http://ftp1.opensuse.org/repositories/#@^@repositories/@@
 sub http_readdir
@@ -610,56 +609,51 @@ sub http_readdir
   my @r;
   print "$id $url/$name\n" if $verbose;
   my $contents = cont("$url/$name");
-  if ($contents =~ s{^.*<pre>.*<a href="\?C=.;O=.">}{}s)
-    {
-      ## good, we know that one. It is a standard apache dir-listing.
-      ## 
-      ## bad, apache shows symlinks as a copy of the file or dir they point to.
-      ## no way to avoid duplicate crawls.
-      ##
-      $contents =~ s{</pre>.*$}{}s;
-      for my $line (split "\n", $contents)
-        {
-	  if ($line =~ m{^(.*)href="([^"]+)">([^<]+)</a>\s+([\w\s:-]+)\s+(-|[\d\.]+[KMG]?)})
-	    {
-	      my ($pre, $name1, $name2, $date, $size) = ($1, $2, $3, $4, $5);
-	      next if $name1 =~ m{^/} or $name1 =~ m{^\.\.};
-	      $name1 =~ s{%([\da-fA-F]{2})}{pack 'c', hex $1}ge;
-	      $name1 =~ s{^\./}{};
-	      my $dir = 1 if $pre =~ m{"\[DIR\]"};
-	      print "$pre^$name1^$date^$size\n" if $verbose > 1;
-              my $t = length($name) ? "$name/$name1" : $name1;
-	      if ($size eq '-' and ($dir or $name =~ m{/$}))
-	        {
-		  ## we must be really sure it is a directory, when we come here.
-		  ## otherwise, we'll retrieve the contents of a file!
-                  sleep($recursion_delay) if $recursion_delay;
-                  push @r, http_readdir($id, $urlraw, $t);
-		}
-	      else
-	        {
-		  ## it is a file.
-		  my $time = str2time($date);
-		  my $len = byte_size($size);
+  if($contents =~ s{^.*<pre>.*<a href="\?C=.;O=.">}{}s) {
+		## good, we know that one. It is a standard apache dir-listing.
+		## 
+		## bad, apache shows symlinks as a copy of the file or dir they point to.
+		## no way to avoid duplicate crawls.
+		##
+		$contents =~ s{</pre>.*$}{}s;
+		for my $line (split "\n", $contents) {
+			if($line =~ m{^(.*)href="([^"]+)">([^<]+)</a>\s+([\w\s:-]+)\s+(-|[\d\.]+[KMG]?)}) {
+				my ($pre, $name1, $name2, $date, $size) = ($1, $2, $3, $4, $5);
+				next if $name1 =~ m{^/} or $name1 =~ m{^\.\.};
+				$name1 =~ s{%([\da-fA-F]{2})}{pack 'c', hex $1}ge;
+				$name1 =~ s{^\./}{};
+				my $dir = 1 if $pre =~ m{"\[DIR\]"};
+				print "$pre^$name1^$date^$size\n" if $verbose > 1;
+				my $t = length($name) ? "$name/$name1" : $name1;
+				if($size eq '-' and ($dir or $name =~ m{/$})) {
+					## we must be really sure it is a directory, when we come here.
+					## otherwise, we'll retrieve the contents of a file!
+					sleep($recursion_delay) if $recursion_delay;
+					push @r, http_readdir($id, $urlraw, $t);
+				}
+				else {
+					## it is a file.
+					my $time = str2time($date);
+					my $len = byte_size($size);
 
-                  #save timestamp and file in database
-	          if (save_file($t, $id, $time, $re, $global_ign_re))
-		    {
-                      push @r, [ $t , $time ];
-		    }
+					#save timestamp and file in database
+					if(save_file($t, $id, $time, $re)) {
+						push @r, [ $t , $time ];
+					}
+				}
+			}
 		}
-	    }
 	}
-    }
-  else
-    {
-      ## we come here, whenever we stumble into an automatic index.html 
-      $contents = substr($contents, 0, 500);
-      warn Dumper $contents, "http_readdir: unknown HTML format";
-    }
+	else {
+		## we come here, whenever we stumble into an automatic index.html 
+		$contents = substr($contents, 0, 500);
+		warn Dumper $contents, "http_readdir: unknown HTML format";
+	}
 
-  return @r;
+	return @r;
 }
+
+
 
 sub byte_size
 {
@@ -672,164 +666,152 @@ sub byte_size
   die "byte_size: $len not impl\n";
 }
 
+
+
 sub ftp_readdir
 {
-  my ($id, $url, $name, $ftp) = @_;
+	my ($id, $url, $name, $ftp) = @_;
 
-  my $urlraw = $url;
-  my $re = ''; $re = $1 if $url =~ s{#(.*?)$}{};
-  $url =~ s{/+$}{};	# we add our own trailing slashes...
+	my $urlraw = $url;
+	my $re = ''; $re = $1 if $url =~ s{#(.*?)$}{};
+	$url =~ s{/+$}{};	# we add our own trailing slashes...
 
-  print "$id $url/$name\n" if $verbose;
+	print "$id $url/$name\n" if $verbose;
 
-  my $toplevel = ($ftp) ? 0 : 1;
-  $ftp = ftp_connect("$url/$name", "anonymous", $scanner_email) unless defined $ftp;
-  return unless defined $ftp;
-  my $text = ftp_cont($ftp, "$url/$name");
+	my $toplevel = ($ftp) ? 0 : 1;
+	$ftp = ftp_connect("$url/$name", "anonymous", $scanner_email) unless defined $ftp;
+	return unless defined $ftp;
+	my $text = ftp_cont($ftp, "$url/$name");
   
-  if (!ref($text) && $text =~ m/^(\d\d\d)\s/)		# some FTP status code? Not good.
-  {
-    warn "ftp status code $1, closing.\n";
-    print $text if $verbose > 2;
-    ftp_close($ftp);
-    return;
-  }  
+	if(!ref($text) && $text =~ m/^(\d\d\d)\s/) {		# some FTP status code? Not good.
+		warn "ftp status code $1, closing.\n";
+		print $text if $verbose > 2;
+		ftp_close($ftp);
+		return;
+	}  
 
-  print join("\n", @$text)."\n" if $verbose > 2;
+	print join("\n", @$text)."\n" if $verbose > 2;
 
+	my @r;
+	for my $i (0..$#$text) {
+		if($text->[$i] =~ m/^([dl-])(.........).*(\w\w\w\s+\d\d?\s+\d\d:?\d\d)\s+([\S]+)$/) {
+			my ($type, $mode, $timestamp, $fname) = ($1, $2, $3, $4);
+			next if $fname eq "." or $fname eq "..";
 
-  my @r;
-  for my $i (0..$#$text)
-    {
-      if ($text->[$i] =~ m/^([dl-])(.........).*(\w\w\w\s+\d\d?\s+\d\d:?\d\d)\s+([\S]+)$/)
-	{
-	  my ($type, $mode, $timestamp, $fname) = ($1, $2, $3, $4);
-	  next if $fname eq "." or $fname eq "..";
+			#convert to timestamp
+			my $time = str2time($timestamp);
+			my $t = length($name) ? "$name/$fname" : $fname;
 
-	  #convert to timestamp
-	  my $time = str2time($timestamp);
-	    
-	  my $t = length($name) ? "$name/$fname" : $fname;
-
-	  if ($type eq "d")
-	    {
-	      if ($mode !~ m{r.[xs]r.[xs]r.[xs]})
-		{
-		  print "bad mode $mode, skipping directory $fname\n" if $verbose;
-		  next;
+			if($type eq "d") {
+				if($mode !~ m{r.[xs]r.[xs]r.[xs]}) {
+					print "bad mode $mode, skipping directory $fname\n" if $verbose;
+					next;
+				}
+				sleep($recursion_delay) if $recursion_delay;
+				push @r, ftp_readdir($id, $urlraw, $t, $ftp);
+			}
+			if($type eq 'l') {
+				warn "symlink($t) not impl.";
+			}
+			else {
+	      if ($mode !~ m{r..r..r..}) {
+					print "bad mode $mode, skipping file $fname\n" if $verbose;
+					next;
+				}
+				#save timestamp and file in database
+				if(save_file($t, $id, $time, $re)) {
+					push @r, [ $t , $time ];
+				}
+			}
 		}
-	      sleep($recursion_delay) if $recursion_delay;
-	      push @r, ftp_readdir($id, $urlraw, $t, $ftp);
-	    }
-	  if ($type eq 'l')
-	    {
-	      warn "symlink($t) not impl.";
-	    }
-	  else
-	    {
-	      if ($mode !~ m{r..r..r..})
-		{
-		  print "bad mode $mode, skipping file $fname\n" if $verbose;
-		  next;
-		}
-	      #save timestamp and file in database
-	      if (save_file($t, $id, $time, $re, $global_ign_re))
-	        {
-	          push @r, [ $t , $time ];
-		}
-	    }
 	}
-    }
 
-  ftp_close($ftp) if $toplevel;
-  return @r;
+	ftp_close($ftp) if $toplevel;
+	return @r;
 }
+
+
 
 sub save_file
 {
   my ($path, $serverid, $file_tstamp, $mod_re, $ign_re) = @_;
-
-  return undef if $ign_re and $path =~ m{$ign_re};
 
   #
   # optional patch the file names by adding or removing components.
   # you never know what strange paths mirror admins choose.
   #
 
-  if ($mod_re and $mod_re =~ m{@([^@]*)@([^@]*)})
-    {
-      print "save_file: $path + #$mod_re -> " if $verbose > 2;
-      my ($m, $r) = ($1, $2);
-      $path =~ s{$m}{$r};
-      print "$path\n" if $verbose > 2;
-    }
+  return undef if $ign_re and $path =~ m{$ign_re};
 
-  $path =~ s{^/+}{};	# be sure we have no leading slashes.
-  $path =~ s{//+}{/}g;	# double slashes easily fool md5sums. Avoid them.
+	if ($mod_re and $mod_re =~ m{@([^@]*)@([^@]*)}) {
+		print "save_file: $path + #$mod_re -> " if $verbose > 2;
+		my ($m, $r) = ($1, $2);
+		$path =~ s{$m}{$r};
+		print "$path\n" if $verbose > 2;
+	}
 
-
-  my ($fileid, $md5) = getfileid($path);
-  die "save_file: md5 undef" unless defined $md5;
+	$path =~ s{^/+}{};	# be sure we have no leading slashes.
+	$path =~ s{//+}{/}g;	# double slashes easily fool md5sums. Avoid them.
 
 
-  if ($use_md5)
-    {
-      if (checkfileserver_md5($serverid, $md5))
-      {
-      my $sql = "UPDATE file_server SET 
-		 timestamp_file = FROM_UNIXTIME(?),
-		 timestamp_scanner = CURRENT_TIMESTAMP()
-		 WHERE path_md5 = ? AND serverid = ?;";
+	my ($fileid, $md5) = getfileid($path);
+	die "save_file: md5 undef" unless defined $md5;
 
-      my $sth = $dbh->prepare( $sql );
-		    $sth->execute( $file_tstamp, $md5, $serverid ) or die $sth->errstr;
-      }  
-      else
-      {
 
-      my $sql = "INSERT INTO file_server SET path_md5 = ?,
-		 fileid = ?, serverid = ?,
-		 timestamp_file = FROM_UNIXTIME(?), 
-		 timestamp_scanner = CURRENT_TIMESTAMP();"; 
-		 #convert timestamp to mysql timestamp
+	if ($use_md5) {
+		if (checkfileserver_md5($serverid, $md5)) {
+			my $sql = "UPDATE file_server SET 
+			timestamp_file = FROM_UNIXTIME(?),
+			timestamp_scanner = CURRENT_TIMESTAMP()
+			WHERE path_md5 = ? AND serverid = ?;";
 
-      my $sth = $dbh->prepare( $sql );
-		    $sth->execute( $md5, $fileid, $serverid, $file_tstamp ) or die $sth->errstr;
-      }
-    }
-  else
-    {
-      if (checkfileserver_fileid($serverid, $fileid))
-      {
-      my $sql = "UPDATE file_server SET 
-		 timestamp_file = FROM_UNIXTIME(?),
-		 timestamp_scanner = CURRENT_TIMESTAMP()
-		 WHERE fileid = ? AND serverid = ?;";
+			my $sth = $dbh->prepare( $sql );
+			$sth->execute( $file_tstamp, $md5, $serverid ) or die $sth->errstr;
+		}  
+		else {
+			my $sql = "INSERT INTO file_server SET path_md5 = ?,
+			fileid = ?, serverid = ?,
+			timestamp_file = FROM_UNIXTIME(?), 
+			timestamp_scanner = CURRENT_TIMESTAMP();"; 
+			#convert timestamp to mysql timestamp
 
-      my $sth = $dbh->prepare( $sql );
-		    $sth->execute( $file_tstamp, $fileid, $serverid ) or die $sth->errstr;
-      }  
-      else
-      {
+			my $sth = $dbh->prepare( $sql );
+			$sth->execute( $md5, $fileid, $serverid, $file_tstamp ) or die $sth->errstr;
+		}
+	}
+  else {
+		if(checkfileserver_fileid($serverid, $fileid)) {
+			my $sql = "UPDATE file_server SET 
+			timestamp_file = FROM_UNIXTIME(?),
+			timestamp_scanner = CURRENT_TIMESTAMP()
+			WHERE fileid = ? AND serverid = ?;";
 
-      my $sql = "INSERT INTO file_server SET fileid = ?,
-		 serverid = ?,
-		 timestamp_file = FROM_UNIXTIME(?), 
-		 timestamp_scanner = CURRENT_TIMESTAMP();"; 
-		 #convert timestamp to mysql timestamp
+			my $sth = $dbh->prepare( $sql );
+			$sth->execute( $file_tstamp, $fileid, $serverid ) or die $sth->errstr;
+		}  
+		else {
+			my $sql = "INSERT INTO file_server SET fileid = ?,
+			serverid = ?,
+			timestamp_file = FROM_UNIXTIME(?), 
+			timestamp_scanner = CURRENT_TIMESTAMP();"; 
+			#convert timestamp to mysql timestamp
 
-      my $sth = $dbh->prepare( $sql );
-		    $sth->execute( $fileid, $serverid, $file_tstamp ) or die $sth->errstr;
-      }
-    }
+			my $sth = $dbh->prepare( $sql );
+			$sth->execute( $fileid, $serverid, $file_tstamp ) or die $sth->errstr;
+		}
+	}
   return $path;
 }
+
+
 
 sub delete_file
 {
   my ($dbh, $serverid, $path) = @_;
   warn "FIXME: delete_file() not impl.\n";
 }
+
+
 
 sub cont 
 {
@@ -923,7 +905,7 @@ sub rsync_cb
     {
       if ($mode & 004)		# readable for the world is good.
         {
-          $name = save_file($name, $priv->{serverid}, $mtime, $priv->{re}, $global_ign_re);
+          $name = save_file($name, $priv->{serverid}, $mtime, $priv->{re});
           $priv->{counter}++;
 	  $r = [$name, $len, $mode, $mtime, @info];
 	  printf "rsync(%d) ADD: %03o %10d %-25s %-50s\n", $priv->{serverid}, ($mode & 0777), $len, scalar(localtime $mtime), $name if $verbose > 2;
@@ -940,15 +922,20 @@ sub rsync_cb
   return $r;
 }
 
-# rsync://ftp.sunet.se/pub/Linux/distributions/opensuse/#@^opensuse/@@
+# example rsync address:
+#  rsync://user:passwd@ftp.sunet.se/pub/Linux/distributions/opensuse/#@^opensuse/@@
+# parameters:
+#  serverid: id field content from database row
+#  url: base url from database
+#  d: base directory (can be 'undef'): parameter to the '-d' switch
 sub rsync_readdir
 {
   my ($serverid, $url, $d) = @_;
   return 0 unless $url;
 
-  $url =~ s{^rsync://}{}s;
-  my $re = ''; $re = $1 if $url =~ s{#(.*?)$}{};
-  my $cred = $1 if $url =~ s{^(.*?)@}{};
+  $url =~ s{^rsync://}{}s; # trailing s: treat as single line, strip off protocol id
+  my $re = ''; $re = $1 if $url =~ s{#(.*?)$}{}; # after a hash can be a regexp, see example above
+  my $cred = $1 if $url =~ s{^(.*?)@}{}; # username/passwd if specified
   die "rsync_readdir: cannot parse url '$url'\n" unless $url =~ m{^([^:/]+)(:(\d*))?(.*)$};
   my ($host, $dummy, $port, $path) = ($1,$2,$3,$4);
   $port = 873 unless $port;
@@ -1077,6 +1064,14 @@ sub rsync_get_filelist {
   }
   my @args = ('--server', '--sender', '-rl');
   push @args, '--exclude=/*/*' if $norecurse;
+
+	# set exclude flag for all dirs specified by '-p' option:
+	if(@norecurse_list) {
+		foreach my $item (@norecurse_list) {
+			push @args, "--exclude=$item";
+		}
+	}
+
   for my $arg (@args, '.', "$syncroot/.", '') {
     swrite(*S, "$arg\n");
   }
