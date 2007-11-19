@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w -d
+#!/usr/bin/perl -w
 
 ################################################################################
 # scanner.pl -- daemon for working through opensuse directories.
