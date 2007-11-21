@@ -135,6 +135,10 @@ my @norecurse_list;# = ();
 push @norecurse_list, '/repoview/';
 push @norecurse_list, '/drpmsync/';
 push @norecurse_list, '/.~tmp~/';
+# these are symlinks, which would (via HTTP) be crawled just like a directory,
+# because itentical to directories in the directory listing HTML
+push @norecurse_list, '/openSUSE-current/';
+push @norecurse_list, '/openSUSE-stable/';
 
 my $db_cred = { dbi => 'dbi:mysql:dbname=redirector;host=localhost', 
                 user => 'root', pass => '', opt => { PrintError => 0 } };
