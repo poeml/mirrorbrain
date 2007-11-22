@@ -601,15 +601,15 @@ sub http_readdir
 		$item =~ s/([^.])(\*)/$1.$2/g;
 		$item =~ s/^\*/.*/;
 		#$item =~ s/[^.]\*/.\*/g;
-		if($name =~ $item) {
-			print "MATCH: $name matches ignored item $item, skipped.\n" if $verbose;
+		if("$name/" =~ $item) {
+			print "IGNORE MATCH: $name matches ignored item $item, skipped.\n" if $verbose;
 			return;
 		}
 	}
 
   my @r;
   print "$id $url/$name\n" if $verbose;
-  my $contents = cont("$url/$name");
+  my $contents = cont("$url/$name/");
   if($contents =~ s{^.*<pre>.*<a href="\?C=.;O=.">}{}s) {
 		## good, we know that one. It is a standard apache dir-listing.
 		## 
