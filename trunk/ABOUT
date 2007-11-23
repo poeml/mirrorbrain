@@ -1,7 +1,10 @@
-The openSUSE download redirector
-(http://en.opensuse.org/Build_Service/Redirector) 
 
-The openSUSE download redirector automatically redirects clients (per HTTP
+
+                  The openSUSE download redirector
+
+
+
+  The openSUSE download redirector automatically redirects clients (per HTTP
 redirection) to a mirror server near them. It works similar to the systems
 employed by sourceforge.net, mozilla.org or similar large organizations, which
 face a number of download requests which is too high to be practically handled
@@ -9,11 +12,15 @@ by a single site. To find a mirror close to the client, the redirector employs
 geolocation of the client's IP address. If several mirrors are suitable, the
 redirector load-balances requests to them mirrors based on their capabilities.
 
-The core of the redirector is mod_zrkadlo, a module for the Apache HTTP server,
+
+
+Implementation:
+
+  The core of the redirector is mod_zrkadlo, a module for the Apache HTTP server,
 written in C, and designed for high performance and scalability, with security
 in mind.
 
-Due to the fast-evolving nature of the file tree offered by openSUSE project,
+  Due to the fast-evolving nature of the file tree offered by openSUSE project,
 the redirector doesn't simply choose one mirror for a client once, but acts as
 granular as on file-level, because mirrors are known to be incomplete,
 especially if content is changed often. To achieve this, the redirector is
@@ -24,7 +31,9 @@ each mirror to be alive, and which disables a mirror for redirection should it
 fail.
 
 
+
 Features:
+
  - works transparently to the client, through HTTP redirection
  - operates with file level granularity
  - involves only a single database query per HTTP request, using a database
@@ -43,7 +52,9 @@ Features:
    in production
 
 
+
 Software requirements:
+
 Frontend:
  - Apache HTTP server 2.2.x
  - libGeoIP, libapr_memcache, and mod_form
@@ -58,8 +69,10 @@ Backend:
  - TurboGears web application framework for mirror administration web frontend
 
 
+
 Hardware requirements:
-File storage is attached to the webserver. (Running the redirector without
+
+  File storage is attached to the webserver. (Running the redirector without
 attached file storage is a feature which is not implemented, but considered.)
 The openSUSE project currently hosts > 500.000 files using 800 GB.
 The webserver needs few computational resources. If it has other tasks, besides
@@ -69,7 +82,7 @@ recommended to run Apache in a hybrid prefork/worker configuration, with e.g.
 32 threads per process, which results in a good pooling of database
 connections. 
 
-The most computational resources are needed by the database server. For large
+  The most computational resources are needed by the database server. For large
 file trees, they can be considerable, like the openSUSE project, which
 redirects for a total of > 350.000 files. For performance reasons, the database
 server must be able to hold the database and indices completely in memory. The
@@ -78,8 +91,10 @@ gigs of Ram, which is sufficient for the mysql server itself, as well as 12
 parallel scanner processes, and can handle 1000-2000 requests per second.
 
 
+
 HA (High Availability) setup:
-For HA, the webserver, the database server and the connecting infrastructure
+
+  For HA, the webserver, the database server and the connecting infrastructure
 needs to be redundant. This can be achieved by creating a hot standby for
 failover, or by running identical nodes with load sharing / balancing.  This
 could be implemented by 
