@@ -56,7 +56,7 @@ Features:
 Software requirements:
 
 Frontend:
- - Apache HTTP server 2.2.x
+ - Apache HTTP server 2.2.x or newer
  - libGeoIP, libapr_memcache, and mod_form
  - memcache daemon
 Backend:
@@ -64,7 +64,8 @@ Backend:
    offers row-based write locks. Due to optimizations of InnoDB engine for high
    performance it makes sense to have a separate MySQL instance for this
    database.
- - Python, python-mysql, python-sqlobject for the ping process and database maintenance
+ - Python, python-mysql, python-sqlobject for the ping process and database
+   maintenance
  - Perl for the scanner process
  - TurboGears web application framework for mirror administration web frontend
 
