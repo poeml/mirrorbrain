@@ -1,0 +1,106 @@
+The openSUSE download redirector
+(http://en.opensuse.org/Build_Service/Redirector) 
+
+The openSUSE download redirector automatically redirects clients (per HTTP
+redirection) to a mirror server near them. It works similar to the systems
+employed by sourceforge.net, mozilla.org or similar large organizations, which
+face a number of download requests which is too high to be practically handled
+by a single site. To find a mirror close to the client, the redirector employs
+geolocation of the client's IP address. If several mirrors are suitable, the
+redirector load-balances requests to them mirrors based on their capabilities.
+
+The core of the redirector is mod_zrkadlo, a module for the Apache HTTP server,
+written in C, and designed for high performance and scalability, with security
+in mind.
+
+Due to the fast-evolving nature of the file tree offered by openSUSE project,
+the redirector doesn't simply choose one mirror for a client once, but acts as
+granular as on file-level, because mirrors are known to be incomplete,
+especially if content is changed often. To achieve this, the redirector is
+supported by an SQL database which knows the exact contents of each mirror. The
+database is periodically updated by scanning all mirrors with a scanner
+program. In addition, there is a "ping" program which intermittently checking
+each mirror to be alive, and which disables a mirror for redirection should it
+fail.
+
+
+Features:
+ - works transparently to the client, through HTTP redirection
+ - operates with file level granularity
+ - involves only a single database query per HTTP request, using a database
+   connection pool through the Apache DBD framework
+ - redirects per country / continent, using GeoIP database
+ - uses a randomized, weighted algorithm for mirror selection (each mirror
+   having a score)
+ - optionally memorizes client<->mirror association through memcache daemon
+ - is configurable in Apache style configuration, with automatic per-directory
+   configuration merging
+ - optionally redirects dependent on file name pattern, file size, mime type,
+   user agent, request origin, ...
+ - can optionally return a mirror list
+ - has configurable logging
+ - has a debug mode which can be enabled directory-wise, and thus can be used
+   in production
+
+
+Software requirements:
+Frontend:
+ - Apache HTTP server 2.2.x
+ - libGeoIP, libapr_memcache, and mod_form
+ - memcache daemon
+Backend:
+ - MySQL server. The tables must be InnoDB tables, because only that engine
+   offers row-based write locks. Due to optimizations of InnoDB engine for high
+   performance it makes sense to have a separate MySQL instance for this
+   database.
+ - Python, python-mysql, python-sqlobject for the ping process and database maintenance
+ - Perl for the scanner process
+ - TurboGears web application framework for mirror administration web frontend
+
+
+Hardware requirements:
+File storage is attached to the webserver. (Running the redirector without
+attached file storage is a feature which is not implemented, but considered.)
+The openSUSE project currently hosts > 500.000 files using 800 GB.
+The webserver needs few computational resources. If it has other tasks, besides
+redirecting, those other tasks mainly determine the needed resources. However,
+to handle high amounts of redirects, like hundreds per seconds, it is
+recommended to run Apache in a hybrid prefork/worker configuration, with e.g.
+32 threads per process, which results in a good pooling of database
+connections. 
+
+The most computational resources are needed by the database server. For large
+file trees, they can be considerable, like the openSUSE project, which
+redirects for a total of > 350.000 files. For performance reasons, the database
+server must be able to hold the database and indices completely in memory. The
+openSUSE redirector database is currently served by a 4-way Xeon 3.4Ghz with 4
+gigs of Ram, which is sufficient for the mysql server itself, as well as 12
+parallel scanner processes, and can handle 1000-2000 requests per second.
+
+
+HA (High Availability) setup:
+For HA, the webserver, the database server and the connecting infrastructure
+needs to be redundant. This can be achieved by creating a hot standby for
+failover, or by running identical nodes with load sharing / balancing.  This
+could be implemented by 
+ - deploying a hardware load balancer, which distributes requests to webserver
+   nodes, or using clusterip on the webserver nodes themselves to make them do
+   load sharing
+ - two or more webserver nodes with identical setup for ease of maintenance
+ - running a one or more mysql servers in slave configuration. Database queries
+   could be split so that write requests go only to the master, while read
+   requests go to master and slaves.
+ - mysql-proxy does load balancing and r/w-splitting
+Obviously, there are different ways achieving HA, which will vary to local
+requirements.
+
+
+
+Links:
+http://en.opensuse.org/Build_Service/Redirector
+https://forgesvn1.novell.com/svn/opensuse/trunk/tools/download-redirector-v2
+http://www.maxmind.com/app/ip-location
+http://www.linux-ha.org/ClusterIP
+http://forge.mysql.com/wiki/MySQL_Proxy
+http://www.stdlib.net/~colmmacc/Apachecon-EU2005/scaling-apache-handout.pdf
+
