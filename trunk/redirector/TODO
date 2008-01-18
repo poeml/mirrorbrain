@@ -22,6 +22,10 @@ Improvements:
 
 * check for baseurl == ''
 
+* logging the full redirect url is a waste of space -- to keep the access log smaller,
+  it would probably be wise to log only the server identifier, because the rest of the
+  url should be identical to request url
+
 
 Further ideas:
 
