@@ -19,6 +19,8 @@ Improvements:
 * make ZrkadloTreatCountryAs optional, so it becomes effective only if there is
   no country mirror. Now: "treat as xy". Better: "treat as xy, if no mirror in
   my country".
+  * eliminate ZrkadloTreatCountryAs and make it a database attribute in the
+    server table instead
 
 * check for baseurl == ''
 
