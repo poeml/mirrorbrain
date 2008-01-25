@@ -10,7 +10,7 @@ employed by sourceforge.net, mozilla.org or similar large organizations, which
 face a number of download requests which is too high to be practically handled
 by a single site. To find a mirror close to the client, the redirector employs
 geolocation of the client's IP address. If several mirrors are suitable, the
-redirector load-balances requests to them mirrors based on their capabilities.
+redirector load-balances requests to the mirrors based on their capabilities.
 
 
 
