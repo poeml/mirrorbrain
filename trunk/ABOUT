@@ -42,6 +42,8 @@ Features:
  - uses a randomized, weighted algorithm for mirror selection (each mirror
    having a score)
  - optionally memorizes client<->mirror association through memcache daemon
+ - can make sure that mirrors get only requests from the same country or region
+   (important for countries with poor internet connectivity)
  - is configurable in Apache style configuration, with automatic per-directory
    configuration merging
  - optionally redirects dependent on file name pattern, file size, mime type,
