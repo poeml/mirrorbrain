@@ -94,6 +94,8 @@ struct mirror_entry {
     const char *identifier;
     char country_code[3];    /* the 2-letter-string */
     const char *region;
+    short country_only;
+    short region_only;
     int score;
     const char *baseurl;
     int is_static;
@@ -980,6 +982,8 @@ static int zrkadlo_handler(request_rec *r)
         new->identifier = NULL;
         new->country_code[0] = 0;
         new->region = NULL;
+        new->region_only = 0;
+        new->country_only = 0;
         new->score = 0;
         new->baseurl = NULL;
 
@@ -1023,6 +1027,18 @@ static int zrkadlo_handler(request_rec *r)
         } else
             new->baseurl = apr_pstrdup(r->pool, val);
 
+        /* country_only */
+        if ((val = apr_dbd_get_entry(dbd->driver, row, 6)) == NULL) {
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] apr_dbd_get_entry found NULL for country_only");
+        } else
+            new->country_only = (short)atoi(val);
+
+        /* region_only */
+        if ((val = apr_dbd_get_entry(dbd->driver, row, 7)) == NULL) {
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] apr_dbd_get_entry found NULL for region_only");
+        } else
+            new->region_only = (short)atoi(val);
+
         /* this mirror comes from the database */
         /* XXX not implemented: statically configured fallback mirrors */
         /* such mirrors could be entered in the database like any other mirrors,
@@ -1053,17 +1069,23 @@ static int zrkadlo_handler(request_rec *r)
             *(void **)apr_array_push(mirrors_same_country) = new;
 
         /* is country_code a wildcard indicating that the mirror should be
-         * considered for every country?
-         * if so, forget memcache association, so the mirror is not ruled out */
+         * considered for every country? */
         } else if (strcmp(new->country_code, "**") == 0) {
             *(void **)apr_array_push(mirrors_same_country) = new;
+            /* if so, forget memcache association, so the mirror is not ruled out */
             chosen = NULL; 
 
-        } else if (strcasecmp(new->region, continent_code) == 0) {
         /* same region? */
+        /* to be actually considered for this group, the mirror must be willing 
+         * to take redirects from foreign country */
+        } else if ((strcasecmp(new->region, continent_code) == 0) 
+                    && (new->country_only != 1)) {
             *(void **)apr_array_push(mirrors_same_region) = new;
 
-        } else {
+        /* to be considered as "worldwide" mirror, it must be willing 
+         * to take redirects from foreign regions.
+         * (N.B. region_only implies country_only)  */
+        } else if ((new->region_only != 1) && (new->country_only != 1)) {
             *(void **)apr_array_push(mirrors_elsewhere) = new;
         }
 

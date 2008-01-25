@@ -41,7 +41,6 @@ KEY `file_server_path_md5_serverid_idx` (`path_md5`,`serverid`)
 -- Tabellenstruktur für Tabelle `server`
 -- 
 
-
 CREATE TABLE `server` (
 `id` int(11) unsigned NOT NULL auto_increment,
 `identifier` varchar(64) NOT NULL,
@@ -62,6 +61,8 @@ CREATE TABLE `server` (
 `admin` text,
 `lat` float default NULL,
 `lng` float default NULL,
+`country_only` tinyint(1) default '0',
+`region_only` tinyint(1) default '0',
 PRIMARY KEY  (`id`),
 KEY `server_enabled_status_baseurl_score_idx` (`enabled`,`status_baseurl`,`score`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
