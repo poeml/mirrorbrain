@@ -151,9 +151,10 @@ def main():
     logging.getLogger('').addHandler(console)
 
     # warnings will be mailed
+    toaddrs = [ i.strip() for i in options.mailto.split(',') ]
     mail = logging.handlers.SMTPHandler('localhost', 
                                         'root@' + socket.gethostbyaddr(socket.gethostname())[0], 
-                                        options.mailto,
+                                        toaddrs,
                                         'pingd warning')
     mail.setLevel(logging.WARNING)
     mailformatter = logging.Formatter(LOGFORMAT, DATEFORMAT)
