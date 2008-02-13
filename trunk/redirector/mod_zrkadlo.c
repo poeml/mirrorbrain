@@ -1024,8 +1024,12 @@ static int zrkadlo_handler(request_rec *r)
         if ((val = apr_dbd_get_entry(dbd->driver, row, 5)) == NULL) {
             ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] apr_dbd_get_entry found NULL for baseurl");
             unusable = 1;
-        } else
+        } else {
             new->baseurl = apr_pstrdup(r->pool, val);
+            if (new->baseurl[strlen(new->baseurl) - 1] != '/') { 
+                new->baseurl = apr_pstrcat(r->pool, new->baseurl, "/", NULL); 
+            }
+        }
 
         /* country_only */
         if ((val = apr_dbd_get_entry(dbd->driver, row, 6)) == NULL) {
