@@ -872,6 +872,12 @@ static int zrkadlo_handler(request_rec *r)
             country_id, 
             continent_code);
 
+    /* save details for logging via a CustomLog */
+    apr_table_setn(r->subprocess_env, "ZRKADLO_FILESIZE", 
+            apr_off_t_toa(r->pool, r->finfo.size));
+    apr_table_set(r->subprocess_env, "ZRKADLO_COUNTRY_CODE", country_code);
+    apr_table_set(r->subprocess_env, "ZRKADLO_CONTINENT_CODE", continent_code);
+
     /* does this country need to be treated as another one? */
     val = apr_table_get(scfg->treat_country_as, country_code);
     if (val) {
@@ -1223,11 +1229,6 @@ static int zrkadlo_handler(request_rec *r)
     uri = apr_pstrcat(r->pool, chosen->baseurl, filename, NULL);
     debugLog(r, cfg, "Redirect to '%s'", uri);
 
-    /* save details for logging via a CustomLog */
-    apr_table_setn(r->subprocess_env, "ZRKADLO_FILESIZE", 
-            apr_off_t_toa(r->pool, r->finfo.size));
-    apr_table_set(r->subprocess_env, "ZRKADLO_COUNTRY_CODE", country_code);
-    apr_table_set(r->subprocess_env, "ZRKADLO_CONTINENT_CODE", continent_code);
     /* for _conditional_ logging, leave some mark */
     apr_table_setn(r->subprocess_env, "ZRKADLO_REDIRECTED", "1");
 
