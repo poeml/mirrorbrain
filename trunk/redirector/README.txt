@@ -71,6 +71,9 @@ A: Higher score means a greater chance of being picked. Some kind of
 
    Thus, about 7% of requests will routed to the mirror.
 
+   (However, remeber that mirrors are not always "complete", so they might not
+   always be considered at all.)
+
 
 Q: How often does the scan take place? What I am wondering is; if I chose to
    delete something, how long before the distribution server sees it? I

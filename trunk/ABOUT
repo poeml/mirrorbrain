@@ -19,6 +19,7 @@ Implementation:
   The core of the redirector is mod_zrkadlo, a module for the Apache HTTP server,
 written in C, and designed for high performance and scalability, with security
 in mind.
+  mod_zrkadlo is pronounced "mod zurrcat low". Zrkadlo is Slovakian for mirror.
 
   Due to the fast-evolving nature of the file tree offered by openSUSE project,
 the redirector doesn't simply choose one mirror for a client once, but acts as
@@ -26,9 +27,9 @@ granular as on file-level, because mirrors are known to be incomplete,
 especially if content is changed often. To achieve this, the redirector is
 supported by an SQL database which knows the exact contents of each mirror. The
 database is periodically updated by scanning all mirrors with a scanner
-program. In addition, there is a "ping" program which intermittently checking
-each mirror to be alive, and which disables a mirror for redirection should it
-fail.
+program. In addition, there is a "ping" program which intermittently checks
+each mirror for responsiveness, and which can disable or pause redirection
+to a certain mirror, should it fail.
 
 
 
@@ -44,12 +45,13 @@ Features:
  - optionally memorizes client<->mirror association through memcache daemon
  - can make sure that mirrors get only requests from the same country or region
    (important for countries with poor internet connectivity)
+ - special catch-all mirror type to integrate content delivery networks
  - is configurable in Apache style configuration, with automatic per-directory
    configuration merging
  - optionally redirects dependent on file name pattern, file size, mime type,
    user agent, request origin, ...
  - can optionally return a mirror list
- - has configurable logging
+ - flexible logging options
  - has a debug mode which can be enabled directory-wise, and thus can be used
    in production
 
@@ -66,6 +68,7 @@ Backend:
    offers row-based write locks. Due to optimizations of InnoDB engine for high
    performance it makes sense to have a separate MySQL instance for this
    database.
+   Postgresql should also work, but it hasn't been tested.
  - Python, python-mysql, python-sqlobject for the ping process and database
    maintenance
  - Perl for the scanner process
