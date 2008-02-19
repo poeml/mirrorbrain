@@ -6,6 +6,7 @@ https://forgesvn1.novell.com/svn/opensuse/trunk/tools/download-redirector-v2
 
 RPM packages are here:
 http://download.opensuse.org/repositories/Apache:/Modules/
+http://club.mandriva.com/xwiki/bin/view/rpms/Application/apache-mod_zrkadlo
 
 It requires libGeoIP, libapr_memcache, and mod_form.
 It can be built with
