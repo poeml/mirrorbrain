@@ -32,7 +32,6 @@ DONE  - option -A serverid path | [url]
   - option -D serverid path | [url]
 
 
-DONE  - ~/config.pl  or -c configfile
 DONE    config: exclude list
 DONE    .xml
 DONE    .xml.gz
@@ -41,6 +40,8 @@ DONE    .repo
 DONE    /repoview/*
 DONE    /drpmsync/*
 DONE (not as config file, but as builtin list with command line option -i)
+
+  - ~/config.pl  or -c configfile
 
   - loop mode with timeout after last scan.
     -> parallel_test.pl
