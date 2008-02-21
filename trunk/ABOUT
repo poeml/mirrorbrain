@@ -52,10 +52,18 @@ Features:
    user agent, request origin, ...
  - can optionally return a mirror list
  - flexible logging options
- - has a debug mode which can be enabled directory-wise, and thus can be used
-   in production
+ - has a debug mode which can be enabled directory-wise, and thus is 
+   "compatible" with running production
+ - the client IP address can be overridden for diagnostic purposes
  - canonicalizes file pathnames before database lookup, so the database needs to
    hold only real files, and is not blown up by symlinks.
+
+
+
+So how does the module work?
+
+  This page http://en.opensuse.org/Build_Service/Redirector shows pseudocode
+which gives an outline how it works.
 
 
 
