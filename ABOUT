@@ -54,6 +54,8 @@ Features:
  - flexible logging options
  - has a debug mode which can be enabled directory-wise, and thus can be used
    in production
+ - canonicalizes file pathnames before database lookup, so the database needs to
+   hold only real files, and is not blown up by symlinks.
 
 
 
