@@ -1,22 +1,3 @@
-This is a redirector module for apache.
-http://en.opensuse.org/Build_Service/Redirector give a rough outline how it works.
-
-It requires a backend to work with, which can be found at
-https://forgesvn1.novell.com/svn/opensuse/trunk/tools/download-redirector-v2
-
-RPM packages are here:
-http://download.opensuse.org/repositories/Apache:/Modules/
-http://club.mandriva.com/xwiki/bin/view/rpms/Application/apache-mod_zrkadlo
-
-It requires libGeoIP, libapr_memcache, and mod_form.
-It can be built with
-apxs2 -c -lGeoIP -lapr_memcache -Wc,"-Wall -g -D_GNU_SOURCE" mod_zrkadlo.c
-
-
-The module understands query arguments (optionally appended to the URL) for 
-diagnostic or other uses. See the config example for details.
-
-
 Q: What does "zrkadlo" mean?
 A: A word found when travelling in Slovakia in 2006. 'zrkadlo' is Slovakian 
    for 'mirror'. It is one of about three words of Slovakian I know.

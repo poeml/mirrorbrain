@@ -1,0 +1,19 @@
+These are instructions how to install mod_zrkadlo, the redirector module for apache.
+The module understands query arguments (optionally appended to the URL) for 
+diagnostic or other uses. See the config example for details.
+
+
+It requires a backend to work with, which can be found at
+https://forgesvn1.novell.com/svn/opensuse/trunk/tools/download-redirector-v2
+
+RPM packages are here:
+http://download.opensuse.org/repositories/Apache:/Modules/
+http://club.mandriva.com/xwiki/bin/view/rpms/Application/apache-mod_zrkadlo
+
+It requires libGeoIP, libapr_memcache, and mod_form.
+It can be built with
+apxs2 -c -lGeoIP -lapr_memcache -Wc,"-Wall -g -D_GNU_SOURCE" mod_zrkadlo.c
+
+
+Sorry, the rest of the installation instructions is missing here. I hope I can
+add them soon!
