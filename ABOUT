@@ -90,7 +90,7 @@ Hardware requirements:
 
   File storage is attached to the webserver. (Running the redirector without
 attached file storage is a feature which is not implemented, but considered.)
-The openSUSE project currently hosts > 500.000 files using 800 GB.
+The openSUSE project currently hosts > 700.000 files using 850 GB.
 The webserver needs few computational resources. If it has other tasks, besides
 redirecting, those other tasks mainly determine the needed resources. However,
 to handle high amounts of redirects, like hundreds per seconds, it is
@@ -100,7 +100,7 @@ connections.
 
   The most computational resources are needed by the database server. For large
 file trees, they can be considerable, like the openSUSE project, which
-redirects for a total of > 350.000 files. For performance reasons, the database
+redirects for a total of > 500.000 files. For performance reasons, the database
 server must be able to hold the database and indices completely in memory. The
 openSUSE redirector database is currently served by a 4-way Xeon 3.4Ghz with 4
 gigs of Ram, which is sufficient for the mysql server itself, as well as 12
