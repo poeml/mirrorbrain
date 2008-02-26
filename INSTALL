@@ -17,3 +17,5 @@ apxs2 -c -lGeoIP -lapr_memcache -Wc,"-Wall -g -D_GNU_SOURCE" mod_zrkadlo.c
 
 Sorry, the rest of the installation instructions is missing here. I hope I can
 add them soon!
+So for now, please contact me at <poeml@suse.de>, and I'll show you how to do
+it (and it will also be an occasion for me to document it along the way!).
