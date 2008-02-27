@@ -292,7 +292,7 @@ static void zrkadlo_child_init(apr_pool_t *p, server_rec *s)
                 "[mod_zrkadlo] opening geoip file %s", geoipfilename);
         gip = GeoIP_open(geoipfilename, GEOIP_MEMORY_CACHE);
     }
-    if(!gip) {
+    if (!gip) {
         ap_log_error(APLOG_MARK, APLOG_CRIT, 0, s, 
                 "[mod_zrkadlo] Error while opening geoip file '%s'", geoipfilename);
     }
@@ -876,7 +876,7 @@ static int zrkadlo_handler(request_rec *r)
      * as supplied by it via the notes table, but since we also need the
      * continent we need to use libgeoip ourselves. Thus, we can do our own
      * lookup just as well. */
-    country_id = GeoIP_country_id_by_addr(gip, clientip);
+    country_id = GeoIP_id_by_addr(gip, clientip);
     country_code = apr_pstrdup(r->pool, GeoIP_country_code[country_id]);
     continent_code = GeoIP_country_continent[country_id];
 
