@@ -1221,7 +1221,7 @@ static int zrkadlo_handler(request_rec *r)
         ap_rputs("<pre>\n", r);
         for (i = 0; i < mirrors_same_country->nelts; i++) {
             mirror = mirrorp[i];
-            ap_rprintf(r, "<a href=\"%s%s\">%s%s</a> (score %d)<br>\n", 
+            ap_rprintf(r, "<a href=\"%s%s\">%s%s</a> (score %d)\n", 
                     mirror->baseurl, filename, 
                     mirror->baseurl, filename, 
                     mirror->score);
@@ -1233,7 +1233,7 @@ static int zrkadlo_handler(request_rec *r)
         mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
         for (i = 0; i < mirrors_same_region->nelts; i++) {
             mirror = mirrorp[i];
-            ap_rprintf(r, "<a href=\"%s%s\">%s%s</a> (score %d)<br>\n", 
+            ap_rprintf(r, "<a href=\"%s%s\">%s%s</a> (score %d)\n", 
                     mirror->baseurl, filename, 
                     mirror->baseurl, filename, 
                     mirror->score);
@@ -1245,7 +1245,7 @@ static int zrkadlo_handler(request_rec *r)
         mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
         for (i = 0; i < mirrors_elsewhere->nelts; i++) {
             mirror = mirrorp[i];
-            ap_rprintf(r, "<a href=\"%s%s\">%s%s</a> (score %d)<br>\n", 
+            ap_rprintf(r, "<a href=\"%s%s\">%s%s</a> (score %d)\n", 
                     mirror->baseurl, filename, 
                     mirror->baseurl, filename, 
                     mirror->score);
