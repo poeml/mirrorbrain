@@ -761,7 +761,7 @@ static int zrkadlo_handler(request_rec *r)
         }
 
         /* is the requested file too small? DECLINED */
-        if (r->finfo.size < cfg->min_size) {
+        if (!mirrorlist && (r->finfo.size < cfg->min_size)) {
             debugLog(r, cfg, "File '%s' too small (%d bytes, less than %d)", 
                     r->filename, (int) r->finfo.size, (int) cfg->min_size);
             return DECLINED;
@@ -769,13 +769,15 @@ static int zrkadlo_handler(request_rec *r)
     }
 
     /* is this file excluded from mirroring? */
-    if (cfg->exclude_filemask && !ap_regexec(cfg->exclude_filemask, r->uri, 0, NULL, 0)) {
+    if (!mirrorlist 
+       && cfg->exclude_filemask 
+       && !ap_regexec(cfg->exclude_filemask, r->uri, 0, NULL, 0) ) {
         debugLog(r, cfg, "File '%s' is excluded by ZrkadloExcludeFileMask", r->uri);
         return DECLINED;
     }
 
     /* is the request originating from an ip address excluded from redirecting? */
-    if (cfg->exclude_ips->nelts) {
+    if (!mirrorlist && cfg->exclude_ips->nelts) {
 
         for (i = 0; i < cfg->exclude_ips->nelts; i++) {
 
@@ -793,7 +795,7 @@ static int zrkadlo_handler(request_rec *r)
 
 
     /* is the request originating from a network excluded from redirecting? */
-    if (cfg->exclude_networks->nelts) {
+    if (!mirrorlist && cfg->exclude_networks->nelts) {
 
         for (i = 0; i < cfg->exclude_networks->nelts; i++) {
 
@@ -811,7 +813,7 @@ static int zrkadlo_handler(request_rec *r)
 
 
     /* is the file in the list of mimetypes to never mirror? */
-    if ((r->content_type) && (cfg->exclude_mime->nelts)) {
+    if (!mirrorlist && (r->content_type) && (cfg->exclude_mime->nelts)) {
 
         for (i = 0; i < cfg->exclude_mime->nelts; i++) {
 
@@ -828,7 +830,7 @@ static int zrkadlo_handler(request_rec *r)
 
     /* is this User-Agent excluded from redirecting? */
     user_agent = (const char *) apr_table_get(r->headers_in, "User-Agent");
-    if ((user_agent) && (cfg->exclude_agents->nelts)) {
+    if (!mirrorlist && (user_agent) && (cfg->exclude_agents->nelts)) {
 
         for (i = 0; i < cfg->exclude_agents->nelts; i++) {
 
@@ -960,6 +962,23 @@ static int zrkadlo_handler(request_rec *r)
                 "[mod_zrkadlo] no mirrors found for %s", filename);
         /* can be used for a CustomLog */
         apr_table_setn(r->subprocess_env, "ZRKADLO_NOMIRROR", "1");
+
+        if (mirrorlist) {
+            debugLog(r, cfg, "empty mirrorlist");
+            ap_set_content_type(r, "text/html; charset=ISO-8859-1");
+            ap_rputs(DOCTYPE_HTML_3_2
+                     "<html><head>\n<title>Mirror List</title>\n</head><body>\n",
+                     r);
+
+            ap_rprintf(r, "Filename: %s<br>\n", filename);
+            ap_rprintf(r, "Client IP address: %s<br>\n", clientip);
+            ap_rprintf(r, "No mirror found.\n");
+
+            ap_rputs("</body>\n", r);
+            return OK;
+        }
+
+        /* deliver the file ourselves */
         return DECLINED;
     }
 
@@ -1179,7 +1198,7 @@ static int zrkadlo_handler(request_rec *r)
 
     debugLog(r, cfg, "Chose server %s", chosen->identifier);
 
-    /* send a HTML list instead of doing a redirect? */
+    /* send an HTML list instead of doing a redirect? */
     if (mirrorlist) {
         debugLog(r, cfg, "mirrorlist");
         ap_set_content_type(r, "text/html; charset=ISO-8859-1");
@@ -1198,40 +1217,40 @@ static int zrkadlo_handler(request_rec *r)
         mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
         mirror = NULL;
 
-        ap_rprintf(r, "<h3>Mirrors in the same country (%s):</h3>", country_code);
-        ap_rputs("<pre>", r);
+        ap_rprintf(r, "\n<h3>Mirrors in the same country (%s):</h3>\n", country_code);
+        ap_rputs("<pre>\n", r);
         for (i = 0; i < mirrors_same_country->nelts; i++) {
             mirror = mirrorp[i];
-            ap_rprintf(r, "<a href=\"%s%s\">%s%s</a> (score %d)<br>", 
+            ap_rprintf(r, "<a href=\"%s%s\">%s%s</a> (score %d)<br>\n", 
                     mirror->baseurl, filename, 
                     mirror->baseurl, filename, 
                     mirror->score);
         }
-        ap_rputs("</pre>", r);
+        ap_rputs("</pre>\n", r);
 
-        ap_rprintf(r, "<h3>Mirrors in the same continent (%s):</h3>", continent_code);
-        ap_rputs("<pre>", r);
+        ap_rprintf(r, "\n<h3>Mirrors in the same continent (%s):</h3>\n", continent_code);
+        ap_rputs("<pre>\n", r);
         mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
         for (i = 0; i < mirrors_same_region->nelts; i++) {
             mirror = mirrorp[i];
-            ap_rprintf(r, "<a href=\"%s%s\">%s%s</a> (score %d)<br>", 
+            ap_rprintf(r, "<a href=\"%s%s\">%s%s</a> (score %d)<br>\n", 
                     mirror->baseurl, filename, 
                     mirror->baseurl, filename, 
                     mirror->score);
         }
-        ap_rputs("</pre>", r);
+        ap_rputs("</pre>\n", r);
 
-        ap_rputs("<h3>Mirrors in the rest of the world:</h3>", r);
-        ap_rputs("<pre>", r);
+        ap_rputs("\n<h3>Mirrors in the rest of the world:</h3>\n", r);
+        ap_rputs("<pre>\n", r);
         mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
         for (i = 0; i < mirrors_elsewhere->nelts; i++) {
             mirror = mirrorp[i];
-            ap_rprintf(r, "<a href=\"%s%s\">%s%s</a> (score %d)<br>", 
+            ap_rprintf(r, "<a href=\"%s%s\">%s%s</a> (score %d)<br>\n", 
                     mirror->baseurl, filename, 
                     mirror->baseurl, filename, 
                     mirror->score);
         }
-        ap_rputs("</pre>", r);
+        ap_rputs("</pre>\n", r);
 
         ap_rputs("</body>\n", r);
         return OK;

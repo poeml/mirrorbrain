@@ -1,16 +1,13 @@
 more important bugs at the top...
 
 
+* no important bug known at this time :-)
+
+
 * fix fakefile option. It broke with the added filename canonicalizing
    % curl -sI 'http://download.opensuse.org/distribution/SL-OSS-factory/inst-source/suse/x86_64/apache2-prefork-2.2.0-21.x86_64.rpm?fakefile'
   HTTP/1.1 500 Internal Server Error
   [Mon Aug 13 19:45:42 2007] [error] [client 195.135.221.2] [mod_zrkadlo] Error canonicalizing filename '/srv/ftp/pub/opensuse/distribution/SL-OSS-factory/inst-source/suse/x86_64/apache2-prefork-2.2.0-21.x86_64.rpm'
-
-* if no mirror is found, mirrorlist should be an empty list but be returned
-  nevertheless, instead of delivering the file
-
-* might still need to take care of 
-  http://issues.apache.org/bugzilla/show_bug.cgi?id=39329
 
 * might still need to take care of 
   http://www.nabble.com/apr_memcache-memory-leak-t3146183.html

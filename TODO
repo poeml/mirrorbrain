@@ -45,6 +45,9 @@ Improvements:
 
 * check for baseurl == ''
 
+* rewrite debugLog(r, cfg, ...) as Macro which checks for cfg->debug==1 before
+  caling ebugLog()
+
 
 Further ideas:
 
