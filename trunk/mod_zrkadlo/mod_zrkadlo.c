@@ -45,6 +45,7 @@
 #include "apr_dbd.h"
 #include "mod_dbd.h"
 
+#include <arpa/inet.h>
 #include <GeoIP.h>
 #include <apr_memcache-0/apr_memcache.h>
 #include "ap_mpm.h" /* for ap_mpm_query */
@@ -726,9 +727,20 @@ static int zrkadlo_handler(request_rec *r)
         newmirror = form_lookup(r, "newmirror");
         mirrorlist = form_lookup(r, "mirrorlist");
     }
-    if (clientip)
-        debugLog(r, cfg, "FAKE Client IP: '%s'", clientip);
-    else
+    
+    if (clientip) {
+        debugLog(r, cfg, "FAKE clientip address: '%s'", clientip);
+
+        /* ensure that the string represents a valid IP address
+         *
+         * if clientip contains a colon, we should principally do the lookup
+         * for AF_INET6 instead, but GeoIP doesn't support IPv6 anyway */
+        struct in_addr addr;
+        if (inet_pton(AF_INET, clientip, &addr) != 1) {
+            debugLog(r, cfg, "FAKE clientip address not valid: '%s'", clientip);
+            return HTTP_BAD_REQUEST;
+        }
+    } else 
         clientip = apr_pstrdup(r->pool, r->connection->remote_ip);
 
     /* These checks apply only if the server response is not faked for testing */
