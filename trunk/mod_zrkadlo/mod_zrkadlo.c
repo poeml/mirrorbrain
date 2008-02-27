@@ -1170,7 +1170,7 @@ static int zrkadlo_handler(request_rec *r)
     /* send a HTML list instead of doing a redirect? */
     if (mirrorlist) {
         debugLog(r, cfg, "mirrorlist");
-        ap_set_content_type(r, "text/html");
+        ap_set_content_type(r, "text/html; charset=ISO-8859-1");
         ap_rputs(DOCTYPE_HTML_3_2
                  "<html><head>\n<title>Mirror List</title>\n</head><body>\n",
                  r);
