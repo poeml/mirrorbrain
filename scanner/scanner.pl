@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl -wd
 
 ################################################################################
 # scanner.pl -- daemon for working through opensuse directories.
@@ -123,6 +123,8 @@ my $mirror_url_add = undef;
 my $mirror_url_del = undef;
 my $topdirs = 'distribution|tools|repositories';
 
+my $gig2 = 1<<31; # 2*1024*1024*1024 == 2^1 * 2^10 * 2^10 * 2^10 = 2^31
+
 #my $global_ign_re = qr{(
 #  /repoview/	|
 #  /drpmsync/  |
@@ -139,8 +141,8 @@ push @norecurse_list, '/.~tmp~/';
 push @norecurse_list, '/openSUSE-current/';
 push @norecurse_list, '/openSUSE-stable/';
 
-my $db_cred = { dbi => 'dbi:mysql:dbname=redirector_innodb;host=mirrordb-opensuse.suse.de;port=4040', 
-                user => 'wwwrun', pass => 'ag4IemooAiseuw9x', opt => { PrintError => 0 } };
+my $db_cred = { dbi => 'dbi:mysql:dbname=redirector;host=d125.suse.de;port=3306', 
+                user => 'jcb', pass => 'teSt%12$', opt => { PrintError => 0 } };
 
 exit usage() unless @ARGV;
 while (defined (my $arg = shift)) {
@@ -636,6 +638,26 @@ sub http_readdir
 	  my $time = str2time($date);
 	  my $len = byte_size($size);
 
+	  if($len >= $gig2) {
+	    #make range request before storing file
+#my $string = "bytes=".$gig2*2-64."-".$gig2*2+64;
+	    my $header = new HTTP::Headers('Range' => "bytes=".(($gig2<<1)-64)."-".(($gig2<<1)+64));
+#my $header = new HTTP::Headers('Range' => "$string");
+	    my $req = new HTTP::Request('GET', "$url/$t", $header);
+	    my $result = $ua->request($req);
+	    goto allok if($result->code() == 206); # what about 301?
+	    # try again with 2G
+	    $header->clear();
+	    $header->header('Range' => "bytes=".($gig2-64)."-".($gig2+64));
+	    $req->clear();
+	    $req->method('GET');
+	    $req->uri("$url/$t");
+	    $result->clear();
+	    $result = $ua->request($req);
+	    goto allok if($result->code() == 206);
+	    next;
+	  }
+	allok:
 	  #save timestamp and file in database
 	  if(save_file($t, $id, $time, $re)) {
 	    push @r, [ $t , $time ];
@@ -701,8 +723,8 @@ sub ftp_readdir
 
   my @r;
   for my $i (0..$#$text) {
-    if($text->[$i] =~ m/^([dl-])(.........).*(\w\w\w\s+\d\d?\s+\d\d:?\d\d)\s+([\S]+)$/) {
-      my ($type, $mode, $timestamp, $fname) = ($1, $2, $3, $4);
+    if($text->[$i] =~ m/^([dl-])(.........).*\s(\d+)\s(\w\w\w\s+\d\d?\s+\d\d:?\d\d)\s+([\S]+)$/) {
+      my ($type, $mode, $size, $timestamp, $fname) = ($1, $2, $3, $4, $5);
       next if $fname eq "." or $fname eq "..";
 
       #convert to timestamp
@@ -726,8 +748,10 @@ sub ftp_readdir
 	  next;
 	}
 	#save timestamp and file in database
-	if(save_file($t, $id, $time, $re)) {
-	  push @r, [ $t , $time ];
+	if(largefile_check($ftp->host().$ftp->pwd().$fname, $size)) {
+	  if(save_file($t, $id, $time, $re)) {
+	    push @r, [ $t , $time ];
+	  }
 	}
       }
     }
@@ -910,10 +934,16 @@ sub rsync_cb
 
   if($mode & 0x1000) {	# directories have 0 here.
     if($mode & 004) { # readable for the world is good.
-      $name = save_file($name, $priv->{serverid}, $mtime, $priv->{re});
-      $priv->{counter}++;
-      $r = [$name, $len, $mode, $mtime, @info];
-      printf "rsync(%d) ADD: %03o %10d %-25s %-50s\n", $priv->{serverid}, ($mode & 0777), $len, scalar(localtime $mtime), $name if $verbose > 2;
+      # params for largefile check: url=$ary_ref->{$priv->{serverid}}/$name, size=$len
+      if(largefile_check("$ary_ref->{$priv->{serverid}}->{baseurl}/$name", $len) == 0) {
+	printf "ERROR: file $name cannot be delivererd via http! Skipping\n" if $verbose > 1;
+      }
+      else {
+	$name = save_file($name, $priv->{serverid}, $mtime, $priv->{re});
+	$priv->{counter}++;
+	$r = [$name, $len, $mode, $mtime, @info];
+	printf "rsync(%d) ADD: %03o %10d %-25s %-50s\n", $priv->{serverid}, ($mode & 0777), $len, scalar(localtime $mtime), $name if $verbose > 2;
+      }
     }
     else {
       printf "rsync(%d) skip: %03o %10d %-25s %-50s\n", $priv->{serverid}, ($mode & 0777), $len, scalar(localtime $mtime), $name if $verbose > 1;
@@ -1202,5 +1232,34 @@ sub ftp_cont
   #   'drwx-wx-wt    2 incoming 49           4096 Jul 03 23:00 incoming',
   #   '-rw-r--r--    1 root     root     16146417 Jul 04 23:12 ls-Ral.txt'
   # ], 
-
 }
+
+
+
+# double check large files.
+# some mirrors can't deliver large files via http.
+# try a http range request for files larger than 2G/4G in http/ftp/rsync
+sub largefile_check
+{
+  my ($url, $size) = @_;
+
+  goto all_ok if($size <= $gig2);
+
+
+  my $header = new HTTP::Headers('Range' => "bytes=".($gig2-64)."-".($gig2+1));
+  my $req = new HTTP::Request('GET', "$url", $header);
+  my $result = $ua->request($req);
+  goto all_ok if($result->code() == 206);
+
+  if($result->code() == 416) {
+    print "Error: range error: filesize broken for file $url\n" if $verbose >= 2;
+  }
+  else {
+    print "Error ".$result->code()." occured\n" if $verbose >= 2;
+  }
+  return 0;
+
+  all_ok:
+  return 1;
+}
+
