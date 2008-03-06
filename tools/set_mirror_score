@@ -7,13 +7,21 @@
 
 
 import sys, os, MySQLdb
+import ConfigParser
+
+conffile = '/etc/mirror-brain.conf'
+
+cp = ConfigParser.SafeConfigParser()
+cp.read(conffile)
+cfg = dict(cp.items('general'))
 
 servername = sys.argv[1]
 score = sys.argv[2]
 
-passwd = open('/root/.mytop').read().split('=')[1].strip()
+dbh = MySQLdb.connect(host=cfg['dbhost'], port=int(cfg['dbport']), 
+                      user=cfg['dbuser'], passwd=cfg['dbpass'], 
+                      db=cfg['dbname'])
 
-dbh = MySQLdb.connect('localhost', 'root', passwd, 'redirector')
 cursor = dbh.cursor(MySQLdb.cursors.DictCursor)
 
 sqlraw = 'update server set score=%s where identifier=%s'
