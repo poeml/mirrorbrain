@@ -83,6 +83,7 @@ use Digest::MD5;
 use Time::HiRes;
 use Socket;
 use bytes;
+use Config::IniFiles;
 
 my $version = '0.9d';
 my $scanner_email = 'poeml@suse.de';
@@ -123,6 +124,7 @@ my $enable_after_scan = 0;
 my $mirror_url_add = undef;
 my $mirror_url_del = undef;
 my $topdirs = 'distribution|tools|repositories';
+my $cfgfile = '/etc/mirror-brain.conf';
 
 my $gig2 = 1<<31; # 2*1024*1024*1024 == 2^1 * 2^10 * 2^10 * 2^10 = 2^31
 
@@ -142,8 +144,14 @@ push @norecurse_list, '/.~tmp~/';
 push @norecurse_list, '/openSUSE-current/';
 push @norecurse_list, '/openSUSE-stable/';
 
-my $db_cred = { dbi => 'dbi:mysql:dbname=redirector;host=mirrordb-opensuse.suse.de;port=4040', 
-                user => 'wwwrun', pass => 'ag4IemooAiseuw9x', opt => { PrintError => 0 } };
+my $cfg = new Config::IniFiles( -file => $cfgfile );
+my $db_cred = { dbi => 'dbi:mysql:dbname=' . $cfg->val( 'general', 'dbname') 
+                              . ';host='   . $cfg->val( 'general', 'dbhost') 
+                              . ';port='   . $cfg->val( 'general', 'dbport'), 
+                user => $cfg->val( 'general', 'dbuser'), 
+                pass => $cfg->val( 'general', 'dbpass'), 
+                opt => { PrintError => 0 } };
+
 
 exit usage() unless @ARGV;
 while (defined (my $arg = shift)) {
