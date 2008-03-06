@@ -1,4 +1,4 @@
-#!/usr/bin/perl -wd
+#!/usr/bin/perl -w
 
 ################################################################################
 # scanner.pl -- daemon for working through opensuse directories.
@@ -53,6 +53,7 @@
 # 2007-08-28, jw  - V0.9b, sigusr1/sigusr2 added to switch verbosity level.
 # 		    
 # 2007-11-21, jcborn -V0.9c, implemented norecurse-list.
+# 2008-03-06, jcborn -V0.9d, implemented sanity checks for large files
 #
 # FIXME: 
 # should do optimize table file, file_server;
@@ -83,7 +84,7 @@ use Time::HiRes;
 use Socket;
 use bytes;
 
-my $version = '0.9c';
+my $version = '0.9d';
 my $scanner_email = 'poeml@suse.de';
 my $verbose = 1;
 
