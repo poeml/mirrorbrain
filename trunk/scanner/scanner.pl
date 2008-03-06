@@ -141,8 +141,8 @@ push @norecurse_list, '/.~tmp~/';
 push @norecurse_list, '/openSUSE-current/';
 push @norecurse_list, '/openSUSE-stable/';
 
-my $db_cred = { dbi => 'dbi:mysql:dbname=redirector;host=d125.suse.de;port=3306', 
-                user => 'jcb', pass => 'teSt%12$', opt => { PrintError => 0 } };
+my $db_cred = { dbi => 'dbi:mysql:dbname=redirector;host=mirrordb-opensuse.suse.de;port=4040', 
+                user => 'wwwrun', pass => 'ag4IemooAiseuw9x', opt => { PrintError => 0 } };
 
 exit usage() unless @ARGV;
 while (defined (my $arg = shift)) {
