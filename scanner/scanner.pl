@@ -757,7 +757,7 @@ sub ftp_readdir
 	  next;
 	}
 	#save timestamp and file in database
-	if(largefile_check($ftp->host().$ftp->pwd().$fname, $size)) {
+	if(largefile_check($id, $t, $size)) {
 	  if(save_file($t, $id, $time, $re)) {
 	    push @r, [ $t , $time ];
 	  }
@@ -944,7 +944,7 @@ sub rsync_cb
   if($mode & 0x1000) {	# directories have 0 here.
     if($mode & 004) { # readable for the world is good.
       # params for largefile check: url=$ary_ref->{$priv->{serverid}}/$name, size=$len
-      if(largefile_check("$ary_ref->{$priv->{serverid}}->{baseurl}/$name", $len) == 0) {
+      if(largefile_check($priv->{serverid}, $name, $len) == 0) {
 	printf "ERROR: file $name cannot be delivererd via http! Skipping\n" if $verbose > 1;
       }
       else {
@@ -1250,15 +1250,22 @@ sub ftp_cont
 # try a http range request for files larger than 2G/4G in http/ftp/rsync
 sub largefile_check
 {
-  my ($url, $size) = @_;
+  my ($id, $path, $size) = @_;
+
+  if($size==0) {
+    if($path =~ m{.*\.iso$}) {
+      print "Error: cd size is zero! Illegal file $path\n";
+      goto error;
+    }
+  }
 
   goto all_ok if($size <= $gig2);
 
-
+  my $url = "$ary_ref->{$id}->{baseurl}/$path";
   my $header = new HTTP::Headers('Range' => "bytes=".($gig2-64)."-".($gig2+1));
   my $req = new HTTP::Request('GET', "$url", $header);
   my $result = $ua->request($req);
-  goto all_ok if($result->code() == 206);
+  goto all_ok if($result->code() == 206 or $result->code() == 200);
 
   if($result->code() == 416) {
     print "Error: range error: filesize broken for file $url\n" if $verbose >= 2;
@@ -1266,6 +1273,8 @@ sub largefile_check
   else {
     print "Error ".$result->code()." occured\n" if $verbose >= 2;
   }
+
+  error:
   return 0;
 
   all_ok:
