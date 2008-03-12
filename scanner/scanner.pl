@@ -89,6 +89,8 @@ my $version = '0.9d';
 my $scanner_email = 'poeml@suse.de';
 my $verbose = 1;
 
+#$DB::inhibit_exit = 0;
+
 $SIG{'PIPE'} = 'IGNORE';
 
 $SIG{__DIE__} = sub {
@@ -647,29 +649,17 @@ sub http_readdir
 	  my $time = str2time($date);
 	  my $len = byte_size($size);
 
-	  if($len >= $gig2) {
-	    #make range request before storing file
-#my $string = "bytes=".$gig2*2-64."-".$gig2*2+64;
-	    my $header = new HTTP::Headers('Range' => "bytes=".(($gig2<<1)-64)."-".(($gig2<<1)+64));
-#my $header = new HTTP::Headers('Range' => "$string");
-	    my $req = new HTTP::Request('GET', "$url/$t", $header);
-	    my $result = $ua->request($req);
-	    goto allok if($result->code() == 206); # what about 301?
-	    # try again with 2G
-	    $header->clear();
-	    $header->header('Range' => "bytes=".($gig2-64)."-".($gig2+64));
-	    $req->clear();
-	    $req->method('GET');
-	    $req->uri("$url/$t");
-	    $result->clear();
-	    $result = $ua->request($req);
-	    goto allok if($result->code() == 206);
-	    next;
+	  # str2time returns undef in some rare cases causing KILL! FIXME
+	  # workaround: don't store files with broken times
+	  if(not defined($time)) {
+	    print "Error: str2time returns undef on parsing \"$date\". Skipping file $name1\n";
+	    print "current line was:\n$line\nat url $url\nname= $name1\n";
 	  }
-	allok:
-	  #save timestamp and file in database
-	  if(save_file($t, $id, $time, $re)) {
-	    push @r, [ $t , $time ];
+	  elsif(largefile_check($id, $t, $len)) {
+	    #save timestamp and file in database
+	    if(save_file($t, $id, $time, $re)) {
+	      push @r, [ $t , $time ];
+	    }
 	  }
 	}
       }
