@@ -17,14 +17,6 @@ apxs2 -c -lGeoIP -lapr_memcache -Wc,"-Wall -g -D_GNU_SOURCE" mod_zrkadlo.c
 
 
 
-
-Sorry, the rest of the installation instructions is missing here. I hope I can
-add them soon!
-So for now, please contact me at <poeml@suse.de>, and I'll show you how to do
-it (and it will also be an occasion for me to document it along the way!).
-
-
-
 After installation of mod_zrkadlo, you'll need to:
 
 - install memcached
@@ -193,7 +185,15 @@ After installation of mod_zrkadlo, you'll need to:
   Each mirror needs to be scanned and enabled manually.
 
 
-FIXME:
+
+
+
+Sorry, but further instructions are missing here. I hope I can add them later.
+For now, please contact me at <poeml@suse.de>, and I'll help you, and it will
+give me an occasion to improve this document along the way.
+
+TODO:
+
 - add wrapper script to run pingd / scanner as unprivileged user
   and describe how to set it up
 
