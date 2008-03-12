@@ -15,7 +15,190 @@ It can be built with
 apxs2 -c -lGeoIP -lapr_memcache -Wc,"-Wall -g -D_GNU_SOURCE" mod_zrkadlo.c
 
 
+
+
+
 Sorry, the rest of the installation instructions is missing here. I hope I can
 add them soon!
 So for now, please contact me at <poeml@suse.de>, and I'll show you how to do
 it (and it will also be an occasion for me to document it along the way!).
+
+
+
+After installation of mod_zrkadlo, you'll need to:
+
+- install memcached
+- make sure it listens on localhost only (/etc/sysconfig/memcached)
+- start it ("/etc/init.d/memcached start")
+- configure it to start at boot ("chkconfig -a memcached")
+
+
+- install GeoIP library and commandline tools
+  (openSUSE packages GeoIP + libGeoIP1)
+
+
+- install mod_form
+  (openSUSE package apache2-webthings-collection)
+
+
+- install a database adapter for the DBD library, for example MySQL
+  (openSUSE package: libapr-util1-dbd-mysql)
+
+
+
+- log into your database at root, e.g. for mysql:
+    mysql -u root -p
+  there, create the database and grant write permissions for a local user:
+    create database redirector;
+    grant all privileges on redirector.* to wwwrun@localhost identified by '12345';
+
+  run the sql file which creates the tables and indices:
+    mysql -u wwwrun -p -D redirector < /usr/share/doc/packages/apache2-mod_zrkadlo/sql/opensuse-redirector.sql
+
+
+  
+- load the Apache modules:
+   a2enmod form
+   a2enmod dbd
+   a2enmod zrkadlo
+
+
+- configure Apache:
+
+  - create a DNS alias for your web host, if needed
+
+  - configure the database adapter, and mod_zrkadlo. Put it in server-wide
+    context, and make the file chmod 640 because it contains the database
+    password.
+
+    ------------------------------------------------------------------------
+    <IfModule mod_dbd.c>
+        DBDriver mysql
+        DBDParams "host=localhost, user=wwwrun, pass=12345, dbname=redirector"
+        # # threaded MPMs only. prefork will have use db connection per process
+        <IfModule !prefork.c>
+                # 
+                DBDMin  0
+                DBDMax  32
+                DBDKeep 4
+                DBDExptime 10
+        </IfModule>
+    </IfModule>
+    
+    <IfModule mod_zrkadlo.c>
+        ZrkadloMemcached On
+        ZrkadloMemcachedAddrPort 127.0.0.1:11211
+        # must not exceed ZrkadloMemcachedConnHardMax, which is 1 for prefork
+        ZrkadloMemcachedConnSoftMax 1
+        ZrkadloMemcachedLifetime 1800
+        ZrkadloGeoIPFile /usr/share/GeoIP/GeoIP.dat
+        ZrkadloTreatCountryAs nz au
+    
+        ZrkadloDBDQuery "\
+        SELECT file_server.serverid, server.identifier, server.country, server.region, server.score, server.baseurl, \
+               server.country_only, server.region_only \
+        FROM file_server \
+        LEFT JOIN server \
+        ON file_server.serverid = server.id \
+        WHERE file_server.path_md5=%s AND server.enabled=1 AND server.status_baseurl=1 AND server.score > 0"
+    </IfModule>
+    ------------------------------------------------------------------------
+
+
+
+  - create a vhost for it (e.g. /etc/apache2/vhosts.d/go-oo.zrkadlo.org.conf)
+
+    ------------------------------------------------------------------------
+    <VirtualHost your.host.name:80>
+        ServerName go-oo.zrkadlo.org
+    
+        ServerAdmin webmaster@zrkadlo.org
+    
+        DocumentRoot /srv/go-oo/pub/projects
+    
+        ErrorLog     /var/log/apache2/go-oo.zrkadlo.org/logs/error_log
+        CustomLog    /var/log/apache2/go-oo.zrkadlo.org/logs/access_log combined
+
+        <Directory /srv/go-oo/pub/projects>
+            ZrkadloEngine On
+            ZrkadloDebug Off
+            FormGET On
+            ZrkadloHandleHEADRequestLocally Off
+            ZrkadloMinSize 0
+            ZrkadloHandleDirectoryIndexLocally On
+    
+            Options FollowSymLinks Indexes
+            AllowOverride None
+            Order allow,deny
+            Allow from all
+        </Directory>
+    
+    </VirtualHost>
+    ------------------------------------------------------------------------
+
+  - restart Apache, while watching the error log:
+      tail -F /var/log/apache2/*_log &
+      rcapache2 restart
+
+    
+
+
+- collect a list of mirrors (their HTTP baseurl, and their rsync or FTP baseurl
+  for scanning). For example:
+
+    http://ftp.isr.ist.utl.pt/pub/MIRRORS/ftp.suse.com/projects/
+    rsync://ftp.isr.ist.utl.pt/suse/projects/
+
+    http://ftp.kddilabs.jp/Linux/distributions/ftp.suse.com/projects/
+    rsync://ftp.kddilabs.jp/suse/projects/
+
+
+  Now, you look up their country and region IDs, and invent an "identifier":
+  (don't worry, the geoip lookup is something which could be automated later)
+
+     # geoiplookup_continent ftp.kddilabs.jp
+    AS
+     # geoiplookup ftp.kddilabs.jp 
+    GeoIP Country Edition: JP, Japan
+
+  So you collect:
+
+    EU PT  ftp.isr.ist.utl.pt
+    AS JP  ftp.kddilabs.jp
+
+
+
+  Now you need to enter the mirrors into the database; it could be done like this:
+
+    insert into server set region='EU', country='pt', score=50, 
+                           identifier='ftp.isr.ist.utl.pt', 
+                           baseurl='http://ftp.isr.ist.utl.pt/pub/MIRRORS/ftp.suse.com/projects/', 
+                           baseurl_ftp='', 
+                           baseurl_rsync='rsync://ftp.isr.ist.utl.pt/suse/projects/';
+
+    insert into server set region='AS', country='jp', score=50, 
+                           identifier='ftp.kddilabs.jp', 
+			   baseurl='http://ftp.kddilabs.jp/Linux/distributions/ftp.suse.com/projects/', 
+			   baseurl_ftp='', 
+			   baseurl_rsync='rsync://ftp.kddilabs.jp/suse/projects/', 
+			   region_only=1;
+
+
+  You'll note that I also invented a "score" which gives more or less
+  preference for those mirrors.  
+  In addition I set "region_only=1" for that second mirror, which lets it get
+  only redirects from its region (Asia).
+
+
+  Each mirror needs to be scanned and enabled manually.
+
+
+FIXME:
+- add wrapper script to run pingd / scanner as unprivileged user
+  and describe how to set it up
+
+    su - mirror -s /bin/bash -c "/usr/bin/scanner.mine -f ftp.isr.ist.utl.pt"
+    vi /root/.pingdrc
+    -*/3 * * * *     root  /usr/bin/pingd &>/dev/null
+
+- describe mysql tuning for innodb engine for performance
