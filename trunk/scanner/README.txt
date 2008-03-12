@@ -41,8 +41,6 @@ DONE    /repoview/*
 DONE    /drpmsync/*
 DONE (not as config file, but as builtin list with command line option -i)
 
-  - ~/config.pl  or -c configfile
-
   - loop mode with timeout after last scan.
     -> parallel_test.pl
 
@@ -56,7 +54,7 @@ DONE  - slowscan: default 2 sec pause after each directory
   - implement an rsync log parser. 
     This gives fastest updates for push mirrors, when triggered after rsync.
 
-  - http head request to check files > 2 GB
+DONE  - http head request to check files > 2 GB
 
   - find http 403 error from darix/deckel.
 
