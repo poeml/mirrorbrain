@@ -94,8 +94,8 @@ typedef struct mirror_entry mirror_entry_t;
 struct mirror_entry {
     int id;
     const char *identifier;
-    char country_code[3];    /* the 2-letter-string */
-    const char *region;
+    char *country_code;      /* 2-letter-string */
+    const char *region;      /* 2-letter-string */
     short country_only;
     short region_only;
     int score;
@@ -1027,7 +1027,7 @@ static int zrkadlo_handler(request_rec *r)
         new = apr_array_push(mirrors);
         new->id = 0;
         new->identifier = NULL;
-        new->country_code[0] = 0;
+        new->country_code = NULL;
         new->region = NULL;
         new->region_only = 0;
         new->country_only = 0;
@@ -1052,8 +1052,7 @@ static int zrkadlo_handler(request_rec *r)
         if ((val = apr_dbd_get_entry(dbd->driver, row, 2)) == NULL)
             ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] apr_dbd_get_entry found NULL for country_code");
         else
-            /* FIXME: shouldn't we allocate from pool for new->country_code ??? */
-            apr_cpystrn(new->country_code, val, sizeof(new->country_code)); /* fixed length, two bytes */
+            new->country_code = apr_pstrndup(r->pool, val, 2); /* fixed length, two bytes */
 
         /* region */
         if ((val = apr_dbd_get_entry(dbd->driver, row, 3)) == NULL)
