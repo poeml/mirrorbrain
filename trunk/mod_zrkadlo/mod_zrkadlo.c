@@ -45,6 +45,7 @@
 #include "apr_dbd.h"
 #include "mod_dbd.h"
 
+#include <unistd.h> /* for getpid */
 #include <arpa/inet.h>
 #include <GeoIP.h>
 #include <apr_memcache-0/apr_memcache.h>
@@ -65,7 +66,7 @@
 #define UNSET (-1)
 #endif
 
-#define MOD_ZRKADLO_VER "1.5"
+#define MOD_ZRKADLO_VER "1.6"
 #define VERSION_COMPONENT "mod_zrkadlo/"MOD_ZRKADLO_VER
 
 #define DEFAULT_GEOIPFILE "/usr/share/GeoIP/GeoIP.dat"
@@ -298,7 +299,7 @@ static void zrkadlo_child_init(apr_pool_t *p, server_rec *s)
     }
     apr_pool_cleanup_register(p, NULL, zrkadlo_cleanup, zrkadlo_cleanup);
 
-    srand((unsigned int)time(NULL));
+    srand((unsigned int)getpid());
 }
 
 
@@ -627,6 +628,13 @@ static int find_lowest_rank(apr_array_header_t *arr)
     return lowest_id;
 }
 
+static int cmp_mirror_rank(const void *v1, const void *v2)
+{
+    mirror_entry_t *m1 = *(mirror_entry_t **)v1;
+    mirror_entry_t *m2 = *(mirror_entry_t **)v2;
+    return m1->rank - m2->rank;
+}
+
 /* return base64 encoded string of a (binary) md5 hash */
 static char *zrkadlo_md5b64_enc(apr_pool_t *p, char *s)
 {
@@ -651,6 +659,7 @@ static int zrkadlo_handler(request_rec *r)
     const char *fakefile = NULL;
     const char *newmirror = NULL;
     const char *mirrorlist = NULL;
+    const char *metalink = NULL;
     short int country_id;
     char* country_code;
     const char* continent_code;
@@ -726,6 +735,7 @@ static int zrkadlo_handler(request_rec *r)
         clientip = form_lookup(r, "clientip");
         newmirror = form_lookup(r, "newmirror");
         mirrorlist = form_lookup(r, "mirrorlist");
+        metalink = form_lookup(r, "metalink");
     }
     
     if (clientip) {
@@ -1042,6 +1052,7 @@ static int zrkadlo_handler(request_rec *r)
         if ((val = apr_dbd_get_entry(dbd->driver, row, 2)) == NULL)
             ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] apr_dbd_get_entry found NULL for country_code");
         else
+            /* FIXME: shouldn't we allocate from pool for new->country_code ??? */
             apr_cpystrn(new->country_code, val, sizeof(new->country_code)); /* fixed length, two bytes */
 
         /* region */
@@ -1133,12 +1144,38 @@ static int zrkadlo_handler(request_rec *r)
     }
 
 #if 0
+    /* dump the mirror array */
     mirror_entry_t *elts;
     elts = (mirror_entry_t *) mirrors->elts;
     for (i = 0; i < mirrors->nelts; i++) {
-        debugLog(r, cfg, "mirrors  %d   %s", i, elts[i].identifier);
+        debugLog(r, cfg, "mirror  %3d  %-30ss", elts[i].id, elts[i].identifier);
     }
 #endif
+
+
+    /* 
+    * Sorting the mirror list(s):
+    * - is needed only when metalink (or mirrorlist) is requested
+    * - sorting the mirrorlist itself would invalidates the pointer lists
+    *   mirrors_same_country et al., as they are already done.
+    * The sorting could be done _before_ picking up mirrors_same_country et al.
+    * - but those are not needed also when doing a metalink
+    * - and since the ranking is not global, we still need to iterate over the
+    *   mirrors_same_country et al. when doing the metalink
+    *
+    * The sorting might invalidate the location where "chosen" points at -- if
+    *   "mirrors" itself is sorted.
+    *
+    * => best to sort the mirrors_same_country et al. individually, right?
+    */
+    if (metalink || mirrorlist) {
+        qsort(mirrors_same_country->elts, mirrors_same_country->nelts, 
+              mirrors_same_country->elt_size, cmp_mirror_rank);
+        qsort(mirrors_same_region->elts, mirrors_same_region->nelts, 
+              mirrors_same_region->elt_size, cmp_mirror_rank);
+        qsort(mirrors_elsewhere->elts, mirrors_elsewhere->nelts, 
+              mirrors_elsewhere->elt_size, cmp_mirror_rank);
+    }
 
     if (cfg->debug) {
 
@@ -1149,7 +1186,7 @@ static int zrkadlo_handler(request_rec *r)
 
         for (i = 0; i < mirrors_same_country->nelts; i++) {
             mirror = mirrorp[i];
-            debugLog(r, cfg, "same country: %s (score %d) (rank %d)", 
+            debugLog(r, cfg, "same country: %-30s (score %4d) (rank %10d)", 
                     mirror->identifier, mirror->score, mirror->rank);
         }
 
@@ -1157,7 +1194,7 @@ static int zrkadlo_handler(request_rec *r)
         mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
         for (i = 0; i < mirrors_same_region->nelts; i++) {
             mirror = mirrorp[i];
-            debugLog(r, cfg, "same region: %s (score %d) (rank %d)", 
+            debugLog(r, cfg, "same region:  %-30s (score %4d) (rank %10d)", 
                     mirror->identifier, mirror->score, mirror->rank);
         }
 
@@ -1165,7 +1202,7 @@ static int zrkadlo_handler(request_rec *r)
         mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
         for (i = 0; i < mirrors_elsewhere->nelts; i++) {
             mirror = mirrorp[i];
-            debugLog(r, cfg, "elsewhere: %s (score %d) (rank %d)", 
+            debugLog(r, cfg, "elsewhere:    %-30s (score %4d) (rank %10d)", 
                     mirror->identifier, mirror->score, mirror->rank);
         }
 
@@ -1198,9 +1235,143 @@ static int zrkadlo_handler(request_rec *r)
 
     debugLog(r, cfg, "Chose server %s", chosen->identifier);
 
+    /* return a metalink instead of doing a redirect? */
+    if (metalink) {
+        debugLog(r, cfg, "Sending metalink");
+
+        /* drop the path leading up to the file name, because metalink clients
+         * will otherwise place the downloaded file into a directory hierarchy */
+        const char *basename;
+        if ((basename = ap_strrchr_c(filename, '/')) == NULL) {
+            basename = filename;
+        } else {
+            ++basename;
+        }
+
+        /* right now, metalinks typically contain a time in RFC 822 format.
+         * planned is to use rfc 3339 formatted time in the future.
+         * right now, no client is probably using the time at all, though. 
+         *
+         * char *time_str = apr_palloc(r->pool, APR_RFC822_DATE_LEN);
+         * apr_rfc822_date(time_str, apr_time_now());
+        */
+
+        /* the current time in rfc 3339 format */
+        char time_str[MAX_STRING_LEN];
+        apr_time_exp_t tm;
+        apr_time_exp_gmt(&tm, r->request_time);
+        apr_strftime(time_str, &len, MAX_STRING_LEN, "%Y-%m-%dT%H:%MZ", &tm);
+
+        ap_set_content_type(r, "application/metalink+xml; charset=UTF-8");
+        ap_rputs(     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                      "<metalink version=\"3.0\" xmlns=\"http://www.metalinker.org/\"\n", r);
+
+
+        /* The origin URL is meant to specify the location for revalidation of this metalink
+         *
+         * Unfortunately, r->parsed_uri.scheme and r->parsed_uri.hostname don't
+         * seem to be filled out (why?). But we can put it together from
+         * r->hostname and r->uri. Actually we should add the port.
+         *
+         * We could use r->server->server_hostname instead, which would be the configured server name.
+         *
+         * N.B. aria2c crashes on query strings: 
+         * http://sourceforge.net/tracker/index.php?func=detail&aid=1932809&group_id=159897&atid=813673 
+         * so we won't use r->unparsed_uri for now. 
+         */
+        ap_rprintf(r, "  origin=\"http://%s%s\"\n", r->hostname, r->uri);
+        ap_rputs(     "  generator=\"mod_zrkadlo Download Redirector - http://zrkadlo.org/\"\n", r);
+        ap_rputs(     "  type=\"dynamic\"", r);
+        ap_rprintf(r, "  pubdate=\"%s\"", time_str);
+        ap_rprintf(r, "  refreshdate=\"%s\">\n\n", time_str);
+
+        ap_rputs(     "  <publisher>\n"
+                      "    <name>openSUSE Download Redirector</name>\n"
+                      "    <url>http://download.opensuse.org/</url>\n"
+                      "  </publisher>\n\n", r);
+        ap_rprintf(r, "  <!-- <%s> -->\n", r->server->server_admin);
+
+        ap_rputs(     "  <files>\n", r);
+        ap_rprintf(r, "    <file name=\"%s\">\n", basename);
+        ap_rprintf(r, "      <size>%s</size>\n\n", apr_off_t_toa(r->pool, r->finfo.size));
+
+
+        /* inject hashes, if they are prepared on-disk */
+        apr_finfo_t sb;
+        const char *hashfilename = apr_pstrcat(r->pool, r->filename, ".metalink-hashes", NULL);
+        if (apr_stat(&sb, hashfilename, APR_FINFO_MIN, r->pool) == APR_SUCCESS
+            && (sb.filetype == APR_REG) && (sb.mtime >= r->finfo.mtime)) {
+            debugLog(r, cfg, "Found up-to-date hashfile '%s', injecting", hashfilename);
+
+            apr_file_t *fh;
+            rv = apr_file_open(&fh, hashfilename, APR_READ, APR_OS_DEFAULT, r->pool);
+            if (rv == APR_SUCCESS) {
+                ap_send_fd(fh, r, 0, sb.size, &len);
+
+                apr_file_close(fh);
+            }
+        }
+
+        ap_rputs(     "      <resources>\n\n", r);
+
+        ap_rprintf(r, "      <!-- Found %d mirror%s: %d in the same country, %d in the same region, %d elsewhere -->\n", 
+                   mirror_cnt,
+                   (mirror_cnt == 1) ? "" : "s",
+                   mirrors_same_country->nelts,
+                   mirrors_same_region->nelts,
+                   mirrors_elsewhere->nelts);
+
+        /* the highest metalink preference according to the spec is 100, and
+         * we'll decrement it for each mirror by one, until zero is reached */
+        int pref = 101;
+
+        mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
+        mirror = NULL;
+
+        ap_rprintf(r, "\n      <!-- Mirrors in the same country (%s): -->\n", 
+                   country_code);
+        for (i = 0; i < mirrors_same_country->nelts; i++) {
+            if (pref) pref--;
+            mirror = mirrorp[i];
+            ap_rprintf(r, "      <url type=\"http\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
+                       mirror->country_code,
+                       pref,
+                       mirror->baseurl, filename);
+        }
+
+        ap_rprintf(r, "\n      <!-- Mirrors in the same continent (%s): -->\n", 
+                   continent_code);
+        mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
+        for (i = 0; i < mirrors_same_region->nelts; i++) {
+            if (pref) pref--;
+            mirror = mirrorp[i];
+            ap_rprintf(r, "      <url type=\"http\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
+                       mirror->country_code,
+                       pref,
+                       mirror->baseurl, filename);
+        }
+
+        ap_rputs("\n      <!-- Mirrors in the rest of the world: -->\n", r);
+        mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
+        for (i = 0; i < mirrors_elsewhere->nelts; i++) {
+            if (pref) pref--;
+            mirror = mirrorp[i];
+            ap_rprintf(r, "      <url type=\"http\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
+                       mirror->country_code,
+                       pref,
+                       mirror->baseurl, filename);
+        }
+
+        ap_rputs(     "      </resources>\n"
+                      "    </file>\n"
+                      "  </files>\n"
+                      "</metalink>\n", r);
+        return OK;
+    }
+
     /* send an HTML list instead of doing a redirect? */
     if (mirrorlist) {
-        debugLog(r, cfg, "mirrorlist");
+        debugLog(r, cfg, "Sending mirrorlist");
         ap_set_content_type(r, "text/html; charset=ISO-8859-1");
         ap_rputs(DOCTYPE_HTML_3_2
                  "<html><head>\n<title>Mirror List</title>\n</head><body>\n",
