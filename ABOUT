@@ -36,6 +36,7 @@ to a certain mirror, should it fail.
 Features:
 
  - works transparently to the client, through HTTP redirection
+ - metalink support (http://metalinker.org)
  - operates with file level granularity
  - involves only a single database query per HTTP request, using a database
    connection pool through the Apache DBD framework
