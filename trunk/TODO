@@ -51,8 +51,6 @@ Improvements:
 
 Further ideas:
 
-* metalink support?
-
 * evaluate if it makes sense to memcache database query results, which may not be
   practicable for all objects, but for some particular objects, like those with
   mime type application/x-cd-image. They should not be cached for a significant
