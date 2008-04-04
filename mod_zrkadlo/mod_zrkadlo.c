@@ -1213,28 +1213,6 @@ static int zrkadlo_handler(request_rec *r)
                 mirrors_elsewhere->nelts);
     }
 
-    /* choose from country, then from region, then from elsewhere */
-    if (!chosen) {
-        if (mirrors_same_country->nelts) {
-            mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
-            chosen = mirrorp[find_lowest_rank(mirrors_same_country)];
-        } else if (mirrors_same_region->nelts) {
-            mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
-            chosen = mirrorp[find_lowest_rank(mirrors_same_region)];
-        } else if (mirrors_elsewhere->nelts) {
-            mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
-            chosen = mirrorp[find_lowest_rank(mirrors_elsewhere)];
-        }
-    }
-
-    if (!chosen) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-            "[mod_zrkadlo] could not chose a server. Shouldn't have happened.");
-        return DECLINED;
-    }
-
-    debugLog(r, cfg, "Chose server %s", chosen->identifier);
-
     /* return a metalink instead of doing a redirect? */
     if (metalink) {
         debugLog(r, cfg, "Sending metalink");
@@ -1367,7 +1345,7 @@ static int zrkadlo_handler(request_rec *r)
                       "  </files>\n"
                       "</metalink>\n", r);
         return OK;
-    }
+    } /* end metafile */
 
     /* send an HTML list instead of doing a redirect? */
     if (mirrorlist) {
@@ -1425,7 +1403,30 @@ static int zrkadlo_handler(request_rec *r)
 
         ap_rputs("</body>\n", r);
         return OK;
+    } /* end mirrorlist */
+
+
+    /* choose from country, then from region, then from elsewhere */
+    if (!chosen) {
+        if (mirrors_same_country->nelts) {
+            mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
+            chosen = mirrorp[find_lowest_rank(mirrors_same_country)];
+        } else if (mirrors_same_region->nelts) {
+            mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
+            chosen = mirrorp[find_lowest_rank(mirrors_same_region)];
+        } else if (mirrors_elsewhere->nelts) {
+            mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
+            chosen = mirrorp[find_lowest_rank(mirrors_elsewhere)];
+        }
     }
+
+    if (!chosen) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+            "[mod_zrkadlo] could not chose a server. Shouldn't have happened.");
+        return DECLINED;
+    }
+
+    debugLog(r, cfg, "Chose server %s", chosen->identifier);
 
     /* Send it away: set a "Location:" header and 302 redirect. */
     uri = apr_pstrcat(r->pool, chosen->baseurl, filename, NULL);
