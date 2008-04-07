@@ -1257,11 +1257,14 @@ static int zrkadlo_handler(request_rec *r)
          * so we won't use r->unparsed_uri for now. 
          */
         ap_rprintf(r, "  origin=\"http://%s%s\"\n", r->hostname, r->uri);
-        ap_rputs(     "  generator=\"mod_zrkadlo Download Redirector - http://zrkadlo.org/\"\n", r);
+        ap_rputs(     "  generator=\"mod_zrkadlo Download Redirector - http://mirrorbrain.org/\"\n", r);
         ap_rputs(     "  type=\"dynamic\"", r);
         ap_rprintf(r, "  pubdate=\"%s\"", time_str);
         ap_rprintf(r, "  refreshdate=\"%s\">\n\n", time_str);
 
+        /* FIXME: make <name> and <url> configurable
+         * Fallback: the configured server name  (r->server->server_hostname)
+         */
         ap_rputs(     "  <publisher>\n"
                       "    <name>openSUSE Download Redirector</name>\n"
                       "    <url>http://download.opensuse.org/</url>\n"

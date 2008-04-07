@@ -4,13 +4,14 @@
 
 
 
-  The openSUSE download redirector automatically redirects clients (per HTTP
-redirection) to a mirror server near them. It works similar to the systems
-employed by sourceforge.net, mozilla.org or similar large organizations, which
-face a number of download requests which is too high to be practically handled
-by a single site. To find a mirror close to the client, the redirector employs
-geolocation of the client's IP address. If several mirrors are suitable, the
-redirector load-balances requests to the mirrors based on their capabilities.
+  The openSUSE download redirector (a.k.a. the MirrorBrain) automatically
+redirects clients (per HTTP redirection) to a mirror server near them. It works
+similar to the systems employed by sourceforge.net, mozilla.com or similar
+large organizations, which face a number of download requests which is too high
+to be practically handled by a single site. To find a mirror close to the
+client, the redirector employs geolocation of the client's IP address. If
+several mirrors are suitable, the redirector load-balances requests to the
+mirrors based on their capabilities.
 
 
 
@@ -24,19 +25,20 @@ in mind.
   Due to the fast-evolving nature of the file tree offered by openSUSE project,
 the redirector doesn't simply choose one mirror for a client once, but acts as
 granular as on file-level, because mirrors are known to be incomplete,
-especially if content is changed often. To achieve this, the redirector is
+especially if content changes often. To achieve this, the redirector is
 supported by an SQL database which knows the exact contents of each mirror. The
 database is periodically updated by scanning all mirrors with a scanner
-program. In addition, there is a "ping" program which intermittently checks
-each mirror for responsiveness, and which can disable or pause redirection
-to a certain mirror, should it fail.
+program. In addition, there is a probing program which intermittently checks
+each mirror for responsiveness, and which can disable or pause redirection to a
+certain mirror, should it fail.
 
 
 
 Features:
 
  - works transparently to the client, through HTTP redirection
- - metalink support (http://metalinker.org)
+ - can optionally return a metalink (http://metalinker.org), or human readable
+   mirror list
  - operates with file level granularity
  - involves only a single database query per HTTP request, using a database
    connection pool through the Apache DBD framework
@@ -46,12 +48,11 @@ Features:
  - optionally memorizes client<->mirror association through memcache daemon
  - can make sure that mirrors get only requests from the same country or region
    (important for countries with poor internet connectivity)
- - special catch-all mirror type to integrate content delivery networks
+ - mirrors can be special catch-all type, to integrate content delivery networks
  - is configurable in Apache style configuration, with automatic per-directory
    configuration merging
  - optionally redirects dependent on file name pattern, file size, mime type,
    user agent, request origin, ...
- - can optionally return a mirror list
  - flexible logging options
  - has a debug mode which can be enabled directory-wise, and thus is 
    "compatible" with running production
@@ -61,7 +62,7 @@ Features:
 
 
 
-So how does the module work?
+So how does the redirector Apache module work?
 
   This page http://en.opensuse.org/Build_Service/Redirector shows pseudocode
 which gives an outline how it works.
@@ -70,11 +71,11 @@ which gives an outline how it works.
 
 Software requirements:
 
-Frontend:
+Frontend (the redirector):
  - Apache HTTP server 2.2.x or newer
  - libGeoIP, libapr_memcache, and mod_form
  - memcache daemon
-Backend:
+Backend (rest of the MirrorBrain framework):
  - MySQL server. The tables must be InnoDB tables, because only that engine
    offers row-based write locks. Due to optimizations of InnoDB engine for high
    performance it makes sense to have a separate MySQL instance for this
@@ -83,7 +84,9 @@ Backend:
  - Python, python-mysql, python-sqlobject for the ping process and database
    maintenance
  - Perl for the scanner process
- - TurboGears web application framework for mirror administration web frontend
+
+  There is a small mirror administration web frontend, built upon the TurboGears
+framework, but its development has just started.
 
 
 
@@ -112,7 +115,8 @@ parallel scanner processes, and can handle 1000-2000 requests per second.
 HA (High Availability) setup:
 
   For HA, the webserver, the database server and the connecting infrastructure
-needs to be redundant. This can be achieved by creating a hot standby for
+needs to be redundant. A geographically distributed array of redirectors
+would be one way. Locally, it can be achieved by creating a hot standby for
 failover, or by running identical nodes with load sharing / balancing.  This
 could be implemented by 
  - deploying a hardware load balancer, which distributes requests to webserver
@@ -124,7 +128,7 @@ could be implemented by
    requests go to master and slaves.
  - mysql-proxy does load balancing and r/w-splitting
 Obviously, there are different ways achieving HA, which will vary to local
-requirements.
+requirements. 
 
 
 
