@@ -1266,7 +1266,6 @@ static int zrkadlo_handler(request_rec *r)
                       "    <name>openSUSE Download Redirector</name>\n"
                       "    <url>http://download.opensuse.org/</url>\n"
                       "  </publisher>\n\n", r);
-        ap_rprintf(r, "  <!-- <%s> -->\n", r->server->server_admin);
 
         ap_rputs(     "  <files>\n", r);
         ap_rprintf(r, "    <file name=\"%s\">\n", basename);
