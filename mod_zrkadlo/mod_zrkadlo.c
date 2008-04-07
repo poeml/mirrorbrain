@@ -1437,7 +1437,6 @@ static int zrkadlo_handler(request_rec *r)
     apr_table_setn(r->subprocess_env, "ZRKADLO_REDIRECTED", "1");
 
     apr_table_setn(r->err_headers_out, "X-Zrkadlo-Chose-Mirror", chosen->identifier);
-    apr_table_setn(r->err_headers_out, "X-Have-a-lot-of", "Pfannkuchen");
     apr_table_setn(r->headers_out, "Location", uri);
 
     if (scfg->memcached_on) {
