@@ -42,7 +42,7 @@ Features:
  - operates with file level granularity
  - involves only a single database query per HTTP request, using a database
    connection pool through the Apache DBD framework
- - redirects per country / continent, using GeoIP database
+ - mirror choice per country / continent, using GeoIP database
  - uses a randomized, weighted algorithm for mirror selection (each mirror
    having a score)
  - optionally memorizes client<->mirror association through memcache daemon
@@ -142,3 +142,8 @@ http://www.linux-ha.org/ClusterIP
 http://forge.mysql.com/wiki/MySQL_Proxy
 http://www.stdlib.net/~colmmacc/Apachecon-EU2005/scaling-apache-handout.pdf
 
+
+
+Acknowledgement
+This product includes GeoLite data created by MaxMind, available from
+http://maxmind.com/
