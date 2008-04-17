@@ -54,6 +54,8 @@
 # 		    
 # 2007-11-21, jcborn -V0.9c, implemented norecurse-list.
 # 2008-03-06, jcborn -V0.9d, implemented sanity checks for large files
+# 2008-04-17, jcborn -V0.9e, range request terminates after a fixed amount of data
+#   (fixes problem for mirrors that disable range headers)
 #
 # FIXME: 
 # should do optimize table file, file_server;
@@ -85,7 +87,7 @@ use Socket;
 use bytes;
 use Config::IniFiles;
 
-my $version = '0.9d';
+my $version = '0.9e';
 my $scanner_email = 'poeml@suse.de';
 my $verbose = 1;
 
@@ -129,6 +131,11 @@ my $topdirs = 'distribution|tools|repositories';
 my $cfgfile = '/etc/mirror-brain.conf';
 
 my $gig2 = 1<<31; # 2*1024*1024*1024 == 2^1 * 2^10 * 2^10 * 2^10 = 2^31
+
+# these two vars are used in the largefile_check's http request callback to end
+# transmission after a maximum amount of data (specified by $http_slice_counter)
+my $http_size_hint;
+my $http_slice_counter;
 
 #my $global_ign_re = qr{(
 #  /repoview/	|
@@ -1242,6 +1249,9 @@ sub largefile_check
 {
   my ($id, $path, $size) = @_;
 
+  $http_size_hint = 128;
+  $http_slice_counter = 2*$http_size_hint;
+
   if($size==0) {
     if($path =~ m{.*\.iso$}) {
       print "Error: cd size is zero! Illegal file $path\n";
@@ -1252,9 +1262,18 @@ sub largefile_check
   goto all_ok if($size <= $gig2);
 
   my $url = "$ary_ref->{$id}->{baseurl}/$path";
-  my $header = new HTTP::Headers('Range' => "bytes=".($gig2-64)."-".($gig2+1));
+  my $header = new HTTP::Headers('Range' => "bytes=".($gig2-$http_size_hint)."-".($gig2+1));
   my $req = new HTTP::Request('GET', "$url", $header);
-  my $result = $ua->request($req);
+  my $result = $ua->request(
+    $req,
+    sub {
+      my ($chunk, $result) = @_;
+      $http_slice_counter -= $http_size_hint;
+      die() if $http_slice_counter <= 0;
+      return $chunk;
+    },
+    $http_size_hint
+  );
   goto all_ok if($result->code() == 206 or $result->code() == 200);
 
   if($result->code() == 416) {
