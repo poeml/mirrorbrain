@@ -771,7 +771,7 @@ static int zrkadlo_handler(request_rec *r)
         }
 
         /* is the requested file too small? DECLINED */
-        if (!mirrorlist && (r->finfo.size < cfg->min_size)) {
+        if (!mirrorlist && !metalink && (r->finfo.size < cfg->min_size)) {
             debugLog(r, cfg, "File '%s' too small (%d bytes, less than %d)", 
                     r->filename, (int) r->finfo.size, (int) cfg->min_size);
             return DECLINED;
@@ -780,6 +780,7 @@ static int zrkadlo_handler(request_rec *r)
 
     /* is this file excluded from mirroring? */
     if (!mirrorlist 
+       && !metalink
        && cfg->exclude_filemask 
        && !ap_regexec(cfg->exclude_filemask, r->uri, 0, NULL, 0) ) {
         debugLog(r, cfg, "File '%s' is excluded by ZrkadloExcludeFileMask", r->uri);
@@ -787,7 +788,7 @@ static int zrkadlo_handler(request_rec *r)
     }
 
     /* is the request originating from an ip address excluded from redirecting? */
-    if (!mirrorlist && cfg->exclude_ips->nelts) {
+    if (!mirrorlist && !metalink && cfg->exclude_ips->nelts) {
 
         for (i = 0; i < cfg->exclude_ips->nelts; i++) {
 
@@ -805,7 +806,7 @@ static int zrkadlo_handler(request_rec *r)
 
 
     /* is the request originating from a network excluded from redirecting? */
-    if (!mirrorlist && cfg->exclude_networks->nelts) {
+    if (!mirrorlist && !metalink && cfg->exclude_networks->nelts) {
 
         for (i = 0; i < cfg->exclude_networks->nelts; i++) {
 
@@ -823,7 +824,7 @@ static int zrkadlo_handler(request_rec *r)
 
 
     /* is the file in the list of mimetypes to never mirror? */
-    if (!mirrorlist && (r->content_type) && (cfg->exclude_mime->nelts)) {
+    if (!mirrorlist && !metalink && (r->content_type) && (cfg->exclude_mime->nelts)) {
 
         for (i = 0; i < cfg->exclude_mime->nelts; i++) {
 
@@ -840,7 +841,7 @@ static int zrkadlo_handler(request_rec *r)
 
     /* is this User-Agent excluded from redirecting? */
     user_agent = (const char *) apr_table_get(r->headers_in, "User-Agent");
-    if (!mirrorlist && (user_agent) && (cfg->exclude_agents->nelts)) {
+    if (!mirrorlist && !metalink && (user_agent) && (cfg->exclude_agents->nelts)) {
 
         for (i = 0; i < cfg->exclude_agents->nelts; i++) {
 
