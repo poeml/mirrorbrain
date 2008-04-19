@@ -1226,7 +1226,8 @@ static int zrkadlo_handler(request_rec *r)
             ++basename;
         }
 
-        /* rfc2183 header for filename with .metalink appended */
+        /* add rfc2183 header for filename, with .metalink appended 
+         * because some clients trigger on that extension */
         apr_table_setn(r->headers_out,
                        "Content-Disposition",
                        apr_pstrcat(r->pool,
@@ -1315,6 +1316,7 @@ static int zrkadlo_handler(request_rec *r)
         mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
         mirror = NULL;
 
+        /* failed geoip lookup yields country='--' which leads to invalid XML */
         ap_rprintf(r, "\n      <!-- Mirrors in the same country (%s): -->\n", 
                    (strcmp(country_code, "--") == 0) ? "unknown" : country_code);
         for (i = 0; i < mirrors_same_country->nelts; i++) {
