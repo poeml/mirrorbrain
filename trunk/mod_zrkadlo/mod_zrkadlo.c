@@ -1226,6 +1226,13 @@ static int zrkadlo_handler(request_rec *r)
             ++basename;
         }
 
+        /* rfc2183 header for filename with .metalink appended */
+        apr_table_setn(r->headers_out,
+                       "Content-Disposition",
+                       apr_pstrcat(r->pool,
+                                   "attachment; filename=\"",
+                                   basename, ".metalink\"", NULL));
+
         /* right now, metalinks typically contain a time in RFC 822 format.
          * planned is to use rfc 3339 formatted time in the future.
          * right now, no client is probably using the time at all, though. 
@@ -1309,7 +1316,7 @@ static int zrkadlo_handler(request_rec *r)
         mirror = NULL;
 
         ap_rprintf(r, "\n      <!-- Mirrors in the same country (%s): -->\n", 
-                   country_code);
+                   (strcmp(country_code, "--") == 0) ? "unknown" : country_code);
         for (i = 0; i < mirrors_same_country->nelts; i++) {
             if (pref) pref--;
             mirror = mirrorp[i];
@@ -1320,7 +1327,7 @@ static int zrkadlo_handler(request_rec *r)
         }
 
         ap_rprintf(r, "\n      <!-- Mirrors in the same continent (%s): -->\n", 
-                   continent_code);
+                   (strcmp(continent_code, "--") == 0) ? "unknown" : continent_code);
         mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
         for (i = 0; i < mirrors_same_region->nelts; i++) {
             if (pref) pref--;
