@@ -671,17 +671,15 @@ static int zrkadlo_handler(request_rec *r)
     const char *user_agent = NULL;
     const char *val = NULL;
     const char *clientip = NULL;
-    const char *fakefile = NULL;
-    const char *newmirror = NULL;
-    const char *mirrorlist = NULL;
-    const char *metalink = NULL;
+    char fakefile = 0, newmirror = 0;
+    char mirrorlist = 0, mirrorlist_txt = 0, metalink = 0;
     short int country_id;
     char* country_code;
     const char* continent_code;
     int i;
     int cached_id;
     int mirror_cnt;
-    int unusable;
+    char unusable;
     char *m_res;
     char *m_key, *m_val;
     apr_size_t len;
@@ -746,13 +744,26 @@ static int zrkadlo_handler(request_rec *r)
     /* using mod_form's form_value() */
     form_lookup = APR_RETRIEVE_OPTIONAL_FN(form_value);
     if (form_lookup && r->args) {
-        fakefile = form_lookup(r, "fakefile");
+        if (form_lookup(r, "fakefile")) fakefile = 1;
         clientip = form_lookup(r, "clientip");
-        newmirror = form_lookup(r, "newmirror");
-        mirrorlist = form_lookup(r, "mirrorlist");
-        metalink = form_lookup(r, "metalink");
+        if (form_lookup(r, "newmirror")) newmirror = 1;
+        if (form_lookup(r, "mirrorlist")) mirrorlist =1;
+        if (form_lookup(r, "metalink")) metalink = 1;
     }
     
+    const char *accepts;
+    accepts = apr_table_get(r->headers_in, "Accept-Features");
+    if (accepts != NULL) {
+        val = ap_get_token(r->pool, &accepts, 0);
+        if (val && val[0]) {
+            if (strcasecmp(val, "mirrorlist-txt") == 0) {
+                mirrorlist_txt = 1;
+            } else if (strcasecmp(val, "metalink") == 0) {
+                metalink = 1;
+            }
+        }
+    }
+
     if (clientip) {
         debugLog(r, cfg, "FAKE clientip address: '%s'", clientip);
 
@@ -1183,7 +1194,7 @@ static int zrkadlo_handler(request_rec *r)
     *
     * => best to sort the mirrors_same_country et al. individually, right?
     */
-    if (metalink || mirrorlist) {
+    if (mirrorlist_txt || metalink || mirrorlist) {
         qsort(mirrors_same_country->elts, mirrors_same_country->nelts, 
               mirrors_same_country->elt_size, cmp_mirror_rank);
         qsort(mirrors_same_region->elts, mirrors_same_region->nelts, 
@@ -1227,6 +1238,56 @@ static int zrkadlo_handler(request_rec *r)
                 mirrors_same_region->nelts,
                 mirrors_elsewhere->nelts);
     }
+
+    /* return a mirrorlist_txt instead of doing a redirect? */
+    if (mirrorlist_txt) {
+        debugLog(r, cfg, "Sending mirrorlist-txt");
+
+        apr_table_mergen(r->headers_out, "Vary", "accept-features");
+
+        ap_set_content_type(r, "application/mirrorlist-txt; charset=UTF-8");
+
+        ap_rputs("# mirrorlist-txt version=1.0\n", r);
+        ap_rputs("# url baseurl_len mirrorid region:country power\n", r);
+
+        mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
+        for (i = 0; i < mirrors_same_country->nelts; i++) {
+            mirror = mirrorp[i];
+            ap_rprintf(r, "%s%s %d %d %s:%s %d\n", 
+                       mirror->baseurl, filename,
+                       (int) strlen(mirror->baseurl),
+                       mirror->id,
+                       mirror->region,
+                       mirror->country_code,
+                       mirror->score);
+        }
+
+        mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
+        for (i = 0; i < mirrors_same_region->nelts; i++) {
+            mirror = mirrorp[i];
+            ap_rprintf(r, "%s%s %d %d %s:%s %d\n", 
+                       mirror->baseurl, filename,
+                       (int) strlen(mirror->baseurl),
+                       mirror->id,
+                       mirror->region,
+                       mirror->country_code,
+                       mirror->score);
+        }
+
+        mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
+        for (i = 0; i < mirrors_elsewhere->nelts; i++) {
+            mirror = mirrorp[i];
+            ap_rprintf(r, "%s%s %d %d %s:%s %d\n", 
+                       mirror->baseurl, filename,
+                       (int) strlen(mirror->baseurl),
+                       mirror->id,
+                       mirror->region,
+                       mirror->country_code,
+                       mirror->score);
+        }
+
+        return OK;
+    } /* end mirrorlist-txt */
 
     /* return a metalink instead of doing a redirect? */
     if (metalink) {
