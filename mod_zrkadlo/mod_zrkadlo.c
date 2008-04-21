@@ -66,7 +66,7 @@
 #define UNSET (-1)
 #endif
 
-#define MOD_ZRKADLO_VER "1.6"
+#define MOD_ZRKADLO_VER "1.7"
 #define VERSION_COMPONENT "mod_zrkadlo/"MOD_ZRKADLO_VER
 
 #define DEFAULT_GEOIPFILE "/usr/share/GeoIP/GeoIP.dat"
