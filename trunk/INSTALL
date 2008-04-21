@@ -186,6 +186,20 @@ After installation of mod_zrkadlo, you'll need to:
 
 
 
+- create /etc/mirrorbrain.conf with the following content:
+
+  [general]
+  dbuser = wwwrun
+  dbpass = 12345
+  dbhost = your_host.example.com
+  dbport = 3306
+  dbname = redirector
+  
+  [probe]
+  logfile = /var/log/pingd
+  loglevel = INFO
+  mailto = your_mail@example.com, another_mail@example.com
+
 
 
 Sorry, but further instructions are missing here. I hope I can add them later.

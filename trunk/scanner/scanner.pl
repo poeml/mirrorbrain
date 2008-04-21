@@ -128,7 +128,7 @@ my $enable_after_scan = 0;
 my $mirror_url_add = undef;
 my $mirror_url_del = undef;
 my $topdirs = 'distribution|tools|repositories';
-my $cfgfile = '/etc/mirror-brain.conf';
+my $cfgfile = '/etc/mirrorbrain.conf';
 
 my $gig2 = 1<<31; # 2*1024*1024*1024 == 2^1 * 2^10 * 2^10 * 2^10 = 2^31
 

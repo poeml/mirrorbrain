@@ -9,7 +9,7 @@
 import sys, os, MySQLdb
 import ConfigParser
 
-conffile = '/etc/mirror-brain.conf'
+conffile = '/etc/mirrorbrain.conf'
 
 cp = ConfigParser.SafeConfigParser()
 cp.read(conffile)

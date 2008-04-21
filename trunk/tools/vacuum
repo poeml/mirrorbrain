@@ -8,19 +8,18 @@
 
 import sys, os, MySQLdb
 
-pwfile = '/root/.mytop'
+import ConfigParser
+
+conffile = '/etc/mirrorbrain.conf'
+
+cp = ConfigParser.SafeConfigParser()
+cp.read(conffile)
+cfg = dict(cp.items('general'))
 
 try:
-    passwd = open(pwfile).read().split('=')[1].strip()
-except IOError, e:
-    print e
-    sys.exit (1)
-except IndexError, e:
-    print 'cannot parse conffile:', pwfile
-    sys.exit (1)
-
-try:
-    conn = MySQLdb.connect('localhost', 'root', passwd, 'redirector_innodb')
+    conn = MySQLdb.connect(host=cfg['dbhost'], port=int(cfg['dbport']), 
+                          user=cfg['dbuser'], passwd=cfg['dbpass'], 
+                          db=cfg['dbname'])
 except MySQLdb.Error, e:
     print "Error %d: %s" % (e.args[0], e.args[1])
     sys.exit (1)
