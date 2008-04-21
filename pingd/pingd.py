@@ -81,13 +81,14 @@ def main():
     #
     # read config file
     #
-    conffile = os.path.expanduser('~/.pingdrc')
+    conffile = '/etc/mirrorbrain.conf'
     cp = ConfigParser.SafeConfigParser()
     cp.read(conffile)
     config = dict(cp.items('general'))
-    LOGLEVEL = config.get('loglevel', 'INFO')
-    LOGFILE = config.get('logfile', '/var/log/pingd')
-    MAILTO = config.get('mailto', 'root@localhost')
+    config_probe = dict(cp.items('probe'))
+    LOGLEVEL = config_probe.get('loglevel', 'INFO')
+    LOGFILE = config_probe.get('logfile', '/var/log/pingd')
+    MAILTO = config_probe.get('mailto', 'root@localhost')
 
     #
     # parse commandline

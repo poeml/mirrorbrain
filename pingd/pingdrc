@@ -1,9 +1,0 @@
-[general]
-dbuser = wwwrun
-dbpass = password
-dbhost = dbhost.example.org
-dbname = redirector
-
-logfile = /tmp/pingd.log
-loglevel = INFO
-mailto = admin@example.org
