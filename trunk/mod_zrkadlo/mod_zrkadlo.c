@@ -131,6 +131,7 @@ typedef struct
     int memcached_hardmax;
     int memcached_lifetime;
     apr_table_t *treat_country_as; /* treat country as another country */
+    const char *metalink_hashes_prefix;
 } zrkadlo_server_conf;
 
 
@@ -382,6 +383,7 @@ static void *create_zrkadlo_server_config(apr_pool_t *p, server_rec *s)
     new->memcached_hardmax = UNSET;
     new->memcached_lifetime = UNSET;
     new->treat_country_as = apr_table_make(p, 0);
+    new->metalink_hashes_prefix = NULL;
 
     return (void *) new;
 }
@@ -402,6 +404,7 @@ static void *merge_zrkadlo_server_config(apr_pool_t *p, void *basev, void *addv)
     cfgMergeInt(memcached_hardmax);
     cfgMergeInt(memcached_lifetime);
     mrg->treat_country_as = apr_table_overlay(p, add->treat_country_as, base->treat_country_as);
+    cfgMergeString(metalink_hashes_prefix);
 
     return (void *) mrg;
 }
@@ -501,6 +504,18 @@ static const char *zrkadlo_cmd_geoip_filename(cmd_parms *cmd, void *config,
     ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, NULL,
                  "[mod_zrkadlo] Setting GeoIPFilename: '%s'", 
                  geoipfilename);
+    return NULL;
+}
+
+static const char *zrkadlo_cmd_metalink_hashes_prefix(cmd_parms *cmd, 
+                                void *config, const char *arg1)
+{
+
+    server_rec *s = cmd->server;
+    zrkadlo_server_conf *cfg = 
+        ap_get_module_config(s->module_config, &zrkadlo_module);
+
+    cfg->metalink_hashes_prefix = arg1;
     return NULL;
 }
 
@@ -1286,7 +1301,12 @@ static int zrkadlo_handler(request_rec *r)
 
         /* inject hashes, if they are prepared on-disk */
         apr_finfo_t sb;
-        const char *hashfilename = apr_pstrcat(r->pool, r->filename, ".metalink-hashes", NULL);
+        const char *hashfilename;
+        hashfilename = apr_pstrcat(r->pool, 
+                                   scfg->metalink_hashes_prefix ? scfg->metalink_hashes_prefix : "", 
+                                   r->filename, 
+                                   ".metalink-hashes", 
+                                   NULL);
         if (apr_stat(&sb, hashfilename, APR_FINFO_MIN, r->pool) == APR_SUCCESS
             && (sb.filetype == APR_REG) && (sb.mtime >= r->finfo.mtime)) {
             debugLog(r, cfg, "Found up-to-date hashfile '%s', injecting", hashfilename);
@@ -1610,6 +1630,10 @@ static const command_rec zrkadlo_cmds[] =
     AP_INIT_TAKE2("ZrkadloTreatCountryAs", zrkadlo_cmd_treat_country_as, NULL, 
                   OR_FILEINFO,
                   "Set country to be treated as another. E.g.: nz au"),
+
+    AP_INIT_TAKE1("ZrkadloMetalinkHashesPathPrefix", zrkadlo_cmd_metalink_hashes_prefix, NULL, 
+                  RSRC_CONF, 
+                  "Prefix this path when looking for prepared hashes to inject into metalinks"),
 
     { NULL }
 };
