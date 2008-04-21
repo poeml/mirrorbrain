@@ -537,7 +537,7 @@ static const char *zrkadlo_cmd_memcached_addr(cmd_parms *cmd, void *config,
     zrkadlo_server_conf *cfg = 
         ap_get_module_config(s->module_config, &zrkadlo_module);
 
-    cfg->memcached_addr = apr_pstrdup(cmd->pool, arg1);
+    cfg->memcached_addr = arg1;
     return NULL;
 }
 
