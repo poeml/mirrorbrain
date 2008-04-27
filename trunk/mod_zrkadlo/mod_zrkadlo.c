@@ -751,15 +751,29 @@ static int zrkadlo_handler(request_rec *r)
         if (form_lookup(r, "metalink")) metalink = 1;
     }
     
-    const char *accepts;
-    accepts = apr_table_get(r->headers_in, "Accept-Features");
-    if (accepts != NULL) {
-        val = ap_get_token(r->pool, &accepts, 0);
-        if (val && val[0]) {
-            if (strcasecmp(val, "mirrorlist-txt") == 0) {
+    if (!mirrorlist_txt && !metalink && !mirrorlist) {
+        const char *accepts;
+        accepts = apr_table_get(r->headers_in, "Accept");
+        if (accepts != NULL) {
+            if (ap_strstr_c(accepts, "mirrorlist-txt")) {
                 mirrorlist_txt = 1;
-            } else if (strcasecmp(val, "metalink") == 0) {
+            } else if (ap_strstr_c(accepts, "metalink+xml")) {
                 metalink = 1;
+            } 
+        }
+        /* this is going to be removed, but for now I'll keep it because
+         * some documentation still refers to this still */
+        if (!mirrorlist_txt && !metalink) {
+            accepts = apr_table_get(r->headers_in, "Accept-Features");
+            if (accepts != NULL) {
+                val = ap_get_token(r->pool, &accepts, 0);
+                if (val && val[0]) {
+                    if (strcasecmp(val, "mirrorlist-txt") == 0) {
+                        mirrorlist_txt = 1;
+                    } else if (strcasecmp(val, "metalink") == 0) {
+                        metalink = 1;
+                    }
+                }
             }
         }
     }
