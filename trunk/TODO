@@ -1,11 +1,9 @@
 Missing features:
 
 * complete the metalink support:
-  - handle URLs ending in .metalink, or find a way to transparently negotiate
-    metalink generation
-    (fallback: the configured server name  (r->server->server_hostname))
   - embed information about BitTorrent sources
   - make <name> and <url> configurable
+    (fallback: the configured server name  (r->server->server_hostname))
 
 
 * match client to mirror by net prefix (pwhois), to keep local traffic local
