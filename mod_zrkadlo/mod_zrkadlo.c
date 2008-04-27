@@ -804,10 +804,21 @@ static int zrkadlo_handler(request_rec *r)
             return DECLINED;
         }   
 
-        /* is file missing? */
+        /* check if the file exists. Strip off optional .metalink extension. */
         if (r->finfo.filetype != APR_REG) {
-            debugLog(r, cfg, "File '%s' does not exist acc. to r->finfo", r->filename);
-            return DECLINED;
+            debugLog(r, cfg, "File does not exist acc. to r->finfo");
+            char *ext;
+            if ((ext = ap_strrchr(r->filename, '.')) == NULL) {
+                return DECLINED;
+            } else {
+                if (strcmp(ext, ".metalink") == 0) {
+                    debugLog(r, cfg, "Metalink requested by .metalink extension");
+                    metalink = 1;
+                    ext[0] = '\0';
+                } else {
+                    return DECLINED;
+                }
+            } 
         }
 
         /* is the requested file too small? DECLINED */
