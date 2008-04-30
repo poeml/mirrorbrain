@@ -815,6 +815,12 @@ static int zrkadlo_handler(request_rec *r)
                     debugLog(r, cfg, "Metalink requested by .metalink extension");
                     metalink = 1;
                     ext[0] = '\0';
+
+                    /* fill in finfo */
+                    if ( apr_stat(&r->finfo, r->filename, APR_FINFO_SIZE, r->pool)
+                            != APR_SUCCESS ) {
+                        return HTTP_NOT_FOUND;
+                    }
                 } else {
                     return DECLINED;
                 }
