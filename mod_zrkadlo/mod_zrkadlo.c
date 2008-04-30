@@ -132,6 +132,8 @@ typedef struct
     int memcached_lifetime;
     apr_table_t *treat_country_as; /* treat country as another country */
     const char *metalink_hashes_prefix;
+    const char *metalink_publisher_name;
+    const char *metalink_publisher_url;
 } zrkadlo_server_conf;
 
 
@@ -384,6 +386,8 @@ static void *create_zrkadlo_server_config(apr_pool_t *p, server_rec *s)
     new->memcached_lifetime = UNSET;
     new->treat_country_as = apr_table_make(p, 0);
     new->metalink_hashes_prefix = NULL;
+    new->metalink_publisher_name = NULL;
+    new->metalink_publisher_url = NULL;
 
     return (void *) new;
 }
@@ -405,6 +409,8 @@ static void *merge_zrkadlo_server_config(apr_pool_t *p, void *basev, void *addv)
     cfgMergeInt(memcached_lifetime);
     mrg->treat_country_as = apr_table_overlay(p, add->treat_country_as, base->treat_country_as);
     cfgMergeString(metalink_hashes_prefix);
+    cfgMergeString(metalink_publisher_name);
+    cfgMergeString(metalink_publisher_url);
 
     return (void *) mrg;
 }
@@ -510,12 +516,24 @@ static const char *zrkadlo_cmd_geoip_filename(cmd_parms *cmd, void *config,
 static const char *zrkadlo_cmd_metalink_hashes_prefix(cmd_parms *cmd, 
                                 void *config, const char *arg1)
 {
-
     server_rec *s = cmd->server;
     zrkadlo_server_conf *cfg = 
         ap_get_module_config(s->module_config, &zrkadlo_module);
 
     cfg->metalink_hashes_prefix = arg1;
+    return NULL;
+}
+
+static const char *zrkadlo_cmd_metalink_publisher(cmd_parms *cmd, 
+                                void *config, const char *arg1, 
+                                const char *arg2)
+{
+    server_rec *s = cmd->server;
+    zrkadlo_server_conf *cfg = 
+        ap_get_module_config(s->module_config, &zrkadlo_module);
+
+    cfg->metalink_publisher_name = arg1;
+    cfg->metalink_publisher_url = arg2;
     return NULL;
 }
 
@@ -1378,13 +1396,12 @@ static int zrkadlo_handler(request_rec *r)
         ap_rprintf(r, "  pubdate=\"%s\"", time_str);
         ap_rprintf(r, "  refreshdate=\"%s\">\n\n", time_str);
 
-        /* FIXME: make <name> and <url> configurable
-         * Fallback: the configured server name  (r->server->server_hostname)
-         */
-        ap_rputs(     "  <publisher>\n"
-                      "    <name>openSUSE Download Redirector</name>\n"
-                      "    <url>http://download.opensuse.org/</url>\n"
-                      "  </publisher>\n\n", r);
+        if (scfg->metalink_publisher_name && scfg->metalink_publisher_url) {
+            ap_rputs(     "  <publisher>\n", r);
+            ap_rprintf(r, "    <name>%s</name>\n", scfg->metalink_publisher_name);
+            ap_rprintf(r, "    <url>%s</url>\n", scfg->metalink_publisher_url);
+            ap_rputs(     "  </publisher>\n\n", r);
+        }
 
         ap_rputs(     "  <files>\n", r);
         ap_rprintf(r, "    <file name=\"%s\">\n", basename);
@@ -1726,6 +1743,10 @@ static const command_rec zrkadlo_cmds[] =
     AP_INIT_TAKE1("ZrkadloMetalinkHashesPathPrefix", zrkadlo_cmd_metalink_hashes_prefix, NULL, 
                   RSRC_CONF, 
                   "Prefix this path when looking for prepared hashes to inject into metalinks"),
+
+    AP_INIT_TAKE2("ZrkadloMetalinkPublisher", zrkadlo_cmd_metalink_publisher, NULL, 
+                  RSRC_CONF, 
+                  "Name and URL for the metalinks publisher elements"),
 
     { NULL }
 };
