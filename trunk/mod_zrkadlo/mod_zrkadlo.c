@@ -1359,19 +1359,9 @@ static int zrkadlo_handler(request_rec *r)
                                    "attachment; filename=\"",
                                    basename, ".metalink\"", NULL));
 
-        /* right now, metalinks typically contain a time in RFC 822 format.
-         * planned is to use rfc 3339 formatted time in the future.
-         * right now, no client is probably using the time at all, though. 
-         *
-         * char *time_str = apr_palloc(r->pool, APR_RFC822_DATE_LEN);
-         * apr_rfc822_date(time_str, apr_time_now());
-        */
-
-        /* the current time in rfc 3339 format */
-        char time_str[MAX_STRING_LEN];
-        apr_time_exp_t tm;
-        apr_time_exp_gmt(&tm, r->request_time);
-        apr_strftime(time_str, &len, MAX_STRING_LEN, "%Y-%m-%dT%H:%MZ", &tm);
+        /* the current time in rfc 822 format */
+        char *time_str = apr_palloc(r->pool, APR_RFC822_DATE_LEN);
+        apr_rfc822_date(time_str, apr_time_now());
 
         ap_set_content_type(r, "application/metalink+xml; charset=UTF-8");
         ap_rputs(     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
