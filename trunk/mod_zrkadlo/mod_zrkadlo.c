@@ -1299,6 +1299,29 @@ static int zrkadlo_handler(request_rec *r)
         ap_rputs("# mirrorlist-txt version=1.0\n", r);
         ap_rputs("# url baseurl_len mirrorid region:country power\n", r);
 
+        /* for failover testing, insert broken mirrors at the top */
+        const char *ua;
+        ua = apr_table_get(r->headers_in, "User-Agent");
+        if (ua != NULL) {
+            if (ap_strstr_c(ua, "getPrimaryFailover-agent/0.1")) {
+                /* hostname does not resolve */
+                ap_rprintf(r, "http://doesnotexist/%s 20 10001 EU:DE 100\n", filename);
+                /* 404 Not found */
+                ap_rputs("http://www.poeml.de/nonexisting_file_for_libzypp 20 10002 EU:DE 100\n", r);
+                /* Connection refused */
+                ap_rputs("http://www.poeml.de:83/nonexisting_file_for_libzypp 23 10003 EU:DE 100\n", r);
+                /* Totally off reply ("server busy") */
+                ap_rputs("http://ftp.opensuse.org:21/foobar 27 10004 EU:DE 100\n", r);
+                /* 403 Forbidden */
+                ap_rputs("http://download.opensuse.org/server-status 42 10005 EU:DE 100\n", r);
+                /* Times out */
+                /* I'll leave this one commented for now, so the timeouts don't hinder initial 
+                 * testing and progress too much. */
+                /* ap_rputs("http://widehat.opensuse.org:22/foobar 37 10006 EU:DE 100\n", r); */
+            } 
+        }
+
+
         mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
         for (i = 0; i < mirrors_same_country->nelts; i++) {
             mirror = mirrorp[i];
