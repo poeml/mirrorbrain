@@ -91,6 +91,12 @@ class RsyncInfo(cmdln.Cmdln):
         if opts.all_modules:
             opts.modules = self.read_module_list(host)
 
+        mod_maxlen = 0
+        for mod in opts.modules:
+            if len(mod) > mod_maxlen:
+                mod_maxlen = len(mod)
+        template = '%%-%ds %%10s' % mod_maxlen
+
         for mod in opts.modules:
             cmd = 'RSYNC_PASSWORD=\'%s\' rsync -a %s%s::%s . --stats -n -h %s | awk \'/^Total file size/ { print $4; exit }\'' \
                         % (opts.password, opts.user, host, mod, ' '.join(opts.rsync_opts or ''))
@@ -98,7 +104,7 @@ class RsyncInfo(cmdln.Cmdln):
                 print cmd
             if not self.options.dry_run:
                 size = commands.getoutput(cmd)
-                print mod, size
+                print template % (mod, size)
 
 
 
