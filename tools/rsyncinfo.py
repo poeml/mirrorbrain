@@ -39,10 +39,13 @@ class RsyncInfo(cmdln.Cmdln):
         out = commands.getoutput(cmd)
         out = out.splitlines()
         out.reverse()
+        has_header = False
         for idx, line in enumerate(out):
             if line == '' or line.startswith(' '):
+                has_header = True
                 break
-        out = out[:idx]
+        if has_header:
+            out = out[:idx]
         out.reverse()
 
         mods = []
