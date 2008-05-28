@@ -55,6 +55,7 @@
 # 2007-11-21, jcborn -V0.9c, implemented norecurse-list.
 # 2008-03-06, jcborn -V0.9d, implemented sanity checks for large files
 # 2008-04-17, jcborn -V0.9e, range request terminates after a fixed amount of data
+# 2008-05-28, jcborn - bugfix for bnc394470
 #   (fixes problem for mirrors that disable range headers)
 #
 # FIXME: 
