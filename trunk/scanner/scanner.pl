@@ -1247,7 +1247,13 @@ sub ftp_cont
 # try a http range request for files larger than 2G/4G in http/ftp/rsync
 sub largefile_check
 {
-  my ($id, $path, $size) = @_;
+  my ($id, $path, $size, $recurse) = @_;
+
+  if(not defined $recurse) {
+    $recurse = 0;
+  }
+  # don't follow more than three redirections
+  return if($recurse >= 3);
 
   $http_size_hint = 128;
   $http_slice_counter = 2*$http_size_hint;
@@ -1264,6 +1270,10 @@ sub largefile_check
   my $url = "$ary_ref->{$id}->{baseurl}/$path";
   my $header = new HTTP::Headers('Range' => "bytes=".($gig2-$http_size_hint)."-".($gig2+1));
   my $req = new HTTP::Request('GET', "$url", $header);
+
+  #turn off implicit redirects (handle manually):
+  $ua->max_redirect(0);
+
   my $result = $ua->request(
     $req,
     sub {
@@ -1274,8 +1284,20 @@ sub largefile_check
     },
     $http_size_hint
   );
-  goto all_ok if($result->code() == 206 or $result->code() == 200);
 
+  my $code = $result->code();
+  goto all_ok if($code == 206 or $code == 200);
+  if($code == 301) {  # this is a permanent redirect. Examine type of address:
+    if($result->header('location') =~ m{^ftp:.*}) {
+      print "Moved to ftp location, assuming success if followed";
+      goto all_ok;
+    }
+    if($result->header('location') =~ m{^http:.*}) {
+      print "[RECURSE] Moved to other http location, recursing scan...";
+      return largefile_check($id, $result->header('locarion'), $size, $recurse+1);
+    }
+  }
+	
   if($result->code() == 416) {
     print "Error: range error: filesize broken for file $url\n" if $verbose >= 2;
   }
