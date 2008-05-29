@@ -37,8 +37,10 @@ certain mirror, should it fail.
 Features:
 
  - works transparently to the client, through HTTP redirection
- - can optionally return a metalink (http://metalinker.org), or human readable
-   mirror list
+ - can optionally return metalinks (http://metalinker.org), or human readable
+   mirror lists
+ - supports transparent negotiation of metalinks (see 
+   http://groups.google.com/group/metalink-discussion/web/transparent-metalinks)
  - operates with file level granularity
  - involves only a single database query per HTTP request, using a database
    connection pool through the Apache DBD framework
@@ -137,6 +139,8 @@ http://en.opensuse.org/Build_Service/Redirector
 http://www.poeml.de/~poeml/talks/apachecon08-mirrors.pdf
 http://www.poeml.de/~poeml/talks/redirector/
 https://forgesvn1.novell.com/svn/opensuse/trunk/tools/download-redirector-v2
+http://www.metalinker.org/
+http://groups.google.com/group/metalink-discussion/web/transparent-metalinks
 http://www.maxmind.com/app/ip-location
 http://www.linux-ha.org/ClusterIP
 http://forge.mysql.com/wiki/MySQL_Proxy
