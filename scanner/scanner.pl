@@ -1295,7 +1295,7 @@ sub largefile_check
     }
     if($result->header('location') =~ m{^http:.*}) {
       print "[RECURSE] Moved to other http location, recursing scan...";
-      return largefile_check($id, $result->header('locarion'), $size, $recurse+1);
+      return largefile_check($id, $result->header('location'), $size, $recurse+1);
     }
   }
 	
