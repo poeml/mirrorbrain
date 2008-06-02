@@ -1,0 +1,38 @@
+
+Mon Jun  2 17:30:45 CEST 2008
+- use mod_memcache for the configuration and initialization of memcache
+- metalink-hasher script added, to prepare hashes for injection into metalink files
+- rsyncusers analysis tool added
+
+Fri May  2 18:54:09 CEST 2008
+- failover testbed for text mirrorlists implemented
+- rsyncinfo tool added
+
+Wed Apr 30 19:34:31 CEST 2008
+- metalinks: switch back to RFC822 format
+- new ZrkadloMetalinkPublisher directive 
+- fix issue with <size> element
+
+Sun Apr 27 23:02:42 CEST 2008
+- now there is another (more natural) way to request a metalink: by appending
+  ".metalink" to the filename.
+
+Sun Apr 27 12:06:47 CEST 2008
+- change metalink negotiation to look for application/metalink+xml in the
+  Accept header (keep Accept-Features for now, but it is going to be removed
+  probably)
+
+Mon Apr 21 17:35:27 CEST 2008
+- new terse text-based mirrorlist
+- allow clients to use RFC2295 Accept-Features header to select variants
+  (metalink or mirrorlist-txt)
+
+
+Mon Apr 21 01:35:31 CEST 2008
+metalink hash includes can now be out-of-tree
+
+Sat Apr 19 18:21:52 CEST 2008
+mod_autoindex_mb
+
+Sat Apr 19 18:21:52 CEST 2008
+content-disposition header
