@@ -75,7 +75,7 @@ Software requirements:
 
 Frontend (the redirector):
  - Apache HTTP server 2.2.x or newer
- - libGeoIP, libapr_memcache, and mod_form
+ - libGeoIP, libapr_memcache, mod_memcache, and mod_form
  - memcache daemon
 Backend (rest of the MirrorBrain framework):
  - MySQL server. The tables must be InnoDB tables, because only that engine
