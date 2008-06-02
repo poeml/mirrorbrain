@@ -48,7 +48,8 @@
 #include <unistd.h> /* for getpid */
 #include <arpa/inet.h>
 #include <GeoIP.h>
-#include <apr_memcache-0/apr_memcache.h>
+#include "mod_memcache.h"
+#include "apr_memcache.h"
 #include "ap_mpm.h" /* for ap_mpm_query */
 #include "mod_status.h"
 #include "mod_form.h"
@@ -66,16 +67,11 @@
 #define UNSET (-1)
 #endif
 
-#define MOD_ZRKADLO_VER "1.7"
+#define MOD_ZRKADLO_VER "1.8"
 #define VERSION_COMPONENT "mod_zrkadlo/"MOD_ZRKADLO_VER
 
 #define DEFAULT_GEOIPFILE "/usr/share/GeoIP/GeoIP.dat"
-#define MEMCACHED_HOST "127.0.0.1"
-#define MEMCACHED_PORT "11211"
-#define DEFAULT_MEMCACHED_MIN 0
-#define DEFAULT_MEMCACHED_SOFTMAX 1
 #define DEFAULT_MEMCACHED_LIFETIME 600
-
 #define DEFAULT_MIN_MIRROR_SIZE 4096
 
 module AP_MODULE_DECLARE_DATA zrkadlo_module;
@@ -83,9 +79,6 @@ module AP_MODULE_DECLARE_DATA zrkadlo_module;
 /* could also be put into the server config */
 static const char *geoipfilename = DEFAULT_GEOIPFILE;
 static GeoIP *gip = NULL;     /* geoip object */
-
-/* The underlying apr_memcache system is thread safe.. */
-static apr_memcache_t* memctxt;
 
 /** A structure that represents a mirror */
 typedef struct mirror_entry mirror_entry_t;
@@ -125,10 +118,6 @@ typedef struct
 typedef struct
 {
     int memcached_on;
-    const char *memcached_addr;
-    int memcached_min;
-    int memcached_softmax;
-    int memcached_hardmax;
     int memcached_lifetime;
     apr_table_t *treat_country_as; /* treat country as another country */
     const char *metalink_hashes_prefix;
@@ -158,135 +147,11 @@ static void debugLog(const request_rec *r, const zrkadlo_dir_conf *cfg,
     }
 }
 
-static void zrkadlo_die(void)
-{
-    /* This is used for fatal errors where it makes
-     * sense to really exit from the complete program. */
-    exit(1);
-}
-
 static apr_status_t zrkadlo_cleanup()
 {
         GeoIP_delete(gip);
         ap_log_error(APLOG_MARK, APLOG_INFO, 0, NULL, "[mod_zrkadlo] cleaned up geoipfile");
         return APR_SUCCESS;
-}
-
-/* from ssl_scache_memcache.c */
-static void zrkadlo_mc_init(server_rec *s, apr_pool_t *p)
-{       
-    apr_status_t rv;
-    int thread_limit = 0;
-    int nservers = 0;
-    char* cache_config;                 
-    char* split;                        
-    char* tok;                          
-    zrkadlo_server_conf *conf = ap_get_module_config(s->module_config, &zrkadlo_module);
-
-    ap_mpm_query(AP_MPMQ_HARD_LIMIT_THREADS, &thread_limit);
-
-    if (!conf->memcached_on) 
-        return;
-
-    /* find all the servers in the first run to get a total count */
-    cache_config = apr_pstrdup(p, conf->memcached_addr);
-    split = apr_strtok(cache_config, ",", &tok);
-    while (split) {
-        nservers++;
-        split = apr_strtok(NULL,",", &tok);
-    }
-
-    rv = apr_memcache_create(p, nservers, 0, &memctxt);
-    if (rv != APR_SUCCESS) {
-        ap_log_error(APLOG_MARK, APLOG_CRIT, rv, s,
-                    "[mod_zrkadlo] ZrkadloMemcachedAddrPort: Failed to create Memcache Object of '%d' size.",
-                     nservers);
-        zrkadlo_die();
-    }
-
-    /* now add each server to the memcache */
-    cache_config = apr_pstrdup(p, conf->memcached_addr);
-    split = apr_strtok(cache_config, ",", &tok);
-    while (split) {
-        apr_memcache_server_t* st;
-        char* host_str;
-        char* scope_id;
-        apr_port_t port;
-
-        rv = apr_parse_addr_port(&host_str, &scope_id, &port, split, p);
-        if (rv != APR_SUCCESS) {
-            ap_log_error(APLOG_MARK, APLOG_CRIT, rv, s,
-                         "[mod_zrkadlo] ZrkadloMemcachedAddrPort: Failed to Parse Server: '%s'", split);
-            zrkadlo_die();
-        }
-
-        if (host_str == NULL) {
-            ap_log_error(APLOG_MARK, APLOG_CRIT, rv, s,
-                         "[mod_zrkadlo] ZrkadloMemcachedAddrPort: Failed to Parse Server, "
-                         "no hostname specified: '%s'", split);
-            zrkadlo_die();
-        }
-
-        if (port == 0) {
-            port = atoi(MEMCACHED_PORT);
-        }
-
-        /* default pool size */
-        if (conf->memcached_min == UNSET)
-            conf->memcached_min = DEFAULT_MEMCACHED_MIN;
-        if (conf->memcached_softmax == UNSET)
-            conf->memcached_softmax = DEFAULT_MEMCACHED_SOFTMAX;
-        /* Should Max Conns be (thread_limit / nservers) ? */
-        if (conf->memcached_hardmax == UNSET)
-            conf->memcached_hardmax = thread_limit;
-
-        /* sanity checks */
-        if (conf->memcached_hardmax > thread_limit) {
-            ap_log_error(APLOG_MARK, APLOG_CRIT, rv, s, "[mod_zrkadlo] ZrkadloMemcachedConnHardMax: "
-                         "must be equal to ThreadLimit or less");
-            zrkadlo_die();
-        }
-        if (conf->memcached_softmax > conf->memcached_hardmax) {
-            ap_log_error(APLOG_MARK, APLOG_CRIT, rv, s, "[mod_zrkadlo] ZrkadloMemcachedConnSoftMax: "
-                         "must not be larger than ZrkadloMemcachedConnHardMax (%d)", 
-                         conf->memcached_hardmax);
-            zrkadlo_die();
-        }
-        if (conf->memcached_min > conf->memcached_softmax) {
-            ap_log_error(APLOG_MARK, APLOG_CRIT, rv, s, "[mod_zrkadlo] ZrkadloMemcachedConnMin: "
-                         "must not be larger than ZrkadloMemcachedConnSoftMax");
-            zrkadlo_die();
-        }
-
-        ap_log_error(APLOG_MARK, APLOG_NOTICE, rv, s,
-                     "[mod_zrkadlo] Creating memcached connection pool; min %d, softmax %d, hardmax %d",
-                                        conf->memcached_min,
-                                        conf->memcached_softmax,
-                                        conf->memcached_hardmax);
-        rv = apr_memcache_server_create(p, host_str, port, 
-                                        conf->memcached_min,
-                                        conf->memcached_softmax,
-                                        conf->memcached_hardmax,
-                                        600, &st);
-        if (rv != APR_SUCCESS) {
-            ap_log_error(APLOG_MARK, APLOG_CRIT, rv, s,
-                         "[mod_zrkadlo] ZrkadloMemcachedAddrPort: Failed to Create Server: %s:%d",
-                         host_str, port);
-            zrkadlo_die();
-        }
-
-        rv = apr_memcache_add_server(memctxt, st);
-        if (rv != APR_SUCCESS) {
-            ap_log_error(APLOG_MARK, APLOG_CRIT, rv, s,
-                         "[mod_zrkadlo] ZrkadloMemcachedAddrPort: Failed to Add Server: %s:%d",
-                         host_str, port);
-            zrkadlo_die();
-        }
-
-        split = apr_strtok(NULL,",", &tok);
-    }
-
-    return;
 }
 
 static void zrkadlo_child_init(apr_pool_t *p, server_rec *s)
@@ -310,7 +175,6 @@ static int zrkadlo_post_config(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptem
                  server_rec *s)
 {
     ap_add_version_component(p, VERSION_COMPONENT);
-    zrkadlo_mc_init(s, p);
 
     /* make sure that mod_form is loaded */
     if (ap_find_linked_module("mod_form.c") == NULL) {
@@ -379,10 +243,6 @@ static void *create_zrkadlo_server_config(apr_pool_t *p, server_rec *s)
             "[mod_zrkadlo] creating server config");
 
     new->memcached_on = UNSET;
-    new->memcached_addr = MEMCACHED_HOST ":" MEMCACHED_PORT;
-    new->memcached_min = UNSET;
-    new->memcached_softmax = UNSET;
-    new->memcached_hardmax = UNSET;
     new->memcached_lifetime = UNSET;
     new->treat_country_as = apr_table_make(p, 0);
     new->metalink_hashes_prefix = NULL;
@@ -402,10 +262,6 @@ static void *merge_zrkadlo_server_config(apr_pool_t *p, void *basev, void *addv)
             "[mod_zrkadlo] merging server config");
 
     cfgMergeBool(memcached_on);
-    mrg->memcached_addr = (add->memcached_addr == NULL) ? base->memcached_addr : add->memcached_addr;
-    cfgMergeInt(memcached_min);
-    cfgMergeInt(memcached_softmax);
-    cfgMergeInt(memcached_hardmax);
     cfgMergeInt(memcached_lifetime);
     mrg->treat_country_as = apr_table_overlay(p, add->treat_country_as, base->treat_country_as);
     cfgMergeString(metalink_hashes_prefix);
@@ -548,56 +404,6 @@ static const char *zrkadlo_cmd_memcached_on(cmd_parms *cmd, void *config,
     return NULL;
 }
 
-static const char *zrkadlo_cmd_memcached_addr(cmd_parms *cmd, void *config,
-                                const char *arg1)
-{
-    server_rec *s = cmd->server;
-    zrkadlo_server_conf *cfg = 
-        ap_get_module_config(s->module_config, &zrkadlo_module);
-
-    cfg->memcached_addr = arg1;
-    return NULL;
-}
-
-static const char *zrkadlo_cmd_memcached_min(cmd_parms *cmd, void *config,
-                                const char *arg1)
-{
-    server_rec *s = cmd->server;
-    zrkadlo_server_conf *cfg = 
-        ap_get_module_config(s->module_config, &zrkadlo_module);
-
-    cfg->memcached_min = atoi(arg1);
-    if (cfg->memcached_min <= 0)
-        return "ZrkadloMemcachedConnMin requires a non-negative integer.";
-    return NULL;
-}
-
-static const char *zrkadlo_cmd_memcached_softmax(cmd_parms *cmd, void *config,
-                                const char *arg1)
-{
-    server_rec *s = cmd->server;
-    zrkadlo_server_conf *cfg = 
-        ap_get_module_config(s->module_config, &zrkadlo_module);
-
-    cfg->memcached_softmax = atoi(arg1);
-    if (cfg->memcached_softmax <= 0)
-        return "ZrkadloMemcachedConnSoftMax requires an integer > 0.";
-    return NULL;
-}
-
-static const char *zrkadlo_cmd_memcached_hardmax(cmd_parms *cmd, void *config,
-                                const char *arg1)
-{
-    server_rec *s = cmd->server;
-    zrkadlo_server_conf *cfg = 
-        ap_get_module_config(s->module_config, &zrkadlo_module);
-
-    cfg->memcached_hardmax = atoi(arg1);
-    if (cfg->memcached_hardmax <= 0)
-        return "ZrkadloMemcachedConnHardMax requires an integer > 0.";
-    return NULL;
-}
-
 static const char *zrkadlo_cmd_memcached_lifetime(cmd_parms *cmd, void *config,
                                 const char *arg1)
 {
@@ -713,6 +519,7 @@ static int zrkadlo_handler(request_rec *r)
     apr_array_header_t *mirrors_same_country;   /* pointers into the mirrors array */
     apr_array_header_t *mirrors_same_region;    /* pointers into the mirrors array */
     apr_array_header_t *mirrors_elsewhere;      /* pointers into the mirrors array */
+    apr_memcache_t *memctxt;                    /* memcache context provided by mod_memcache */
     const char* (*form_lookup)(request_rec*, const char*);
 
     cfg = (zrkadlo_dir_conf *)     ap_get_module_config(r->per_dir_config, 
@@ -932,6 +739,9 @@ static int zrkadlo_handler(request_rec *r)
         }
     }
 
+
+    memctxt = ap_memcache_client(r->server);
+    if (memctxt == NULL) scfg->memcached_on = 0;
 
     /* look for associated mirror in memcache */
     cached_id = 0;
@@ -1612,6 +1422,7 @@ static int zrkadlo_status_hook(request_rec *r, int flags)
 {
     apr_uint16_t i;
     apr_status_t rv;
+    apr_memcache_t *memctxt;                    /* memcache context provided by mod_memcache */
     apr_memcache_stats_t *stats;
     zrkadlo_server_conf *sc = ap_get_module_config(r->server->module_config, &zrkadlo_module);
 
@@ -1620,6 +1431,8 @@ static int zrkadlo_status_hook(request_rec *r, int flags)
 
     if (!sc->memcached_on)
         return OK;
+
+    memctxt = ap_memcache_client(r->server);
 
     for (i = 0; i < memctxt->ntotal; i++) {
         rv = apr_memcache_stats(memctxt->live_servers[i], r->pool, &stats);
@@ -1723,26 +1536,6 @@ static const command_rec zrkadlo_cmds[] =
     AP_INIT_FLAG("ZrkadloMemcached", zrkadlo_cmd_memcached_on, NULL,
                   RSRC_CONF, 
                   "Set to On/Off to use memcached to give clients repeatedly the same mirror"),
-
-    AP_INIT_TAKE1("ZrkadloMemcachedAddrPort", zrkadlo_cmd_memcached_addr, NULL,
-                  RSRC_CONF, 
-                  "ip or host adresse(s) and port (':' separated) of "
-                  "memcache daemon(s) to be used, comma separated"),
-
-    AP_INIT_TAKE1("ZrkadloMemcachedConnMin", zrkadlo_cmd_memcached_min, NULL,
-                  RSRC_CONF, 
-                  "Minimum number of connections that will be opened to the "
-                  "memcache daemon(s). Default is 0."),
-
-    AP_INIT_TAKE1("ZrkadloMemcachedConnSoftMax", zrkadlo_cmd_memcached_softmax, NULL,
-                  RSRC_CONF, 
-                  "Soft maximum number of connections that will be opened to the "
-                  "memcache daemon(s). Default is 1."),
-
-    AP_INIT_TAKE1("ZrkadloMemcachedConnHardMax", zrkadlo_cmd_memcached_hardmax, NULL,
-                  RSRC_CONF, 
-                  "Hard maximum number of connections that will be opened to the "
-                  "memcache daemon(s). If unset, the value of ThreadLimit will be used."),
 
     AP_INIT_TAKE1("ZrkadloMemcachedLifeTime", zrkadlo_cmd_memcached_lifetime, NULL,
                   RSRC_CONF, 

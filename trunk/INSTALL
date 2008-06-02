@@ -10,9 +10,9 @@ RPM packages are here:
 http://download.opensuse.org/repositories/Apache:/Modules/
 http://club.mandriva.com/xwiki/bin/view/rpms/Application/apache-mod_zrkadlo
 
-It requires libGeoIP, libapr_memcache, and mod_form.
+It requires libGeoIP, libapr_memcache, mod_memcache, and mod_form.
 It can be built with
-apxs2 -c -lGeoIP -lapr_memcache -Wc,"-Wall -g -D_GNU_SOURCE" mod_zrkadlo.c
+apxs2 -c -I/usr/include/apr_memcache-0 -lGeoIP -lapr_memcache '-Wc,-Wall -g -D_GNU_SOURCE' mod_zrkadlo.c
 
 
 
@@ -30,7 +30,14 @@ After installation of mod_zrkadlo, you'll need to:
 
 
 - install mod_form
+  http://apache.webthing.com/svn/apache/forms/mod_form.c
+  http://apache.webthing.com/svn/apache/forms/mod_form.h
   (openSUSE package apache2-webthings-collection)
+
+
+- install mod_memcache
+  http://code.google.com/p/modmemcache/
+  (openSUSE package apache2-mod_memcache)
 
 
 - install a database adapter for the DBD library, for example MySQL
@@ -51,6 +58,7 @@ After installation of mod_zrkadlo, you'll need to:
   
 - load the Apache modules:
    a2enmod form
+   a2enmod memcache
    a2enmod dbd
    a2enmod zrkadlo
 
@@ -77,11 +85,11 @@ After installation of mod_zrkadlo, you'll need to:
         </IfModule>
     </IfModule>
     
+    <IfModule mod_memcache.c>
+        MemcacheServer 127.0.0.1:11211 min=0 smax=4 max=16 ttl=600
+    </IfModule>
     <IfModule mod_zrkadlo.c>
         ZrkadloMemcached On
-        ZrkadloMemcachedAddrPort 127.0.0.1:11211
-        # must not exceed ZrkadloMemcachedConnHardMax, which is 1 for prefork
-        ZrkadloMemcachedConnSoftMax 1
         ZrkadloMemcachedLifetime 1800
         ZrkadloGeoIPFile /usr/share/GeoIP/GeoIP.dat
         ZrkadloTreatCountryAs nz au
