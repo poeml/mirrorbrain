@@ -62,6 +62,11 @@ Further ideas:
   As a key for the memcache object, one could use the label of the prepared SQL
   statement combined with the filename.
 
+  See also: http://code.google.com/p/modmemcache/ (for a common provider for
+  memcache server access), as well as http://code.google.com/p/modmemcachecache/
+  (Once there is another module using memcached, like mod_ip_count, it would be
+  very useful let a common provider do the server setup.)
+
 * add SQL_CACHE hints? do this conditionally?
 
 * stickyness of (large) files to certain mirrors, to make better use of buffer caches?
