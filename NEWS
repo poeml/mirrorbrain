@@ -1,8 +1,10 @@
 
 Mon Jun  2 17:30:45 CEST 2008
-- use mod_memcache for the configuration and initialization of memcache
+- mod_zrkadlo 1.8:
+  use mod_memcache for the configuration and initialization of memcache
 - metalink-hasher script added, to prepare hashes for injection into metalink files
 - rsyncusers analysis tool added
+- scanner bugfix regarding following redirects for large file checks
 
 Fri May  2 18:54:09 CEST 2008
 - failover testbed for text mirrorlists implemented
