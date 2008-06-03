@@ -54,7 +54,6 @@ CREATE TABLE `server` (
   `score` int(11) default NULL,
   `scan_fpm` int(11) default NULL,
   `baseurl_rsync` varchar(128) default NULL,
-  `rsync_is_staged` tinyint(4) default NULL,
   `comment` text,
   `admin_email` text,
   `netblock` text,
