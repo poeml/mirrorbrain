@@ -67,6 +67,8 @@ class RsyncInfo(cmdln.Cmdln):
             print mod
 
 
+    @cmdln.option('-S', '--hide-stderr', action='store_true',
+                  help='don\'t show stderr output of rsync')
     @cmdln.option('-p', '--password', metavar='PASSWORD', default='',
                   help='optional password to send')
     @cmdln.option('-u', '--user', metavar='USER', default='',
@@ -101,8 +103,11 @@ class RsyncInfo(cmdln.Cmdln):
         template = '%%-%ds %%10s' % mod_maxlen
 
         for mod in opts.modules:
-            cmd = 'RSYNC_PASSWORD=\'%s\' rsync -a %s%s::%s . --stats -n -h %s | awk \'/^Total file size/ { print $4; exit }\'' \
+            cmd = 'RSYNC_PASSWORD=\'%s\' rsync -a %s%s::%s . --stats -n -h %s' \
                         % (opts.password, opts.user, host, mod, ' '.join(opts.rsync_opts or ''))
+            if opts.hide_stderr:
+                cmd += ' 2> /dev/null'
+            cmd += ' | awk \'/^Total file size/ { print $4; exit }\''
             if self.options.debug:
                 print cmd
             if not self.options.dry_run:
