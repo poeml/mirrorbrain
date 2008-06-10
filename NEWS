@@ -1,4 +1,8 @@
 
+Wed Jun 11 01:20:12 CEST 2008
+- added "mirrordoctor", a commandline tool to maintain mirror entries in the
+  database. Finally!
+
 Mon Jun  2 17:30:45 CEST 2008
 - mod_zrkadlo 1.8:
   use mod_memcache for the configuration and initialization of memcache
