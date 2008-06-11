@@ -136,6 +136,9 @@ class MirrorDoctor(cmdln.Cmdln):
                         help='show only mirrors whose identifier matches EXPR (SQL syntax)')
     @cmdln.option('-c', '--country', metavar='XY',
                         help='show only mirrors whose country matches XY')
+    @cmdln.option('-r', '--region', metavar='XY',
+                        help='show only mirrors whose region matches XY '
+                        '(possible values: sa,na,oc,af,as,eu)')
     def do_list(self, subcmd, opts):
         """${cmd_name}: list mirrors
 
@@ -147,6 +150,8 @@ class MirrorDoctor(cmdln.Cmdln):
             mirrors = Server.select("""identifier LIKE '%%%s%%'""" % opts.match)
         elif opts.country:
             mirrors = Server.select("""country LIKE '%%%s%%'""" % opts.country)
+        elif opts.region:
+            mirrors = Server.select("""region LIKE '%%%s%%'""" % opts.region)
         else:
             mirrors = Server.select()
 
