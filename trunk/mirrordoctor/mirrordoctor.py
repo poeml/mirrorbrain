@@ -15,7 +15,7 @@ __url__ = 'http://mirrorbrain.org'
 
 
 
-from mb import cmdln
+import cmdln
 from mb.conn import *
 import mb.geoip
 
