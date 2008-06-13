@@ -68,21 +68,41 @@ class Metalinks(cmdln.Cmdln):
                         help='don\'t actually do anything')
     @cmdln.option('-f', '--file-mask', metavar='REGEX',
                         help='regular expression to select files to create hashes for')
+    @cmdln.option('-b', '--base-dir', metavar='PATH',
+                        help='set the base directory (so that you can work on a subdirectory)')
     @cmdln.option('-t', '--target-dir', metavar='PATH',
                         help='set a different target directory')
     @cmdln.option('-v', '--verbose', action='store_true',
                         help='show more information')
     def do_update(self, subcmd, opts, startdir):
-        """${cmd_name}: update the metalinks
+        """${cmd_name}: Update the hash pieces that are included in metalinks
 
+        Example:
 
-        write me!
-
+        metalink-hasher update \\
+           -f '.*.(torrent|iso)$' \\
+          -t /var/lib/apache2/metalink-hashes/srv/ftp/pub/opensuse/distribution/11.0/iso \\
+          -b /srv/ftp-stage/pub/opensuse/distribution/11.0/iso \\
+          /srv/ftp-stage/pub/opensuse/distribution/11.0/iso \\
+          -n
 
         ${cmd_usage}
         ${cmd_option_list}
         """
 
+        if not opts.target_dir:
+            sys.exit('You must specify the target directory (-t)')
+        if not opts.base_dir:
+            sys.exit('You must specify the base directory (-b)')
+
+        if not opts.target_dir.startswith('/'):
+            sys.exit('The target directory must be an absolut path')
+        if not opts.base_dir.startswith('/'):
+            sys.exit('The base directory must be an absolut path')
+
+        startdir = startdir.rstrip('/')
+        opts.target_dir = opts.target_dir.rstrip('/')
+        opts.base_dir = opts.base_dir.rstrip('/')
 
         directories = [startdir]
 
@@ -100,9 +120,13 @@ class Metalinks(cmdln.Cmdln):
                 if os.path.isfile(fullpath):
                     if not opts.file_mask or re.match(opts.file_mask, name):
                         #print fullpath
-                        target = os.path.join(opts.target_dir, fullpath.lstrip('/'))
+                        if opts.base_dir:
+                            target = fullpath[len(opts.base_dir):]
+                        else:
+                            target = fullpath
+                        target = os.path.join(opts.target_dir, target.lstrip('/'))
                         if opts.verbose:
-                            print target
+                            print 'target:', target
                         make_hashes(fullpath, target, opts=opts)
 
                 elif os.path.isdir(fullpath):
