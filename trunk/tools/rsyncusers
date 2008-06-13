@@ -2,11 +2,11 @@
 
 # analyze rsync logfile to list rsync users per rsync module
 
-__version__ = '1.0'
-__author__ = 'Peter Poeml <poeml@suse.de>'
-__copyright__ = 'Peter poeml <poeml@suse.de>'
-__license__ = 'GPL'
-__url__ = 'http://mirrorbrain.org'
+__version__='1.0'
+__author__='Peter Poeml <poeml@suse.de>'
+__copyright__='Peter poeml <poeml@suse.de>'
+__license__='GPL'
+__url__='http://mirrorbrain.org'
 
 
 LOGFILE=${1:?An rsync logfile is needed as argument. (It may be compressed.)}
