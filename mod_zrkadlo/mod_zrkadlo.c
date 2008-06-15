@@ -841,7 +841,9 @@ static int zrkadlo_handler(request_rec *r)
 
     if (apr_dbd_pvselect(dbd->driver, r->pool, dbd->handle, &res, statement, 
                 1, /* we don't need random access actually, but 
-                      without it the mysql driver doesn't return results...  */
+                      without it the mysql driver doesn't return results
+                      once apr_dbd_num_tuples() has been called; 
+                      apr_dbd_get_row() will only return -1 after that. */
                 filename_hash, NULL) != 0) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
                 "[mod_zrkadlo] Error looking up %s in database", filename);
@@ -901,9 +903,9 @@ static int zrkadlo_handler(request_rec *r)
 
     /* store the results which the database yielded, taking into account which
      * mirrors are in the same country, same reagion, or elsewhere */
-    for (rv = apr_dbd_get_row(dbd->driver, r->pool, res, &row, -1); 
-             rv != -1;
-             rv = apr_dbd_get_row(dbd->driver, r->pool, res, &row, -1)) {
+    i = 1;
+    while (i <= mirror_cnt) { 
+        rv = apr_dbd_get_row(dbd->driver, r->pool, res, &row, i);
         if (rv != 0) {
             ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r,
                       "[mod_zrkadlo] Error looking up %s in database", filename);
@@ -1005,12 +1007,15 @@ static int zrkadlo_handler(request_rec *r)
         if (strcasecmp(new->country_code, country_code) == 0) {
             *(void **)apr_array_push(mirrors_same_country) = new;
 
-        /* is country_code a wildcard indicating that the mirror should be
+        /* is the mirror's country_code a wildcard indicating that the mirror should be
          * considered for every country? */
         } else if (strcmp(new->country_code, "**") == 0) {
-            *(void **)apr_array_push(mirrors_same_country) = new;
+            *(void **)apr_array_push(mirrors_same_country) = new; 
             /* if so, forget memcache association, so the mirror is not ruled out */
             chosen = NULL; 
+            /* set its country and region to that of the client */
+            new->country_code = country_code;
+            new->region = continent_code;
 
         /* same region? */
         /* to be actually considered for this group, the mirror must be willing 
@@ -1026,6 +1031,7 @@ static int zrkadlo_handler(request_rec *r)
             *(void **)apr_array_push(mirrors_elsewhere) = new;
         }
 
+        i++;
     }
 
 #if 0
