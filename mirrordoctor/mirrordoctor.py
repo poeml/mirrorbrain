@@ -5,6 +5,10 @@ Script to maintain the mirror database
 
 Requirements:
 cmdln from http://trentm.com/projects/cmdln/
+
+Install via e.g.
+easy_install http://trentm.com/downloads/cmdln/1.1.1/cmdln-1.1.1.zip
+(it is not in the Python CheeseShop so far)
 """
 
 __version__ = '1.0'
