@@ -46,7 +46,6 @@ def ping_http(mirror):
 
     try:
         response = urllib2.urlopen(req)
-        logging.debug('%s got response for %s: %s' % (threading.currentThread().getName(), mirror.identifier, response))
         try:
             mirror.response_code = response.code
             # if the web server redirects to an ftp:// URL, our response won't have a code attribute
@@ -56,7 +55,16 @@ def ping_http(mirror):
                 # count as success
                 mirror.response_code = 200
             logging.debug('mirror %s redirects to ftp:// URL' % mirror.identifier)
-        mirror.response = response.read()
+        logging.debug('%s got response for %s: %s' % (threading.currentThread().getName(), mirror.identifier, response.code))
+
+        try:
+            mirror.response = response.read()
+        except ValueError, e:
+            if str(e) == 'invalid literal for int(): ':
+                mirror.response = 'response not read due to http://bugs.python.org/issue1205'
+                logging.info('mirror %s sends broken chunked reply, see http://bugs.python.org/issue1205' % mirror.identifier)
+            else:
+                raise
         mirror.status_baseurl_new = True
 
     except httplib.BadStatusLine:
@@ -222,6 +230,7 @@ def main():
 
     for mirror in mirrors:
 
+        logging.debug('%s: baseurl %s / baseurl_new %s' % (mirror.identifier, repr(mirror.statusBaseurl), repr(mirror.status_baseurl_new)))
         # old failure
         if not mirror.statusBaseurl and not mirror.status_baseurl_new:
 
