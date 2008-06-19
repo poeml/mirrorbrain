@@ -35,13 +35,9 @@ def edit_file(data):
         hash = dgst(filename)
 
         if hash == hash_orig:
-            input = raw_input('No changes.\n'
-                              'a)bort, e)dit again: ')
-            if input in 'aA':
-                os.unlink(filename)
-                return 
-            elif input in 'eE':
-                pass
+            sys.stdout.write('No changes.\n')
+            os.unlink(filename)
+            return 
         else:
             new = open(filename).read()
             #new = new.split(delim)[0].rstrip()
