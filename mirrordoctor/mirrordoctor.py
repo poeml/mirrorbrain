@@ -43,6 +43,20 @@ class Container:
     def __init__(self):
         pass
 
+def lookup_mirror(identifier):
+
+    r = servers_match(identifier)
+
+    if len(r) == 0:
+        sys.exit('Not found.')
+    elif len(r) == 1:
+        return r[0]
+    else:
+        print 'Found multiple matching mirrors:'
+        for i in r:
+            print i.identifier
+        sys.exit(1)
+
 
 
 class MirrorDoctor(cmdln.Cmdln):
@@ -136,26 +150,25 @@ class MirrorDoctor(cmdln.Cmdln):
         print s
 
 
-    @cmdln.option('-m', '--match', metavar='EXPR',
-                        help='show only mirrors whose identifier matches EXPR (SQL syntax)')
     @cmdln.option('-c', '--country', metavar='XY',
                         help='show only mirrors whose country matches XY')
     @cmdln.option('-r', '--region', metavar='XY',
                         help='show only mirrors whose region matches XY '
                         '(possible values: sa,na,oc,af,as,eu)')
-    def do_list(self, subcmd, opts):
+    def do_list(self, subcmd, opts, *args):
         """${cmd_name}: list mirrors
 
-        ${cmd_usage}
+        Usage:
+            mirrordoctor list [IDENTIFIER]
         ${cmd_option_list}
         """
         from sqlobject.sqlbuilder import LIKE
-        if opts.match:
-            mirrors = Server.select("""identifier LIKE '%%%s%%'""" % opts.match)
-        elif opts.country:
+        if opts.country:
             mirrors = Server.select("""country LIKE '%%%s%%'""" % opts.country)
         elif opts.region:
             mirrors = Server.select("""region LIKE '%%%s%%'""" % opts.region)
+        elif args:
+            mirrors = servers_match(args[0])
         else:
             mirrors = Server.select()
 
@@ -163,60 +176,27 @@ class MirrorDoctor(cmdln.Cmdln):
             print mirror.identifier
 
 
-    @cmdln.option('-m', '--match', metavar='EXPR',
-                        help='show only mirrors whose identifier matches EXPR (SQL syntax)')
-    def do_show(self, subcmd, opts, *args):
+    def do_show(self, subcmd, opts, identifier):
         """${cmd_name}: show a new mirror entry
 
         ${cmd_usage}
         ${cmd_option_list}
         """
 
-        if opts.match:
-            mirrors = Server.select("""identifier LIKE '%%%s%%'""" % opts.match)
-            if len(list(mirrors)) == 0:
-                sys.exit('Not found.')
-            elif len(list(mirrors)) == 1:
-                s = mirrors.getOne()
-            else:
-                print 'Found multiple matching mirrors:'
-                for i in list(mirrors):
-                    print i.identifier
-                sys.exit(1)
-        else:
-            identifier = args[0]
-            mirrors = Server.select(Server.q.identifier == identifier)
-            s = mirrors.getOne()
-
-        print server_show_template % server2dict(s)
+        mirror = lookup_mirror(identifier)
+        print server_show_template % server2dict(mirror)
 
 
-    @cmdln.option('-m', '--match', metavar='EXPR',
-                        help='edit the mirror whose identifier matches EXPR (SQL syntax)')
-    def do_edit(self, subcmd, opts, *args):
+    def do_edit(self, subcmd, opts, identifier):
         """${cmd_name}: edit a new mirror entry in $EDITOR
 
-        ${cmd_usage}
+        Usage:
+            mirrordoctor edit IDENTIFIER
         ${cmd_option_list}
         """
-        if opts.match:
-            mirrors = Server.select("""identifier LIKE '%%%s%%'""" % opts.match)
-            if len(list(mirrors)) == 0:
-                sys.exit('Not found.')
-            elif len(list(mirrors)) == 1:
-                s = mirrors.getOne()
-            else:
-                print 'Found multiple matching mirrors:'
-                for i in list(mirrors):
-                    print i.identifier
-                sys.exit(1)
-        else:
-            identifier = args[0]
-            mirrors = Server.select(Server.q.identifier == identifier)
-            s = mirrors.getOne()
-
+        mirror = lookup_mirror(identifier)
         
-        old_dict = server2dict(s)
+        old_dict = server2dict(mirror)
         old = server_show_template % old_dict
 
         import mb.util
@@ -231,9 +211,9 @@ class MirrorDoctor(cmdln.Cmdln):
                     print """changing %s from '%s' to '%s'""" \
                             % (i, old_dict[i], new_dict[i])
                     a = new_dict[i]
-                    if type(getattr(s, i)) == type(1L):
+                    if type(getattr(mirror, i)) == type(1L):
                         a = int(a)
-                    setattr(s, i, a)
+                    setattr(mirror, i, a)
 
 
 
@@ -264,9 +244,8 @@ class MirrorDoctor(cmdln.Cmdln):
         if not opts.comment:
             sys.exit('need to specify comment to add')
 
-        s = Server.select(Server.q.identifier == identifier)
-        for i in s:
-            i.comment = ' '.join([i.comment or '', opts.comment])
+        mirror = lookup_mirror(identifier)
+        mirror.comment = ' '.join([mirror.comment or '', '\n\n' + opts.comment])
 
 
     def do_enable(self, subcmd, opts, identifier):
@@ -276,8 +255,7 @@ class MirrorDoctor(cmdln.Cmdln):
         ${cmd_option_list}
         """
         
-        s = Server.select(Server.q.identifier == identifier)
-        mirror = s.getOne()
+        mirror = lookup_mirror(identifier)
         mirror.enabled = 1
 
 
@@ -288,19 +266,24 @@ class MirrorDoctor(cmdln.Cmdln):
         ${cmd_option_list}
         """
         
-        s = Server.select(Server.q.identifier == identifier)
-        mirror = s.getOne()
+        mirror = lookup_mirror(identifier)
         mirror.enabled = 0
 
 
     @cmdln.option('-f', '--force', action='store_true',
-                  help='Force. Scan listed mirror_ids even if they are not enabled.')
+                  help='Force. Scan listed mirror ids even if they are not enabled.')
     @cmdln.option('-e', '--enable', action='store_true',
-                  help='Enable mirror, after it was scanned. Useful with -f')
-    def do_scan(self, subcmd, opts, identifier):
-        """${cmd_name}: scan a mirror
+                  help='Enable a mirror, after it was scanned. Useful with -f')
+    @cmdln.option('-j', '--jobs', metavar='N',
+                  help='Run up to N scanner queries in parallel.')
+    @cmdln.option('-d', '--directory', metavar='DIR',
+                  help='Scan only in dir under mirror\'s baseurl. '
+                       'Default: start at baseurl. Does not delete files, only add.')
+    def do_scan(self, subcmd, opts, *args):
+        """${cmd_name}: scan mirrors
 
-        ${cmd_usage}
+        Usage:
+            mirrordoctor scan [OPTS] IDENTIFIER [IDENTIFIER...]
         ${cmd_option_list}
         """
 
@@ -310,9 +293,48 @@ class MirrorDoctor(cmdln.Cmdln):
             cmd += '-f '
         if opts.enable:
             cmd += '-e '
-        cmd += identifier
+        if opts.directory:
+            cmd += '-k -x -d %s ' % opts.directory
+        if opts.jobs:
+            cmd += '-j %s ' % opts.jobs
+
+        mirrors = []
+        for arg in args:
+            mirrors.append(lookup_mirror(arg))
+
+        cmd += ' '.join([mirror.identifier for mirror in mirrors])
 
         os.system(cmd)
+
+
+    def do_score(self, subcmd, opts, *args):
+        """${cmd_name}: show or change the score of a mirror
+
+        IDENTIFIER can be either the identifier or a substring.
+
+        Usage:
+            mirrordoctor score IDENTIFIER [SCORE]
+        ${cmd_option_list}
+        """
+
+        if len(args) == 1:
+            identifier = args[0]
+            score = None
+        elif len(args) == 2:
+            identifier = args[0]
+            score = args[1]
+        else:
+            sys.exit('Wrong number of arguments.')
+        
+        mirror = lookup_mirror(identifier)
+
+        if not score:
+            print mirror.score
+        else:
+            print 'Changing score for %s: %s -> %s' \
+                    % (mirror.identifier, mirror.score, score)
+            mirror.score = int(score)
+        
 
 
 

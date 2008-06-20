@@ -86,14 +86,18 @@ def servertext2dict(s):
     return new_attrs
     
 
+def servers_match(match):
+    servers = Server.select("""identifier LIKE '%%%s%%'""" % match)
+    return list(servers)
+
 
 class Server(SQLObject):
     """the server table"""
     class sqlmeta:
         fromDatabase = True
 
-class Asn(SQLObject):
-    """the autonomous systems table"""
-    class sqlmeta:
-        fromDatabase = True
-
+#class Asn(SQLObject):
+#    """the autonomous systems table"""
+#    class sqlmeta:
+#        fromDatabase = True
+#
