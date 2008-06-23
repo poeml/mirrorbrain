@@ -129,7 +129,7 @@ my $enable_after_scan = 0;
 my $mirror_url_add = undef;
 my $mirror_url_del = undef;
 my $topdirs = 'distribution|tools|repositories';
-my $cfgfile = '/etc/mirrorbrain.conf';
+my $cfgfile = './etc/mirrorbrain.conf';
 
 my $gig2 = 1<<31; # 2*1024*1024*1024 == 2^1 * 2^10 * 2^10 * 2^10 = 2^31
 
@@ -1288,7 +1288,12 @@ sub largefile_check
 
   my $code = $result->code();
   goto all_ok if($code == 206 or $code == 200);
-  if($code == 301) {  # this is a permanent redirect. Examine type of address:
+  # check some redirect types:
+  # 301 - permanent redirect -> client is adviesd to remember redirected address
+  # 302 - temporary redirect -> client shall continue using this address
+  # 303 - redirect from POST command to another URI via GET command
+  # 307 - same as 302 except different caching behaviour
+  if($code == 301 or $code == 302 or $code == 303 or $code == 307) {
     if($result->header('location') =~ m{^ftp:.*}) {
       print "Moved to ftp location, assuming success if followed";
       goto all_ok;
