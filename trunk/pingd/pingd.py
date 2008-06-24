@@ -38,10 +38,10 @@ def ping_http(mirror):
 
     mirror.status_baseurl_new = False
     mirror.timed_out = True
+    mirror.response_code = None
+    mirror.response = None
 
     if mirror.baseurl == '':
-        mirror.response_code = None
-        mirror.response = None
         return None
 
     try:
