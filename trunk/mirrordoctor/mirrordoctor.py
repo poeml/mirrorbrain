@@ -150,6 +150,8 @@ class MirrorDoctor(cmdln.Cmdln):
         print s
 
 
+    @cmdln.option('-a', '--show-disabled', action='store_true',
+                        help='do not hide disabled mirrors')
     @cmdln.option('-c', '--country', metavar='XY',
                         help='show only mirrors whose country matches XY')
     @cmdln.option('-r', '--region', metavar='XY',
@@ -173,7 +175,11 @@ class MirrorDoctor(cmdln.Cmdln):
             mirrors = Server.select()
 
         for mirror in mirrors:
-            print mirror.identifier
+            if opts.show_disabled:
+                print mirror.identifier
+            else:
+                if mirror.enabled:
+                    print mirror.identifier
 
 
     def do_show(self, subcmd, opts, identifier):
