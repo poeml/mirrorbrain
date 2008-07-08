@@ -270,6 +270,17 @@ class MirrorDoctor(cmdln.Cmdln):
         mirror.enabled = 0
 
 
+    def do_rename(self, subcmd, opts, identifier, new_identifier):
+        """${cmd_name}: rename a mirror's identifier
+
+        ${cmd_usage}
+        ${cmd_option_list}
+        """
+        
+        mirror = lookup_mirror(identifier)
+        mirror.identifier = new_identifier
+
+
     @cmdln.option('-f', '--force', action='store_true',
                   help='Force. Scan listed mirror ids even if they are not enabled.')
     @cmdln.option('-e', '--enable', action='store_true',
