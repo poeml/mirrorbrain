@@ -267,6 +267,7 @@ class MirrorDoctor(cmdln.Cmdln):
         """
         
         mirror = lookup_mirror(identifier)
+        mirror.statusBaseurl = 0
         mirror.enabled = 0
 
 
