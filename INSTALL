@@ -74,7 +74,10 @@ After installation of mod_zrkadlo, you'll need to:
     ------------------------------------------------------------------------
     <IfModule mod_dbd.c>
         DBDriver mysql
-        DBDParams "host=localhost, user=wwwrun, pass=12345, dbname=redirector"
+        # reconnect=0 is needed with the mysql adapter. It means that connections
+        # should not be "reanimated", because prepared statements would be lost anyway,
+        # so dead connections should rather be invalidated and new ones made.
+        DBDParams "host=localhost, user=wwwrun, pass=12345, dbname=redirector, reconnect=0"
         # # threaded MPMs only. prefork will have use db connection per process
         <IfModule !prefork.c>
                 # 
