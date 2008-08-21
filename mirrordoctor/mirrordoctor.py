@@ -20,7 +20,6 @@ __url__ = 'http://mirrorbrain.org'
 
 
 import cmdln
-from mb.conn import *
 import mb.geoip
 
 
@@ -39,13 +38,10 @@ import mb.geoip
 # baseurlHttp must not be empty
 
 
-class Container:
-    def __init__(self):
-        pass
 
-def lookup_mirror(identifier):
+def lookup_mirror(self, identifier):
 
-    r = servers_match(identifier)
+    r = mb.conn.servers_match(self.conn.Server, identifier)
 
     if len(r) == 0:
         sys.exit('Not found.')
@@ -67,12 +63,34 @@ class MirrorDoctor(cmdln.Cmdln):
         optparser = cmdln.CmdlnOptionParser(self)
         optparser.add_option('-d', '--debug', action='store_true',
                              help='print info useful for debugging')
+        optparser.add_option('-b', '--brain-instance', 
+                             help='the mirrorbrain instance to use. '
+                                  'Corresponds to a section in '
+                                  '/etc/mirrorbrain.conf which is named the same.')
         return optparser
+
 
     def postoptparse(self):
         """runs after parsing global options"""
+
+        conffile = '/etc/mirrorbrain.conf'
+        import mb.conf
+        config = mb.conf.Config(conffile)
+        if not self.options.brain_instance:
+            self.options.brain_instance = config.get()['instances'][0]
+
+        try:
+            config.get()[self.options.brain_instance]
+        except KeyError:
+            sys.exit('The config does not have an instance %s defined' \
+                      % self.options.brain_instance)
+
+        # set up the database connection
+        import mb.conn
+        self.conn = mb.conn.Conn(config.get()[self.options.brain_instance])
         if self.options.debug:
-            Server._connection.debug = True
+            self.conn.Server._connection.debug = True
+
 
 
     @cmdln.option('-C', '--comment', metavar='ARG',
@@ -106,12 +124,12 @@ class MirrorDoctor(cmdln.Cmdln):
 
 
         example:
-            mirrorbrain.py new -i lockdownhosting.com \
-                -H http://mirror1.lockdownhosting.com/pub/opensuse/ \
-                -F ftp://mirror1.lockdownhosting.com/pub/opensuse/ \
-                -R rsync://mirror1.lockdownhosting.com/opensuse/ \
+            mirrorbrain.py new -i example.com \
+                -H http://mirror1.example.com/pub/opensuse/ \
+                -F ftp://mirror1.example.com/pub/opensuse/ \
+                -R rsync://mirror1.example.com/opensuse/ \
                 -a 'He Who Never Sleeps' \
-                -e sleep@example.com
+                -e nosleep@example.com
 
         ${cmd_usage}
         ${cmd_option_list}
@@ -119,7 +137,6 @@ class MirrorDoctor(cmdln.Cmdln):
 
         import urlparse
 
-        #new = Container()
 
         if not opts.identifier:
             sys.exit('identifier needs to be specified')
@@ -137,21 +154,19 @@ class MirrorDoctor(cmdln.Cmdln):
         if opts.region == '--' or opts.country == '--':
             raise ValueError('region lookup failed')
 
-        s = Server(identifier   = opts.identifier,
-                   baseurl      = opts.http,
-                   baseurlFtp   = opts.ftp or '',
-                   baseurlRsync = opts.rsync,
-                   region       = opts.region,
-                   country      = opts.country,
-                   score        = opts.score,
-                   admin        = opts.admin,
-                   adminEmail   = opts.admin_email,
-                   comment      = opts.comment)
+        s = self.conn.Server(identifier   = opts.identifier,
+                             baseurl      = opts.http,
+                             baseurlFtp   = opts.ftp or '',
+                             baseurlRsync = opts.rsync,
+                             region       = opts.region,
+                             country      = opts.country,
+                             score        = opts.score,
+                             admin        = opts.admin,
+                             adminEmail   = opts.admin_email,
+                             comment      = opts.comment)
         print s
 
 
-    @cmdln.option('-a', '--show-disabled', action='store_true',
-                        help='do not hide disabled mirrors')
     @cmdln.option('-c', '--country', metavar='XY',
                         help='show only mirrors whose country matches XY')
     @cmdln.option('-r', '--region', metavar='XY',
@@ -166,20 +181,16 @@ class MirrorDoctor(cmdln.Cmdln):
         """
         from sqlobject.sqlbuilder import LIKE
         if opts.country:
-            mirrors = Server.select("""country LIKE '%%%s%%'""" % opts.country)
+            mirrors = self.conn.Server.select("""country LIKE '%%%s%%'""" % opts.country)
         elif opts.region:
-            mirrors = Server.select("""region LIKE '%%%s%%'""" % opts.region)
+            mirrors = self.conn.Server.select("""region LIKE '%%%s%%'""" % opts.region)
         elif args:
-            mirrors = servers_match(args[0])
+            mirrors = mb.conn.servers_match(self.conn.Server, args[0])
         else:
-            mirrors = Server.select()
+            mirrors = self.conn.Server.select()
 
         for mirror in mirrors:
-            if opts.show_disabled:
-                print mirror.identifier
-            else:
-                if mirror.enabled:
-                    print mirror.identifier
+            print mirror.identifier
 
 
     def do_show(self, subcmd, opts, identifier):
@@ -189,8 +200,8 @@ class MirrorDoctor(cmdln.Cmdln):
         ${cmd_option_list}
         """
 
-        mirror = lookup_mirror(identifier)
-        print server_show_template % server2dict(mirror)
+        mirror = lookup_mirror(self, identifier)
+        print mb.conn.server_show_template % mb.conn.server2dict(mirror)
 
 
     def do_edit(self, subcmd, opts, identifier):
@@ -200,19 +211,20 @@ class MirrorDoctor(cmdln.Cmdln):
             mirrordoctor edit IDENTIFIER
         ${cmd_option_list}
         """
-        mirror = lookup_mirror(identifier)
+        mirror = lookup_mirror(self, identifier)
         
-        old_dict = server2dict(mirror)
-        old = server_show_template % old_dict
+        import mb.conn
+        old_dict = mb.conn.server2dict(mirror)
+        old = mb.conn.server_show_template % old_dict
 
         import mb.util
         new = mb.util.edit_file(old)
         if not new:
             print 'Quitting.'
         else:
-            new_dict = servertext2dict(new)
+            new_dict = mb.conn.servertext2dict(new)
 
-            for i in server_editable_attrs:
+            for i in mb.conn.server_editable_attrs:
                 if str(old_dict[i]) != new_dict[i]:
                     print """changing %s from '%s' to '%s'""" \
                             % (i, old_dict[i], new_dict[i])
@@ -233,9 +245,9 @@ class MirrorDoctor(cmdln.Cmdln):
         if not identifier:
             sys.exit('need to specify identifier')
 
-        s = Server.select(Server.q.identifier == identifier)
+        s = self.conn.Server.select(self.conn.Server.q.identifier == identifier)
         for i in s:
-            print Server.delete(i.id)
+            print self.conn.Server.delete(i.id)
 
 
     @cmdln.option('-C', '--comment', metavar='ARG',
@@ -250,7 +262,7 @@ class MirrorDoctor(cmdln.Cmdln):
         if not opts.comment:
             sys.exit('need to specify comment to add')
 
-        mirror = lookup_mirror(identifier)
+        mirror = lookup_mirror(self, identifier)
         mirror.comment = ' '.join([mirror.comment or '', '\n\n' + opts.comment])
 
 
@@ -261,7 +273,7 @@ class MirrorDoctor(cmdln.Cmdln):
         ${cmd_option_list}
         """
         
-        mirror = lookup_mirror(identifier)
+        mirror = lookup_mirror(self, identifier)
         mirror.enabled = 1
 
 
@@ -272,20 +284,8 @@ class MirrorDoctor(cmdln.Cmdln):
         ${cmd_option_list}
         """
         
-        mirror = lookup_mirror(identifier)
-        mirror.statusBaseurl = 0
+        mirror = lookup_mirror(self, identifier)
         mirror.enabled = 0
-
-
-    def do_rename(self, subcmd, opts, identifier, new_identifier):
-        """${cmd_name}: rename a mirror's identifier
-
-        ${cmd_usage}
-        ${cmd_option_list}
-        """
-        
-        mirror = lookup_mirror(identifier)
-        mirror.identifier = new_identifier
 
 
     @cmdln.option('-f', '--force', action='store_true',
@@ -307,6 +307,7 @@ class MirrorDoctor(cmdln.Cmdln):
 
         import os
         cmd = '/usr/bin/scanner '
+        cmd += '-b %s ' % self.options.brain_instance
         if opts.force:
             cmd += '-f '
         if opts.enable:
@@ -318,7 +319,7 @@ class MirrorDoctor(cmdln.Cmdln):
 
         mirrors = []
         for arg in args:
-            mirrors.append(lookup_mirror(arg))
+            mirrors.append(lookup_mirror(self, arg))
 
         cmd += ' '.join([mirror.identifier for mirror in mirrors])
 
@@ -344,7 +345,7 @@ class MirrorDoctor(cmdln.Cmdln):
         else:
             sys.exit('Wrong number of arguments.')
         
-        mirror = lookup_mirror(identifier)
+        mirror = lookup_mirror(self, identifier)
 
         if not score:
             print mirror.score
