@@ -57,6 +57,8 @@
 # 2008-04-17, jcborn -V0.9e, range request terminates after a fixed amount of data
 # 2008-05-28, jcborn - bugfix for bnc394470
 #   (fixes problem for mirrors that disable range headers)
+# 2008-08-21, poeml - V0.10, be able to run on different mirrorbrain instances
+#                     (-b option)
 #
 # FIXME: 
 # should do optimize table file, file_server;
@@ -88,7 +90,7 @@ use Socket;
 use bytes;
 use Config::IniFiles;
 
-my $version = '0.9e';
+my $version = '0.10';
 my $scanner_email = 'poeml@suse.de';
 my $verbose = 1;
 
@@ -129,7 +131,8 @@ my $enable_after_scan = 0;
 my $mirror_url_add = undef;
 my $mirror_url_del = undef;
 my $topdirs = 'distribution|tools|repositories';
-my $cfgfile = './etc/mirrorbrain.conf';
+my $cfgfile = '/etc/mirrorbrain.conf';
+my $brain_instance = '';
 
 my $gig2 = 1<<31; # 2*1024*1024*1024 == 2^1 * 2^10 * 2^10 * 2^10 = 2^31
 
@@ -154,15 +157,6 @@ push @norecurse_list, '/.~tmp~/';
 push @norecurse_list, '/openSUSE-current/';
 push @norecurse_list, '/openSUSE-stable/';
 
-my $cfg = new Config::IniFiles( -file => $cfgfile );
-my $db_cred = { dbi => 'dbi:mysql:dbname=' . $cfg->val( 'general', 'dbname') 
-                              . ';host='   . $cfg->val( 'general', 'dbhost') 
-                              . ';port='   . $cfg->val( 'general', 'dbport'), 
-                user => $cfg->val( 'general', 'dbuser'), 
-                pass => $cfg->val( 'general', 'dbpass'), 
-                opt => { PrintError => 0 } };
-
-
 exit usage() unless @ARGV;
 while (defined (my $arg = shift)) {
 	if    ($arg !~ m{^-})                  { unshift @ARGV, $arg; last; }
@@ -177,6 +171,7 @@ while (defined (my $arg = shift)) {
 	elsif ($arg =~ m{^-x})                 { $extra_schedule_run++; }
 	elsif ($arg =~ m{^-k})                 { $keep_dead_files++; }
 	elsif ($arg =~ m{^-d})                 { $start_dir = shift; }
+	elsif ($arg =~ m{^-b})                 { $brain_instance = shift; }
 	elsif ($arg =~ m{^-l})                 { $list_only++; 
 						 $list_only++ if $arg =~ m{ll}; 
 						 $list_only++ if $arg =~ m{lll}; }
@@ -187,6 +182,29 @@ while (defined (my $arg = shift)) {
 	elsif ($arg =~ m{^-D})                 { $mirror_url_del = [ @ARGV ]; @ARGV = (); }
 	elsif ($arg =~ m{^-})		       { exit usage("unknown option '$arg'"); }
 }
+
+
+# read the configuration
+my $cfg = new Config::IniFiles( -file => $cfgfile );
+$cfg->SectionExists('general') or die 'no [general] section in config file';
+
+# if the instance wasn't specified with -b, we use the first of the defined 
+# instances
+my @brain_instances = split(/, /, $cfg->val('general', 'instances'));
+$brain_instance = $brain_instances[0] unless $brain_instance;
+$cfg->SectionExists($brain_instance) or die 'no [' . $brain_instance . '] section in config file';
+
+# port is optional
+my $db_port = '3306';
+$db_port = $cfg->val($brain_instance, 'dbport') 
+		if $cfg->val($brain_instance, 'dbport');
+my $db_cred = { dbi => 'dbi:mysql:dbname=' . $cfg->val( $brain_instance, 'dbname') 
+                              . ';host='   . $cfg->val( $brain_instance, 'dbhost')
+                              . ';port='   . $db_port,
+                user => $cfg->val( $brain_instance, 'dbuser'), 
+                pass => $cfg->val( $brain_instance, 'dbpass'), 
+                opt => { PrintError => 0 } };
+
 
 my %only_server_ids = map { $_ => 1 } @ARGV;
 
@@ -336,6 +354,8 @@ sub usage
 
 scanner [options] [mirror_ids ...]
 
+  -b        MirrorBrain instance to use 
+            Default: the first which is defined in the config.
   -v        Be more verbose (Default: $verbose).
   -q        Be quiet.
   -l        Do not scan. List enabled mirrors only.
