@@ -1,16 +1,5 @@
 
 from sqlobject import *
-from mb.conf import config
-
-#
-# setup database connection
-#
-uri_str = 'mysql://%s:%s@%s:%s/%s'
-#if options.loglevel == 'DEBUG':
-#    uri_str += '?debug=1'
-uri = uri_str % (config['dbuser'], config['dbpass'], config['dbhost'], config['dbport'], config['dbname'])
-
-sqlhub.processConnection = connectionForURI(uri)
 
 
 server_show_template = """\
@@ -65,6 +54,30 @@ def server2dict(s):
                 admin         = s.admin,
                 adminEmail    = s.adminEmail)
 
+#
+# setup database connection
+#
+
+class Conn:
+    def __init__(self, config):
+        uri_str = 'mysql://%s:%s@%s:%s/%s'
+        #if options.loglevel == 'DEBUG':
+        #    uri_str += '?debug=1'
+        self.uri = uri_str % (config['dbuser'], config['dbpass'], 
+                              config['dbhost'], config.get('dbport', '3306'), 
+                              config['dbname'])
+
+        sqlhub.processConnection = connectionForURI(self.uri)
+
+        class Server(SQLObject):
+            """the server table"""
+            class sqlmeta:
+                fromDatabase = True
+
+        self.Server = Server
+
+
+
 def servertext2dict(s):
     import re
     import mb.conn
@@ -86,15 +99,11 @@ def servertext2dict(s):
     return new_attrs
     
 
-def servers_match(match):
-    servers = Server.select("""identifier LIKE '%%%s%%'""" % match)
+def servers_match(server, match):
+    servers = server.select("""identifier LIKE '%%%s%%'""" % match)
     return list(servers)
 
 
-class Server(SQLObject):
-    """the server table"""
-    class sqlmeta:
-        fromDatabase = True
 
 #class Asn(SQLObject):
 #    """the autonomous systems table"""
