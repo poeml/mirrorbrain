@@ -117,6 +117,7 @@ typedef struct
 /* per-server configuration */
 typedef struct
 {
+    const char *instance;
     int memcached_on;
     int memcached_lifetime;
     apr_table_t *treat_country_as; /* treat country as another country */
@@ -242,6 +243,7 @@ static void *create_zrkadlo_server_config(apr_pool_t *p, server_rec *s)
     ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, s, 
             "[mod_zrkadlo] creating server config");
 
+    new->instance = "default";
     new->memcached_on = UNSET;
     new->memcached_lifetime = UNSET;
     new->treat_country_as = apr_table_make(p, 0);
@@ -261,6 +263,7 @@ static void *merge_zrkadlo_server_config(apr_pool_t *p, void *basev, void *addv)
     ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, NULL, 
             "[mod_zrkadlo] merging server config");
 
+    cfgMergeString(instance);
     cfgMergeBool(memcached_on);
     cfgMergeInt(memcached_lifetime);
     mrg->treat_country_as = apr_table_overlay(p, add->treat_country_as, base->treat_country_as);
@@ -355,6 +358,17 @@ static const char *zrkadlo_cmd_handle_headrequest_locally(cmd_parms *cmd,
 {
     zrkadlo_dir_conf *cfg = (zrkadlo_dir_conf *) config;
     cfg->handle_headrequest_locally = flag;
+    return NULL;
+}
+
+static const char *zrkadlo_cmd_instance(cmd_parms *cmd, 
+                                void *config, const char *arg1)
+{
+    server_rec *s = cmd->server;
+    zrkadlo_server_conf *cfg = 
+        ap_get_module_config(s->module_config, &zrkadlo_module);
+
+    cfg->instance = arg1;
     return NULL;
 }
 
@@ -531,7 +545,8 @@ static int zrkadlo_handler(request_rec *r)
     if (cfg->engine_on != 1) {
         return DECLINED;
     }
-    debugLog(r, cfg, "ZrkadloEngine is On, mirror_base is '%s'", cfg->mirror_base);
+    debugLog(r, cfg, "ZrkadloEngine On, instance '%s', mirror_base '%s'", 
+            scfg->instance, cfg->mirror_base);
 
     /* is it a HEAD request? */
     if (r->header_only && cfg->handle_headrequest_locally) {
@@ -746,7 +761,7 @@ static int zrkadlo_handler(request_rec *r)
     /* look for associated mirror in memcache */
     cached_id = 0;
     if (scfg->memcached_on) {
-        m_key = apr_pstrcat(r->pool, "z_", clientip, NULL);
+        m_key = apr_pstrcat(r->pool, "mb_", scfg->instance, "_", clientip, NULL);
         if (newmirror) {
                 debugLog(r, cfg, "client requested new mirror");
         } else {
@@ -1531,10 +1546,15 @@ static const command_rec zrkadlo_cmds[] =
                   "Set to On/Off to handle HEAD requests locally (don't redirect)"),
 
     /* to be used only in server context */
+    AP_INIT_TAKE1("ZrkadloInstance", zrkadlo_cmd_instance, NULL, 
+                  RSRC_CONF, 
+                  "Name of the Zrkadlo instance"),
+
     AP_INIT_TAKE1("ZrkadloDBDQuery", zrkadlo_dbd_prepare, 
                   (void *)APR_OFFSETOF(zrkadlo_dir_conf, query), 
                   RSRC_CONF,
                   "the SQL query string to fetch the mirrors from the backend database"),
+
     AP_INIT_TAKE1("ZrkadloGeoIPFile", zrkadlo_cmd_geoip_filename, NULL, 
                   RSRC_CONF, 
                   "Path to GeoIP Data File"),
