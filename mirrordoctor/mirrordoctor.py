@@ -167,6 +167,8 @@ class MirrorDoctor(cmdln.Cmdln):
         print s
 
 
+    @cmdln.option('-a', '--show-disabled', action='store_true',
+                        help='do not hide disabled mirrors')
     @cmdln.option('-c', '--country', metavar='XY',
                         help='show only mirrors whose country matches XY')
     @cmdln.option('-r', '--region', metavar='XY',
@@ -190,7 +192,11 @@ class MirrorDoctor(cmdln.Cmdln):
             mirrors = self.conn.Server.select()
 
         for mirror in mirrors:
-            print mirror.identifier
+            if opts.show_disabled:
+                print mirror.identifier
+            else:
+                if mirror.enabled:
+                    print mirror.identifier
 
 
     def do_show(self, subcmd, opts, identifier):
@@ -285,7 +291,19 @@ class MirrorDoctor(cmdln.Cmdln):
         """
         
         mirror = lookup_mirror(self, identifier)
+        mirror.statusBaseurl = 0
         mirror.enabled = 0
+
+
+    def do_rename(self, subcmd, opts, identifier, new_identifier):
+        """${cmd_name}: rename a mirror's identifier
+
+        ${cmd_usage}
+        ${cmd_option_list}
+        """
+        
+        mirror = lookup_mirror(identifier)
+        mirror.identifier = new_identifier
 
 
     @cmdln.option('-f', '--force', action='store_true',
