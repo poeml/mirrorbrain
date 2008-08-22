@@ -301,6 +301,8 @@ class MirrorDoctor(cmdln.Cmdln):
                   help='Enable a mirror, after it was scanned. Useful with -f')
     @cmdln.option('-j', '--jobs', metavar='N',
                   help='Run up to N scanner queries in parallel.')
+    @cmdln.option('-S', '--scanner', metavar='PATH',
+                  help='Specify path to scanner.')
     @cmdln.option('-d', '--directory', metavar='DIR',
                   help='Scan only in dir under mirror\'s baseurl. '
                        'Default: start at baseurl. Does not delete files, only add.')
@@ -313,8 +315,10 @@ class MirrorDoctor(cmdln.Cmdln):
         """
 
         import os
-        cmd = '/usr/bin/scanner '
-        cmd += '-b %s ' % self.options.brain_instance
+        cmd = opts.scanner or '/usr/bin/scanner'
+        cmd += ' '
+        if self.options.brain_instance:
+            cmd += '-b %s ' % self.options.brain_instance
         if opts.force:
             cmd += '-f '
         if opts.enable:
@@ -330,6 +334,8 @@ class MirrorDoctor(cmdln.Cmdln):
 
         cmd += ' '.join([mirror.identifier for mirror in mirrors])
 
+        if self.options.debug:
+            print cmd
         os.system(cmd)
 
 
