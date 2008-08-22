@@ -73,23 +73,12 @@ class MirrorDoctor(cmdln.Cmdln):
     def postoptparse(self):
         """runs after parsing global options"""
 
-        conffile = '/etc/mirrorbrain.conf'
         import mb.conf
-        config = mb.conf.Config(conffile)
-        if not self.options.brain_instance:
-            self.options.brain_instance = config.get()['instances'][0]
-
-        try:
-            config.get()[self.options.brain_instance]
-        except KeyError:
-            sys.exit('The config does not have an instance %s defined' \
-                      % self.options.brain_instance)
+        config = mb.conf.Config(instance = self.options.brain_instance)
 
         # set up the database connection
         import mb.conn
-        self.conn = mb.conn.Conn(config.get()[self.options.brain_instance])
-        if self.options.debug:
-            self.conn.Server._connection.debug = True
+        self.conn = mb.conn.Conn(config.dbconfig, debug = self.options.debug)
 
 
 

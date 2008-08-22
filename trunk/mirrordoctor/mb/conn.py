@@ -59,7 +59,7 @@ def server2dict(s):
 #
 
 class Conn:
-    def __init__(self, config):
+    def __init__(self, config, debug = False):
         uri_str = 'mysql://%s:%s@%s:%s/%s'
         #if options.loglevel == 'DEBUG':
         #    uri_str += '?debug=1'
@@ -75,6 +75,9 @@ class Conn:
                 fromDatabase = True
 
         self.Server = Server
+
+        if debug:
+            self.Server._connection.debug = True
 
 
 
