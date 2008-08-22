@@ -74,16 +74,16 @@ which gives an outline how it works.
 Software requirements:
 
 Frontend (the redirector):
- - Apache HTTP server 2.2.x or newer
- - libGeoIP, libapr_memcache, mod_memcache, and mod_form
+ - Apache HTTP server 2.2.6 or newer
+ - libGeoIP, apr_memcache (or apr-util > 1.3.2), mod_memcache, and mod_form
  - memcache daemon
 Backend (rest of the MirrorBrain framework):
- - MySQL server. The tables must be InnoDB tables, because only that engine
+ - MySQL server. The tables should be InnoDB tables, because only that engine
    offers row-based write locks. Due to optimizations of InnoDB engine for high
    performance it makes sense to have a separate MySQL instance for this
    database.
    Postgresql should also work, but it hasn't been tested.
- - Python, python-mysql, python-sqlobject for the ping process and database
+ - Python, python-mysql, python-sqlobject for the mirrorprobe and database
    maintenance
  - Perl for the scanner process
 
