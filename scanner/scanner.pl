@@ -650,7 +650,7 @@ sub http_readdir
   my @r;
   print "$id $url/$name\n" if $verbose;
   my $contents = cont("$url/$name/");
-  if($contents =~ s{^.*<pre>.*<a href="\?C=.;O=.">}{}s) {
+  if($contents =~ s{^.*<pre>.*<a href="\?C=.*;O=.">}{}s) {
     ## good, we know that one. It is a standard apache dir-listing.
     ## 
     ## bad, apache shows symlinks as a copy of the file or dir they point to.
