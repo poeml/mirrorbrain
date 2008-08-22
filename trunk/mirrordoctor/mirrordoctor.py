@@ -113,11 +113,11 @@ class MirrorDoctor(cmdln.Cmdln):
 
 
         example:
-            mirrorbrain.py new -i example.com \
-                -H http://mirror1.example.com/pub/opensuse/ \
-                -F ftp://mirror1.example.com/pub/opensuse/ \
-                -R rsync://mirror1.example.com/opensuse/ \
-                -a 'He Who Never Sleeps' \
+            mirrorbrain.py new -i example.com \\
+                -H http://mirror1.example.com/pub/opensuse/ \\
+                -F ftp://mirror1.example.com/pub/opensuse/ \\
+                -R rsync://mirror1.example.com/opensuse/ \\
+                -a 'He Who Never Sleeps' \\
                 -e nosleep@example.com
 
         ${cmd_usage}
