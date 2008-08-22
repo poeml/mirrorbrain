@@ -152,6 +152,12 @@ def main():
     socket.setdefaulttimeout(int(options.timeout))
 
 
+    # an "are you alive check" is relatively useless if it is answered by an intermediate cache
+    for i in ['http_proxy', 'HTTP_PROXY', 'ftp_proxy', 'FTP_PROXY']:
+        if i in os.environ:
+            del os.environ[i]
+
+
     #
     # set up logging
     #
