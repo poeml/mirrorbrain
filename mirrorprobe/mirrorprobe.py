@@ -23,11 +23,11 @@ def reenable(mirror):
     mirror.comment = comment
 
 
-def ping_http(mirror):
+def probe_http(mirror):
     """Try to reach host at baseurl. 
     Set status_baseurl_new."""
 
-    logging.debug("%s pinging %s" % (threading.currentThread().getName(), mirror.identifier))
+    logging.debug("%s probing %s" % (threading.currentThread().getName(), mirror.identifier))
 
     #req = urllib2.Request('http://old-cherry.suse.de') # never works
     #req = urllib2.Request('http://doozer.poeml.de/')   # always works
@@ -98,7 +98,7 @@ def main():
 
 
     LOGLEVEL = config.mirrorprobe.get('loglevel', 'INFO')
-    LOGFILE = config.mirrorprobe.get('logfile', '/var/log/pingd')
+    LOGFILE = config.mirrorprobe.get('logfile', '/var/log/mirrorprobe.log')
     MAILTO = config.mirrorprobe.get('mailto', 'root@localhost')
 
     #
@@ -174,7 +174,7 @@ def main():
     mail = logging.handlers.SMTPHandler('localhost', 
                                         'root@' + socket.gethostbyaddr(socket.gethostname())[0], 
                                         toaddrs,
-                                        'pingd warning')
+                                        'mirrorprobe warning')
     mail.setLevel(logging.WARNING)
     mailformatter = logging.Formatter(LOGFORMAT, DATEFORMAT)
     mail.setFormatter(mailformatter)
@@ -220,9 +220,9 @@ def main():
         #mirror.status_baseurl_new = False
         #mirror.timed_out = True
 
-        t = threading.Thread(target=ping_http, 
+        t = threading.Thread(target=probe_http, 
                              args=[mirrors[i]], 
-                             name="pingThread-%s" % mirror.id)
+                             name="probeThread-%s" % mirror.id)
         # thread will keep the program from terminating.
         t.setDaemon(0)
         t.start()
@@ -243,14 +243,14 @@ def main():
 
 Disabling. 
 Manual enabling will be needed.
-Use pingd.py -e <identifier>
+Use mirrorprobe.py -e <identifier>
 
 And, if the mirror has been disabled for a while, scan it before enabling
 it again!
 """ % (mirror.identifier, mirror.baseurl, mirror.response_code, mirror.response))
 
                 comment = mirror.comment or ''
-                comment += (' *** set enabled=0 by pingd at %s due to status code %s' % (time.ctime(), mirror.response_code))
+                comment += (' *** set enabled=0 by mirrorprobe at %s due to status code %s' % (time.ctime(), mirror.response_code))
                 logging.debug('setting enabled=0 for %s' % (mirror.identifier))
                 if not options.no_run:
                     mirror.enabled = 0
