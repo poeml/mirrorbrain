@@ -1,3 +1,9 @@
+Fri Aug 22 17:22:14 CEST 2008
+- allow to use the apache module and all tools with multiple instances of
+  the mirrorbrain. Now, one machine / one Apache can host multiple separate
+  instances, each in a vhost.
+- a number of small bugs in the tools were fixed and several improvements
+  added.
 
 Wed Jun 11 01:20:12 CEST 2008
 - added "mirrordoctor", a commandline tool to maintain mirror entries in the
