@@ -12,7 +12,7 @@ from sqlobject import *
 from sqlobject.sqlbuilder import AND
 
 LOGLEVEL = 'INFO'
-USER_AGENT = 'pingd/openSUSE (see http://en.opensuse.org/Build_Service/Redirector)'
+USER_AGENT = 'MirrorBrain Probe (see http://mirrorbrain.org/probe_info)'
 LOGFORMAT = '%(asctime)s %(levelname)-8s %(message)s'
 DATEFORMAT = '%b %d %H:%M:%S'
 
@@ -89,19 +89,28 @@ def main():
     #
     # read config file
     #
-    conffile = '/etc/mirrorbrain.conf'
-    cp = ConfigParser.SafeConfigParser()
-    cp.read(conffile)
-    config = dict(cp.items('general'))
-    config_probe = dict(cp.items('probe'))
-    LOGLEVEL = config_probe.get('loglevel', 'INFO')
-    LOGFILE = config_probe.get('logfile', '/var/log/pingd')
-    MAILTO = config_probe.get('mailto', 'root@localhost')
+    brain_instance = None
+    if '-b' in sys.argv:
+        brain_instance = sys.argv[sys.argv.index('-b') + 1]
+
+    import mb.conf
+    config = mb.conf.Config(instance = brain_instance)
+
+
+    LOGLEVEL = config.mirrorprobe.get('loglevel', 'INFO')
+    LOGFILE = config.mirrorprobe.get('logfile', '/var/log/pingd')
+    MAILTO = config.mirrorprobe.get('mailto', 'root@localhost')
 
     #
     # parse commandline
     #
     parser = OptionParser(usage="%prog [options] [<mirror identifier>+]", version="%prog 1.0")
+
+    parser.add_option("-b", "--brain-instance",
+                      dest="brain_instance",
+                      default=None,
+                      help="name of the MirrorBrain instance to be used",
+                      metavar="NAME")
 
     parser.add_option("-l", "--log",
                       dest="logfile",
@@ -143,6 +152,7 @@ def main():
 
     socket.setdefaulttimeout(int(options.timeout))
 
+
     #
     # set up logging
     #
@@ -174,16 +184,10 @@ def main():
     #
     # setup database connection
     #
-    uri_str = 'mysql://%s:%s@%s:%s/%s'
-    if options.loglevel == 'DEBUG':
-        uri_str += '?debug=1'
-    uri = uri_str % (config['dbuser'], config['dbpass'], config['dbhost'], config['dbport'], config['dbname'])
+    import mb.conn
+    conn = mb.conn.Conn(config.dbconfig, 
+                        debug = (options.loglevel == 'DEBUG'))
 
-    sqlhub.processConnection = connectionForURI(uri)
-
-    class Server(SQLObject):
-        class sqlmeta:
-            fromDatabase = True
 
     #
     # get mirrors from database
@@ -191,7 +195,7 @@ def main():
     mirrors = []
     if args:
         # select all mirrors matching the given identifiers
-        result = Server.select()
+        result = conn.Server.select()
         for i in result:
             if i.identifier in args:
                 mirrors.append(i)
@@ -200,7 +204,7 @@ def main():
         #
         # ignore wildcard mirrors, assuming that they can't be checked by normal means (i.e., baseurl itself may
         # not give a 200. Just some files are served maybe...
-        result = Server.select(AND(Server.q.enabled == 1, Server.q.country != '**'))
+        result = conn.Server.select(AND(conn.Server.q.enabled == 1, conn.Server.q.country != '**'))
         for i in result:
             mirrors.append(i)
 
