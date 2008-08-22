@@ -55,6 +55,24 @@ After installation of mod_zrkadlo, you'll need to:
     mysql -u wwwrun -p -D redirector < /usr/share/doc/packages/apache2-mod_zrkadlo/sql/opensuse-redirector.sql
 
 
+- create /etc/mirrorbrain.conf with the following content:
+
+  [general]
+  instances = go-oo
+
+  [go-oo]
+  dbuser = wwwrun
+  dbpass = 12345
+  dbhost = your_host.example.com
+  dbport = 3306
+  dbname = redirector
+  
+  [mirrorprobe]
+  logfile = /var/log/mirrorprobe.log
+  loglevel = INFO
+  mailto = your_mail@example.com, another_mail@example.com
+
+
   
 - load the Apache modules:
    a2enmod form
@@ -156,60 +174,29 @@ After installation of mod_zrkadlo, you'll need to:
     rsync://ftp.kddilabs.jp/suse/projects/
 
 
-  Now, you look up their country and region IDs, and invent an "identifier":
-  (don't worry, the geoip lookup is something which could be automated later)
 
-     # geoiplookup_continent ftp.kddilabs.jp
-    AS
-     # geoiplookup ftp.kddilabs.jp 
-    GeoIP Country Edition: JP, Japan
+  Now you need to enter the mirrors into the database; it could be done like this: 
+  (see 'mirrordoctor help new' for full option list)
 
-  So you collect:
+    mirrordoctor new --identifier ftp.isr.ist.utl.pt \
+                     --http http://ftp.isr.ist.utl.pt/pub/MIRRORS/ftp.suse.com/projects/ \
+                     --rsync rsync://ftp.isr.ist.utl.pt/suse/projects/
 
-    EU PT  ftp.isr.ist.utl.pt
-    AS JP  ftp.kddilabs.jp
-
+    mirrordoctor new --identifier ftp.kddilabs.jp \
+                     --http http://ftp.kddilabs.jp/Linux/distributions/ftp.suse.com/projects/ \
+                     --rsync rsync://ftp.kddilabs.jp/suse/projects/
 
 
-  Now you need to enter the mirrors into the database; it could be done like this:
+  The mirror doctor figures out the GeoIP location of each mirror by itself.
+  But you could also specify them on the commandline.
 
-    insert into server set region='EU', country='pt', score=50, 
-                           identifier='ftp.isr.ist.utl.pt', 
-                           baseurl='http://ftp.isr.ist.utl.pt/pub/MIRRORS/ftp.suse.com/projects/', 
-                           baseurl_ftp='', 
-                           baseurl_rsync='rsync://ftp.isr.ist.utl.pt/suse/projects/';
+  If you want to edit a mirror later, use
+    mirrordoctor edit <identifier>
 
-    insert into server set region='AS', country='jp', score=50, 
-                           identifier='ftp.kddilabs.jp', 
-			   baseurl='http://ftp.kddilabs.jp/Linux/distributions/ftp.suse.com/projects/', 
-			   baseurl_ftp='', 
-			   baseurl_rsync='rsync://ftp.kddilabs.jp/suse/projects/', 
-			   region_only=1;
-
-
-  You'll note that I also invented a "score" which gives more or less
-  preference for those mirrors.  
-  In addition I set "region_only=1" for that second mirror, which lets it get
-  only redirects from its region (Asia).
-
+  See the output of 'mirrordoctor help' for more commands.
 
   Each mirror needs to be scanned and enabled manually.
 
-
-
-- create /etc/mirrorbrain.conf with the following content:
-
-  [general]
-  dbuser = wwwrun
-  dbpass = 12345
-  dbhost = your_host.example.com
-  dbport = 3306
-  dbname = redirector
-  
-  [probe]
-  logfile = /var/log/pingd
-  loglevel = INFO
-  mailto = your_mail@example.com, another_mail@example.com
 
 
 
@@ -219,11 +206,10 @@ give me an occasion to improve this document along the way.
 
 TODO:
 
-- add wrapper script to run pingd / scanner as unprivileged user
+- add wrapper script to run mirrorprobe / scanner as unprivileged user
   and describe how to set it up
 
     su - mirror -s /bin/bash -c "/usr/bin/scanner.mine -f ftp.isr.ist.utl.pt"
-    vi /root/.pingdrc
-    -*/3 * * * *     root  /usr/bin/pingd &>/dev/null
+    -*/3 * * * *     root  /usr/bin/mirrorprobe &>/dev/null
 
 - describe mysql tuning for innodb engine for performance
