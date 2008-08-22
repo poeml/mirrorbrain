@@ -650,14 +650,15 @@ sub http_readdir
   my @r;
   print "$id $url/$name\n" if $verbose;
   my $contents = cont("$url/$name/");
-  if($contents =~ s{^.*<pre>.*<a href="\?C=.*;O=.">}{}s) {
+  if($contents =~ s{^.*<(pre|table)>.*<a href="\?C=.*;O=.">}{}s) {
     ## good, we know that one. It is a standard apache dir-listing.
     ## 
     ## bad, apache shows symlinks as a copy of the file or dir they point to.
     ## no way to avoid duplicate crawls.
     ##
-    $contents =~ s{</pre>.*$}{}s;
+    $contents =~ s{</(pre|table)>.*$}{}s;
     for my $line (split "\n", $contents) {
+      $line =~ s/<\/*t[rd].*?>/ /g;
       if($line =~ m{^(.*)href="([^"]+)">([^<]+)</a>\s+([\w\s:-]+)\s+(-|[\d\.]+[KMG]?)}) {
 	my ($pre, $name1, $name2, $date, $size) = ($1, $2, $3, $4, $5);
 	next if $name1 =~ m{^/} or $name1 =~ m{^\.\.};
