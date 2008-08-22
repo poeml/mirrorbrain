@@ -7,7 +7,6 @@ __license__ = "GPL"
 import sys, os, os.path, time, threading, socket, urllib2, httplib
 import logging, logging.handlers
 from optparse import OptionParser
-import ConfigParser
 from sqlobject import *
 from sqlobject.sqlbuilder import AND
 
