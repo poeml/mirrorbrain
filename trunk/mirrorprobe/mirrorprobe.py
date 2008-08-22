@@ -10,10 +10,7 @@ from optparse import OptionParser
 from sqlobject import *
 from sqlobject.sqlbuilder import AND
 
-LOGLEVEL = 'INFO'
 USER_AGENT = 'MirrorBrain Probe (see http://mirrorbrain.org/probe_info)'
-LOGFORMAT = '%(asctime)s %(levelname)-8s %(message)s'
-DATEFORMAT = '%b %d %H:%M:%S'
 
 def reenable(mirror):
     comment = mirror.comment or ''
@@ -157,6 +154,8 @@ def main():
         if i in os.environ:
             del os.environ[i]
 
+    LOGFORMAT = '%(asctime)s ' + config.instance + ' %(levelname)-8s %(message)s'
+    DATEFORMAT = '%b %d %H:%M:%S'
 
     #
     # set up logging
