@@ -113,7 +113,7 @@ $ENV{FTP_PASSIVE} = 1;	# used in LWP only, Net::FTP ignores this.
 
 # Create a user agent object
 my $ua = LWP::UserAgent->new;
-$ua->agent("openSUSE Scanner/$version (See http://en.opensuse.org/Mirrors/Scanner)");
+$ua->agent("MirrorBrain Scanner/$version (See http://mirrorbrain.org/scanner_info)");
 
 my $rsync_muxbuf = '';
 my $use_md5 = 1;
