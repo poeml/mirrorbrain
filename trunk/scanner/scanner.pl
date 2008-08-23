@@ -266,6 +266,7 @@ $parallel = 1 if scalar @scan_list == 1;
 if ($parallel > 1) {
   my @worker;
   my @cmd = ($0);
+  push @cmd, '-b', $brain_instance;
   push @cmd, '-q' unless $verbose;
   push @cmd, ('-v') x ($verbose - 1) if $verbose > 1;
   push @cmd, '-x' if $extra_schedule_run;
