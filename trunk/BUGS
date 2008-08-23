@@ -4,6 +4,8 @@ more important bugs at the top...
 * no important bug known at this time :-)
 
 
+* metalink-hasher should use exec* for external commands
+
 * fix fakefile option. It broke with the added filename canonicalizing
    % curl -sI 'http://download.opensuse.org/distribution/SL-OSS-factory/inst-source/suse/x86_64/apache2-prefork-2.2.0-21.x86_64.rpm?fakefile'
   HTTP/1.1 500 Internal Server Error
@@ -13,8 +15,4 @@ more important bugs at the top...
   where not considered, because they are configured country-only or region-only 
   (same_region=1 or same_country=1)
 
-* might still need to take care of 
-  http://www.nabble.com/apr_memcache-memory-leak-t3146183.html
-  http://issues.outoforder.cc/view.php?id=68
-  but should be fixed
 
