@@ -46,7 +46,7 @@ def make_hashes(src, dst, opts):
         return 
 
     cmd = 'metalink --nomirrors -d md5 -d sha1 -d sha1pieces "%s"' % src
-    cmd += ' | grep "<.*\(verification\|hash\)>" > %s' % dst
+    cmd += ' | grep "<.*\(verification\|hash\)>" > "%s"' % dst
 
     if opts.verbose:
         print cmd
