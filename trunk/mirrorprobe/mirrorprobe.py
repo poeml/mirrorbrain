@@ -14,9 +14,9 @@ USER_AGENT = 'MirrorBrain Probe (see http://mirrorbrain.org/probe_info)'
 
 def reenable(mirror):
     comment = mirror.comment or ''
-    comment = comment[:comment.find('*** ')]
-    mirror.enabled = 1
+    comment += ('\n\n*** reenabled by mirrorprobe at %s.' % (time.ctime()))
     mirror.comment = comment
+    mirror.enabled = 1
 
 
 def probe_http(mirror):
@@ -254,7 +254,7 @@ it again!
 """ % (mirror.identifier, mirror.baseurl, mirror.response_code, mirror.response))
 
                 comment = mirror.comment or ''
-                comment += (' *** set enabled=0 by mirrorprobe at %s due to status code %s' % (time.ctime(), mirror.response_code))
+                comment += ('\n\n*** set enabled=0 by mirrorprobe at %s due to status code %s' % (time.ctime(), mirror.response_code))
                 logging.debug('setting enabled=0 for %s' % (mirror.identifier))
                 if not options.no_run:
                     mirror.enabled = 0
