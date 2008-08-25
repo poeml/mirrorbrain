@@ -56,7 +56,7 @@ def probe_http(mirror):
         try:
             mirror.response = response.read()
         except ValueError, e:
-            if str(e) == 'invalid literal for int(): ':
+            if str(e).startswith('invalid literal for int()'):
                 mirror.response = 'response not read due to http://bugs.python.org/issue1205'
                 logging.info('mirror %s sends broken chunked reply, see http://bugs.python.org/issue1205' % mirror.identifier)
             else:
