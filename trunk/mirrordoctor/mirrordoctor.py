@@ -293,7 +293,7 @@ class MirrorDoctor(cmdln.Cmdln):
         ${cmd_option_list}
         """
         
-        mirror = lookup_mirror(identifier)
+        mirror = lookup_mirror(self, identifier)
         mirror.identifier = new_identifier
 
 
