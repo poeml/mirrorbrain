@@ -150,6 +150,8 @@ class MirrorDoctor(cmdln.Cmdln):
                              region       = opts.region,
                              country      = opts.country,
                              score        = opts.score,
+                             enabled      = 0,
+                             statusBaseurl = 0,
                              admin        = opts.admin,
                              adminEmail   = opts.admin_email,
                              comment      = opts.comment)
