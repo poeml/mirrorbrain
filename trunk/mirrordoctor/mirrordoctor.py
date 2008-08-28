@@ -105,15 +105,12 @@ class MirrorDoctor(cmdln.Cmdln):
     @cmdln.option('-c', '--country', metavar='ARG',
                         help='two-letter country code, e.g. DE')
 
-    @cmdln.option('-i', '--identifier', metavar='ARG',
-                        help='identifier string')
-
-    def do_new(self, subcmd, opts):
+    def do_new(self, subcmd, opts, identifier):
         """${cmd_name}: insert a new mirror into the database
 
 
         example:
-            mirrorbrain.py new -i example.com \\
+            mirrorbrain.py new example.com \\
                 -H http://mirror1.example.com/pub/opensuse/ \\
                 -F ftp://mirror1.example.com/pub/opensuse/ \\
                 -R rsync://mirror1.example.com/opensuse/ \\
@@ -127,12 +124,8 @@ class MirrorDoctor(cmdln.Cmdln):
         import urlparse
 
 
-        if not opts.identifier:
-            sys.exit('identifier needs to be specified')
         if not opts.http:
-            sys.exit('HTTP baseurl needs to be specified')
-        #if not opts.http and not opts.ftp:
-        #    sys.exit('rsync or FTP baseurl needs to be specified')
+            sys.exit('An HTTP base URL needs to be specified')
 
         scheme, host, path, a, b, c = urlparse.urlparse(opts.http)
         if not opts.region:
@@ -143,7 +136,7 @@ class MirrorDoctor(cmdln.Cmdln):
         if opts.region == '--' or opts.country == '--':
             raise ValueError('region lookup failed')
 
-        s = self.conn.Server(identifier   = opts.identifier,
+        s = self.conn.Server(identifier   = identifier,
                              baseurl      = opts.http,
                              baseurlFtp   = opts.ftp or '',
                              baseurlRsync = opts.rsync,
