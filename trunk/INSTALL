@@ -178,11 +178,11 @@ After installation of mod_zrkadlo, you'll need to:
   Now you need to enter the mirrors into the database; it could be done like this: 
   (see 'mirrordoctor help new' for full option list)
 
-    mirrordoctor new --identifier ftp.isr.ist.utl.pt \
+    mirrordoctor new ftp.isr.ist.utl.pt \
                      --http http://ftp.isr.ist.utl.pt/pub/MIRRORS/ftp.suse.com/projects/ \
                      --rsync rsync://ftp.isr.ist.utl.pt/suse/projects/
 
-    mirrordoctor new --identifier ftp.kddilabs.jp \
+    mirrordoctor new ftp.kddilabs.jp \
                      --http http://ftp.kddilabs.jp/Linux/distributions/ftp.suse.com/projects/ \
                      --rsync rsync://ftp.kddilabs.jp/suse/projects/
 
@@ -195,7 +195,9 @@ After installation of mod_zrkadlo, you'll need to:
 
   See the output of 'mirrordoctor help' for more commands.
 
-  Each mirror needs to be scanned and enabled manually.
+  Each mirror needs to be scanned and enabled:
+    mirrordoctor scan --enable <identifier>
+
 
 
 
