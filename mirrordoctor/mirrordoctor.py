@@ -152,6 +152,8 @@ class MirrorDoctor(cmdln.Cmdln):
             print s
 
 
+    @cmdln.option('--disabled', action='store_true',
+                        help='show only disabled mirrors')
     @cmdln.option('-a', '--show-disabled', action='store_true',
                         help='do not hide disabled mirrors')
     @cmdln.option('-c', '--country', metavar='XY',
@@ -179,6 +181,9 @@ class MirrorDoctor(cmdln.Cmdln):
         for mirror in mirrors:
             if opts.show_disabled:
                 print mirror.identifier
+            elif opts.disabled:
+                if not mirror.enabled:
+                    print mirror.identifier
             else:
                 if mirror.enabled:
                     print mirror.identifier
@@ -291,8 +296,6 @@ class MirrorDoctor(cmdln.Cmdln):
         mirror.identifier = new_identifier
 
 
-    @cmdln.option('-f', '--force', action='store_true',
-                  help='Force. Scan listed mirror ids even if they are not enabled.')
     @cmdln.option('-e', '--enable', action='store_true',
                   help='Enable a mirror, after it was scanned. Useful with -f')
     @cmdln.option('-a', '--all', action='store_true',
@@ -317,8 +320,6 @@ class MirrorDoctor(cmdln.Cmdln):
         cmd += ' '
         if self.options.brain_instance:
             cmd += '-b %s ' % self.options.brain_instance
-        if opts.force:
-            cmd += '-f '
         if opts.enable:
             cmd += '-e '
         if opts.directory:
@@ -326,7 +327,9 @@ class MirrorDoctor(cmdln.Cmdln):
         if opts.jobs:
             cmd += '-j %s ' % opts.jobs
         if opts.all:
-            cmd += '-a'
+            cmd += '-a '
+        else:
+            cmd += '-f '
 
         mirrors = []
         for arg in args:
@@ -336,7 +339,15 @@ class MirrorDoctor(cmdln.Cmdln):
 
         if self.options.debug:
             print cmd
-        os.system(cmd)
+
+        rc = os.system(cmd)
+
+        if opts.enable and rc == 0:
+            import time
+            comment = ('*** scanned and enabled at %s.' % (time.ctime()))
+            for mirror in mirrors:
+                mirror.comment = ' '.join([mirror.comment or '', '\n\n' + comment])
+
 
 
     def do_score(self, subcmd, opts, *args):
