@@ -155,7 +155,8 @@ class MirrorDoctor(cmdln.Cmdln):
                              admin        = opts.admin,
                              adminEmail   = opts.admin_email,
                              comment      = opts.comment)
-        print s
+        if self.options.debug:
+            print s
 
 
     @cmdln.option('-a', '--show-disabled', action='store_true',
