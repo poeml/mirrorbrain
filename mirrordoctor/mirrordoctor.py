@@ -302,6 +302,8 @@ class MirrorDoctor(cmdln.Cmdln):
                   help='Force. Scan listed mirror ids even if they are not enabled.')
     @cmdln.option('-e', '--enable', action='store_true',
                   help='Enable a mirror, after it was scanned. Useful with -f')
+    @cmdln.option('-a', '--all', action='store_true',
+                  help='Scan all enabled mirrors.')
     @cmdln.option('-j', '--jobs', metavar='N',
                   help='Run up to N scanner queries in parallel.')
     @cmdln.option('-S', '--scanner', metavar='PATH',
@@ -330,6 +332,8 @@ class MirrorDoctor(cmdln.Cmdln):
             cmd += '-k -x -d %s ' % opts.directory
         if opts.jobs:
             cmd += '-j %s ' % opts.jobs
+        if opts.all:
+            cmd += '-a'
 
         mirrors = []
         for arg in args:
