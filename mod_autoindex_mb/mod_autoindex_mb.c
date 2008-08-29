@@ -1189,11 +1189,9 @@ static void emit_tail(request_rec *r, char *readme_fname, int suppress_amble,
     if (!suppress_sig) {
         ap_rputs(ap_psignature("", r), r);
     }
-    /*
     if (!suppress_sig && show_mb_sig) {
-        ap_rputs("<address>Running <a href=\"http://mirrorbrain.org/\">MirrorBrain</a></address>\n", r);
+        ap_rputs("<address><a href=\"http://mirrorbrain.org/\">MirrorBrain</a> powered by <a href=\"http://httpd.apache.org/\">Apache</a></address>\n", r);
     }
-    */
     if (!suppress_post) {
         ap_rputs("</body></html>\n", r);
     }
