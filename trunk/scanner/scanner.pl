@@ -636,7 +636,7 @@ sub http_readdir
   my $re = ''; $re = $1 if $url =~ s{#(.*?)$}{};
   print "http_readdir: url=$url re=$re\n" if $verbose > 1;
   $url =~ s{/+$}{};	# we add our own trailing slashes...
-    $name =~ s{/+$}{};
+  $name =~ s{/+$}{};
 
   foreach my $item(@norecurse_list) {
     $item =~ s/([^.])(\*)/$1.$2/g;
@@ -650,25 +650,33 @@ sub http_readdir
 
   my @r;
   print "$id $url/$name\n" if $verbose;
-  my $contents = cont("$url/$name/");
-  if($contents =~ s{^.*<(pre|table)>.*<a href="\?C=.*;O=.">}{}s) {
+  my $contents = cont("$url/$name/?F=1");
+  if($contents =~ s{^.*<(PRE|pre|table)>.*<(a href|A HREF)="\?(N=A|C=.*;O=)[^"]*">}{}s) {
     ## good, we know that one. It is a standard apache dir-listing.
     ## 
     ## bad, apache shows symlinks as a copy of the file or dir they point to.
     ## no way to avoid duplicate crawls.
     ##
-    $contents =~ s{</(pre|table)>.*$}{}s;
+    $contents =~ s{</(PRE|pre|table)>.*$}{}s;
     for my $line (split "\n", $contents) {
       $line =~ s/<\/*t[rd].*?>/ /g;
-      if($line =~ m{^(.*)href="([^"]+)">([^<]+)</a>\s+([\w\s:-]+)\s+(-|[\d\.]+[KMG]?)}) {
+      print "line: $line\n" if $verbose > 2;
+      if($line =~ m{^(.*)[Hh][Rr][Ee][Ff]="([^"]+)">([^<]+)</[Aa]>\s+([\w\s:-]+)\s+(-|[\d\.]+[KMG]?)}) {
 	my ($pre, $name1, $name2, $date, $size) = ($1, $2, $3, $4, $5);
 	next if $name1 =~ m{^/} or $name1 =~ m{^\.\.};
+        if($verbose > 2) {
+          print "pre $pre\n";
+          print "name1 $name1\n";
+          print "name2 $name2\n";
+          print "date $date\n";
+          print "size $size\n";
+        }
         $name1 =~ s{%([\da-fA-F]{2})}{pack 'c', hex $1}ge;
         $name1 =~ s{^\./}{};
         my $dir = 1 if $pre =~ m{"\[DIR\]"};
 	print "$pre^$name1^$date^$size\n" if $verbose > 1;
         my $t = length($name) ? "$name/$name1" : $name1;
-        if($size eq '-' and ($dir or $name =~ m{/$})) {
+        if($size eq '-' and ($dir or $name1 =~ m{/$})) {
 	  ## we must be really sure it is a directory, when we come here.
 	  ## otherwise, we'll retrieve the contents of a file!
 	  sleep($recursion_delay) if $recursion_delay;
