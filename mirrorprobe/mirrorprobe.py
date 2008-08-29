@@ -178,7 +178,7 @@ def main():
     mail = logging.handlers.SMTPHandler('localhost', 
                                         'root@' + socket.gethostbyaddr(socket.gethostname())[0], 
                                         toaddrs,
-                                        'mirrorprobe warning')
+                                        '[%s] mirrorprobe warning' % config.instance)
     mail.setLevel(logging.WARNING)
     mailformatter = logging.Formatter(LOGFORMAT, DATEFORMAT)
     mail.setFormatter(mailformatter)
