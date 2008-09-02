@@ -510,7 +510,10 @@ static int zrkadlo_handler(request_rec *r)
     const char *val = NULL;
     const char *clientip = NULL;
     char fakefile = 0, newmirror = 0;
-    char mirrorlist = 0, mirrorlist_txt = 0, metalink = 0;
+    char mirrorlist = 0, mirrorlist_txt = 0;
+    char metalink_forced = 0;                   /* metalink was explicitely requested */
+    char metalink = 0;                          /* metalink was negotiated */ 
+                                                /* for negotiated metalinks, the exceptions are observed. */
     short int country_id;
     char* country_code;
     const char* continent_code;
@@ -588,10 +591,10 @@ static int zrkadlo_handler(request_rec *r)
         clientip = form_lookup(r, "clientip");
         if (form_lookup(r, "newmirror")) newmirror = 1;
         if (form_lookup(r, "mirrorlist")) mirrorlist =1;
-        if (form_lookup(r, "metalink")) metalink = 1;
+        if (form_lookup(r, "metalink")) metalink_forced = 1;
     }
     
-    if (!mirrorlist_txt && !metalink && !mirrorlist) {
+    if (!mirrorlist_txt && !metalink_forced && !mirrorlist) {
         const char *accepts;
         accepts = apr_table_get(r->headers_in, "Accept");
         if (accepts != NULL) {
@@ -600,21 +603,6 @@ static int zrkadlo_handler(request_rec *r)
             } else if (ap_strstr_c(accepts, "metalink+xml")) {
                 metalink = 1;
             } 
-        }
-        /* this is going to be removed, but for now I'll keep it because
-         * some documentation still refers to this still */
-        if (!mirrorlist_txt && !metalink) {
-            accepts = apr_table_get(r->headers_in, "Accept-Features");
-            if (accepts != NULL) {
-                val = ap_get_token(r->pool, &accepts, 0);
-                if (val && val[0]) {
-                    if (strcasecmp(val, "mirrorlist-txt") == 0) {
-                        mirrorlist_txt = 1;
-                    } else if (strcasecmp(val, "metalink") == 0) {
-                        metalink = 1;
-                    }
-                }
-            }
         }
     }
 
@@ -653,7 +641,7 @@ static int zrkadlo_handler(request_rec *r)
             } else {
                 if (strcmp(ext, ".metalink") == 0) {
                     debugLog(r, cfg, "Metalink requested by .metalink extension");
-                    metalink = 1;
+                    metalink_forced = 1;
                     ext[0] = '\0';
 
                     /* fill in finfo */
@@ -668,7 +656,7 @@ static int zrkadlo_handler(request_rec *r)
         }
 
         /* is the requested file too small? DECLINED */
-        if (!mirrorlist && !metalink && (r->finfo.size < cfg->min_size)) {
+        if (!mirrorlist && !metalink_forced && (r->finfo.size < cfg->min_size)) {
             debugLog(r, cfg, "File '%s' too small (%d bytes, less than %d)", 
                     r->filename, (int) r->finfo.size, (int) cfg->min_size);
             return DECLINED;
@@ -677,7 +665,7 @@ static int zrkadlo_handler(request_rec *r)
 
     /* is this file excluded from mirroring? */
     if (!mirrorlist 
-       && !metalink
+       && !metalink_forced
        && cfg->exclude_filemask 
        && !ap_regexec(cfg->exclude_filemask, r->uri, 0, NULL, 0) ) {
         debugLog(r, cfg, "File '%s' is excluded by ZrkadloExcludeFileMask", r->uri);
@@ -685,7 +673,7 @@ static int zrkadlo_handler(request_rec *r)
     }
 
     /* is the request originating from an ip address excluded from redirecting? */
-    if (!mirrorlist && !metalink && cfg->exclude_ips->nelts) {
+    if (!mirrorlist && !metalink_forced && cfg->exclude_ips->nelts) {
 
         for (i = 0; i < cfg->exclude_ips->nelts; i++) {
 
@@ -703,7 +691,7 @@ static int zrkadlo_handler(request_rec *r)
 
 
     /* is the request originating from a network excluded from redirecting? */
-    if (!mirrorlist && !metalink && cfg->exclude_networks->nelts) {
+    if (!mirrorlist && !metalink_forced && cfg->exclude_networks->nelts) {
 
         for (i = 0; i < cfg->exclude_networks->nelts; i++) {
 
@@ -721,7 +709,7 @@ static int zrkadlo_handler(request_rec *r)
 
 
     /* is the file in the list of mimetypes to never mirror? */
-    if (!mirrorlist && !metalink && (r->content_type) && (cfg->exclude_mime->nelts)) {
+    if (!mirrorlist && !metalink_forced && (r->content_type) && (cfg->exclude_mime->nelts)) {
 
         for (i = 0; i < cfg->exclude_mime->nelts; i++) {
 
@@ -738,7 +726,7 @@ static int zrkadlo_handler(request_rec *r)
 
     /* is this User-Agent excluded from redirecting? */
     user_agent = (const char *) apr_table_get(r->headers_in, "User-Agent");
-    if (!mirrorlist && !metalink && (user_agent) && (cfg->exclude_agents->nelts)) {
+    if (!mirrorlist && !metalink_forced && (user_agent) && (cfg->exclude_agents->nelts)) {
 
         for (i = 0; i < cfg->exclude_agents->nelts; i++) {
 
@@ -1074,7 +1062,7 @@ static int zrkadlo_handler(request_rec *r)
     *
     * => best to sort the mirrors_same_country et al. individually, right?
     */
-    if (mirrorlist_txt || metalink || mirrorlist) {
+    if (mirrorlist_txt || metalink || metalink_forced || mirrorlist) {
         qsort(mirrors_same_country->elts, mirrors_same_country->nelts, 
               mirrors_same_country->elt_size, cmp_mirror_rank);
         qsort(mirrors_same_region->elts, mirrors_same_region->nelts, 
@@ -1123,7 +1111,8 @@ static int zrkadlo_handler(request_rec *r)
     if (mirrorlist_txt) {
         debugLog(r, cfg, "Sending mirrorlist-txt");
 
-        apr_table_mergen(r->headers_out, "Vary", "accept-features");
+        /* tell caches that this is negotiated response and that not every client will take it */
+        apr_table_mergen(r->headers_out, "Vary", "accept");
 
         ap_set_content_type(r, "application/mirrorlist-txt; charset=UTF-8");
 
@@ -1193,8 +1182,11 @@ static int zrkadlo_handler(request_rec *r)
     } /* end mirrorlist-txt */
 
     /* return a metalink instead of doing a redirect? */
-    if (metalink) {
+    if (metalink || metalink_forced) {
         debugLog(r, cfg, "Sending metalink");
+
+        /* tell caches that this is negotiated response and that not every client will take it */
+        apr_table_mergen(r->headers_out, "Vary", "accept");
 
         /* drop the path leading up to the file name, because metalink clients
          * will otherwise place the downloaded file into a directory hierarchy */
