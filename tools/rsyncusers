@@ -14,6 +14,10 @@ It rather works like a Unix pipe.
 
 It transparently opens uncompressed, gzip or bzip2 compressed files.
 
+
+The implementation is based on David Beazley's PyCon UK 08 great talk about
+generator tricks for systems programmers.
+
 """
 
 # 2008/09/19 15:26:53 [16972] rsync on opensuse-full from ftp1.yz.yamagata-u.ac.jp (133.24.255.159)
