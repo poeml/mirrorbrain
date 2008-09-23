@@ -51,7 +51,7 @@ def probe_http(mirror):
                 # count as success
                 mirror.response_code = 200
             logging.debug('mirror %s redirects to ftp:// URL' % mirror.identifier)
-        logging.debug('%s got response for %s: %s' % (threading.currentThread().getName(), mirror.identifier, response.code))
+        logging.debug('%s got response for %s: %s' % (threading.currentThread().getName(), mirror.identifier, getattr(response, 'code', None)))
 
         try:
             mirror.response = response.read()
