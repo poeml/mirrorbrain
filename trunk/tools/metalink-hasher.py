@@ -18,8 +18,10 @@ __url__ = 'http://mirrorbrain.org'
 import os, os.path
 import cmdln
 import re
+import subprocess
 
 ML_EXTENSION = '.metalink-hashes'
+line_mask = re.compile('.*</*(verification|hash|pieces).*>.*')
 
 def make_hashes(src, dst, opts):
     src_dir = os.path.dirname(src)
@@ -45,21 +47,41 @@ def make_hashes(src, dst, opts):
             print 'up to date:', src
         return 
 
-    cmd = 'metalink --nomirrors -d md5 -d sha1 -d sha1pieces "%s"' % src
-    cmd += ' | grep "</\?\(verification\|hash\|pieces\).*>" > "%s"' % dst
+    cmd = [ 'metalink',
+            '--nomirrors', 
+            '-d', 'md5', 
+            '-d', 'sha1', 
+            '-d', 'sha1pieces',
+            src ]
 
-    if opts.verbose:
-        print cmd
+    if opts.verbose or opts.dry_run:
+        print ' '.join(cmd)
 
-    if not opts.dry_run: 
-        try:
-            os.system(cmd)
+    if opts.dry_run: 
+        return
 
-            src_mode = os.stat(src).st_mode
-            os.chmod(dst, src_mode)
-        except:
-            os.unlink(dst)
-            raise
+    o = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                    close_fds=True).stdout
+    lines = []
+    for line in o.readlines():
+        if re.match(line_mask, line):
+            lines.append(line)
+
+
+    # if present, add PGP signature into the <verification> block
+    if os.path.exists(src + '.asc'):
+        sig = open(src + '.asc').read()
+        sig = '\t\t\t<signature type="pgp" file="%s.asc">\n\n' % os.path.basename(src) + \
+              sig + \
+              '\n\t\t\t</signature>\n'
+
+        lines.insert(1, sig)
+
+    d = open(dst, 'wb')
+    d.write(''.join(lines))
+    d.close()
+
+    os.chmod(dst, os.stat(src).st_mode)
 
 
 class Metalinks(cmdln.Cmdln):
