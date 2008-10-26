@@ -1,3 +1,16 @@
+Sun Oct 26 18:07:52 CET 2008
+- add bittorrent links (to found .torrent files) into metalinks
+- embed PGP signatures (.asc files) into metalinks
+
+Fri Sep 19 21:08:42 CET 2008
+ - implement the redirection exceptions (file too small, mime type not allowed
+   to be redirected etc) for transparently negotiated metalinks.
+ - add Vary header on all transparently negotiated resources.
+- new, better implementation of rsyncusers tool
+- improved mirrordoctor tool
+- bugfixes in the scanner, mainly for scanning via HTML
+- installation instructions updated
+
 Fri Aug 22 17:22:14 CEST 2008
 - allow to use the apache module and all tools with multiple instances of
   the mirrorbrain. Now, one machine / one Apache can host multiple separate
