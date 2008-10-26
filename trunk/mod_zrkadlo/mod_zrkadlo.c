@@ -105,6 +105,7 @@ typedef struct
     int min_size;
     int handle_dirindex_locally;
     int handle_headrequest_locally;
+    int metalink_add_torrent;
     const char *query;
     const char *mirror_base;
     apr_array_header_t *exclude_mime;
@@ -199,6 +200,7 @@ static void *create_zrkadlo_dir_config(apr_pool_t *p, char *dirspec)
     new->min_size                   = DEFAULT_MIN_MIRROR_SIZE;
     new->handle_dirindex_locally    = UNSET;
     new->handle_headrequest_locally = UNSET;
+    new->metalink_add_torrent       = UNSET;
     new->query = NULL;
     new->mirror_base = NULL;
     new->exclude_mime = apr_array_make(p, 0, sizeof (char *));
@@ -224,6 +226,7 @@ static void *merge_zrkadlo_dir_config(apr_pool_t *p, void *basev, void *addv)
     mrg->min_size = (add->min_size != DEFAULT_MIN_MIRROR_SIZE) ? add->min_size : base->min_size;
     cfgMergeInt(handle_dirindex_locally);
     cfgMergeInt(handle_headrequest_locally);
+    cfgMergeInt(metalink_add_torrent);
     cfgMergeString(query);
     cfgMergeString(mirror_base);
     mrg->exclude_mime = apr_array_append(p, base->exclude_mime, add->exclude_mime);
@@ -404,6 +407,14 @@ static const char *zrkadlo_cmd_metalink_publisher(cmd_parms *cmd,
 
     cfg->metalink_publisher_name = arg1;
     cfg->metalink_publisher_url = arg2;
+    return NULL;
+}
+
+static const char *zrkadlo_cmd_metalink_add_torrent(cmd_parms *cmd, 
+        void *config, int flag)
+{
+    zrkadlo_dir_conf *cfg = (zrkadlo_dir_conf *) config;
+    cfg->metalink_add_torrent = flag;
     return NULL;
 }
 
@@ -1265,6 +1276,15 @@ static int zrkadlo_handler(request_rec *r)
 
         ap_rputs(     "      <resources>\n\n", r);
 
+        if (cfg->metalink_add_torrent == 1 
+            && apr_stat(&sb, apr_pstrcat(r->pool, r->filename, ".torrent", NULL), APR_FINFO_MIN, r->pool) == APR_SUCCESS) {
+            debugLog(r, cfg, "found torrent file");
+            ap_rprintf(r, "      <url type=\"bittorrent\" preference=\"%d\">http://%s%s.torrent</url>\n\n", 
+                       100,
+                       r->hostname, 
+                       r->uri);
+        }
+
         ap_rprintf(r, "      <!-- Found %d mirror%s: %d in the same country, %d in the same region, %d elsewhere -->\n", 
                    mirror_cnt,
                    (mirror_cnt == 1) ? "" : "s",
@@ -1534,6 +1554,10 @@ static const command_rec zrkadlo_cmds[] =
     AP_INIT_FLAG("ZrkadloHandleHEADRequestLocally", zrkadlo_cmd_handle_headrequest_locally, NULL, 
                   OR_OPTIONS,
                   "Set to On/Off to handle HEAD requests locally (don't redirect)"),
+
+    AP_INIT_FLAG("ZrkadloMetalinkAddTorrent", zrkadlo_cmd_metalink_add_torrent, NULL, 
+                  OR_OPTIONS,
+                  "Set to On/Off to look for .torrent files and, if present, add them into generated metalinks"),
 
     /* to be used only in server context */
     AP_INIT_TAKE1("ZrkadloInstance", zrkadlo_cmd_instance, NULL, 
