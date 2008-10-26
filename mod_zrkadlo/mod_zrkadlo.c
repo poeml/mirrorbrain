@@ -1222,9 +1222,7 @@ static int zrkadlo_handler(request_rec *r)
          *
          * We could use r->server->server_hostname instead, which would be the configured server name.
          *
-         * N.B. aria2c crashes on query strings: 
-         * http://sourceforge.net/tracker/index.php?func=detail&aid=1932809&group_id=159897&atid=813673 
-         * so we won't use r->unparsed_uri for now. 
+         * We use r->uri, not r->unparsed_uri, so we don't need to escape query strings for xml.
          */
         ap_rprintf(r, "  origin=\"http://%s%s\"\n", r->hostname, r->uri);
         ap_rputs(     "  generator=\"mod_zrkadlo Download Redirector - http://mirrorbrain.org/\"\n", r);
