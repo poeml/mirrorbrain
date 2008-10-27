@@ -669,7 +669,16 @@ static int zrkadlo_handler(request_rec *r)
                 if (strcmp(ext, ".metalink") == 0) {
                     debugLog(r, cfg, "Metalink requested by .metalink extension");
                     metalink_forced = 1;
+                    /* we modify r->filename here. */
                     ext[0] = '\0';
+
+                    /* strip the extension from r->uri as well */
+                    /* r->uri[strlen(r->uri) - strlen(".metalink")] = '\0'; */
+                    if ((ext = ap_strrchr(r->uri, '.')) != NULL) {
+                        if (strcmp(ext, ".metalink") == 0) {
+                            ext[0] = '\0';
+                        }
+                    } 
 
                     /* fill in finfo */
                     if ( apr_stat(&r->finfo, r->filename, APR_FINFO_SIZE, r->pool)
@@ -1261,7 +1270,7 @@ static int zrkadlo_handler(request_rec *r)
          *
          * We use r->uri, not r->unparsed_uri, so we don't need to escape query strings for xml.
          */
-        ap_rprintf(r, "  origin=\"http://%s%s\"\n", r->hostname, r->uri);
+        ap_rprintf(r, "  origin=\"http://%s%s.metalink\"\n", r->hostname, r->uri);
         ap_rputs(     "  generator=\"mod_zrkadlo Download Redirector - http://mirrorbrain.org/\"\n", r);
         ap_rputs(     "  type=\"dynamic\"", r);
         ap_rprintf(r, "  pubdate=\"%s\"", time_str);
@@ -1309,7 +1318,7 @@ static int zrkadlo_handler(request_rec *r)
             ap_rprintf(r, "      <url type=\"bittorrent\" preference=\"%d\">http://%s%s.torrent</url>\n\n", 
                        100,
                        r->hostname, 
-                       r->filename);
+                       r->uri);
         }
 
         ap_rprintf(r, "      <!-- Found %d mirror%s: %d in the same country, %d in the same region, %d elsewhere -->\n", 
