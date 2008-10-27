@@ -1,6 +1,7 @@
 Sun Oct 26 18:07:52 CET 2008
 - add bittorrent links (to found .torrent files) into metalinks
 - embed PGP signatures (.asc files) into metalinks
+- add configurable CSS stylesheet to mirror lists
 
 Fri Sep 19 21:08:42 CET 2008
  - implement the redirection exceptions (file too small, mime type not allowed
