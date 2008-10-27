@@ -105,7 +105,6 @@ typedef struct
     int min_size;
     int handle_dirindex_locally;
     int handle_headrequest_locally;
-    int metalink_add_torrent;
     const char *query;
     const char *mirror_base;
     apr_array_header_t *exclude_mime;
@@ -113,6 +112,7 @@ typedef struct
     apr_array_header_t *exclude_networks;
     apr_array_header_t *exclude_ips;
     ap_regex_t *exclude_filemask;
+    ap_regex_t *metalink_torrentadd_mask;
 } zrkadlo_dir_conf;
 
 /* per-server configuration */
@@ -201,7 +201,6 @@ static void *create_zrkadlo_dir_config(apr_pool_t *p, char *dirspec)
     new->min_size                   = DEFAULT_MIN_MIRROR_SIZE;
     new->handle_dirindex_locally    = UNSET;
     new->handle_headrequest_locally = UNSET;
-    new->metalink_add_torrent       = UNSET;
     new->query = NULL;
     new->mirror_base = NULL;
     new->exclude_mime = apr_array_make(p, 0, sizeof (char *));
@@ -209,6 +208,7 @@ static void *create_zrkadlo_dir_config(apr_pool_t *p, char *dirspec)
     new->exclude_networks = apr_array_make(p, 4, sizeof (char *));
     new->exclude_ips = apr_array_make(p, 4, sizeof (char *));
     new->exclude_filemask = NULL;
+    new->metalink_torrentadd_mask = NULL;
 
     return (void *) new;
 }
@@ -227,7 +227,6 @@ static void *merge_zrkadlo_dir_config(apr_pool_t *p, void *basev, void *addv)
     mrg->min_size = (add->min_size != DEFAULT_MIN_MIRROR_SIZE) ? add->min_size : base->min_size;
     cfgMergeInt(handle_dirindex_locally);
     cfgMergeInt(handle_headrequest_locally);
-    cfgMergeInt(metalink_add_torrent);
     cfgMergeString(query);
     cfgMergeString(mirror_base);
     mrg->exclude_mime = apr_array_append(p, base->exclude_mime, add->exclude_mime);
@@ -235,6 +234,7 @@ static void *merge_zrkadlo_dir_config(apr_pool_t *p, void *basev, void *addv)
     mrg->exclude_networks = apr_array_append(p, base->exclude_networks, add->exclude_networks);
     mrg->exclude_ips = apr_array_append(p, base->exclude_ips, add->exclude_ips);
     mrg->exclude_filemask = (add->exclude_filemask == NULL) ? base->exclude_filemask : add->exclude_filemask;
+    mrg->metalink_torrentadd_mask = (add->metalink_torrentadd_mask == NULL) ? base->metalink_torrentadd_mask : add->metalink_torrentadd_mask;
 
     return (void *) mrg;
 }
@@ -424,11 +424,13 @@ static const char *zrkadlo_cmd_mirrorlist_stylesheet(cmd_parms *cmd,
     return NULL;
 }
 
-static const char *zrkadlo_cmd_metalink_add_torrent(cmd_parms *cmd, 
-        void *config, int flag)
+static const char *zrkadlo_cmd_metalink_torrentadd_mask(cmd_parms *cmd, void *config, const char *arg)
 {
     zrkadlo_dir_conf *cfg = (zrkadlo_dir_conf *) config;
-    cfg->metalink_add_torrent = flag;
+    cfg->metalink_torrentadd_mask = ap_pregcomp(cmd->pool, arg, AP_REG_EXTENDED);
+    if (cfg->metalink_torrentadd_mask == NULL) {
+        return "ZrkadloMetalinkTorrentAddMask regex could not be compiled";
+    }
     return NULL;
 }
 
@@ -1300,13 +1302,14 @@ static int zrkadlo_handler(request_rec *r)
 
         ap_rputs(     "      <resources>\n\n", r);
 
-        if (cfg->metalink_add_torrent == 1 
+        if (cfg->metalink_torrentadd_mask
+            && !ap_regexec(cfg->metalink_torrentadd_mask, r->filename, 0, NULL, 0)
             && apr_stat(&sb, apr_pstrcat(r->pool, r->filename, ".torrent", NULL), APR_FINFO_MIN, r->pool) == APR_SUCCESS) {
             debugLog(r, cfg, "found torrent file");
             ap_rprintf(r, "      <url type=\"bittorrent\" preference=\"%d\">http://%s%s.torrent</url>\n\n", 
                        100,
                        r->hostname, 
-                       r->uri);
+                       r->filename);
         }
 
         ap_rprintf(r, "      <!-- Found %d mirror%s: %d in the same country, %d in the same region, %d elsewhere -->\n", 
@@ -1606,9 +1609,10 @@ static const command_rec zrkadlo_cmds[] =
                   OR_OPTIONS,
                   "Set to On/Off to handle HEAD requests locally (don't redirect)"),
 
-    AP_INIT_FLAG("ZrkadloMetalinkAddTorrent", zrkadlo_cmd_metalink_add_torrent, NULL, 
-                  OR_OPTIONS,
-                  "Set to On/Off to look for .torrent files and, if present, add them into generated metalinks"),
+    AP_INIT_TAKE1("ZrkadloMetalinkTorrentAddMask", zrkadlo_cmd_metalink_torrentadd_mask, NULL, 
+                  ACCESS_CONF,
+                  "Regexp which determines for which files to look for correspondant "
+                  ".torrent files, and add them into generated metalinks"),
 
     /* to be used only in server context */
     AP_INIT_TAKE1("ZrkadloInstance", zrkadlo_cmd_instance, NULL, 
