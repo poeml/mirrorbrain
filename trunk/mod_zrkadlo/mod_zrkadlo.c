@@ -125,6 +125,7 @@ typedef struct
     const char *metalink_hashes_prefix;
     const char *metalink_publisher_name;
     const char *metalink_publisher_url;
+    const char *mirrorlist_stylesheet;
 } zrkadlo_server_conf;
 
 
@@ -253,6 +254,7 @@ static void *create_zrkadlo_server_config(apr_pool_t *p, server_rec *s)
     new->metalink_hashes_prefix = NULL;
     new->metalink_publisher_name = NULL;
     new->metalink_publisher_url = NULL;
+    new->mirrorlist_stylesheet = NULL;
 
     return (void *) new;
 }
@@ -273,6 +275,7 @@ static void *merge_zrkadlo_server_config(apr_pool_t *p, void *basev, void *addv)
     cfgMergeString(metalink_hashes_prefix);
     cfgMergeString(metalink_publisher_name);
     cfgMergeString(metalink_publisher_url);
+    cfgMergeString(mirrorlist_stylesheet);
 
     return (void *) mrg;
 }
@@ -407,6 +410,17 @@ static const char *zrkadlo_cmd_metalink_publisher(cmd_parms *cmd,
 
     cfg->metalink_publisher_name = arg1;
     cfg->metalink_publisher_url = arg2;
+    return NULL;
+}
+
+static const char *zrkadlo_cmd_mirrorlist_stylesheet(cmd_parms *cmd, 
+                                void *config, const char *arg1)
+{
+    server_rec *s = cmd->server;
+    zrkadlo_server_conf *cfg = 
+        ap_get_module_config(s->module_config, &zrkadlo_module);
+
+    cfg->mirrorlist_stylesheet = arg1;
     return NULL;
 }
 
@@ -878,15 +892,25 @@ static int zrkadlo_handler(request_rec *r)
         if (mirrorlist) {
             debugLog(r, cfg, "empty mirrorlist");
             ap_set_content_type(r, "text/html; charset=ISO-8859-1");
-            ap_rputs(DOCTYPE_HTML_3_2
-                     "<html><head>\n<title>Mirror List</title>\n</head><body>\n",
-                     r);
+            ap_rputs(DOCTYPE_XHTML_1_0T
+                     "<html xmlns=\"http://www.w3.org/1999/xhtml\">\n"
+                     "<head>\n"
+                     "  <title>Mirror List</title>\n", r);
+            if (scfg->mirrorlist_stylesheet) {
+                ap_rprintf(r, "  <link type=\"text/css\" rel=\"stylesheet\" href=\"%s\" />\n",
+                           scfg->mirrorlist_stylesheet);
+            }
+            ap_rputs("</head>\n\n" "<body>\n", r);
 
-            ap_rprintf(r, "Filename: %s<br>\n", filename);
-            ap_rprintf(r, "Client IP address: %s<br>\n", clientip);
-            ap_rprintf(r, "No mirror found.\n");
+            ap_rprintf(r, "  <h2>Mirrors for <a href=\"http://%s%s\">http://%s%s</a></h2>\n" 
+                       "  <br/>\n", 
+                       r->hostname, r->uri, r->hostname, r->uri);
+            /* ap_rprintf(r, "Client IP address: %s<br/>\n", clientip); */
 
-            ap_rputs("</body>\n", r);
+            ap_rprintf(r, "I am very sorry, but no mirror was found. <br/>\n");
+            ap_rprintf(r, "Feel free to download from the above URL.\n");
+
+            ap_rputs("</body></html>\n", r);
             return OK;
         }
 
@@ -1344,58 +1368,85 @@ static int zrkadlo_handler(request_rec *r)
     /* send an HTML list instead of doing a redirect? */
     if (mirrorlist) {
         debugLog(r, cfg, "Sending mirrorlist");
-        ap_set_content_type(r, "text/html; charset=ISO-8859-1");
-        ap_rputs(DOCTYPE_HTML_3_2
-                 "<html><head>\n<title>Mirror List</title>\n</head><body>\n",
-                 r);
 
-        ap_rprintf(r, "Filename: %s<br>\n", filename);
-        ap_rprintf(r, "Client IP address: %s<br>\n", clientip);
-        ap_rprintf(r, "Found %d mirror%s: %d country, %d region, %d elsewhere\n", mirror_cnt,
-                (mirror_cnt == 1) ? "" : "s",
-                mirrors_same_country->nelts,
-                mirrors_same_region->nelts,
-                mirrors_elsewhere->nelts);
+        ap_set_content_type(r, "text/html; charset=ISO-8859-1");
+        ap_rputs(DOCTYPE_XHTML_1_0T
+                 "<html xmlns=\"http://www.w3.org/1999/xhtml\">\n"
+                 "<head>\n"
+                 "  <title>Mirror List</title>\n", r);
+        if (scfg->mirrorlist_stylesheet) {
+            ap_rprintf(r, "  <link type=\"text/css\" rel=\"stylesheet\" href=\"%s\" />\n",
+                       scfg->mirrorlist_stylesheet);
+        }
+        ap_rputs("</head>\n\n" "<body>\n", r);
+
+        ap_rprintf(r, "  <h2>Mirrors for <a href=\"http://%s%s\">http://%s%s</a></h2>\n" 
+                   "  <br/>\n", 
+                   r->hostname, r->uri, r->hostname, r->uri);
+
+        ap_rputs("  <address>Powered by <a href=\"http://mirrorbrain.org/\">MirrorBrain</a></address>\n", r);
+
+        ap_rputs("  <br/>\n" 
+                 "  <blockquote>Recommendation: Use a <a href=\"http://metalinker.org\">Metalink</a> client "
+                 "  for easier, more reliable, self healing downloads.\n" 
+                 "  <br/>\n", r);
+        ap_rprintf(r, "  The metalink for this file is: "
+                   "<a href=\"http://%s%s.metalink\">http://%s%s.metalink</a></blockquote>"
+                   "  <br/>\n", 
+                r->hostname, r->uri, r->hostname, r->uri);
+
+
+        ap_rprintf(r, "  <p>This mirror list was made for client IP address: %s, located in country %s.</p>\n", 
+                   clientip, country_code);
 
         mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
         mirror = NULL;
 
-        ap_rprintf(r, "\n<h3>Mirrors in the same country (%s):</h3>\n", country_code);
-        ap_rputs("<pre>\n", r);
+        ap_rprintf(r, "\n  <h3>Found %d mirror%s in the same country (%s):</h3>\n", 
+                   mirrors_same_country->nelts, 
+                   (mirrors_same_country->nelts == 1) ? "" : "s",
+                   country_code);
+        ap_rputs("  <ul>\n", r);
         for (i = 0; i < mirrors_same_country->nelts; i++) {
             mirror = mirrorp[i];
-            ap_rprintf(r, "<a href=\"%s%s\">%s%s</a> (score %d)\n", 
+            ap_rprintf(r, "    <li><a href=\"%s%s\">%s%s</a> (score %d)</li>\n", 
                     mirror->baseurl, filename, 
                     mirror->baseurl, filename, 
                     mirror->score);
         }
-        ap_rputs("</pre>\n", r);
+        ap_rputs("  </ul>\n", r);
 
-        ap_rprintf(r, "\n<h3>Mirrors in the same continent (%s):</h3>\n", continent_code);
-        ap_rputs("<pre>\n", r);
+        ap_rprintf(r, "\n  <h3>Found %d mirror%s in other countries, but same continent (%s):</h3>\n", 
+                   mirrors_same_region->nelts,
+                   (mirrors_same_region->nelts == 1) ? "" : "s",
+                   continent_code);
+        ap_rputs("  <ul>\n", r);
         mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
         for (i = 0; i < mirrors_same_region->nelts; i++) {
             mirror = mirrorp[i];
-            ap_rprintf(r, "<a href=\"%s%s\">%s%s</a> (score %d)\n", 
+            ap_rprintf(r, "    <li><a href=\"%s%s\">%s%s</a> (score %d)</li>\n", 
                     mirror->baseurl, filename, 
                     mirror->baseurl, filename, 
                     mirror->score);
         }
-        ap_rputs("</pre>\n", r);
+        ap_rputs("  </ul>\n", r);
 
-        ap_rputs("\n<h3>Mirrors in the rest of the world:</h3>\n", r);
-        ap_rputs("<pre>\n", r);
+        ap_rprintf(r, "\n   <h3>Found %d mirror%s in other parts of the world:</h3>\n", 
+                   mirrors_elsewhere->nelts,
+                   (mirrors_elsewhere->nelts == 1) ? "" : "s");
+        ap_rputs("  <ul>\n", r);
         mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
         for (i = 0; i < mirrors_elsewhere->nelts; i++) {
             mirror = mirrorp[i];
-            ap_rprintf(r, "<a href=\"%s%s\">%s%s</a> (score %d)\n", 
+            ap_rprintf(r, "    <li><a href=\"%s%s\">%s%s</a> (score %d)</li>\n", 
                     mirror->baseurl, filename, 
                     mirror->baseurl, filename, 
                     mirror->score);
         }
-        ap_rputs("</pre>\n", r);
+        ap_rputs("  </ul>\n", r);
 
         ap_rputs("</body>\n", r);
+        ap_rputs("</html>\n", r);
         return OK;
     } /* end mirrorlist */
 
@@ -1593,6 +1644,10 @@ static const command_rec zrkadlo_cmds[] =
     AP_INIT_TAKE2("ZrkadloMetalinkPublisher", zrkadlo_cmd_metalink_publisher, NULL, 
                   RSRC_CONF, 
                   "Name and URL for the metalinks publisher elements"),
+
+    AP_INIT_TAKE1("ZrkadloMirrorlistStyleSheet", zrkadlo_cmd_mirrorlist_stylesheet, NULL, 
+                  RSRC_CONF, 
+                  "Sets a CSS stylesheet to add to mirror lists"),
 
     { NULL }
 };
