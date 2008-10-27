@@ -1,0 +1,12 @@
+#!/bin/bash
+
+set -e
+
+cd /usr/share/GeoIP/
+
+ftp http://www.maxmind.com/download/geoip/database/GeoIP.dat.gz 
+
+gunzip -c GeoIP.dat.gz > GeoIP.dat.updated.new
+mv GeoIP.dat.updated.new GeoIP.dat.updated
+
+rcapache2 reload
