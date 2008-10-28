@@ -379,6 +379,25 @@ class MirrorDoctor(cmdln.Cmdln):
             mirror.score = int(score)
         
 
+    @cmdln.option('-n', '--dry-run', action='store_true',
+                  help='don\'t delete, but only show statistics.')
+    def do_vacuum(self, subcmd, opts, *args):
+        """${cmd_name}: clean up unreferenced files from the mirror database
+
+        This should be done once a week for a busy file tree.
+        Otherwise it should be rarely needed, but can possibly 
+        improve performance if it is able to shrink the database.
+
+        ${cmd_usage}
+        ${cmd_option_list}
+        """
+
+        import mb.vacuum
+
+        mb.vacuum.stale(self.conn)
+        if not opts.dry_run:
+            mb.vacuum.vacuum(self.conn)
+
 
 
 if __name__ == '__main__':
