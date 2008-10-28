@@ -74,12 +74,21 @@ class MirrorDoctor(cmdln.Cmdln):
         """runs after parsing global options"""
 
         import mb.conf
-        config = mb.conf.Config(instance = self.options.brain_instance)
+        self.config = mb.conf.Config(instance = self.options.brain_instance)
 
         # set up the database connection
         import mb.conn
-        self.conn = mb.conn.Conn(config.dbconfig, debug = self.options.debug)
+        self.conn = mb.conn.Conn(self.config.dbconfig, debug = self.options.debug)
 
+
+    def do_instances(self, subcmd, opts):
+        """${cmd_name}: list all configured mirrorbrain instances 
+
+        ${cmd_usage}
+        ${cmd_option_list}
+        """
+        for i in self.config.instances:
+            print i
 
 
     @cmdln.option('-C', '--comment', metavar='ARG',
