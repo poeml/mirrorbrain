@@ -73,8 +73,19 @@ class Conn:
             """the server table"""
             class sqlmeta:
                 fromDatabase = True
-
         self.Server = Server
+
+        class File(SQLObject):
+            """the file table"""
+            class sqlmeta:
+                fromDatabase = True
+        self.File = File
+
+        class FileServer(SQLObject):
+            """the file_server table"""
+            class sqlmeta:
+                fromDatabase = True
+        self.FileServer = FileServer
 
         if debug:
             self.Server._connection.debug = True
