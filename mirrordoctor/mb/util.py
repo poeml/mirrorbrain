@@ -1,5 +1,9 @@
 import sys, os
 
+def b64_md5(path):
+    import base64, md5
+    return base64.standard_b64encode(md5.md5(path).digest())[:-2]
+
 
 def dgst(file):
     import md5
