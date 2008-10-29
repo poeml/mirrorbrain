@@ -408,6 +408,65 @@ class MirrorDoctor(cmdln.Cmdln):
             mb.vacuum.vacuum(self.conn)
 
 
+    @cmdln.option('-m', '--mirror', 
+                  help='apply operation to this mirror')
+    def do_file(self, subcmd, opts, action, path):
+        """${cmd_name}: operations on files: ls/rm/add
+
+        ACTION is one of the following:
+
+          ls PATH             list file
+          lsmatch PATTERN     list files matching a pattern
+          rm PATH             remove PATH entry from the database
+          add PATH            create database entry for file PATH
+
+        PATTERN can contain % for wildcards (SQL syntax).
+
+
+        Examples:
+          mirrordoctor file ls '/path/to/xorg-x11-libXfixes-7.4-1.14.i586.rpm'
+          mirrordoctor file lsmatch '%xorg-x11-libXfixes-7.4-1.14.i586.rpm'
+          mirrordoctor file add distribution/11.0/SHOULD_NOT_BE_VISIBLE cdn.novell.com
+          mirrordoctor file rm distribution/11.0/SHOULD_NOT_BE_VISIBLE 
+
+
+        ${cmd_usage}
+        ${cmd_option_list}
+        """
+        
+        if path.startswith('/'):
+            path = path[1:]
+
+        import mb.files
+
+        if action in ['add', 'rm']:
+            if not opts.mirror:
+                sys.exit('this command needs to be used with -m')
+            mirror = lookup_mirror(self, opts.mirror)
+
+
+        if action == 'ls' or action == 'lsmatch':
+            rows = mb.files.ls(self.conn, path, pattern = (action=='lsmatch'))
+
+            for row in rows:
+                print '%s %s %4d %s %s %-30s %s%s' % \
+                        (row['region'].lower(), row['country'].lower(),
+                         row['score'], 
+                         row['enabled'] == 1 and 'ok      ' or 'disabled',
+                         row['status_baseurl'] == 1 and 'ok  ' or 'dead',
+                         row['identifier'], 
+                         row['baseurl'], path)
+
+
+
+        elif action == 'add':
+            mb.files.add(self.conn, path, mirror)
+
+        elif action == 'rm':
+            mb.files.rm(self.conn, path, mirror)
+
+
+
 
 if __name__ == '__main__':
     import sys
