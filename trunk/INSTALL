@@ -117,7 +117,6 @@ After installation of mod_zrkadlo, you'll need to:
         ZrkadloMemcached On
         ZrkadloMemcachedLifetime 1800
         ZrkadloGeoIPFile /usr/share/GeoIP/GeoIP.dat
-        ZrkadloTreatCountryAs nz au
     
         ZrkadloDBDQuery "\
         SELECT file_server.serverid, server.identifier, server.country, server.region, server.score, server.baseurl, \

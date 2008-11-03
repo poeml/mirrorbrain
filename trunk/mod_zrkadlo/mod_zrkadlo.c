@@ -88,6 +88,7 @@ struct mirror_entry {
     int id;
     const char *identifier;
     char *country_code;      /* 2-letter-string */
+    char *other_countries;   /* comma-separated 2-letter strings */
     const char *region;      /* 2-letter-string */
     short country_only;
     short region_only;
@@ -121,7 +122,6 @@ typedef struct
     const char *instance;
     int memcached_on;
     int memcached_lifetime;
-    apr_table_t *treat_country_as; /* treat country as another country */
     const char *metalink_hashes_prefix;
     const char *metalink_publisher_name;
     const char *metalink_publisher_url;
@@ -250,7 +250,6 @@ static void *create_zrkadlo_server_config(apr_pool_t *p, server_rec *s)
     new->instance = "default";
     new->memcached_on = UNSET;
     new->memcached_lifetime = UNSET;
-    new->treat_country_as = apr_table_make(p, 0);
     new->metalink_hashes_prefix = NULL;
     new->metalink_publisher_name = NULL;
     new->metalink_publisher_url = NULL;
@@ -271,7 +270,6 @@ static void *merge_zrkadlo_server_config(apr_pool_t *p, void *basev, void *addv)
     cfgMergeString(instance);
     cfgMergeBool(memcached_on);
     cfgMergeInt(memcached_lifetime);
-    mrg->treat_country_as = apr_table_overlay(p, add->treat_country_as, base->treat_country_as);
     cfgMergeString(metalink_hashes_prefix);
     cfgMergeString(metalink_publisher_name);
     cfgMergeString(metalink_publisher_url);
@@ -458,17 +456,6 @@ static const char *zrkadlo_cmd_memcached_lifetime(cmd_parms *cmd, void *config,
     return NULL;
 }
 
-static const char *zrkadlo_cmd_treat_country_as(cmd_parms *cmd, void *config,
-                                const char *arg1, const char *arg2)
-{
-    server_rec *s = cmd->server;
-    zrkadlo_server_conf *cfg = 
-        ap_get_module_config(s->module_config, &zrkadlo_module);
-
-    apr_table_set(cfg->treat_country_as, arg1, arg2);
-    return NULL;
-}
-
 static const char *zrkadlo_dbd_prepare(cmd_parms *cmd, void *cfg, const char *query)
 {
     static unsigned int label_num = 0;
@@ -561,6 +548,7 @@ static int zrkadlo_handler(request_rec *r)
     apr_dbd_row_t *row = NULL;
     apr_array_header_t *mirrors;                /* this holds all mirror_entrys */
     apr_array_header_t *mirrors_same_country;   /* pointers into the mirrors array */
+    apr_array_header_t *mirrors_close_country;  /* pointers into the mirrors array */
     apr_array_header_t *mirrors_same_region;    /* pointers into the mirrors array */
     apr_array_header_t *mirrors_elsewhere;      /* pointers into the mirrors array */
     apr_memcache_t *memctxt;                    /* memcache context provided by mod_memcache */
@@ -673,7 +661,6 @@ static int zrkadlo_handler(request_rec *r)
                     ext[0] = '\0';
 
                     /* strip the extension from r->uri as well */
-                    /* r->uri[strlen(r->uri) - strlen(".metalink")] = '\0'; */
                     if ((ext = ap_strrchr(r->uri, '.')) != NULL) {
                         if (strcmp(ext, ".metalink") == 0) {
                             ext[0] = '\0';
@@ -827,13 +814,6 @@ static int zrkadlo_handler(request_rec *r)
     apr_table_set(r->subprocess_env, "ZRKADLO_COUNTRY_CODE", country_code);
     apr_table_set(r->subprocess_env, "ZRKADLO_CONTINENT_CODE", continent_code);
 
-    /* does this country need to be treated as another one? */
-    val = apr_table_get(scfg->treat_country_as, country_code);
-    if (val) {
-        apr_cpystrn(country_code, val, sizeof(country_code)); /* fixed length, two bytes */
-        debugLog(r, cfg, "Treating as country '%s'", val);
-    }
-
 
     /* ask the database and pick the matching server according to region */
 
@@ -933,6 +913,7 @@ static int zrkadlo_handler(request_rec *r)
     /* allocate space for the expected results */
     mirrors              = apr_array_make(r->pool, mirror_cnt, sizeof (mirror_entry_t));
     mirrors_same_country = apr_array_make(r->pool, mirror_cnt, sizeof (mirror_entry_t *));
+    mirrors_close_country = apr_array_make(r->pool, 5, sizeof (mirror_entry_t *));
     mirrors_same_region  = apr_array_make(r->pool, mirror_cnt, sizeof (mirror_entry_t *));
     mirrors_elsewhere    = apr_array_make(r->pool, mirror_cnt, sizeof (mirror_entry_t *));
 
@@ -965,6 +946,7 @@ static int zrkadlo_handler(request_rec *r)
         new->id = 0;
         new->identifier = NULL;
         new->country_code = NULL;
+        new->other_countries = NULL;
         new->region = NULL;
         new->region_only = 0;
         new->country_only = 0;
@@ -1027,6 +1009,13 @@ static int zrkadlo_handler(request_rec *r)
         } else
             new->region_only = (short)atoi(val);
 
+        /* other_countries */
+        if ((val = apr_dbd_get_entry(dbd->driver, row, 8)) == NULL)
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] apr_dbd_get_entry found NULL for other_countries");
+        else
+            new->other_countries = apr_pstrdup(r->pool, val);
+
+
         /* this mirror comes from the database */
         /* XXX not implemented: statically configured fallback mirrors */
         /* such mirrors could be entered in the database like any other mirrors,
@@ -1066,6 +1055,10 @@ static int zrkadlo_handler(request_rec *r)
             new->country_code = country_code;
             new->region = continent_code;
 
+        /* mirror from elsewhere, but suitable for this country? */
+        } else if (new->other_countries && ap_strcasestr(new->other_countries, country_code)) {
+            *(void **)apr_array_push(mirrors_close_country) = new;
+
         /* same region? */
         /* to be actually considered for this group, the mirror must be willing 
          * to take redirects from foreign country */
@@ -1091,6 +1084,14 @@ static int zrkadlo_handler(request_rec *r)
         debugLog(r, cfg, "mirror  %3d  %-30ss", elts[i].id, elts[i].identifier);
     }
 #endif
+
+    /* if we didn't found a mirror in the country: are other mirrors set to
+     * handle this country? */
+    if (apr_is_empty_array(mirrors_same_country) 
+            && !apr_is_empty_array(mirrors_close_country)) {
+        mirrors_same_country = mirrors_close_country;
+        debugLog(r, cfg, "no mirror in country, but found close_country mirrors");
+    }
 
 
     /* 
@@ -1645,10 +1646,6 @@ static const command_rec zrkadlo_cmds[] =
                   RSRC_CONF, 
                   "Lifetime (in seconds) associated with stored objects in "
                   "memcache daemon(s). Default is 600 s."),
-
-    AP_INIT_TAKE2("ZrkadloTreatCountryAs", zrkadlo_cmd_treat_country_as, NULL, 
-                  OR_FILEINFO,
-                  "Set country to be treated as another. E.g.: nz au"),
 
     AP_INIT_TAKE1("ZrkadloMetalinkHashesPathPrefix", zrkadlo_cmd_metalink_hashes_prefix, NULL, 
                   RSRC_CONF, 
