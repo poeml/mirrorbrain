@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Peter Poeml <poeml@suse.de> / Novell Inc.
+ * Copyright (c) 2007,2008 Peter Poeml <poeml@suse.de> / Novell Inc.
  * All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,9 +15,11 @@
  * limitations under the License.
  *
  *
- * mod_zrkadlo
- *
- * redirect clients to mirror servers, based on sql database
+ * mod_zrkadlo, the heart of the MirrorBrain, does
+ *  - redirect clients to mirror servers, based on sql database
+ *  - generate real-time metalinks
+ *  - generate text or HTML mirror lists
+ * See http://mirrorbrain.org/ 
  *
  * Credits:
  *
@@ -94,7 +96,6 @@ struct mirror_entry {
     short region_only;
     int score;
     const char *baseurl;
-    int is_static;
     int rank;
 };
 
@@ -521,7 +522,6 @@ static int zrkadlo_handler(request_rec *r)
     char *filename = NULL;
     char *filename_hash = NULL;
     const char *user_agent = NULL;
-    const char *val = NULL;
     const char *clientip = NULL;
     char fakefile = 0, newmirror = 0;
     char mirrorlist = 0, mirrorlist_txt = 0;
@@ -534,7 +534,6 @@ static int zrkadlo_handler(request_rec *r)
     int i;
     int cached_id;
     int mirror_cnt;
-    char unusable;
     char *m_res;
     char *m_key, *m_val;
     apr_size_t len;
@@ -935,6 +934,9 @@ static int zrkadlo_handler(request_rec *r)
      * mirrors are in the same country, same reagion, or elsewhere */
     i = 1;
     while (i <= mirror_cnt) { 
+        char unusable = 0; /* if crucial data is missing... */
+        const char *val = NULL;
+
         rv = apr_dbd_get_row(dbd->driver, r->pool, res, &row, i);
         if (rv != 0) {
             ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r,
@@ -952,8 +954,6 @@ static int zrkadlo_handler(request_rec *r)
         new->country_only = 0;
         new->score = 0;
         new->baseurl = NULL;
-
-        unusable = 0; /* if crucial data is missing... */
 
         /* id */
         if ((val = apr_dbd_get_entry(dbd->driver, row, 0)) == NULL) 
@@ -1015,12 +1015,6 @@ static int zrkadlo_handler(request_rec *r)
         else
             new->other_countries = apr_pstrdup(r->pool, val);
 
-
-        /* this mirror comes from the database */
-        /* XXX not implemented: statically configured fallback mirrors */
-        /* such mirrors could be entered in the database like any other mirrors,
-         * but simply skipped by the scanner -- probably a no_scan flag is needed */
-        new->is_static = 0;
 
         /* now, take some decisions */
 
