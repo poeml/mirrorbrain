@@ -21,33 +21,6 @@ Improvements:
 
 * limit redirection of files larger than N to mirrors with scores larger than M
 
-* make ZrkadloTreatCountryAs optional, so it becomes effective only if there is
-  no country mirror. Now: "treat as xy". Better: "treat as xy, if no mirror in
-  my country".
-  * eliminate ZrkadloTreatCountryAs and make it a database attribute in the
-    server table instead. How could this work? Example:
-      To replace "ZrkadloTreatCountryAs nz au", Australian mirrors get an
-      attribute "countries_also_handled", set to "nz". (The field should take
-      multiple values separated by commas.) During mirror selection, put those
-      mirrors into the same_country array. Advantages: better maintainability
-      of the data (have it in one place), easier reconfiguration, have several
-      countries handling such a country.
-      I'm wondering if this is also a nice facility to make mirror selection
-      more fine-grained in general. Think of:
-
-      ie handles also: uk
-      uk handles also: ie
-      
-      de handles also: pl,dk,au,ch
-      se handles also: fi,no,dk
-
-      For the "mirrorlist", in order to make sure the naming makes sense, maybe
-      rename "same country" to "primary", "same region" to "secondary". Or: 1st
-      class, 2nd class, ...
-      Or: rewrite "same country" as "same country or close"
-
-
-
 * check for baseurl == ''
 
 * rewrite debugLog(r, cfg, ...) as Macro which checks for cfg->debug==1 before

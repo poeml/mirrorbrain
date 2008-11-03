@@ -1,3 +1,8 @@
+Mon Nov  3 11:04:04 CET 2008
+- release MirrorBrain 2.0
+  - implement better fallback mirror selection
+  - add tool to list/add/rm files in the mirror database
+
 Sun Oct 26 18:07:52 CET 2008
 - mod_zrkadlo 1.9:
   - add bittorrent links (to found .torrent files) into metalinks
