@@ -62,6 +62,7 @@ CREATE TABLE `server` (
   `lng` float default NULL,
   `country_only` tinyint(1) default '0',
   `region_only` tinyint(1) default '0',
+  `other_countries` text NOT NULL,
   PRIMARY KEY  (`id`),
   UNIQUE KEY `identifier` (`identifier`),
   KEY `server_enabled_status_baseurl_score_idx` (`enabled`,`status_baseurl`,`score`)
