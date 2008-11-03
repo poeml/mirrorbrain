@@ -5,7 +5,7 @@ def ls(conn, path, pattern = False):
     if pattern:
         query = 'SELECT server.identifier, server.country, server.region, \
                            server.score, server.baseurl, server.enabled, \
-                           server.status_baseurl \
+                           server.status_baseurl, file.path \
                     FROM file \
                     LEFT JOIN file_server \
                     ON file.id = file_server.fileid \
@@ -37,6 +37,10 @@ def ls(conn, path, pattern = False):
               'baseurl':        i[4] or '<base url n/a>',
               'enabled':        i[5],
               'status_baseurl': i[6], }
+        if pattern:
+            d['path'] = i[7]
+        else:
+            d['path'] = path
 
         files.append(d)
 

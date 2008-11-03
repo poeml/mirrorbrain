@@ -468,7 +468,7 @@ class MirrorDoctor(cmdln.Cmdln):
                          row['enabled'] == 1 and 'ok      ' or 'disabled',
                          row['status_baseurl'] == 1 and 'ok  ' or 'dead',
                          row['identifier'], 
-                         row['baseurl'], path)
+                         row['baseurl'], row['path'])
 
 
 
