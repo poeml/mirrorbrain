@@ -199,7 +199,7 @@ class MirrorDoctor(cmdln.Cmdln):
 
 
     def do_show(self, subcmd, opts, identifier):
-        """${cmd_name}: show a new mirror entry
+        """${cmd_name}: show a mirror entry
 
         ${cmd_usage}
         ${cmd_option_list}
@@ -207,6 +207,19 @@ class MirrorDoctor(cmdln.Cmdln):
 
         mirror = lookup_mirror(self, identifier)
         print mb.conn.server_show_template % mb.conn.server2dict(mirror)
+
+
+    def do_test(self, subcmd, opts, identifier):
+        """${cmd_name}: test if a mirror is working
+
+        ${cmd_usage}
+        ${cmd_option_list}
+        """
+
+        mirror = lookup_mirror(self, identifier)
+        print mirror.baseurl
+        import mb.testmirror
+        mb.testmirror.access_http(mirror.baseurl)
 
 
     def do_edit(self, subcmd, opts, identifier):
@@ -464,6 +477,9 @@ class MirrorDoctor(cmdln.Cmdln):
 
         elif action == 'rm':
             mb.files.rm(self.conn, path, mirror)
+
+        else:
+            sys.exit('ACTION must be either ls, lsmatch, rm or add.')
 
 
 
