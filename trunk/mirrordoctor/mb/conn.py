@@ -12,6 +12,7 @@ region         : %(region)s
 country        : %(country)s
 countryOnly    : %(countryOnly)s
 regionOnly     : %(regionOnly)s
+otherCountries : %(otherCountries)s
 score          : %(score)s
 enabled        : %(enabled)s
 statusBaseurl  : %(statusBaseurl)s
@@ -30,6 +31,7 @@ server_editable_attrs = [ 'baseurl',
                           'country',
                           'countryOnly',
                           'regionOnly',
+                          'otherCountries',
                           'score',
                           'enabled',
                           'statusBaseurl',
@@ -47,6 +49,7 @@ def server2dict(s):
                 country       = s.country,
                 countryOnly   = s.countryOnly,
                 regionOnly    = s.regionOnly,
+                otherCountries = s.otherCountries,
                 score         = s.score,
                 enabled       = s.enabled,
                 statusBaseurl = s.statusBaseurl,
@@ -119,8 +122,3 @@ def servers_match(server, match):
 
 
 
-#class Asn(SQLObject):
-#    """the autonomous systems table"""
-#    class sqlmeta:
-#        fromDatabase = True
-#
