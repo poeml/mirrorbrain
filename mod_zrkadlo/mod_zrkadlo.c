@@ -990,6 +990,10 @@ static int zrkadlo_handler(request_rec *r)
         if ((val = apr_dbd_get_entry(dbd->driver, row, 5)) == NULL) {
             ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] apr_dbd_get_entry found NULL for baseurl");
             unusable = 1;
+        } else if (!val[0]) {
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] mirror '%s' (#%d) has empty baseurl", 
+                          new->identifier, new->id);
+            unusable = 1;
         } else {
             new->baseurl = apr_pstrdup(r->pool, val);
             if (new->baseurl[strlen(new->baseurl) - 1] != '/') { 
@@ -1027,6 +1031,7 @@ static int zrkadlo_handler(request_rec *r)
         if (unusable) {
             /* discard */
             apr_array_pop(mirrors);
+            i++;
             continue;
         }
 
