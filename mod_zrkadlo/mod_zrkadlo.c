@@ -1044,32 +1044,36 @@ static int zrkadlo_handler(request_rec *r)
         /* same country? */
         if (strcasecmp(new->country_code, country_code) == 0) {
             *(void **)apr_array_push(mirrors_same_country) = new;
+        }
 
         /* is the mirror's country_code a wildcard indicating that the mirror should be
          * considered for every country? */
-        } else if (strcmp(new->country_code, "**") == 0) {
+        else if (strcmp(new->country_code, "**") == 0) {
             *(void **)apr_array_push(mirrors_same_country) = new; 
             /* if so, forget memcache association, so the mirror is not ruled out */
             chosen = NULL; 
             /* set its country and region to that of the client */
             new->country_code = country_code;
             new->region = continent_code;
+        }
 
         /* mirror from elsewhere, but suitable for this country? */
-        } else if (new->other_countries && ap_strcasestr(new->other_countries, country_code)) {
+        else if (new->other_countries && ap_strcasestr(new->other_countries, country_code)) {
             *(void **)apr_array_push(mirrors_close_country) = new;
+        }
 
         /* same region? */
         /* to be actually considered for this group, the mirror must be willing 
          * to take redirects from foreign country */
-        } else if ((strcasecmp(new->region, continent_code) == 0) 
+        else if ((strcasecmp(new->region, continent_code) == 0) 
                     && (new->country_only != 1)) {
             *(void **)apr_array_push(mirrors_same_region) = new;
+        }
 
         /* to be considered as "worldwide" mirror, it must be willing 
          * to take redirects from foreign regions.
          * (N.B. region_only implies country_only)  */
-        } else if ((new->region_only != 1) && (new->country_only != 1)) {
+        else if ((new->region_only != 1) && (new->country_only != 1)) {
             *(void **)apr_array_push(mirrors_elsewhere) = new;
         }
 
