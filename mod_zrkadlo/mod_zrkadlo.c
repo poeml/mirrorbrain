@@ -78,7 +78,8 @@
 
 #define DEFAULT_QUERY "SELECT file_server.serverid, server.identifier, server.country, " \
                              "server.region, server.score, server.baseurl, " \
-                             "server.country_only, server.region_only, server.other_countries " \
+                             "server.country_only, server.region_only, server.other_countries, " \
+                             "server.file_maxsize " \
                       "FROM file_server " \
                       "LEFT JOIN server " \
                       "ON file_server.serverid = server.id " \
@@ -108,6 +109,7 @@ struct mirror_entry {
     short region_only;
     int score;
     const char *baseurl;
+    int file_maxsize;
     int rank;
 };
 
@@ -985,6 +987,7 @@ static int zrkadlo_handler(request_rec *r)
         new->region_only = 0;
         new->country_only = 0;
         new->score = 0;
+        new->file_maxsize = 0;
         new->baseurl = NULL;
 
         /* id */
@@ -1051,6 +1054,14 @@ static int zrkadlo_handler(request_rec *r)
         else
             new->other_countries = apr_pstrdup(r->pool, val);
 
+        /* file_maxsize */
+        if ((val = apr_dbd_get_entry(dbd->driver, row, 9)) == NULL) {
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] apr_dbd_get_entry found NULL for file_maxsize");
+            unusable = 1;
+        } else
+            new->file_maxsize = atoi(val);
+
+
 
         /* now, take some decisions */
 
@@ -1072,8 +1083,16 @@ static int zrkadlo_handler(request_rec *r)
             chosen = new;
         }
 
+        /* file too large for this mirror? */
+        if (new->file_maxsize > 0 && r->finfo.size > new->file_maxsize) {
+            debugLog(r, cfg, "Mirror '%s' is configured to not handle files larger than %d bytes", 
+                     new->identifier, new->file_maxsize);
+            /* but keep it as reserve - after all, it could be the only one */
+            *(void **)apr_array_push(mirrors_elsewhere) = new;
+        }
+
         /* same country? */
-        if (strcasecmp(new->country_code, country_code) == 0) {
+        else if (strcasecmp(new->country_code, country_code) == 0) {
             *(void **)apr_array_push(mirrors_same_country) = new;
         }
 
