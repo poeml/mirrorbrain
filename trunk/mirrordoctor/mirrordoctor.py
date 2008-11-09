@@ -439,8 +439,8 @@ class MirrorDoctor(cmdln.Cmdln):
         Examples:
           mirrordoctor file ls '/path/to/xorg-x11-libXfixes-7.4-1.14.i586.rpm'
           mirrordoctor file lsmatch '%xorg-x11-libXfixes-7.4-1.14.i586.rpm'
-          mirrordoctor file add distribution/11.0/SHOULD_NOT_BE_VISIBLE cdn.novell.com
-          mirrordoctor file rm distribution/11.0/SHOULD_NOT_BE_VISIBLE 
+          mirrordoctor file add distribution/11.0/SHOULD_NOT_BE_VISIBLE -m cdn.novell.com
+          mirrordoctor file rm distribution/11.0/SHOULD_NOT_BE_VISIBLE -m MIRROR
 
 
         ${cmd_usage}
