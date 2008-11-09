@@ -1,3 +1,9 @@
+Sun Nov  9 15:20:03 CET 2008
+- release MirrorBrain 2.1
+  - simplified the Apache configuration: It is no longer needed to configure a
+    database query. At the same time it's less error-prone and avoids trouble
+    if one forgets to update the query, when the database schema changes. 
+
 Mon Nov  3 11:04:04 CET 2008
 - release MirrorBrain 2.0
   - implement better fallback mirror selection
