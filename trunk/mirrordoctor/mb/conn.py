@@ -13,6 +13,7 @@ country        : %(country)s
 countryOnly    : %(countryOnly)s
 regionOnly     : %(regionOnly)s
 otherCountries : %(otherCountries)s
+fileMaxsize    : %(fileMaxsize)s
 score          : %(score)s
 enabled        : %(enabled)s
 statusBaseurl  : %(statusBaseurl)s
@@ -32,6 +33,7 @@ server_editable_attrs = [ 'baseurl',
                           'countryOnly',
                           'regionOnly',
                           'otherCountries',
+                          'fileMaxsize',
                           'score',
                           'enabled',
                           'statusBaseurl',
@@ -50,6 +52,7 @@ def server2dict(s):
                 countryOnly   = s.countryOnly,
                 regionOnly    = s.regionOnly,
                 otherCountries = s.otherCountries,
+                fileMaxsize   = s.fileMaxsize,
                 score         = s.score,
                 enabled       = s.enabled,
                 statusBaseurl = s.statusBaseurl,

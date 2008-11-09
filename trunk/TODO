@@ -19,8 +19,6 @@ Missing features:
 
 Improvements:
 
-* limit redirection of files larger than N to mirrors with scores larger than M
-
 * rewrite debugLog(r, cfg, ...) as Macro which checks for cfg->debug==1 before
   caling ebugLog()
 
