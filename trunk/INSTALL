@@ -117,14 +117,6 @@ After installation of mod_zrkadlo, you'll need to:
         ZrkadloMemcached On
         ZrkadloMemcachedLifetime 1800
         ZrkadloGeoIPFile /usr/share/GeoIP/GeoIP.dat
-    
-        ZrkadloDBDQuery "\
-        SELECT file_server.serverid, server.identifier, server.country, server.region, server.score, server.baseurl, \
-               server.country_only, server.region_only \
-        FROM file_server \
-        LEFT JOIN server \
-        ON file_server.serverid = server.id \
-        WHERE file_server.path_md5=%s AND server.enabled=1 AND server.status_baseurl=1 AND server.score > 0"
     </IfModule>
     ------------------------------------------------------------------------
 

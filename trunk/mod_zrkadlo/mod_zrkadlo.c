@@ -76,6 +76,18 @@
 #define DEFAULT_MEMCACHED_LIFETIME 600
 #define DEFAULT_MIN_MIRROR_SIZE 4096
 
+#define DEFAULT_QUERY "SELECT file_server.serverid, server.identifier, server.country, " \
+                             "server.region, server.score, server.baseurl, " \
+                             "server.country_only, server.region_only, server.other_countries " \
+                      "FROM file_server " \
+                      "LEFT JOIN server " \
+                      "ON file_server.serverid = server.id " \
+                      "WHERE file_server.path_md5=%s " \
+                             "AND server.enabled=1 " \
+                             "AND server.status_baseurl=1 " \
+                             "AND server.score > 0"
+
+
 module AP_MODULE_DECLARE_DATA zrkadlo_module;
 
 /* could also be put into the server config */
@@ -107,7 +119,6 @@ typedef struct
     int min_size;
     int handle_dirindex_locally;
     int handle_headrequest_locally;
-    const char *query;
     const char *mirror_base;
     apr_array_header_t *exclude_mime;
     apr_array_header_t *exclude_agents;
@@ -127,6 +138,8 @@ typedef struct
     const char *metalink_publisher_name;
     const char *metalink_publisher_url;
     const char *mirrorlist_stylesheet;
+    const char *query;
+    const char *query_prep;
 } zrkadlo_server_conf;
 
 
@@ -174,18 +187,41 @@ static void zrkadlo_child_init(apr_pool_t *p, server_rec *s)
     srand((unsigned int)getpid());
 }
 
-
-static int zrkadlo_post_config(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptemp,
-                 server_rec *s)
+static int zrkadlo_post_config(apr_pool_t *pconf, apr_pool_t *plog, 
+                               apr_pool_t *ptemp, server_rec *s)
 {
-    ap_add_version_component(p, VERSION_COMPONENT);
+
+    /* be visible in the server signature */
+    ap_add_version_component(pconf, VERSION_COMPONENT);
 
     /* make sure that mod_form is loaded */
     if (ap_find_linked_module("mod_form.c") == NULL) {
         ap_log_error(APLOG_MARK, APLOG_ERR, 0, s,
-                     "[mod_zrkadlo] Module mod_form missing. Mod_form "
-                     "must be loaded in order for mod_zrkadlo to function properly");
+                     "[mod_zrkadlo] Module mod_form missing. It must be "
+                     "loaded in order for mod_zrkadlo to function properly");
         return HTTP_INTERNAL_SERVER_ERROR;
+    }
+
+    /* make sure that mod_dbd is loaded */
+    if (zrkadlo_dbd_prepare_fn == NULL) {
+        zrkadlo_dbd_prepare_fn = APR_RETRIEVE_OPTIONAL_FN(ap_dbd_prepare);
+        if (zrkadlo_dbd_prepare_fn == NULL) {
+            ap_log_error(APLOG_MARK, APLOG_ERR, 0, s,
+                         "[mod_zrkadlo] You must load mod_dbd to enable Zrkadlo functions");
+        return HTTP_INTERNAL_SERVER_ERROR;
+        }
+        zrkadlo_dbd_acquire_fn = APR_RETRIEVE_OPTIONAL_FN(ap_dbd_acquire);
+    }
+
+    /* prepare DBD SQL statements */
+    static unsigned int label_num = 0;
+    server_rec *sp;
+    for (sp = s; sp; sp = sp->next) {
+        zrkadlo_server_conf *cfg = ap_get_module_config(sp->module_config, 
+                                                        &zrkadlo_module);
+        /* make a label */
+        cfg->query_prep = apr_psprintf(pconf, "zrkadlo_dbd_%d", ++label_num);
+        zrkadlo_dbd_prepare_fn(sp, cfg->query, cfg->query_prep);
     }
 
     return OK;
@@ -202,7 +238,6 @@ static void *create_zrkadlo_dir_config(apr_pool_t *p, char *dirspec)
     new->min_size                   = DEFAULT_MIN_MIRROR_SIZE;
     new->handle_dirindex_locally    = UNSET;
     new->handle_headrequest_locally = UNSET;
-    new->query = NULL;
     new->mirror_base = NULL;
     new->exclude_mime = apr_array_make(p, 0, sizeof (char *));
     new->exclude_agents = apr_array_make(p, 0, sizeof (char *));
@@ -228,7 +263,6 @@ static void *merge_zrkadlo_dir_config(apr_pool_t *p, void *basev, void *addv)
     mrg->min_size = (add->min_size != DEFAULT_MIN_MIRROR_SIZE) ? add->min_size : base->min_size;
     cfgMergeInt(handle_dirindex_locally);
     cfgMergeInt(handle_headrequest_locally);
-    cfgMergeString(query);
     cfgMergeString(mirror_base);
     mrg->exclude_mime = apr_array_append(p, base->exclude_mime, add->exclude_mime);
     mrg->exclude_agents = apr_array_append(p, base->exclude_agents, add->exclude_agents);
@@ -255,6 +289,8 @@ static void *create_zrkadlo_server_config(apr_pool_t *p, server_rec *s)
     new->metalink_publisher_name = NULL;
     new->metalink_publisher_url = NULL;
     new->mirrorlist_stylesheet = NULL;
+    new->query = DEFAULT_QUERY;
+    new->query_prep = NULL;
 
     return (void *) new;
 }
@@ -275,6 +311,8 @@ static void *merge_zrkadlo_server_config(apr_pool_t *p, void *basev, void *addv)
     cfgMergeString(metalink_publisher_name);
     cfgMergeString(metalink_publisher_url);
     cfgMergeString(mirrorlist_stylesheet);
+    mrg->query = (add->query != DEFAULT_QUERY) ? add->query : base->query;
+    cfgMergeString(query_prep);
 
     return (void *) mrg;
 }
@@ -377,6 +415,17 @@ static const char *zrkadlo_cmd_instance(cmd_parms *cmd,
     return NULL;
 }
 
+static const char *zrkadlo_cmd_dbdquery(cmd_parms *cmd, 
+                                void *config, const char *arg1)
+{
+    server_rec *s = cmd->server;
+    zrkadlo_server_conf *cfg = 
+        ap_get_module_config(s->module_config, &zrkadlo_module);
+
+    cfg->query = arg1;
+    return NULL;
+}
+
 static const char *zrkadlo_cmd_geoip_filename(cmd_parms *cmd, void *config,
                                 const char *arg1)
 {
@@ -455,26 +504,6 @@ static const char *zrkadlo_cmd_memcached_lifetime(cmd_parms *cmd, void *config,
     if (cfg->memcached_lifetime <= 0)
         return "ZrkadloMemcachedLifeTime requires an integer > 0.";
     return NULL;
-}
-
-static const char *zrkadlo_dbd_prepare(cmd_parms *cmd, void *cfg, const char *query)
-{
-    static unsigned int label_num = 0;
-    char *label;
-
-    if (zrkadlo_dbd_prepare_fn == NULL) {
-        zrkadlo_dbd_prepare_fn = APR_RETRIEVE_OPTIONAL_FN(ap_dbd_prepare);
-        if (zrkadlo_dbd_prepare_fn == NULL) {
-            return "You must load mod_dbd to enable Zrkadlo functions";
-        }
-        zrkadlo_dbd_acquire_fn = APR_RETRIEVE_OPTIONAL_FN(ap_dbd_acquire);
-    }
-    label = apr_psprintf(cmd->pool, "zrkadlo_dbd_%d", ++label_num);
-
-    zrkadlo_dbd_prepare_fn(cmd->server, query, label);
-
-    /* save the label here for our own use */
-    return ap_set_string_slot(cmd, cfg, label);
 }
 
 static int find_lowest_rank(apr_array_header_t *arr) 
@@ -787,7 +816,7 @@ static int zrkadlo_handler(request_rec *r)
     }
 
 
-    if (cfg->query == NULL) {
+    if (scfg->query == NULL) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
                 "[mod_zrkadlo] No ZrkadloDBDQuery configured!");
         return DECLINED;
@@ -816,19 +845,22 @@ static int zrkadlo_handler(request_rec *r)
 
     /* ask the database and pick the matching server according to region */
 
-    //ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, "[mod_zrkadlo] Acquiring database connection");
+    if (scfg->query_prep == NULL) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] No database query prepared!");
+        return DECLINED;
+    }
+
     ap_dbd_t *dbd = zrkadlo_dbd_acquire_fn(r);
     if (dbd == NULL) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
                 "[mod_zrkadlo] Error acquiring database connection");
         return DECLINED; /* fail gracefully */
     }
-    //ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, "[mod_zrkadlo] Successfully acquired database connection.");
     debugLog(r, cfg, "Successfully acquired database connection.");
 
-    statement = apr_hash_get(dbd->prepared, cfg->query, APR_HASH_KEY_STRING);
+    statement = apr_hash_get(dbd->prepared, scfg->query_prep, APR_HASH_KEY_STRING);
     if (statement == NULL) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] No ZrkadloDBDQuery configured!");
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] Could not get prepared statement!");
         return DECLINED;
     }
 
@@ -1632,8 +1664,7 @@ static const command_rec zrkadlo_cmds[] =
                   RSRC_CONF, 
                   "Name of the Zrkadlo instance"),
 
-    AP_INIT_TAKE1("ZrkadloDBDQuery", zrkadlo_dbd_prepare, 
-                  (void *)APR_OFFSETOF(zrkadlo_dir_conf, query), 
+    AP_INIT_TAKE1("ZrkadloDBDQuery", zrkadlo_cmd_dbdquery, NULL,
                   RSRC_CONF,
                   "the SQL query string to fetch the mirrors from the backend database"),
 
