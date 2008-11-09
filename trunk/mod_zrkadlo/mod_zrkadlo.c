@@ -313,7 +313,7 @@ static void *merge_zrkadlo_server_config(apr_pool_t *p, void *basev, void *addv)
     cfgMergeString(metalink_publisher_name);
     cfgMergeString(metalink_publisher_url);
     cfgMergeString(mirrorlist_stylesheet);
-    mrg->query = (add->query != DEFAULT_QUERY) ? add->query : base->query;
+    mrg->query = (add->query != (char *) DEFAULT_QUERY) ? add->query : base->query;
     cfgMergeString(query_prep);
 
     return (void *) mrg;
