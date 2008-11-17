@@ -88,6 +88,20 @@
                              "AND server.status_baseurl=1 " \
                              "AND server.score > 0"
 
+#define DEFAULT_QUERY2 "SELECT file_server.serverid, server.identifier, server.country, " \
+                             "server.region, server.score, server.baseurl, " \
+                             "server.country_only, server.region_only, server.other_countries, " \
+                             "server.file_maxsize " \
+                      "FROM file " \
+                      "LEFT JOIN file_server " \
+                      "ON file.id = file_server.fileid " \
+                      "LEFT JOIN server " \
+                      "ON file_server.serverid = server.id " \
+                      "WHERE file.path=%s " \
+                             "AND server.enabled=1 " \
+                             "AND server.status_baseurl=1 " \
+                             "AND server.score > 0"
+
 
 module AP_MODULE_DECLARE_DATA zrkadlo_module;
 
@@ -142,6 +156,7 @@ typedef struct
     const char *mirrorlist_stylesheet;
     const char *query;
     const char *query_prep;
+    int use_extra_hashes;
 } zrkadlo_server_conf;
 
 
@@ -223,7 +238,13 @@ static int zrkadlo_post_config(apr_pool_t *pconf, apr_pool_t *plog,
                                                         &zrkadlo_module);
         /* make a label */
         cfg->query_prep = apr_psprintf(pconf, "zrkadlo_dbd_%d", ++label_num);
-        zrkadlo_dbd_prepare_fn(sp, cfg->query, cfg->query_prep);
+        if (cfg->use_extra_hashes) {
+            ap_log_error(APLOG_MARK, APLOG_ERR, 0, s, "[mod_zrkadlo] preparing: %s", cfg->query);
+            zrkadlo_dbd_prepare_fn(sp, cfg->query, cfg->query_prep);
+        } else {
+            ap_log_error(APLOG_MARK, APLOG_ERR, 0, s, "[mod_zrkadlo] preparing: %s", DEFAULT_QUERY2);
+            zrkadlo_dbd_prepare_fn(sp, DEFAULT_QUERY2, cfg->query_prep);
+        }
     }
 
     return OK;
@@ -293,6 +314,7 @@ static void *create_zrkadlo_server_config(apr_pool_t *p, server_rec *s)
     new->mirrorlist_stylesheet = NULL;
     new->query = DEFAULT_QUERY;
     new->query_prep = NULL;
+    new->use_extra_hashes = 1;
 
     return (void *) new;
 }
@@ -315,6 +337,7 @@ static void *merge_zrkadlo_server_config(apr_pool_t *p, void *basev, void *addv)
     cfgMergeString(mirrorlist_stylesheet);
     mrg->query = (add->query != (char *) DEFAULT_QUERY) ? add->query : base->query;
     cfgMergeString(query_prep);
+    cfgMergeBool(use_extra_hashes);
 
     return (void *) mrg;
 }
@@ -505,6 +528,17 @@ static const char *zrkadlo_cmd_memcached_lifetime(cmd_parms *cmd, void *config,
     cfg->memcached_lifetime = atoi(arg1);
     if (cfg->memcached_lifetime <= 0)
         return "ZrkadloMemcachedLifeTime requires an integer > 0.";
+    return NULL;
+}
+
+static const char *zrkadlo_cmd_extra_hashes_on(cmd_parms *cmd, void *config,
+                                int flag)
+{
+    server_rec *s = cmd->server;
+    zrkadlo_server_conf *cfg = 
+        ap_get_module_config(s->module_config, &zrkadlo_module);
+
+    cfg->use_extra_hashes = flag;
     return NULL;
 }
 
@@ -881,15 +915,22 @@ static int zrkadlo_handler(request_rec *r)
     free(ptr);
     debugLog(r, cfg, "SQL lookup for (canonicalized) '%s'", filename);
 
-    filename_hash = zrkadlo_md5b64_enc(r->pool, filename);
-    if (strlen(filename_hash) != 24) {
-        ap_log_rerror(APLOG_MARK, APLOG_CRIT, 0, r, 
-                "[mod_zrkadlo] Error hashing filename '%s'", r->filename);
-        return HTTP_INTERNAL_SERVER_ERROR;
+    /* the extra hashing stuff is likely going to be removed. Make it optional for now */
+    if (scfg->use_extra_hashes) {
+        filename_hash = zrkadlo_md5b64_enc(r->pool, filename);
+        if (strlen(filename_hash) != 24) {
+            ap_log_rerror(APLOG_MARK, APLOG_CRIT, 0, r, 
+                    "[mod_zrkadlo] Error hashing filename '%s'", r->filename);
+            return HTTP_INTERNAL_SERVER_ERROR;
+        }
+        /* strip the '==' trailing the base64 encoding */
+        filename_hash[22] = '\0';
+        debugLog(r, cfg, "filename_hash: %s", filename_hash);
+    } 
+    else {
+        filename_hash = apr_pstrdup(r->pool, filename);
     }
-    /* strip the '==' trailing the base64 encoding */
-    filename_hash[22] = '\0';
-    debugLog(r, cfg, "filename_hash: %s", filename_hash);
+
 
     if (apr_dbd_pvselect(dbd->driver, r->pool, dbd->handle, &res, statement, 
                 1, /* we don't need random access actually, but 
@@ -1711,6 +1752,10 @@ static const command_rec zrkadlo_cmds[] =
     AP_INIT_TAKE1("ZrkadloMirrorlistStyleSheet", zrkadlo_cmd_mirrorlist_stylesheet, NULL, 
                   RSRC_CONF, 
                   "Sets a CSS stylesheet to add to mirror lists"),
+
+    AP_INIT_FLAG("ZrkadloUseExtraHashes", zrkadlo_cmd_extra_hashes_on, NULL,
+                  RSRC_CONF, 
+                  "Set to On/Off to use extra hashes when looking up files in the database (see database schema)"),
 
     { NULL }
 };
