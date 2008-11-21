@@ -59,6 +59,7 @@
 #   (fixes problem for mirrors that disable range headers)
 # 2008-08-21, poeml - V0.10, be able to run on different mirrorbrain instances
 #                     (-b option)
+# 2008-11-22, poeml - V0.20, make usage of md5 hashes optional
 #
 # FIXME: 
 # should do optimize table file, file_server;
@@ -90,7 +91,7 @@ use Socket;
 use bytes;
 use Config::IniFiles;
 
-my $version = '0.10';
+my $version = '0.20';
 my $scanner_email = 'poeml@suse.de';
 my $verbose = 1;
 
@@ -822,8 +823,13 @@ sub save_file
   $path =~ s{//+}{/}g;  # double slashes easily fool md5sums. Avoid them.
 
 
-  my ($fileid, $md5) = getfileid($path);
-  die "save_file: md5 undef" unless defined $md5;
+  if ($use_md5) {
+    my ($fileid, $md5) = getfileid($path);
+    die "save_file: md5 undef" unless defined $md5;
+  }
+  else {
+    my $fileid = getfileid($path);
+  }
 
 
   if ($use_md5) {
@@ -916,20 +922,31 @@ sub getfileid
                      or die $dbh->errstr();
   my $id = $ary_ref->[0][0];
 
-  return $id, Digest::MD5::md5_base64($path) if defined $id;
+  if ($use_md5) {
+    return $id, Digest::MD5::md5_base64($path) if defined $id;
+  }
+  else {
+    return $id if defined $id;
+  }
   
   $sql = "INSERT INTO file SET path = ?;";
 
   my $sth = $dbh->prepare( $sql );
   $sth->execute( $path ) or die $sth->err;
 
+  # FIXME: should use last_insert_id rather
   $sql = "SELECT id FROM file WHERE path = " . $dbh->quote($path);
 
   $ary_ref = $dbh->selectall_arrayref( $sql ) or die $dbh->errstr();
 
   $id = $ary_ref->[0][0];
 
-  return $id, Digest::MD5::md5_base64($path);
+  if ($use_md5) {
+    return $id, Digest::MD5::md5_base64($path);
+  }
+  else {
+    return $id;
+  }
 }
 
 
