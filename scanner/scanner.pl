@@ -125,12 +125,8 @@ my $list_only = 0;
 my $extra_schedule_run = 0;
 my $keep_dead_files = 0;
 my $recursion_delay = 0;	# seconds delay per *_readdir recuursion
-my $mirror_new = undef;
-my $mirror_zap = 0;
 my $force_scan = 0;
 my $enable_after_scan = 0;
-my $mirror_url_add = undef;
-my $mirror_url_del = undef;
 my $topdirs = 'distribution|tools|repositories';
 my $cfgfile = '/etc/mirrorbrain.conf';
 my $brain_instance = '';
@@ -176,11 +172,6 @@ while (defined (my $arg = shift)) {
 	elsif ($arg =~ m{^-l})                 { $list_only++; 
 						 $list_only++ if $arg =~ m{ll}; 
 						 $list_only++ if $arg =~ m{lll}; }
-	elsif ($arg =~ m{^-N})                 { $mirror_new = [ shift ]; 
-						 while ($ARGV[0] and $ARGV[0] =~ m{=}) { push @$mirror_new, shift; } }
-	elsif ($arg =~ m{^-Z})                 { $mirror_zap++; }
-	elsif ($arg =~ m{^-A})                 { $mirror_url_add = [ @ARGV ]; @ARGV = (); }
-	elsif ($arg =~ m{^-D})                 { $mirror_url_del = [ @ARGV ]; @ARGV = (); }
 	elsif ($arg =~ m{^-})		       { exit usage("unknown option '$arg'"); }
 }
 
@@ -210,7 +201,7 @@ my $db_cred = { dbi => 'dbi:mysql:dbname=' . $cfg->val( $brain_instance, 'dbname
 my %only_server_ids = map { $_ => 1 } @ARGV;
 
 exit usage("Please specify list of server IDs (or -a for all) to scan\n") 
-  unless $all_servers or %only_server_ids or $list_only or $mirror_new or $mirror_url_del or $mirror_url_add;
+  unless $all_servers or %only_server_ids or $list_only;
 
 exit usage("-a takes no parameters (or try without -a ).\n") if $all_servers and %only_server_ids;
 
@@ -235,7 +226,7 @@ for my $row(sort { $a->{id} <=> $b->{id} } values %$ary_ref) {
     undef $only_server_ids{$row->{identifier}};
   }
 
-  if($row->{enabled} == 1 or $force_scan or $list_only > 1 or $mirror_new or $mirror_zap) {
+  if($row->{enabled} == 1 or $force_scan or $list_only > 1) {
     push @scan_list, $row;
   }
 }
@@ -249,11 +240,7 @@ if(scalar(keys %only_server_ids) > 2 * scalar(@scan_list)) {
 my @missing = grep { defined $only_server_ids{$_} } keys %only_server_ids;
 die sprintf "serverid not found: %s\n", @missing if @missing;
 
-exit mirror_new($dbh, $mirror_new, \@scan_list) if defined $mirror_new;
-exit mirror_zap($dbh, \@scan_list) if $mirror_zap;
 exit mirror_list(\@scan_list, $list_only-1) if $list_only;
-exit mirror_url($dbh, $mirror_url_add, \@scan_list, 0) if $mirror_url_add;
-exit mirror_url($dbh, $mirror_url_del, \@scan_list, 1) if $mirror_url_del;
 
 ###################
 # Keep in sync with "$start_dir/%" in unless ($keep_dead_files) below!
@@ -436,21 +423,6 @@ sub mirror_list
 
 
 
-sub mirror_zap
-{
-  my ($dbh, $list) = @_;
-  my $ids = join(',', map { $_->{id} } @$list);
-  die "mirror_zap: list empty\n" unless $ids;
-
-  my $sql = "DELETE FROM server WHERE id IN ($ids)";
-  print "$sql\n" if $verbose;
-  $dbh->do($sql) or die "$sql: ".$dbh->errstr;
-  $sql = "DELETE FROM file_server WHERE serverid IN ($ids)";
-  print "$sql\n" if $verbose;
-  $dbh->do($sql) or die "$sql: ".$dbh->errstr;
-}
-
-
 
 sub mirror_new
 {
@@ -529,57 +501,6 @@ sub mirror_new
 return 0;
 }
 
-
-
-sub mirror_url
-{
-  my ($dbh, $list, $ml, $del) = @_;
-  my $act = $del ? 'del' : 'add';
-
-  while(my $item = shift @$list) {
-    my ($p, $id);
-    if($item =~ m{/}) {	# aha, it is should be an url
-      die "mirror_url $act: cannot parse '$item'\n" unless $item =~ m{^(http|ftp|rsync:?)://([^/]+)/(.*)$};
-      my ($proto, $host, $path) = ($1,$2,$3);
-      my $base = "$proto://$host";
-      for my $m (@$ml) {
-	## FIXME: this does not work, if baseurl* ends in #@..@..@
-	$p = $1 if $m->{baseurl}       and $item =~ m{^\Q$m->{baseurl}\E(.*)};
-	$p = $1 if $m->{baseurl_ftp}   and $item =~ m{^\Q$m->{baseurl_ftp}\E(.*)};
-	$p = $1 if $m->{baseurl_rsync} and $item =~ m{^\Q$m->{baseurl_rsync}\E(.*)};
-	if ($p) {
-	  $id = $m->{id};
-	  last;
-	}
-      }
-      die "mirror_url $act: could not find mirror for url '$item'\n" unless defined $id;
-    }
-    else {  # aha, it is id plus path.
-      for my $m (@$ml) {
-	if($m->{id} eq $item || $m->{identifier} eq $item) {
-	  $id = $m->{id};
-	  $p = shift @$list;
-	  last;
-	}
-      }
-      die "mirror_url $act: unknown mirror '$item'\n" unless defined $id;
-    }
-
-    $p =~ s{^/+}{} if $p;
-    die "mirror_url $act: item=$item, no path.\n" unless $p;
-
-    print "mirror_url $act $id '$p'\n" if $verbose;
-    if($del) {
-      delete_file($dbh, $id, $p);
-    }
-    else {
-      if(!save_file($p, $id, time)) {
-	print "$p ignored.\n" if $verbose;
-      }
-    }
-  }
-  return 0;
-}
 
 
 
