@@ -27,12 +27,10 @@ CREATE TABLE `file_server` (
   `serverid` int(11) unsigned NOT NULL default '0',
   `timestamp_file` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
   `timestamp_scanner` timestamp NOT NULL default '0000-00-00 00:00:00',
-  `path_md5` binary(22) NOT NULL,
   KEY `fileid` (`fileid`,`serverid`),
   KEY `file_server_fileid_idx` (`fileid`),
   KEY `file_server_serverid_idx` (`serverid`),
   KEY `file_server_fileid_serverid_idx` (`fileid`,`serverid`),
-  KEY `file_server_path_md5_serverid_idx` (`path_md5`,`serverid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ;
 
 -- --------------------------------------------------------
