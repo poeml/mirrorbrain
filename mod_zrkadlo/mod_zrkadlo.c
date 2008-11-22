@@ -239,10 +239,8 @@ static int zrkadlo_post_config(apr_pool_t *pconf, apr_pool_t *plog,
         /* make a label */
         cfg->query_prep = apr_psprintf(pconf, "zrkadlo_dbd_%d", ++label_num);
         if (cfg->use_extra_hashes) {
-            ap_log_error(APLOG_MARK, APLOG_ERR, 0, s, "[mod_zrkadlo] preparing: %s", cfg->query);
             zrkadlo_dbd_prepare_fn(sp, cfg->query, cfg->query_prep);
         } else {
-            ap_log_error(APLOG_MARK, APLOG_ERR, 0, s, "[mod_zrkadlo] preparing: %s", DEFAULT_QUERY2);
             zrkadlo_dbd_prepare_fn(sp, DEFAULT_QUERY2, cfg->query_prep);
         }
     }
@@ -337,6 +335,7 @@ static void *merge_zrkadlo_server_config(apr_pool_t *p, void *basev, void *addv)
     cfgMergeString(mirrorlist_stylesheet);
     mrg->query = (add->query != (char *) DEFAULT_QUERY) ? add->query : base->query;
     cfgMergeString(query_prep);
+    /* FIXME: merging doesn't really work here; needs to be set in all server instances */
     cfgMergeBool(use_extra_hashes);
 
     return (void *) mrg;
