@@ -117,7 +117,7 @@ my $ua = LWP::UserAgent->new;
 $ua->agent("MirrorBrain Scanner/$version (See http://mirrorbrain.org/scanner_info)");
 
 my $rsync_muxbuf = '';
-my $use_md5 = 1;
+my $use_md5 = 0;
 my $all_servers = 0;
 my $start_dir = '/';
 my $parallel = 1;
@@ -805,6 +805,9 @@ sub save_file
 {
   my ($path, $serverid, $file_tstamp, $mod_re, $ign_re) = @_;
 
+  my $fileid;
+  my $md5;
+
   #
   # optional patch the file names by adding or removing components.
   # you never know what strange paths mirror admins choose.
@@ -824,11 +827,11 @@ sub save_file
 
 
   if ($use_md5) {
-    my ($fileid, $md5) = getfileid($path);
+    ($fileid, $md5) = getfileid($path);
     die "save_file: md5 undef" unless defined $md5;
   }
   else {
-    my $fileid = getfileid($path);
+    $fileid = getfileid($path);
   }
 
 
