@@ -1,8 +1,40 @@
-from mb.util import b64_md5
+from sqlobject.sqlbuilder import AND
 
-def ls(conn, path, pattern = False):
+def ls_one(conn, path, mirror_id):
+    if path.find('*') > 0 or path.find('%') > 0:
+        pattern = True
+        oprtr = 'like'
+        path = path.replace('*', '%')
+    else:
+        pattern = False
+        oprtr = '='
 
-    if pattern:
+    query = 'SELECT path \
+                FROM file \
+                LEFT JOIN file_server \
+                ON file.id = file_server.fileid \
+                WHERE file_server.serverid = %s \
+                 AND  file.path %s \'%s\' \
+                ORDER BY file.path' \
+                  % (mirror_id, oprtr, path)
+
+
+    rows = conn.FileServer._connection.queryAll(query)
+    if len(rows) > 0:
+        return True
+    else:
+        return False
+
+def ls(conn, path, mirror = None):
+    if path.find('*') > 0 or path.find('%') > 0:
+        pattern = True
+        oprtr = 'like'
+        path = path.replace('*', '%')
+    else:
+        pattern = False
+        oprtr = '='
+
+    if mirror:
         query = 'SELECT server.identifier, server.country, server.region, \
                            server.score, server.baseurl, server.enabled, \
                            server.status_baseurl, file.path \
@@ -11,19 +43,22 @@ def ls(conn, path, pattern = False):
                     ON file.id = file_server.fileid \
                     LEFT JOIN server \
                     ON file_server.serverid = server.id \
-                    WHERE file.path like \'%s\' \
+                    WHERE file.path %s \'%s\' \
+                    AND file_server.serverid = %s \
                     ORDER BY server.region, server.country, server.score DESC' \
-                      % path
+                      % (oprtr, path, mirror.id)
     else:
         query = 'SELECT server.identifier, server.country, server.region, \
                            server.score, server.baseurl, server.enabled, \
-                           server.status_baseurl \
-                    FROM file_server \
+                           server.status_baseurl, file.path \
+                    FROM file \
+                    LEFT JOIN file_server \
+                    ON file.id = file_server.fileid \
                     LEFT JOIN server \
                     ON file_server.serverid = server.id \
-                    WHERE file_server.path_md5=\'%s\' \
+                    WHERE file.path %s \'%s\' \
                     ORDER BY server.region, server.country, server.score DESC' \
-                      % b64_md5(path)
+                      % (oprtr, path)
 
     rows = conn.FileServer._connection.queryAll(query)
 
@@ -49,25 +84,39 @@ def ls(conn, path, pattern = False):
 
 def add(conn, path, mirror):
 
-    f = conn.File(path = path)
-    #print 'file id:', f.id
+    files = conn.File.select(conn.File.q.path==path)
+    if files.count() == 0:
+        f = conn.File(path = path)
+        fileid = f.id
+    else:
+        fileid = list(files)[0].id
 
-    # this doesn't work because the table doesn't have a primary key 'id'...
-    # (our primary Key consists only of number columns)
-    #import datetime
-    #fs = conn.FileServer(fileid = f.id,
-    #                     serverid = mirror.id,
-    #                     pathMd5 = b64_md5(path),
-    #                     timestampScanner = datetime.datetime.now())
-    #print fs
+    relations = conn.FileServer.select(AND(conn.FileServer.q.fileid == fileid,
+                                           conn.FileServer.q.serverid == mirror.id))
+    if relations.count() == 0:
 
-    query = """INSERT INTO file_server SET fileid=%d, serverid=%d, path_md5='%s'""" \
-               % (f.id, mirror.id, b64_md5(path))
-    conn.FileServer._connection.queryAll(query)
+        # this doesn't work because the table doesn't have a primary key 'id'...
+        # (our primary Key consists only of a number of columns)
+        #import datetime
+        #fs = conn.FileServer(fileid = f.id,
+        #                     serverid = mirror.id,
+        #                     pathMd5 = b64_md5(path),
+        #                     timestampScanner = datetime.datetime.now())
+        #print fs
+
+        query = """INSERT INTO file_server SET fileid=%d, serverid=%d""" \
+                   % (fileid, mirror.id)
+        conn.FileServer._connection.queryAll(query)
+    else:
+        print 'already exists'
 
 
 def rm(conn, path, mirror):
-    query = """DELETE FROM file_server WHERE serverid=%s AND path_md5='%s'""" \
-                 % (mirror.id, b64_md5(path))
-    conn.FileServer._connection.queryAll(query)
+    fileobj = conn.File.select(conn.File.q.path==path)
+    fileid = list(fileobj)[0].id
+    print fileid
+    query = """DELETE FROM file_server WHERE serverid=%s AND fileid=%s""" \
+                 % (mirror.id, fileid)
+    print query
+    print conn.FileServer._connection.queryAll(query)
 

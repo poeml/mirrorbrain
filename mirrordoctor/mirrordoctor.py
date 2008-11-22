@@ -161,6 +161,8 @@ class MirrorDoctor(cmdln.Cmdln):
             print s
 
 
+    #@cmdln.option('-s', '--show-score', action='store_true',
+    #                    help='show score of each mirror')
     @cmdln.option('--disabled', action='store_true',
                         help='show only disabled mirrors')
     @cmdln.option('-a', '--show-disabled', action='store_true',
@@ -189,13 +191,13 @@ class MirrorDoctor(cmdln.Cmdln):
 
         for mirror in mirrors:
             if opts.show_disabled:
-                print mirror.identifier
+                print mirror.identifier #, mirror.score
             elif opts.disabled:
                 if not mirror.enabled:
-                    print mirror.identifier
+                    print mirror.identifier #, mirror.score
             else:
                 if mirror.enabled:
-                    print mirror.identifier
+                    print mirror.identifier #, mirror.score
 
 
     def do_show(self, subcmd, opts, identifier):
@@ -429,16 +431,15 @@ class MirrorDoctor(cmdln.Cmdln):
         ACTION is one of the following:
 
           ls PATH             list file
-          lsmatch PATTERN     list files matching a pattern
           rm PATH             remove PATH entry from the database
           add PATH            create database entry for file PATH
 
-        PATTERN can contain % for wildcards (SQL syntax).
+        PATH can contain * as wildcard, or alternatively % (SQL syntax).
 
 
         Examples:
-          mirrordoctor file ls '/path/to/xorg-x11-libXfixes-7.4-1.14.i586.rpm'
-          mirrordoctor file lsmatch '%xorg-x11-libXfixes-7.4-1.14.i586.rpm'
+          mirrordoctor file ls /path/to/xorg-x11-libXfixes-7.4-1.14.i586.rpm
+          mirrordoctor file ls '*xorg-x11-libXfixes-7.4-1.14.i586.rpm'
           mirrordoctor file add distribution/11.0/SHOULD_NOT_BE_VISIBLE -m cdn.novell.com
           mirrordoctor file rm distribution/11.0/SHOULD_NOT_BE_VISIBLE -m MIRROR
 
@@ -455,11 +456,14 @@ class MirrorDoctor(cmdln.Cmdln):
         if action in ['add', 'rm']:
             if not opts.mirror:
                 sys.exit('this command needs to be used with -m')
+
+        if opts.mirror:
             mirror = lookup_mirror(self, opts.mirror)
+        else:
+            mirror = None
 
-
-        if action == 'ls' or action == 'lsmatch':
-            rows = mb.files.ls(self.conn, path, pattern = (action=='lsmatch'))
+        if action == 'ls':
+            rows = mb.files.ls(self.conn, path, mirror = mirror)
 
             for row in rows:
                 print '%s %s %4d %s %s %-30s %s%s' % \
@@ -479,9 +483,43 @@ class MirrorDoctor(cmdln.Cmdln):
             mb.files.rm(self.conn, path, mirror)
 
         else:
-            sys.exit('ACTION must be either ls, lsmatch, rm or add.')
+            sys.exit('ACTION must be either ls, rm or add.')
 
 
+    def do_mirrorlist(self, subcmd, opts, *args):
+        """${cmd_name}: create a mirror list
+
+        Marker files will be used to characterize mirrors.
+
+        Usage:
+            mirrordoctor mirrorlist [IDENTIFIER]
+        ${cmd_option_list}
+        """
+        
+        import mb.files
+
+        markers = []
+        for line in open('markerfiles'):
+            line = line.split()
+            if len(line):
+                markers.append((line[-1], ' '.join(line[:-1])))
+
+
+        if args:
+            mirrors = mb.conn.servers_match(self.conn.Server, args[0])
+        else:
+            mirrors = self.conn.Server.select()
+
+        for mirror in mirrors:
+            if not mirror.enabled:
+                continue
+            print
+            print mirror.identifier
+
+            for marker in markers:
+                found = mb.files.ls_one(self.conn, marker[0], mirror.id)
+                if found:
+                    print marker[1]
 
 
 if __name__ == '__main__':
