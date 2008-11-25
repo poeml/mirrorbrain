@@ -1356,7 +1356,7 @@ static int zrkadlo_handler(request_rec *r)
                        r->uri);
         }
 
-        ap_rprintf(r, "      <!-- Found %d mirror%s: %d in the same country, %d in the same region, %d elsewhere -->\n", 
+        ap_rprintf(r, "      <!-- Found %d mirror%s: %d which handle this country, %d in the same region, %d elsewhere -->\n", 
                    mirror_cnt,
                    (mirror_cnt == 1) ? "" : "s",
                    mirrors_same_country->nelts,
@@ -1371,7 +1371,7 @@ static int zrkadlo_handler(request_rec *r)
         mirror = NULL;
 
         /* failed geoip lookup yields country='--' which leads to invalid XML */
-        ap_rprintf(r, "\n      <!-- Mirrors in the same country (%s): -->\n", 
+        ap_rprintf(r, "\n      <!-- Mirrors which handle this country (%s): -->\n", 
                    (strcmp(country_code, "--") == 0) ? "unknown" : country_code);
         for (i = 0; i < mirrors_same_country->nelts; i++) {
             if (pref) pref--;
@@ -1443,13 +1443,13 @@ static int zrkadlo_handler(request_rec *r)
                 r->hostname, r->uri, r->hostname, r->uri);
 
 
-        ap_rprintf(r, "  <p>This mirror list was made for client IP address: %s, located in country %s.</p>\n", 
+        ap_rprintf(r, "  <p>This mirror list is made for client IP address: %s, located in country %s.</p>\n", 
                    clientip, country_code);
 
         mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
         mirror = NULL;
 
-        ap_rprintf(r, "\n  <h3>Found %d mirror%s in the same country (%s):</h3>\n", 
+        ap_rprintf(r, "\n  <h3>Found %d mirror%s which handle this country (%s):</h3>\n", 
                    mirrors_same_country->nelts, 
                    (mirrors_same_country->nelts == 1) ? "" : "s",
                    country_code);
