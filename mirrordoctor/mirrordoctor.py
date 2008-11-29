@@ -515,10 +515,18 @@ class MirrorDoctor(cmdln.Cmdln):
             sys.exit('ACTION must be either ls, rm or add.')
 
 
+    @cmdln.option('-l', '--list-markers', action='store_true',
+                  help='just show the defined marker files.')
     def do_mirrorlist(self, subcmd, opts, *args):
-        """${cmd_name}: create a mirror list
+        """${cmd_name}: generate a mirror list
 
-        Marker files will be used to characterize mirrors.
+        Generate a tabular mirror list, showing which subtree is
+        listed on which mirrors.
+        
+        The presence of a particular subtree on the mirrors is determined
+        by looking for "marker files", which are defined in the database for
+        this purpose.
+
 
         Usage:
             mirrordoctor mirrorlist [IDENTIFIER]
@@ -527,12 +535,13 @@ class MirrorDoctor(cmdln.Cmdln):
         
         import mb.files
 
-        markers = []
-        for line in open('markerfiles'):
-            line = line.split()
-            if len(line):
-                markers.append((line[-1], ' '.join(line[:-1])))
+        markers = self.conn.Marker.select()
 
+        if opts.list_markers:
+            for i in markers:
+                print '%-20s    %r' % (i.subtreeName, i.markers.split())
+            sys.exit(0)
+        
 
         if args:
             mirrors = mb.conn.servers_match(self.conn.Server, args[0])
@@ -546,9 +555,19 @@ class MirrorDoctor(cmdln.Cmdln):
             print mirror.identifier
 
             for marker in markers:
-                found = mb.files.ls_one(self.conn, marker[0], mirror.id)
-                if found:
-                    print marker[1]
+                found_all = True
+                for m in marker.markers.split():
+                    found_this = mb.files.ls_one(self.conn, m.lstrip('!'), mirror.id)
+                    if m.startswith('!'):
+                        found_this = not found_this
+                    found_all = found_all and found_this
+
+                if found_all:
+                    print '+' + marker.subtreeName
+                else:
+                    print '-' + marker.subtreeName
+
+
 
     @cmdln.option('--project', metavar='PROJECT',
                   help='Specify a project name.')
