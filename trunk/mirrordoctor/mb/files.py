@@ -1,6 +1,11 @@
 from sqlobject.sqlbuilder import AND
 
-def ls_one(conn, path, mirror_id):
+def has_file(conn, path, mirror_id):
+    """check if file 'path' exists on mirror 'mirror_id'
+    by looking at the database.
+    
+    path can contain wildcards, which will result in a LIKE match.
+    """
     if path.find('*') > 0 or path.find('%') > 0:
         pattern = True
         oprtr = 'like'
@@ -20,10 +25,28 @@ def ls_one(conn, path, mirror_id):
 
 
     rows = conn.FileServer._connection.queryAll(query)
-    if len(rows) > 0:
-        return True
-    else:
-        return False
+
+    return len(rows) > 0
+
+
+def check_for_marker_files(conn, markers, mirror_id):
+    """
+    Check if all files in the markers list are present on a mirror,
+    according to the database. 
+
+    Markers actually a list of marker files.
+
+    If a filename is prefixed with !, it negates the match, thus it can be used
+    to check for non-existance.
+    """
+    found_all = True
+    for m in markers.split():
+        found_this = has_file(conn, m.lstrip('!'), mirror_id)
+        if m.startswith('!'):
+            found_this = not found_this
+        found_all = found_all and found_this
+    return found_all
+
 
 def ls(conn, path, mirror = None):
     if path.find('*') > 0 or path.find('%') > 0:

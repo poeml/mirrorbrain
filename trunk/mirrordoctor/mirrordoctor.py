@@ -515,6 +515,8 @@ class MirrorDoctor(cmdln.Cmdln):
             sys.exit('ACTION must be either ls, rm or add.')
 
 
+    @cmdln.option('-f', '--format', default='txt', metavar='FORMAT',
+                  help='output format of the mirrorlist, one of txt,txt2,xhtml')
     @cmdln.option('-l', '--list-markers', action='store_true',
                   help='just show the defined marker files.')
     def do_mirrorlist(self, subcmd, opts, *args):
@@ -546,26 +548,29 @@ class MirrorDoctor(cmdln.Cmdln):
         if args:
             mirrors = mb.conn.servers_match(self.conn.Server, args[0])
         else:
-            mirrors = self.conn.Server.select()
+            mirrors = self.conn.Server.select(self.conn.Server.q.enabled == 1,
+                                              orderBy=['region', 'country', '-score'])
 
-        for mirror in mirrors:
-            if not mirror.enabled:
-                continue
-            print
-            print mirror.identifier
+        if opts.format == 'txt':
+            for mirror in mirrors:
+                print
+                print mirror.identifier
+                #print mirror.identifier, mirror.baseurl, mirror.baseurlFtp, mirror.baseurlRsync, mirror.score
 
-            for marker in markers:
-                found_all = True
-                for m in marker.markers.split():
-                    found_this = mb.files.ls_one(self.conn, m.lstrip('!'), mirror.id)
-                    if m.startswith('!'):
-                        found_this = not found_this
-                    found_all = found_all and found_this
+                for marker in markers:
+                    if mb.files.check_for_marker_files(self.conn, marker.markers, mirror.id):
+                        print '+' + marker.subtreeName
+                    else:
+                        print '-' + marker.subtreeName
 
-                if found_all:
-                    print '+' + marker.subtreeName
-                else:
-                    print '-' + marker.subtreeName
+        elif opts.format == 'txt2':
+            for mirror in mirrors:
+                for marker in markers:
+                    if mb.files.check_for_marker_files(self.conn, marker.markers, mirror.id):
+                        print '%s: %s' % (mirror.identifier, marker.subtreeName)
+
+        elif opts.format == 'xhtml':
+            pass
 
 
 
