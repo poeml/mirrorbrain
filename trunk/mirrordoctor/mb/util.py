@@ -1,5 +1,18 @@
 import sys, os
 
+
+class Afile:
+    """represent a file, found during scanning"""
+    def __init__(self, name, size, mtime=0, path=0):
+        self.name = name
+        self.size = int(size)
+        self.mtime = mtime
+
+        self.path = path
+    def __str__(self):
+        return self.name
+
+
 def b64_md5(path):
     import base64, md5
     return base64.standard_b64encode(md5.md5(path).digest())[:-2]

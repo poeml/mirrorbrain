@@ -224,6 +224,35 @@ class MirrorDoctor(cmdln.Cmdln):
         mb.testmirror.access_http(mirror.baseurl)
 
 
+    def do_probefile(self, subcmd, opts, filename):
+        """${cmd_name}: list mirrors on which a given file is present
+        by probing them
+
+        ${cmd_usage}
+        ${cmd_option_list}
+        """
+
+        from sqlobject.sqlbuilder import AND
+        import mb.testmirror
+
+        print filename
+
+        mirrors = self.conn.Server.select(
+                     AND(self.conn.Server.q.statusBaseurl == 1, 
+                         self.conn.Server.q.enabled ==1))
+
+        found_mirrors = 0
+        for mirror in mirrors:
+            # TODO: add a nice library function for this
+            response = mb.testmirror.head_req(mirror.baseurl + filename)
+            print response, mirror.identifier, mirror.baseurl
+            # FIXME: the response code isn't usable on FTP urls.
+            if response == 200: found_mirrors += 1
+
+        print found_mirrors
+
+
+
     def do_edit(self, subcmd, opts, identifier):
         """${cmd_name}: edit a new mirror entry in $EDITOR
 
@@ -520,6 +549,62 @@ class MirrorDoctor(cmdln.Cmdln):
                 found = mb.files.ls_one(self.conn, marker[0], mirror.id)
                 if found:
                     print marker[1]
+
+    @cmdln.option('--project', metavar='PROJECT',
+                  help='Specify a project name.')
+    def do_export(self, subcmd, opts, *args):
+        """${cmd_name}: export the mirror list as text file
+
+        Output format is suitable to be used in a Django ORM.
+
+        ${cmd_usage}
+        ${cmd_option_list}
+        """
+
+        if not opts.project:
+            sys.exit('specify a project name with --project')
+
+        print """#!/usr/bin/env python
+import os, sys
+
+mybasepath = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, mybasepath)
+os.environ['DJANGO_SETTINGS_MODULE'] = 'mirrordjango.settings'
+
+from django.db import connection
+
+from mirrordjango.mb.models import Contact, Operator, Project, Server, Mirror
+
+"""
+
+        print """Project(name='%s').save()""" % opts.project
+
+        django_template = """\
+
+# ------------------------------------------------------------
+try:
+    c = Contact.objects.get_or_create(username=%(admin)r, password='UNSET', name=%(admin)r, email=%(adminEmail)r)[0]
+except:
+    connection.connection.rollback()
+    c = None
+o = Operator.objects.get_or_create(name='%(identifier)s', logo='')[0]
+p = Project.objects.filter(name='""" + opts.project + """')
+p = p[0]
+s = Server.objects.get_or_create(identifier='%(identifier)s', operator=o, region='%(region)s', country='%(country)s', country_only='%(countryOnly)s', region_only='%(regionOnly)s', other_countries=%(otherCountries)r, file_maxsize='%(fileMaxsize)s', comment=%(comment)r, bandwidth=1)[0]
+m = Mirror.objects.get_or_create(http='%(baseurl)s', ftp='%(baseurlFtp)s', rsync='%(baseurlRsync)s', prio='%(score)s', project=p, server=s)[0]
+# s.mirrors.add(m)
+if c:
+    s.contacts.add(c)
+
+"""
+
+        mirrors = self.conn.Server.select()
+        for i in mirrors:
+            if i.comment == None:
+                #print 'null comment', i
+                i.comment = ''
+            d = mb.conn.server2dict(i)
+            print django_template % d
 
 
 if __name__ == '__main__':
