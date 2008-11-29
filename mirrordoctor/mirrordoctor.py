@@ -570,8 +570,61 @@ class MirrorDoctor(cmdln.Cmdln):
                         print '%s: %s' % (mirror.identifier, marker.subtreeName)
 
         elif opts.format == 'xhtml':
-            pass
+            table_start = """<table>"""
+            table_end = """</table>"""
 
+            table_header_template = """\
+  <tr>
+    <th>Country</th>
+    <th>Mirror</th>
+    <th colspan="3">URL</th>
+    <th>Priority</th>
+  </tr>
+"""
+
+            table_row_template = """\
+  <tr>
+    <td><img src="flags/%(country)s.png" alt="Country: %(country)s" title="%(country)s"/></td>
+    <td>%(identifier)s</td>
+    <td>%(http_link)s</td>
+    <td>%(ftp_link)s</td>
+    <td>%(rsync_link)s</td>
+    <td>%(prio)s</td>
+  </tr>
+"""
+
+            link = lambda x, y: x and '<a href="%s">%s</a>' % (x, y)  or '' # 'n/a'
+
+            last_region = 'we have not started yet...'
+
+            for mirror in mirrors:
+                if mirror.region.lower() != last_region:
+                    # new region block
+                    if last_region != 'we have not started yet...':
+                        print table_end
+
+                    print '\n\n<h1>Region: %s</h1>\n' % mirror.region.lower()
+                    print table_start
+                    print table_header_template
+                last_region = mirror.region.lower()
+
+                map = { 'country':    mirror.country.lower(),
+                        'region':     mirror.region,
+                        'identifier': mirror.identifier,
+                        'http_link':  link(mirror.baseurl, 'HTTP'),
+                        'ftp_link':   link(mirror.baseurlFtp, 'FTP'),
+                        'rsync_link': link(mirror.baseurlRsync, 'rsync'),
+                        'prio':       mirror.score,
+                        
+                        }
+                
+                print table_row_template % map
+                
+                #for marker in markers:
+                #    if mb.files.check_for_marker_files(self.conn, marker.markers, mirror.id):
+                #        print '%s: %s' % (mirror.identifier, marker.subtreeName)
+
+            print table_end
 
 
     @cmdln.option('--project', metavar='PROJECT',
