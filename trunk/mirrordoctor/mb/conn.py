@@ -93,6 +93,13 @@ class Conn:
                 fromDatabase = True
         self.FileServer = FileServer
 
+        class Marker(SQLObject):
+            """the marker table"""
+            class sqlmeta:
+                fromDatabase = True
+                defaultOrder = 'subtree_name'
+        self.Marker = Marker
+
         if debug:
             self.Server._connection.debug = True
 
