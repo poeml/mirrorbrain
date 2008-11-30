@@ -515,6 +515,10 @@ class MirrorDoctor(cmdln.Cmdln):
             sys.exit('ACTION must be either ls, rm or add.')
 
 
+    @cmdln.option('-I', '--inline-images-from', metavar='PATH',
+                  help='path to a directory with flag images to be inlined')
+    @cmdln.option('-i', '--image-type', default='png', metavar='TYPE',
+                  help='image file extension, e.g. png or gif')
     @cmdln.option('-f', '--format', default='txt', metavar='FORMAT',
                   help='output format of the mirrorlist, one of txt,txt2,xhtml')
     @cmdln.option('-l', '--list-markers', action='store_true',
@@ -572,6 +576,13 @@ class MirrorDoctor(cmdln.Cmdln):
 
 
         elif opts.format == 'xhtml':
+
+            if opts.inline_images_from:
+                import os
+                import mb.util
+                if not os.path.exists(opts.inline_images_from):
+                    sys.exit('path %r does not exist')
+
             table_start = """<table>"""
             table_end = """</table>"""
 
@@ -585,7 +596,7 @@ class MirrorDoctor(cmdln.Cmdln):
 """
             table_row_template = """\
   <tr>
-    <td><img src="flags/%(country_code)s.png" alt="%(country_code)s" title="%(country_code)s" />
+    <td><img src="%(img_link)s" width="16" height="11" alt="%(country_code)s"" />
         %(country_name)s
     </td>
     <td>%(identifier)s</td>
@@ -596,30 +607,40 @@ class MirrorDoctor(cmdln.Cmdln):
   </tr>
 """
 
-            link = lambda x, y: x and '<a href="%s">%s</a>' % (x, y)  or '' # 'n/a'
+            href = lambda x, y: x and '<a href="%s">%s</a>' % (x, y)  or '' # 'n/a'
+
+            def imgref(country_code):
+                if not opts.inline_images_from:
+                    return 'flags/%s.%s' % (country_code, opts.image_type)
+                else:
+                    return mb.util.data_url(opts.inline_images_from, 
+                                            country_code + '.' + opts.image_type)
+
 
             last_region = 'we have not started yet...'
 
             for mirror in mirrors:
-                if mirror.region.lower() != last_region:
+                region = mirror.region.lower()
+                if region != last_region:
                     # new region block
                     if last_region != 'we have not started yet...':
                         print table_end
 
-                    print '\n\n<h1>Region: %s</h1>\n' % mirror.region.lower()
+                    print '\n\n<h1>Region: %s</h1>\n' % region
                     print table_start
                     print table_header_template
-                last_region = mirror.region.lower()
+                last_region = region
 
                 country_name = self.conn.Country.select(
                         self.conn.Country.q.code == mirror.country.lower())[0].name
                 map = { 'country_code': mirror.country.lower(),
                         'country_name': country_name,
-                        'region':     mirror.region,
+                        'img_link':   imgref(mirror.country.lower()),
+                        'region':     region,
                         'identifier': mirror.identifier,
-                        'http_link':  link(mirror.baseurl, 'HTTP'),
-                        'ftp_link':   link(mirror.baseurlFtp, 'FTP'),
-                        'rsync_link': link(mirror.baseurlRsync, 'rsync'),
+                        'http_link':  href(mirror.baseurl, 'HTTP'),
+                        'ftp_link':   href(mirror.baseurlFtp, 'FTP'),
+                        'rsync_link': href(mirror.baseurlRsync, 'rsync'),
                         'prio':       mirror.score,
                         
                         }

@@ -9,7 +9,7 @@
 # exception classes
 
 class Error(Exception):
-    """Base class for MirrorBrain  exceptions."""
+    """Base class for MirrorBrain exceptions."""
 
     def __init__(self, msg=''):
         self.message = msg
