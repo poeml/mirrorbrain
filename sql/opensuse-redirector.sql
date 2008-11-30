@@ -66,3 +66,28 @@ CREATE TABLE `server` (
   UNIQUE KEY `identifier` (`identifier`),
   KEY `server_enabled_status_baseurl_score_idx` (`enabled`,`status_baseurl`,`score`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+
+-- 
+-- Table structure of table `marker`
+-- 
+
+CREATE TABLE `marker` (
+  `id` int(11) unsigned NOT NULL auto_increment,
+  `subtree_name` varchar(128) NOT NULL,
+  `markers` varchar(512) NOT NULL,
+  PRIMARY KEY  (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+
+-- 
+-- Table structure of table `countries`
+-- 
+
+CREATE TABLE `countries` (
+  `id` tinyint(1) NOT NULL auto_increment,
+  `code` char(2) NOT NULL,
+  `name` char(64) NOT NULL,
+  PRIMARY KEY  (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
