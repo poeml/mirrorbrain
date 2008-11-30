@@ -18,6 +18,16 @@ def b64_md5(path):
     return base64.standard_b64encode(md5.md5(path).digest())[:-2]
 
 
+def data_url(basedir, path):
+    import os, base64
+
+    image = open(os.path.join(basedir, path)).read()
+    data = base64.standard_b64encode(image)
+    ext = os.path.splitext(path)[1]
+
+    return 'data:image/%s;base64,%s' % (ext, data)
+
+
 def dgst(file):
     import md5
     BUFSIZE = 1024*1024
