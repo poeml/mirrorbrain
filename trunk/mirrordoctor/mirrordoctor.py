@@ -563,11 +563,13 @@ class MirrorDoctor(cmdln.Cmdln):
                     else:
                         print '-' + marker.subtreeName
 
+
         elif opts.format == 'txt2':
             for mirror in mirrors:
                 for marker in markers:
                     if mb.files.check_for_marker_files(self.conn, marker.markers, mirror.id):
                         print '%s: %s' % (mirror.identifier, marker.subtreeName)
+
 
         elif opts.format == 'xhtml':
             table_start = """<table>"""
@@ -581,10 +583,11 @@ class MirrorDoctor(cmdln.Cmdln):
     <th>Priority</th>
   </tr>
 """
-
             table_row_template = """\
   <tr>
-    <td><img src="flags/%(country)s.png" alt="Country: %(country)s" title="%(country)s"/></td>
+    <td><img src="flags/%(country_code)s.png" alt="%(country_code)s" title="%(country_code)s" />
+        %(country_name)s
+    </td>
     <td>%(identifier)s</td>
     <td>%(http_link)s</td>
     <td>%(ftp_link)s</td>
@@ -608,7 +611,10 @@ class MirrorDoctor(cmdln.Cmdln):
                     print table_header_template
                 last_region = mirror.region.lower()
 
-                map = { 'country':    mirror.country.lower(),
+                country_name = self.conn.Country.select(
+                        self.conn.Country.q.code == mirror.country.lower())[0].name
+                map = { 'country_code': mirror.country.lower(),
+                        'country_name': country_name,
                         'region':     mirror.region,
                         'identifier': mirror.identifier,
                         'http_link':  link(mirror.baseurl, 'HTTP'),
