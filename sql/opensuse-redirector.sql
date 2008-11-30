@@ -84,7 +84,7 @@ CREATE TABLE `marker` (
 -- Table structure of table `countries`
 -- 
 
-CREATE TABLE `countries` (
+CREATE TABLE `country` (
   `id` tinyint(1) NOT NULL auto_increment,
   `code` char(2) NOT NULL,
   `name` char(64) NOT NULL,

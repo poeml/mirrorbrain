@@ -100,6 +100,13 @@ class Conn:
                 defaultOrder = 'subtree_name'
         self.Marker = Marker
 
+        class Country(SQLObject):
+            """the countries table"""
+            class sqlmeta:
+                fromDatabase = True
+                defaultOrder = 'code'
+        self.Country = Country
+
         if debug:
             self.Server._connection.debug = True
 
