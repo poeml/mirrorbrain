@@ -583,19 +583,16 @@ class MirrorDoctor(cmdln.Cmdln):
                 if not os.path.exists(opts.inline_images_from):
                     sys.exit('path %r does not exist')
 
-            table_start = """<table>"""
-            table_end = """</table>"""
+            table_start, table_end = '<table>', '</table>'
+            row_start, row_end = '  <tr>', '  </tr>'
 
             table_header_template = """\
-  <tr>
     <th>Country</th>
     <th>Mirror</th>
     <th colspan="3">URL</th>
     <th>Priority</th>
-  </tr>
 """
-            table_row_template = """\
-  <tr>
+            row_template = """\
     <td><img src="%(img_link)s" width="16" height="11" alt="%(country_code)s"" />
         %(country_name)s
     </td>
@@ -604,7 +601,6 @@ class MirrorDoctor(cmdln.Cmdln):
     <td>%(ftp_link)s</td>
     <td>%(rsync_link)s</td>
     <td>%(prio)s</td>
-  </tr>
 """
 
             href = lambda x, y: x and '<a href="%s">%s</a>' % (x, y)  or '' # 'n/a'
@@ -628,7 +624,11 @@ class MirrorDoctor(cmdln.Cmdln):
 
                     print '\n\n<h1>Region: %s</h1>\n' % region
                     print table_start
+                    print row_start
                     print table_header_template
+                    for marker in markers:
+                        print '    <th>%s</th>' % marker.subtreeName
+                    print row_end
                 last_region = region
 
                 country_name = self.conn.Country.select(
@@ -642,14 +642,18 @@ class MirrorDoctor(cmdln.Cmdln):
                         'ftp_link':   href(mirror.baseurlFtp, 'FTP'),
                         'rsync_link': href(mirror.baseurlRsync, 'rsync'),
                         'prio':       mirror.score,
-                        
                         }
                 
-                print table_row_template % map
+                print row_start
+                print row_template % map
                 
-                #for marker in markers:
-                #    if mb.files.check_for_marker_files(self.conn, marker.markers, mirror.id):
-                #        print '%s: %s' % (mirror.identifier, marker.subtreeName)
+                for marker in markers:
+                    if mb.files.check_for_marker_files(self.conn, marker.markers, mirror.id):
+                        print '    <td>X</td>'
+                    else:
+                        print '    <td> </td>'
+
+                print row_end
 
             print table_end
 
