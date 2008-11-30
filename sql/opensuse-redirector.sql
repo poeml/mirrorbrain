@@ -62,6 +62,8 @@ CREATE TABLE `server` (
   `region_only` tinyint(1) default '0',
   `other_countries` text NOT NULL,
   `file_maxsize` int(11) NOT NULL default '0',
+  `operator_name` text NOT NULL,
+  `operator_url` text NOT NULL,
   PRIMARY KEY  (`id`),
   UNIQUE KEY `identifier` (`identifier`),
   KEY `server_enabled_status_baseurl_score_idx` (`enabled`,`status_baseurl`,`score`)
