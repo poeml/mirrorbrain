@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# encoding: utf-8
 
 """
 Script to maintain the mirror database
@@ -581,8 +582,35 @@ class MirrorDoctor(cmdln.Cmdln):
                 import os
                 import mb.util
                 if not os.path.exists(opts.inline_images_from):
-                    sys.exit('path %r does not exist')
+                    sys.exit('path %r does not exist' % opts.inline_images_from)
 
+            html_head = """\
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+  <head>
+<base href="http://narwal.opensuse.org/" />
+
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>openSUSE Download Mirrors - Overview</title>
+    <link type="text/css" rel="stylesheet" href="/css/mirrorbrain.css" />
+    <link href="/favicon.ico" rel="shortcut icon" />
+  
+    <meta http-equiv="Language" content="en" />
+    <meta name="description" content="openSUSE Download Mirrors" />
+    <meta name="keywords" content="openSUSE download metalink redirector mirror mirrors" />
+    <meta name="author" content="openSUSE project" />
+    <meta name="robots" content="index, nofollow" />
+  </head>
+
+  <body>
+"""
+
+            html_foot = """\
+
+  </body>
+</html>
+"""
             table_start, table_end = '<table>', '</table>'
             row_start, row_end = '  <tr>', '  </tr>'
 
@@ -593,7 +621,7 @@ class MirrorDoctor(cmdln.Cmdln):
     <th>Priority</th>
 """
             row_template = """\
-    <td><img src="%(img_link)s" width="16" height="11" alt="%(country_code)s"" />
+    <td><img src="%(img_link)s" width="16" height="11" alt="%(country_code)s" />
         %(country_name)s
     </td>
     <td>%(identifier)s</td>
@@ -603,6 +631,9 @@ class MirrorDoctor(cmdln.Cmdln):
     <td>%(prio)s</td>
 """
 
+
+            region_name = dict(af='Africa', as='Asia', eu='Europe', na='North America', sa='South America', oc='Oceania')
+            
             href = lambda x, y: x and '<a href="%s">%s</a>' % (x, y)  or '' # 'n/a'
 
             def imgref(country_code):
@@ -615,6 +646,8 @@ class MirrorDoctor(cmdln.Cmdln):
 
             last_region = 'we have not started yet...'
 
+            print html_head
+
             for mirror in mirrors:
                 region = mirror.region.lower()
                 if region != last_region:
@@ -622,7 +655,7 @@ class MirrorDoctor(cmdln.Cmdln):
                     if last_region != 'we have not started yet...':
                         print table_end
 
-                    print '\n\n<h1>Region: %s</h1>\n' % region
+                    print '\n\n<h2>Mirrors in %s:</h2>\n' % region_name[region]
                     print table_start
                     print row_start
                     print table_header_template
@@ -649,13 +682,16 @@ class MirrorDoctor(cmdln.Cmdln):
                 
                 for marker in markers:
                     if mb.files.check_for_marker_files(self.conn, marker.markers, mirror.id):
-                        print '    <td>X</td>'
+                        #print '    <td>√</td>'
+                        print '    <td>&radic;</td>'
                     else:
                         print '    <td> </td>'
 
                 print row_end
 
             print table_end
+
+            print html_foot
 
 
     @cmdln.option('--project', metavar='PROJECT',
