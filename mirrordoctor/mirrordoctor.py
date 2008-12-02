@@ -157,6 +157,9 @@ class MirrorDoctor(cmdln.Cmdln):
                              statusBaseurl = 0,
                              admin        = opts.admin,
                              adminEmail   = opts.admin_email,
+                             operatorName = '',
+                             operatorUrl  = '',
+                             otherCountries = '',
                              comment      = opts.comment)
         if self.options.debug:
             print s
