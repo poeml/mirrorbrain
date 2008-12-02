@@ -4,6 +4,8 @@ from sqlobject import *
 
 server_show_template = """\
 identifier     : %(identifier)s
+operatorName   : %(operatorName)s
+operatorUrl    : %(operatorUrl)s
 id             : %(id)s
 baseurl        : %(baseurl)s
 baseurlFtp     : %(baseurlFtp)s
@@ -39,6 +41,8 @@ server_editable_attrs = [ 'baseurl',
                           'statusBaseurl',
                           'admin',
                           'adminEmail',
+                          'operatorName',
+                          'operatorUrl',
                           'comment' ]
 
 def server2dict(s):
@@ -58,7 +62,9 @@ def server2dict(s):
                 statusBaseurl = s.statusBaseurl,
                 comment       = s.comment,
                 admin         = s.admin,
-                adminEmail    = s.adminEmail)
+                adminEmail    = s.adminEmail,
+                operatorName  = s.operatorName,
+                operatorUrl   = s.operatorUrl)
 
 #
 # setup database connection
