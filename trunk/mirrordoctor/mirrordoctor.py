@@ -624,7 +624,7 @@ class MirrorDoctor(cmdln.Cmdln):
     <td><img src="%(img_link)s" width="16" height="11" alt="%(country_code)s" />
         %(country_name)s
     </td>
-    <td>%(identifier)s</td>
+    <td><a href="%(operatorUrl)s">%(operatorName)s</a></td>
     <td>%(http_link)s</td>
     <td>%(ftp_link)s</td>
     <td>%(rsync_link)s</td>
@@ -671,6 +671,8 @@ class MirrorDoctor(cmdln.Cmdln):
                         'img_link':   imgref(mirror.country.lower()),
                         'region':     region,
                         'identifier': mirror.identifier,
+                        'operatorName': mirror.operatorName,
+                        'operatorUrl': mirror.operatorUrl,
                         'http_link':  href(mirror.baseurl, 'HTTP'),
                         'ftp_link':   href(mirror.baseurlFtp, 'FTP'),
                         'rsync_link': href(mirror.baseurlRsync, 'rsync'),
