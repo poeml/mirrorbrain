@@ -16,6 +16,7 @@ countryOnly    : %(countryOnly)s
 regionOnly     : %(regionOnly)s
 otherCountries : %(otherCountries)s
 fileMaxsize    : %(fileMaxsize)s
+publicNotes    : %(publicNotes)s
 score          : %(score)s
 enabled        : %(enabled)s
 statusBaseurl  : %(statusBaseurl)s
@@ -37,6 +38,7 @@ server_editable_attrs = [ 'baseurl',
                           'otherCountries',
                           'fileMaxsize',
                           'score',
+                          'publicNotes',
                           'enabled',
                           'statusBaseurl',
                           'admin',
@@ -58,6 +60,7 @@ def server2dict(s):
                 otherCountries = s.otherCountries,
                 fileMaxsize   = s.fileMaxsize,
                 score         = s.score,
+                publicNotes   = s.publicNotes,
                 enabled       = s.enabled,
                 statusBaseurl = s.statusBaseurl,
                 comment       = s.comment,

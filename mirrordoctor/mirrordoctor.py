@@ -160,6 +160,7 @@ class MirrorDoctor(cmdln.Cmdln):
                              operatorName = '',
                              operatorUrl  = '',
                              otherCountries = '',
+                             publicNotes  = '',
                              comment      = opts.comment)
         if self.options.debug:
             print s
@@ -726,6 +727,7 @@ from mirrordjango.mb.models import Contact, Operator, Project, Server, Mirror
 
 """
 
+        # FIXME: add new fields: operator_name, operator_url, public_notes
         print """Project(name='%s').save()""" % opts.project
 
         django_template = """\
