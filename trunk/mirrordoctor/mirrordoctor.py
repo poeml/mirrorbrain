@@ -508,8 +508,6 @@ class MirrorDoctor(cmdln.Cmdln):
                          row['identifier'], 
                          row['baseurl'], row['path'])
 
-
-
         elif action == 'add':
             mb.files.add(self.conn, path, mirror)
 
@@ -520,12 +518,18 @@ class MirrorDoctor(cmdln.Cmdln):
             sys.exit('ACTION must be either ls, rm or add.')
 
 
+
+    @cmdln.option('-o', '--output', metavar='PATH',
+                  help='write output to this file (tries to do this securely '
+                  'and atomically)')
     @cmdln.option('-I', '--inline-images-from', metavar='PATH',
                   help='path to a directory with flag images to be inlined')
     @cmdln.option('-i', '--image-type', default='png', metavar='TYPE',
                   help='image file extension, e.g. png or gif')
     @cmdln.option('-f', '--format', default='txt', metavar='FORMAT',
                   help='output format of the mirrorlist, one of txt,txt2,xhtml')
+    @cmdln.option('-F', '--filter', metavar='REGEX',
+                  help='only markers matching this regular expression are used')
     @cmdln.option('-l', '--list-markers', action='store_true',
                   help='just show the defined marker files.')
     def do_mirrorlist(self, subcmd, opts, *args):
@@ -544,9 +548,12 @@ class MirrorDoctor(cmdln.Cmdln):
         ${cmd_option_list}
         """
         
-        import mb.files
-
         markers = self.conn.Marker.select()
+
+        if opts.filter:
+            import re
+            p = re.compile(opts.filter)
+            markers = [ i for i in markers if p.match(i.subtreeName) ]
 
         if opts.list_markers:
             for i in markers:
@@ -560,144 +567,14 @@ class MirrorDoctor(cmdln.Cmdln):
             mirrors = self.conn.Server.select(self.conn.Server.q.enabled == 1,
                                               orderBy=['region', 'country', '-score'])
 
-        if opts.format == 'txt':
-            for mirror in mirrors:
-                print
-                print mirror.identifier
-                #print mirror.identifier, mirror.baseurl, mirror.baseurlFtp, mirror.baseurlRsync, mirror.score
 
-                for marker in markers:
-                    if mb.files.check_for_marker_files(self.conn, marker.markers, mirror.id):
-                        print '+' + marker.subtreeName
-                    else:
-                        print '-' + marker.subtreeName
+        import mb.mirrorlists
 
+        if opts.format not in mb.mirrorlists.supported:
+            sys.exit('format %r not supported' % opts.format)
 
-        elif opts.format == 'txt2':
-            for mirror in mirrors:
-                for marker in markers:
-                    if mb.files.check_for_marker_files(self.conn, marker.markers, mirror.id):
-                        print '%s: %s' % (mirror.identifier, marker.subtreeName)
+        mb.mirrorlists.genlist(conn=self.conn, opts=opts, mirrors=mirrors, markers=markers, format=opts.format)
 
-
-        elif opts.format == 'xhtml':
-
-            if opts.inline_images_from:
-                import os
-                import mb.util
-                if not os.path.exists(opts.inline_images_from):
-                    sys.exit('path %r does not exist' % opts.inline_images_from)
-
-            html_head = """\
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
-  <head>
-<base href="http://narwal.opensuse.org/" />
-
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <title>openSUSE Download Mirrors - Overview</title>
-    <link type="text/css" rel="stylesheet" href="/css/mirrorbrain.css" />
-    <link href="/favicon.ico" rel="shortcut icon" />
-  
-    <meta http-equiv="Language" content="en" />
-    <meta name="description" content="openSUSE Download Mirrors" />
-    <meta name="keywords" content="openSUSE download metalink redirector mirror mirrors" />
-    <meta name="author" content="openSUSE project" />
-    <meta name="robots" content="index, nofollow" />
-  </head>
-
-  <body>
-"""
-
-            html_foot = """\
-
-  </body>
-</html>
-"""
-            table_start, table_end = '<table>', '</table>'
-            row_start, row_end = '  <tr>', '  </tr>'
-
-            table_header_template = """\
-    <th>Country</th>
-    <th>Mirror</th>
-    <th colspan="3">URL</th>
-    <th>Priority</th>
-"""
-            row_template = """\
-    <td><img src="%(img_link)s" width="16" height="11" alt="%(country_code)s" />
-        %(country_name)s
-    </td>
-    <td><a href="%(operatorUrl)s">%(operatorName)s</a></td>
-    <td>%(http_link)s</td>
-    <td>%(ftp_link)s</td>
-    <td>%(rsync_link)s</td>
-    <td>%(prio)s</td>
-"""
-
-
-            region_name = dict(af='Africa', as='Asia', eu='Europe', na='North America', sa='South America', oc='Oceania')
-            
-            href = lambda x, y: x and '<a href="%s">%s</a>' % (x, y)  or '' # 'n/a'
-
-            def imgref(country_code):
-                if not opts.inline_images_from:
-                    return 'flags/%s.%s' % (country_code, opts.image_type)
-                else:
-                    return mb.util.data_url(opts.inline_images_from, 
-                                            country_code + '.' + opts.image_type)
-
-
-            last_region = 'we have not started yet...'
-
-            print html_head
-
-            for mirror in mirrors:
-                region = mirror.region.lower()
-                if region != last_region:
-                    # new region block
-                    if last_region != 'we have not started yet...':
-                        print table_end
-
-                    print '\n\n<h2>Mirrors in %s:</h2>\n' % region_name[region]
-                    print table_start
-                    print row_start
-                    print table_header_template
-                    for marker in markers:
-                        print '    <th>%s</th>' % marker.subtreeName
-                    print row_end
-                last_region = region
-
-                country_name = self.conn.Country.select(
-                        self.conn.Country.q.code == mirror.country.lower())[0].name
-                map = { 'country_code': mirror.country.lower(),
-                        'country_name': country_name,
-                        'img_link':   imgref(mirror.country.lower()),
-                        'region':     region,
-                        'identifier': mirror.identifier,
-                        'operatorName': mirror.operatorName,
-                        'operatorUrl': mirror.operatorUrl,
-                        'http_link':  href(mirror.baseurl, 'HTTP'),
-                        'ftp_link':   href(mirror.baseurlFtp, 'FTP'),
-                        'rsync_link': href(mirror.baseurlRsync, 'rsync'),
-                        'prio':       mirror.score,
-                        }
-                
-                print row_start
-                print row_template % map
-                
-                for marker in markers:
-                    if mb.files.check_for_marker_files(self.conn, marker.markers, mirror.id):
-                        #print '    <td>√</td>'
-                        print '    <td>&radic;</td>'
-                    else:
-                        print '    <td> </td>'
-
-                print row_end
-
-            print table_end
-
-            print html_foot
 
 
     @cmdln.option('--project', metavar='PROJECT',
