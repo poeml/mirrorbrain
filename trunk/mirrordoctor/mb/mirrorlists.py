@@ -119,6 +119,7 @@ def xhtml(conn, opts, mirrors, markers):
 """
 
 
+    # FIXME: should be in the database.
     region_name = dict(af='Africa', as='Asia', eu='Europe', na='North America', sa='South America', oc='Oceania')
     
     href = lambda x, y: x and '<a href="%s">%s</a>' % (x, y)  or '' # 'n/a'
@@ -166,17 +167,23 @@ def xhtml(conn, opts, mirrors, markers):
                 'prio':       mirror.score,
                 }
         
-        yield row_start
-        yield row_template % map
+        row = []
+        row.append(row_start)
+        row.append(row_template % map)
         
+        empty = True
         for marker in markers:
             if mb.files.check_for_marker_files(conn, marker.markers, mirror.id):
-                #yield '    <td>√</td>'
-                yield '    <td>&radic;</td>'
+                #row.append('    <td>√</td>')
+                row.append('    <td>&radic;</td>')
+                empty = False
             else:
-                yield '    <td> </td>'
+                row.append('    <td> </td>')
 
-        yield row_end
+        row.append(row_end)
+
+        if not opts.skip_empty or not empty:
+            yield ''.join(row)
 
     yield table_end
 
