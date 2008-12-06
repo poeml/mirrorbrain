@@ -528,6 +528,8 @@ class MirrorDoctor(cmdln.Cmdln):
                   help='image file extension, e.g. png or gif')
     @cmdln.option('-f', '--format', default='txt', metavar='FORMAT',
                   help='output format of the mirrorlist, one of txt,txt2,xhtml')
+    @cmdln.option('-s', '--skip-empty', action='store_true',
+                  help="omit mirrors that don't have one of the marked files.")
     @cmdln.option('-F', '--filter', metavar='REGEX',
                   help='only markers matching this regular expression are used')
     @cmdln.option('-l', '--list-markers', action='store_true',
