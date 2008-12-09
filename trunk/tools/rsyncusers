@@ -22,6 +22,20 @@ generator tricks for systems programmers.
 
 # 2008/09/19 15:26:53 [16972] rsync on opensuse-full from ftp1.yz.yamagata-u.ac.jp (133.24.255.159)
 
+try:
+    set
+except NameError:
+    from sets import Set as set     # Python 2.3 fallback
+
+try:
+    sorted
+except NameError:
+    def sorted(in_value):           # Python 2.3 fallback
+        "A naive implementation of sorted"
+        out_value = list(in_value)
+        out_value.sort()
+        return out_value
+
 def gen_find(filepat, top): 
     """Generate all filenames in a directory tree 
     that match a given filename pattern"""
