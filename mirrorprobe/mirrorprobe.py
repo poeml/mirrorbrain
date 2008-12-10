@@ -30,7 +30,7 @@ def probe_http(mirror):
     req = urllib2.Request(mirror.baseurl)
 
     req.add_header('User-Agent', USER_AGENT)
-    req.get_method = lambda: "HEAD"
+    #req.get_method = lambda: "HEAD"
 
     mirror.status_baseurl_new = False
     mirror.timed_out = True
