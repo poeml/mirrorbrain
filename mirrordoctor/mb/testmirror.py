@@ -5,6 +5,11 @@ import urllib2
 import commands
 import tempfile
 import shutil
+import socket
+
+TIMEOUT = 20
+
+socket.setdefaulttimeout(TIMEOUT)
 
 def access_http(url):
     r = urllib2.urlopen(url).read()
@@ -45,7 +50,7 @@ def req(baseurl, filename, http_method='GET'):
             # note the -r; *some* option is needed because many rsync servers
             # don't reply properly if they don't get any option at all.
             # -t (as the most harmless option) also isn't sufficient.
-            cmd = 'rsync -r %s %s/' % (url, tmpdir)
+            cmd = 'rsync -r --timeout=%d %s %s/' % (TIMEOUT, url, tmpdir)
             (rc, out) = commands.getstatusoutput(cmd)
             worked = os.path.exists(os.path.join(tmpdir, os.path.basename(filename)))
 
