@@ -241,6 +241,8 @@ class MirrorDoctor(cmdln.Cmdln):
         import mb.testmirror
         import os.path
 
+        mb.testmirror.dont_use_proxies
+
         mirrors = self.conn.Server.select(
                      AND(self.conn.Server.q.statusBaseurl == 1, 
                          self.conn.Server.q.enabled ==1))
@@ -248,17 +250,22 @@ class MirrorDoctor(cmdln.Cmdln):
         found_mirrors = 0
         try:
             for mirror in mirrors:
+
                 # TODO: add a nice library function for this
-                response = mb.testmirror.head_req(mirror.baseurl + filename)
-                print response, mirror.identifier, \
-                      os.path.join(mirror.baseurl, filename)
-                if response == 200: found_mirrors += 1
+                for baseurl in [mirror.baseurl, mirror.baseurlFtp, mirror.baseurlRsync]:
+                    if baseurl == None or baseurl == '':
+                        continue
+                    response = mb.testmirror.req(baseurl, filename)
+                    print "%3d %-20s %s" \
+                            % (response, mirror.identifier, os.path.join(baseurl, filename))
+                    if response == 200: found_mirrors += 1
+
         except KeyboardInterrupt:
             print >>sys.stderr, 'interrupted!'
             return 1
 
 
-        print found_mirrors
+        print 'Broken:', found_mirrors
 
 
 
