@@ -239,20 +239,24 @@ class MirrorDoctor(cmdln.Cmdln):
 
         from sqlobject.sqlbuilder import AND
         import mb.testmirror
-
-        print filename
+        import os.path
 
         mirrors = self.conn.Server.select(
                      AND(self.conn.Server.q.statusBaseurl == 1, 
                          self.conn.Server.q.enabled ==1))
 
         found_mirrors = 0
-        for mirror in mirrors:
-            # TODO: add a nice library function for this
-            response = mb.testmirror.head_req(mirror.baseurl + filename)
-            print response, mirror.identifier, mirror.baseurl
-            # FIXME: the response code isn't usable on FTP urls.
-            if response == 200: found_mirrors += 1
+        try:
+            for mirror in mirrors:
+                # TODO: add a nice library function for this
+                response = mb.testmirror.head_req(mirror.baseurl + filename)
+                print response, mirror.identifier, \
+                      os.path.join(mirror.baseurl, filename)
+                if response == 200: found_mirrors += 1
+        except KeyboardInterrupt:
+            print >>sys.stderr, 'interrupted!'
+            return 1
+
 
         print found_mirrors
 
