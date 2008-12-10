@@ -75,6 +75,16 @@ def probe_http(mirror):
         mirror.response_code = 0
         mirror.response = "%s" % e.reason
 
+    except IOError, e:
+        # IOError: [Errno ftp error] (111, 'Connection refused')
+        print e.errno
+        if e.errno == 'ftp error':
+            mirror.response_code = 0
+            mirror.response = "%s" % e.errno
+            #logging.info('mirror %s gives an "ftp error"' % mirror.identifier)
+        else:
+            raise
+
 
     # not reached, if the timeout goes off
     mirror.timed_out = False
