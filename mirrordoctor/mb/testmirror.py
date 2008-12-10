@@ -40,21 +40,18 @@ def req(baseurl, filename, http_method='GET'):
         cmd = 'rsync %s' % url
         (rc, out) = commands.getstatusoutput(cmd)
 
-        # look only at the last line
-        s = out.splitlines()[-1]
-        # look only at the last word
         try:
+            # look only at the last line
+            s = out.splitlines()[-1]
+            # look only at the last word
             s = s.split()[-1]
         except:
             s = ''
-        try:
-            s2 = url.split('/')[-1]
-        except:
-            s2 = ''
 
         if rc != 0:
             return 1
-        if s == s2:
+
+        if url.split('/')[-1] == s:
             return 200
         else:
             return 0
