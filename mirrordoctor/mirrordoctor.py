@@ -229,6 +229,8 @@ class MirrorDoctor(cmdln.Cmdln):
         mb.testmirror.access_http(mirror.baseurl)
 
 
+    @cmdln.option('-n', '--hide-negative', action='store_true',
+                        help='hide mirrors that don\'t have the file')
     def do_probefile(self, subcmd, opts, filename):
         """${cmd_name}: list mirrors on which a given file is present
         by probing them
@@ -256,6 +258,8 @@ class MirrorDoctor(cmdln.Cmdln):
                     if baseurl == None or baseurl == '':
                         continue
                     response = mb.testmirror.req(baseurl, filename)
+                    if opts.hide_negative and response != 200:
+                        continue
                     print "%3d %-20s %s" \
                             % (response, mirror.identifier, os.path.join(baseurl, filename))
                     if response == 200: found_mirrors += 1
