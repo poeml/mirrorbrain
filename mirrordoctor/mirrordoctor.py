@@ -229,6 +229,8 @@ class MirrorDoctor(cmdln.Cmdln):
         mb.testmirror.access_http(mirror.baseurl)
 
 
+    @cmdln.option('-a', '--all-mirrors', action='store_true',
+                        help='test also on mirrors which are marked disabled')
     @cmdln.option('-n', '--hide-negative', action='store_true',
                         help='hide mirrors that don\'t have the file')
     def do_probefile(self, subcmd, opts, filename):
@@ -245,9 +247,12 @@ class MirrorDoctor(cmdln.Cmdln):
 
         mb.testmirror.dont_use_proxies
 
-        mirrors = self.conn.Server.select(
-                     AND(self.conn.Server.q.statusBaseurl == 1, 
-                         self.conn.Server.q.enabled ==1))
+        if opts.all_mirrors:
+            mirrors = self.conn.Server.select()
+        else:
+            mirrors = self.conn.Server.select(
+                         AND(self.conn.Server.q.statusBaseurl == 1, 
+                             self.conn.Server.q.enabled ==1))
 
         found_mirrors = 0
         try:
@@ -260,7 +265,7 @@ class MirrorDoctor(cmdln.Cmdln):
                     response = mb.testmirror.req(baseurl, filename)
                     if opts.hide_negative and response != 200:
                         continue
-                    print "%3d %-20s %s" \
+                    print "%3d %-30s %s" \
                             % (response, mirror.identifier, os.path.join(baseurl, filename))
                     if response == 200: found_mirrors += 1
 

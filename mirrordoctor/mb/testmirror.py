@@ -2,6 +2,9 @@
 import os
 import sys
 import urllib2
+import commands
+import tempfile
+import shutil
 
 def access_http(url):
     r = urllib2.urlopen(url).read()
@@ -35,23 +38,24 @@ def req(baseurl, filename, http_method='GET'):
             return 0
 
     elif url.startswith('rsync://'):
-        import commands
 
-        cmd = 'rsync %s' % url
-        (rc, out) = commands.getstatusoutput(cmd)
-
+        worked = False
         try:
-            # look only at the last line
-            s = out.splitlines()[-1]
-            # look only at the last word
-            s = s.split()[-1]
-        except:
-            s = ''
+            tmpdir = tempfile.mkdtemp(prefix='mb_probefile_')
+            # note the -r; *some* option is needed because many rsync servers
+            # don't reply properly if they don't get any option at all.
+            # -t (as the most harmless option) also isn't sufficient.
+            cmd = 'rsync -r %s %s/' % (url, tmpdir)
+            (rc, out) = commands.getstatusoutput(cmd)
+            worked = os.path.exists(os.path.join(tmpdir, os.path.basename(filename)))
+
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
 
         if rc != 0:
             return 1
 
-        if url.split('/')[-1] == s:
+        if worked:
             return 200
         else:
             return 0
