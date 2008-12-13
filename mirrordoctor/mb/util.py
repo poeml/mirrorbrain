@@ -41,12 +41,12 @@ def dgst(file):
     f.close()
 
 
-def edit_file(data):
+def edit_file(data, boilerplate = None):
     import tempfile, difflib
 
     #delim = '--This line, and those below, will be ignored--\n\n'
-    boilerplate = """\nNote: You cannot modify 'identifier' or 'id'.\n\n"""
-    data = boilerplate + data
+    if boilerplate:
+        data = boilerplate + data
 
     (fd, filename) = tempfile.mkstemp(prefix = 'mb-editmirror', suffix = '.txt', dir = '/tmp')
     f = os.fdopen(fd, 'w')

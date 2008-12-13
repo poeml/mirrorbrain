@@ -292,7 +292,8 @@ class MirrorDoctor(cmdln.Cmdln):
         old = mb.conn.server_show_template % old_dict
 
         import mb.util
-        new = mb.util.edit_file(old)
+        boilerplate = """#\n# Note: You cannot modify 'identifier' or 'id'. You can use 'mb rename' though.\n#\n"""
+        new = mb.util.edit_file(old, boilerplate=boilerplate)
         if not new:
             print 'Quitting.'
         else:
@@ -306,6 +307,78 @@ class MirrorDoctor(cmdln.Cmdln):
                     if type(getattr(mirror, i)) == type(1L):
                         a = int(a)
                     setattr(mirror, i, a)
+
+
+
+    @cmdln.option('-e', '--edit', action='store_true',
+                        help='edit the markers in $EDITOR')
+    @cmdln.option('-d', '--delimiter', default='|',
+                        help='use this character (sequence) as delimiter when editing')
+    def do_markers(self, subcmd, opts):
+        """${cmd_name}: show or edit marker files
+
+        Marker files are used to generate mirror lists.
+        Also cf. to the "mirrorlist" command.
+
+        You need to enter files, not directories.
+
+        Usage:
+            mirrordoctor markers 
+        ${cmd_option_list}
+        """
+        markers = self.conn.Marker.select()
+
+
+        
+        old = [ '%s %s %s' \
+                % (i.subtreeName, 
+                   opts.delimiter, 
+                   ' '.join(i.markers.split())) 
+                for i in markers ]
+        old = '\n'.join(old) + '\n'
+
+
+        # list only
+        if not opts.edit:
+            print old
+            sys.exit(0)
+        
+
+        import mb.util
+        boilerplate = """\
+#
+# Note: %(delim)r delimits subtree name and marker file(s).
+# Example:
+# 
+# Factory %(delim)s factory/repo/oss/content
+# PPC     %(delim)s ppc/factory/repo/oss/content
+# BS      %(delim)s repositories/server:mail.repo repositories/Apache.repo
+
+""" % { 'delim': opts.delimiter }
+
+        new = mb.util.edit_file(old, boilerplate=boilerplate)
+
+        if not new:
+            print 'Quitting.'
+        else:
+
+            # delete all markers
+            markers = self.conn.Marker.select()
+            for i in markers:
+                self.conn.Marker.delete(i.id)
+
+            # save the fresh markers
+            for i in new.splitlines():
+                i = i.strip()
+                if not i or i.startswith('#'):
+                    continue
+                try:
+                    name, markers = i.split(opts.delimiter, 1)
+                except:
+                    sys.exit('Parse error')
+
+                s = self.conn.Marker(subtreeName = name.strip(),
+                                     markers = ' '.join(markers.split()))
 
 
 
