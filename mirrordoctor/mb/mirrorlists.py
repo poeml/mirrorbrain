@@ -4,8 +4,13 @@ import sys, os, os.path
 import mb
 import mb.files
 import tempfile
+import cgi
 
 supported = ['txt', 'txt2', 'xhtml']
+
+
+def is_odd(n):
+    return (n % 2) == 1 
 
 
 def genlist(conn, opts, mirrors, markers, format='txt2'):
@@ -71,6 +76,9 @@ def xhtml(conn, opts, mirrors, markers):
         if not os.path.exists(opts.inline_images_from):
             sys.exit('path %r does not exist' % opts.inline_images_from)
 
+    # FIXME: make it configurable
+    css = 'http://static.opensuse.org/css/mirrorbrain.css'
+
     html_head = """\
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
@@ -80,7 +88,7 @@ def xhtml(conn, opts, mirrors, markers):
 
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <title>openSUSE Download Mirrors - Overview</title>
-    <link type="text/css" rel="stylesheet" href="/css/mirrorbrain.css" />
+    <link type="text/css" rel="stylesheet" href="%(css)s" />
     <link href="/favicon.ico" rel="shortcut icon" />
   
     <meta http-equiv="Language" content="en" />
@@ -98,30 +106,50 @@ def xhtml(conn, opts, mirrors, markers):
   </body>
 </html>
 """
-    table_start, table_end = '<table>', '</table>'
-    row_start, row_end = '  <tr>', '  </tr>'
+    table_start = """\
+  <table summary="List of all mirrors">
+    <caption>All mirrors</caption>
+"""
+    table_end = """
+    </tbody>
+  </table>
+"""
+    row_start, row_end = '    <tr%s>\n', '    </tr>\n'
 
-    table_header_template = """\
-    <th>Country</th>
-    <th>Mirror</th>
-    <th colspan="3">URL</th>
-    <th>Priority</th>
+    table_header_start_template = """\
+    <thead>
+      <tr>
+        <th scope="col">Country</th>
+        <th scope="col">Operator</th>
+        <th scope="col" colspan="3">Mirror URL</th>
+        <th scope="col">Priority</th>
+"""
+    table_header_end_template = """\
+      </tr>
+    </thead>
+
+    <tbody>
 """
     row_template = """\
-    <td><img src="%(img_link)s" width="16" height="11" alt="%(country_code)s" />
-        %(country_name)s
-    </td>
-    <td><a href="%(operatorUrl)s">%(operatorName)s</a></td>
-    <td>%(http_link)s</td>
-    <td>%(ftp_link)s</td>
-    <td>%(rsync_link)s</td>
-    <td>%(prio)s</td>
+      <td> <img src="%(img_link)s" 
+                width="16" height="11" alt="%(country_code)s" /> %(country_name)s</td>
+      <td><a href="%(operatorUrl)s">%(operatorName)s</a></td>
+      <td>%(http_link)s</td>
+      <td>%(ftp_link)s</td>
+      <td>%(rsync_link)s</td>
+      <td>%(prio)s</td>
 """
 
 
-    # FIXME: should be in the database.
-    region_name = dict(af='Africa', as='Asia', eu='Europe', na='North America', sa='South America', oc='Oceania')
+    region_name = dict()
+    for i in conn.Region.select():
+        region_name[i.code] = i.name
     
+    row_class = lambda x: is_odd(x) and ' class="odd"' or ''
+
+    # FIXME: we show FTP URLs as HTTP URLs if they are entered as such.
+    # maybe suppress them if (HTTP != 'http://')
+    # example: yandex.ru
     href = lambda x, y: x and '<a href="%s">%s</a>' % (x, y)  or '' # 'n/a'
 
     def imgref(country_code):
@@ -134,21 +162,32 @@ def xhtml(conn, opts, mirrors, markers):
 
     last_region = 'we have not started yet...'
 
-    yield html_head
+    yield html_head % { 'css': css }
+    yield table_start
+    yield table_header_start_template
+    for marker in markers:
+        yield '        <th scope="col">%s</th>' % marker.subtreeName
+    yield table_header_end_template
+    try:
+        # if this doesn't work, ...
+        markers_cnt = markers.count()
+    except:
+        # ... we have a filtered list of database result objects
+        markers_cnt = len(markers)
 
+    row_cnt = 0
     for mirror in mirrors:
+        row_cnt += 1
         region = mirror.region.lower()
         if region != last_region:
             # new region block
-            if last_region != 'we have not started yet...':
-                yield table_end
-
-            yield '\n\n<h2>Mirrors in %s:</h2>\n' % region_name[region]
-            yield table_start
-            yield row_start
-            yield table_header_template
-            for marker in markers:
-                yield '    <th>%s</th>' % marker.subtreeName
+            #if last_region != 'we have not started yet...':
+            #    yield table_end
+            #
+            #yield '\n\n<h2>Mirrors in %s:</h2>\n' % region_name[region]
+            yield row_start % row_class(0)
+            yield '<td colspan="%s">      Mirrors in %s:</td>\n' \
+                     % (6 + markers_cnt, region_name[region])
             yield row_end
         last_region = region
 
@@ -159,7 +198,7 @@ def xhtml(conn, opts, mirrors, markers):
                 'img_link':   imgref(mirror.country.lower()),
                 'region':     region,
                 'identifier': mirror.identifier,
-                'operatorName': mirror.operatorName,
+                'operatorName': cgi.escape(mirror.operatorName),
                 'operatorUrl': mirror.operatorUrl,
                 'http_link':  href(mirror.baseurl, 'HTTP'),
                 'ftp_link':   href(mirror.baseurlFtp, 'FTP'),
@@ -167,18 +206,19 @@ def xhtml(conn, opts, mirrors, markers):
                 'prio':       mirror.score,
                 }
         
+
         row = []
-        row.append(row_start)
+        row.append(row_start % row_class(row_cnt))
         row.append(row_template % map)
         
         empty = True
         for marker in markers:
             if mb.files.check_for_marker_files(conn, marker.markers, mirror.id):
                 #row.append('    <td>√</td>')
-                row.append('    <td>&radic;</td>')
+                row.append('      <td>&radic;</td>\n')
                 empty = False
             else:
-                row.append('    <td> </td>')
+                row.append('      <td></td>\n')
 
         row.append(row_end)
 
