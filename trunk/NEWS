@@ -1,3 +1,8 @@
+Sat Dec 13 20:04:53 CET 2008
+- add commandline tool tohedit marker files. (Marker files are used to generate
+  mirror lists. Each marker file is used to determine whether a mirror mirrors
+  a certain subtree.)
+
 Sat Dec 13 13:51:33 CET 2008
 - improvements and few features in the toolchain:
    - the mirrorprobe now does GET requests instead of HEAD requests.
