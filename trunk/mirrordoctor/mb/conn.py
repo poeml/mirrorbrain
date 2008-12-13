@@ -116,6 +116,13 @@ class Conn:
                 defaultOrder = 'code'
         self.Country = Country
 
+        class Region(SQLObject):
+            """the countries table"""
+            class sqlmeta:
+                fromDatabase = True
+                defaultOrder = 'code'
+        self.Region = Region
+
         if debug:
             self.Server._connection.debug = True
 
