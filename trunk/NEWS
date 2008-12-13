@@ -1,10 +1,12 @@
 Sat Dec 13 13:51:33 CET 2008
-- improvements and few features in the toolchain.
+- improvements and few features in the toolchain:
    - the mirrorprobe now does GET requests instead of HEAD requests.
    - mb, the mirrorbrain tool, has a powerful "probefile" command now that can
      check for existance of a file on all mirrors, probing all URLs. This is
      especially useful for checking whether the permission setup for staged 
      content is correct on all mirrors.
+- new database fields: public_notes, operator_name, operator_url
+- new database tables: country & region
 
 Sat Dec  6 12:15:13 CET 2008
 - generate mirror lists
