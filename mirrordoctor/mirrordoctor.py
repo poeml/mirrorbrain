@@ -612,6 +612,10 @@ class MirrorDoctor(cmdln.Cmdln):
 
 
 
+    @cmdln.option('-B', '--html-footer', metavar='PATH',
+                  help='include HTML (XHTML) from a file at the end')
+    @cmdln.option('-H', '--html-header', metavar='PATH',
+                  help='include HTML (XHTML) from a file at the top')
     @cmdln.option('-o', '--output', metavar='PATH',
                   help='write output to this file (tries to do this securely '
                   'and atomically)')
