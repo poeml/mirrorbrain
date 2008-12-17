@@ -229,6 +229,8 @@ class MirrorDoctor(cmdln.Cmdln):
         mb.testmirror.access_http(mirror.baseurl)
 
 
+    @cmdln.option('-m', '--mirror', 
+                        help='probe only on this mirror')
     @cmdln.option('-a', '--all-mirrors', action='store_true',
                         help='test also on mirrors which are marked disabled')
     @cmdln.option('-n', '--hide-negative', action='store_true',
@@ -247,7 +249,9 @@ class MirrorDoctor(cmdln.Cmdln):
 
         mb.testmirror.dont_use_proxies
 
-        if opts.all_mirrors:
+        if opts.mirror:
+            mirrors = [ lookup_mirror(self, opts.mirror) ]
+        elif opts.all_mirrors:
             mirrors = self.conn.Server.select()
         else:
             mirrors = self.conn.Server.select(
