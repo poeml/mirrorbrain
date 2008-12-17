@@ -188,7 +188,7 @@ def main():
     mail = logging.handlers.SMTPHandler('localhost', 
                                         'root@' + socket.gethostbyaddr(socket.gethostname())[0], 
                                         toaddrs,
-                                        '[%s] mirrorprobe warning' % config.instance)
+                                        'no_subject')
     mail.setLevel(logging.WARNING)
     mailformatter = logging.Formatter(LOGFORMAT, DATEFORMAT)
     mail.setFormatter(mailformatter)
@@ -253,21 +253,25 @@ def main():
         if not mirror.statusBaseurl and not mirror.status_baseurl_new:
 
             if mirror.response_code and (mirror.response_code != 200):
-                logging.warning("""%s: (%s): response code not 200: %s: %s
 
-Disabling. 
-Manual enabling will be needed.
-Use mirrorprobe.py -e <identifier>
+                mail.getSubject = lambda x: '[%s] mirrorprobe warning: %s replied with %s' \
+                                    % (config.instance, mirror.identifier, mirror.response_code)
 
-And, if the mirror has been disabled for a while, scan it before enabling
-it again!
-""" % (mirror.identifier, mirror.baseurl, mirror.response_code, mirror.response))
+                logging.warning("""%s: (%s): response code not 200: %s: 
+
+I am not disabling this host, and continue to watch it...
+
+""" % (mirror.identifier, mirror.baseurl, mirror.response_code))
+
+                # reset the getSubject method...
+                mail.getSubject = lambda x: 'no subject set'
 
                 comment = mirror.comment or ''
-                comment += ('\n\n*** set enabled=0 by mirrorprobe at %s due to status code %s' % (time.ctime(), mirror.response_code))
+                comment += ('\n*** mirrorprobe, %s: got status code %s' % (time.ctime(), mirror.response_code))
                 logging.debug('setting enabled=0 for %s' % (mirror.identifier))
                 if not options.no_run:
-                    mirror.enabled = 0
+                    # mirror.enabled = 0
+                    mirror.statusBaseurl = 0
                     mirror.comment = comment
 
             logging.debug('still dead: %s (%s): %s: %s' % (mirror.identifier, mirror.baseurl, mirror.response_code, mirror.response))
