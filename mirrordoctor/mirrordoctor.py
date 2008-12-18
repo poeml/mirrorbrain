@@ -673,7 +673,7 @@ class MirrorDoctor(cmdln.Cmdln):
         else:
             from sqlobject.sqlbuilder import AND
             mirrors = self.conn.Server.select(AND(self.conn.Server.q.enabled == 1,
-                                                  self.conn.Server.q.country == '**'),
+                                                  self.conn.Server.q.country != '**'),
                                               orderBy=['region', 'country', '-score'])
 
 
