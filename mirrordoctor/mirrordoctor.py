@@ -616,6 +616,10 @@ class MirrorDoctor(cmdln.Cmdln):
 
 
 
+    @cmdln.option('-c', '--caption', metavar='STRING',
+                  help='insert this string as table caption')
+    @cmdln.option('-t', '--title', metavar='STRING',
+                  help='insert this string as title, meta-description and header')
     @cmdln.option('-B', '--html-footer', metavar='PATH',
                   help='include HTML (XHTML) from a file at the end')
     @cmdln.option('-H', '--html-header', metavar='PATH',
