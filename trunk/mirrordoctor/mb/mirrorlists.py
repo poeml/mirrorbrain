@@ -85,7 +85,7 @@ def xhtml(conn, opts, mirrors, markers):
     <base href="http://mirrorbrain.org/" />
 
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <title>Download Mirrors - Overview</title>
+    <title>%(title)s</title>
     <link type="text/css" rel="stylesheet" href="/mirrorbrain.css" />
     <link href="/favicon.ico" rel="shortcut icon" />
   
@@ -98,7 +98,8 @@ def xhtml(conn, opts, mirrors, markers):
 
   <body>
 
-"""
+""" 
+
     html_footer = """\
 
   <p>
@@ -110,7 +111,7 @@ def xhtml(conn, opts, mirrors, markers):
 
     table_start = """\
   <table summary="List of all mirrors">
-    <caption>All mirrors</caption>
+    <caption>%(caption)s</caption>
 """
     table_col_defs = """\
     <col id="country" />
@@ -156,6 +157,8 @@ def xhtml(conn, opts, mirrors, markers):
 
 
     row_class = lambda x: is_odd(x) and ' class="odd"' or ''
+    col_class = lambda x: is_odd(x) and 'a' or 'b'
+    #odd_id = lambda x: is_odd(x) and ' id="odd"' or ''
     stars = lambda x: x < 50 and '*' \
                    or x >=  50 and x < 100 and '**' \
                    or x == 100             and '***' \
@@ -193,16 +196,21 @@ def xhtml(conn, opts, mirrors, markers):
     if opts.html_footer:
         html_footer = open(opts.html_footer).read()
 
-    yield html_header
-    yield table_start
+    yield html_header % { 'title': opts.title or 'Download Mirrors - Overview' }
+    yield table_start % { 'caption': opts.caption or 'All mirrors' }
     yield table_col_defs
     for i in range(1, markers_cnt + 1):
         #yield '    <col id="subtree%i" />' % i
+        #yield '    <col%s />' % odd_id(i)
+        # col ids need to be unique, thus we can't use them for an odd/even attribute.
         yield '    <col />'
 
     yield table_header_start_template
+    col_cnt = 0
     for marker in markers:
-        yield '        <th scope="col">%s</th>' % marker.subtreeName
+        col_cnt += 1
+        yield '        <th scope="col" class="%s">%s</th>' \
+                % (col_class(col_cnt), marker.subtreeName)
     yield table_header_end_template
 
     row_cnt = 0
@@ -216,7 +224,8 @@ def xhtml(conn, opts, mirrors, markers):
             #
             #yield '\n\n<h2>Mirrors in %s:</h2>\n' % region_name[region]
             yield row_start % row_class(0)
-            yield '<td colspan="%s">      Mirrors in %s:</td>\n' \
+            #yield '<td colspan="%s" class="newregion">      Mirrors in %s:</td>\n' \
+            yield '      <td colspan="%s" class="newregion">%s:</td>\n' \
                      % (6 + markers_cnt, region_name[region])
             yield row_end
         last_region = region
@@ -242,15 +251,18 @@ def xhtml(conn, opts, mirrors, markers):
         row.append(row_template % map)
         
         empty = True
+        col_cnt = 0
         for marker in markers:
+            col_cnt += 1
             if mb.files.check_for_marker_files(conn, marker.markers, mirror.id):
                 #checkmark = '√'
                 checkmark = '&radic;'
                 empty = False
             else:
-                #checkmark = ''
-                checkmark = '-'
-            row.append('      <td title="%s">%s</td>\n' % (marker.subtreeName, checkmark))
+                #checkmark = '-'
+                checkmark = ''
+            row.append('      <td class="%s">%s</td>\n' \
+                         % (col_class(col_cnt), checkmark))
 
         row.append(row_end)
 
