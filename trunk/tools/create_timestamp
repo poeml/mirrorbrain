@@ -25,6 +25,20 @@ import pwd, grp
 epoch = int(time.time())
 utc = time.strftime("%a, %d %b %Y %H:%M:%S UTC", time.gmtime())
 
+explanation = """
+Should you wonder about this file, it serves as timestamp that can be
+used to assess possible lags in mirroring.
+
+In addition, the .timestamp_invisible is supposed to be not visible
+through HTTP, FTP or rsync. This serves to ensure that a mirrors's
+permission setup is correct. Keeping certain files temporarily
+unreadable is an important step in the process of publishing content.
+
+Feel free to contact admin at opensuse org for more information!
+Thanks.
+
+"""
+
 
 tstamps = [ '/srv/ftp/pub/opensuse/distribution/.timestamp',
             '/srv/ftp/pub/opensuse/distribution/.timestamp_invisible',
@@ -54,7 +68,8 @@ for tstamp in tstamps:
     os.chmod(tmpfilename, mode)
     
     f = os.fdopen(fd, 'w')
-    f.write('%s\n%s\n' % (epoch, utc))
+    f.write('%s\n%s\n\n' % (epoch, utc))
+    f.write(explanation)
     f.close()
 
     os.rename(tmpfilename, tstamp)
