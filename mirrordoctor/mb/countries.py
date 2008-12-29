@@ -3,6 +3,9 @@
 
 # ISO 3166 country codes, Alpha-2, from http://en.wikipedia.org/wiki/ISO_3166-1, 2008-11-30
 
+# change: "Taiwan, Province of China" to more neutral "Taiwan"
+# due to changes in ROC and PRC
+
 countries = """\
 af Afghanistan
 ax Åland Islands
@@ -218,7 +221,7 @@ sz Swaziland
 se Sweden
 ch Switzerland
 sy Syrian Arab Republic
-tw Taiwan, Province of China
+tw Taiwan
 tj Tajikistan
 tz Tanzania, United Republic of
 th Thailand
