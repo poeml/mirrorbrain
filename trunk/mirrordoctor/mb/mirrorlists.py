@@ -196,7 +196,8 @@ def xhtml(conn, opts, mirrors, markers):
     if opts.html_footer:
         html_footer = open(opts.html_footer).read()
 
-    yield html_header % { 'title': opts.title or 'Download Mirrors - Overview' }
+    yield html_header % { 'title': opts.title or 'Download Mirrors - Overview',
+                          'utc': utc }
     yield table_start % { 'caption': opts.caption or 'All mirrors' }
     yield table_col_defs
     for i in range(1, markers_cnt + 1):
@@ -229,6 +230,17 @@ def xhtml(conn, opts, mirrors, markers):
                      % (6 + markers_cnt, region_name[region])
             yield row_end
         last_region = region
+
+        if row_cnt % 20 == 0:
+            yield row_start % row_class(0)
+            yield '      <td colspan="%s"></td>\n' % 6
+            col_cnt = 0
+            for marker in markers:
+                col_cnt += 1
+                yield '      <td class="%s">%s</td>\n' \
+                        % (col_class(0), marker.subtreeName)
+                        #% (col_class(col_cnt), marker.subtreeName)
+            yield row_end
 
         country_name = conn.Country.select(
                 conn.Country.q.code == mirror.country.lower())[0].name
