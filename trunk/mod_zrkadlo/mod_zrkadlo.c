@@ -180,7 +180,7 @@ static void zrkadlo_child_init(apr_pool_t *p, server_rec *s)
     if (!gip) {
         ap_log_error(APLOG_MARK, APLOG_INFO, 0, s, 
                 "[mod_zrkadlo] opening geoip file %s", geoipfilename);
-        gip = GeoIP_open(geoipfilename, GEOIP_MEMORY_CACHE);
+        gip = GeoIP_open(geoipfilename, GEOIP_STANDARD);
     }
     if (!gip) {
         ap_log_error(APLOG_MARK, APLOG_CRIT, 0, s, 
