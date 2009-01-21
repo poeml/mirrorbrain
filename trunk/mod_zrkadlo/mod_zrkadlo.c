@@ -49,7 +49,9 @@
 
 #include <unistd.h> /* for getpid */
 #include <arpa/inet.h>
+#ifndef MOD_GEOIP
 #include <GeoIP.h>
+#endif
 #include "mod_memcache.h"
 #include "apr_memcache.h"
 #include "ap_mpm.h" /* for ap_mpm_query */
@@ -72,7 +74,9 @@
 #define MOD_ZRKADLO_VER "2.2"
 #define VERSION_COMPONENT "mod_zrkadlo/"MOD_ZRKADLO_VER
 
+#ifndef MOD_GEOIP
 #define DEFAULT_GEOIPFILE "/usr/share/GeoIP/GeoIP.dat"
+#endif
 #define DEFAULT_MEMCACHED_LIFETIME 600
 #define DEFAULT_MIN_MIRROR_SIZE 4096
 
@@ -93,9 +97,11 @@
 
 module AP_MODULE_DECLARE_DATA zrkadlo_module;
 
+#ifndef MOD_GEOIP
 /* could also be put into the server config */
 static const char *geoipfilename = DEFAULT_GEOIPFILE;
 static GeoIP *gip = NULL;     /* geoip object */
+#endif
 
 /** A structure that represents a mirror */
 typedef struct mirror_entry mirror_entry_t;
@@ -104,7 +110,11 @@ typedef struct mirror_entry mirror_entry_t;
 struct mirror_entry {
     int id;
     const char *identifier;
+#ifndef MOD_GEOIP
     char *country_code;      /* 2-letter-string */
+#else
+    const char *country_code;      /* 2-letter-string */
+#endif
     char *other_countries;   /* comma-separated 2-letter strings */
     const char *region;      /* 2-letter-string */
     short country_only;
@@ -170,13 +180,16 @@ static void debugLog(const request_rec *r, const zrkadlo_dir_conf *cfg,
 
 static apr_status_t zrkadlo_cleanup()
 {
+#ifndef MOD_GEOIP
         GeoIP_delete(gip);
         ap_log_error(APLOG_MARK, APLOG_INFO, 0, NULL, "[mod_zrkadlo] cleaned up geoipfile");
+#endif
         return APR_SUCCESS;
 }
 
 static void zrkadlo_child_init(apr_pool_t *p, server_rec *s)
 {
+#ifndef MOD_GEOIP
     if (!gip) {
         ap_log_error(APLOG_MARK, APLOG_INFO, 0, s, 
                 "[mod_zrkadlo] opening geoip file %s", geoipfilename);
@@ -186,6 +199,7 @@ static void zrkadlo_child_init(apr_pool_t *p, server_rec *s)
         ap_log_error(APLOG_MARK, APLOG_CRIT, 0, s, 
                 "[mod_zrkadlo] Error while opening geoip file '%s'", geoipfilename);
     }
+#endif
     apr_pool_cleanup_register(p, NULL, zrkadlo_cleanup, zrkadlo_cleanup);
 
     srand((unsigned int)getpid());
@@ -430,6 +444,7 @@ static const char *zrkadlo_cmd_dbdquery(cmd_parms *cmd,
     return NULL;
 }
 
+#ifndef MOD_GEOIP
 static const char *zrkadlo_cmd_geoip_filename(cmd_parms *cmd, void *config,
                                 const char *arg1)
 {
@@ -440,6 +455,13 @@ static const char *zrkadlo_cmd_geoip_filename(cmd_parms *cmd, void *config,
                  geoipfilename);
     return NULL;
 }
+#else
+static const char *zrkadlo_cmd_geoip_filename(cmd_parms *cmd, void *config,
+                                const char *arg1)
+{
+    return "mod_zrkadlo: the GeoIPFilename directive is obsolete. Use mod_geoip.";
+}
+#endif
 
 static const char *zrkadlo_cmd_metalink_hashes_prefix(cmd_parms *cmd, 
                                 void *config, const char *arg1)
@@ -549,8 +571,12 @@ static int zrkadlo_handler(request_rec *r)
     char metalink_forced = 0;                   /* metalink was explicitely requested */
     char metalink = 0;                          /* metalink was negotiated */ 
                                                 /* for negotiated metalinks, the exceptions are observed. */
+#ifndef MOD_GEOIP
     short int country_id;
     char* country_code;
+#else
+    const char* country_code;
+#endif
     const char* continent_code;
     int i;
     int cached_id;
@@ -815,6 +841,7 @@ static int zrkadlo_handler(request_rec *r)
     }
 
 
+#ifndef MOD_GEOIP
     /* GeoIP lookup 
      * if mod_geoip was loaded, it would suffice to retrieve GEOIP_COUNTRY_CODE
      * as supplied by it via the notes table, but since we also need the
@@ -823,9 +850,21 @@ static int zrkadlo_handler(request_rec *r)
     country_id = GeoIP_id_by_addr(gip, clientip);
     country_code = apr_pstrdup(r->pool, GeoIP_country_code[country_id]);
     continent_code = GeoIP_country_continent[country_id];
+#else
+    country_code = apr_table_get(r->subprocess_env, "GEOIP_COUNTRY_CODE");
+    continent_code = apr_table_get(r->subprocess_env, "GEOIP_CONTINENT_CODE");
 
-    debugLog(r, cfg, "Country '%s' (%d), Continent '%s'", country_code, 
-            country_id, 
+    if (!country_code) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] could not resolve country");
+        country_code = "--";
+    }
+    if (!continent_code) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] could not resolve continent");
+        continent_code = "--";
+    }
+#endif
+
+    debugLog(r, cfg, "Country '%s', Continent '%s'", country_code, 
             continent_code);
 
     /* save details for logging via a CustomLog */
@@ -1667,9 +1706,15 @@ static const command_rec zrkadlo_cmds[] =
                   RSRC_CONF,
                   "the SQL query string to fetch the mirrors from the backend database"),
 
+#ifndef MOD_GEOIP
     AP_INIT_TAKE1("ZrkadloGeoIPFile", zrkadlo_cmd_geoip_filename, NULL, 
                   RSRC_CONF, 
                   "Path to GeoIP Data File"),
+#else
+    AP_INIT_TAKE1("ZrkadloGeoIPFile", zrkadlo_cmd_geoip_filename, NULL, 
+                  RSRC_CONF, 
+                  "Obsolete directive - use mod_geoip, please."),
+#endif
 
     AP_INIT_FLAG("ZrkadloMemcached", zrkadlo_cmd_memcached_on, NULL,
                   RSRC_CONF, 
