@@ -10,6 +10,6 @@ more important bugs at the top...
   As further effect of this bug, I just noticed that a mirror is missing from
   the ?mirrorlist mirror lists if it is configured as fallback mirror for a
   country:
-    http://download.opensuse.org/repositories/KDE:/KDE4:/STABLE:/Desktop/openSUSE_11.1/KDE4-DEVEL.ymp?mirrorlist&clientip=122.116.65.94
+    http://download.opensuse.org/repositories/KDE:/KDE4:/STABLE:/Desktop/openSUSE_11.1/KDE4-DEVEL.ymp?mirrorlist&country=tw
     ftp5 disappears from the list, when configured as fallback for Taiwan. It is
     correctly used though and appears on th list when actually used as fallback.
