@@ -71,7 +71,7 @@
 #define UNSET (-1)
 #endif
 
-#define MOD_ZRKADLO_VER "2.2"
+#define MOD_ZRKADLO_VER "2.3"
 #define VERSION_COMPONENT "mod_zrkadlo/"MOD_ZRKADLO_VER
 
 #ifndef MOD_GEOIP
