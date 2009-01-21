@@ -566,6 +566,7 @@ static int zrkadlo_handler(request_rec *r)
     char *filename = NULL;
     const char *user_agent = NULL;
     const char *clientip = NULL;
+    const char *query_country = NULL;
     char fakefile = 0, newmirror = 0;
     char mirrorlist = 0, mirrorlist_txt = 0;
     char metalink_forced = 0;                   /* metalink was explicitely requested */
@@ -650,11 +651,19 @@ static int zrkadlo_handler(request_rec *r)
     if (form_lookup && r->args) {
         if (form_lookup(r, "fakefile")) fakefile = 1;
         clientip = form_lookup(r, "clientip");
+        query_country = form_lookup(r, "country");
         if (form_lookup(r, "newmirror")) newmirror = 1;
         if (form_lookup(r, "mirrorlist")) mirrorlist =1;
         if (form_lookup(r, "metalink")) metalink_forced = 1;
     }
     
+    if (!query_country 
+       || strlen(query_country) != 2
+       || !apr_isalpha(query_country[0])
+       || !apr_isalpha(query_country[1])) {
+        query_country = NULL;
+    }
+
     if (!mirrorlist_txt && !metalink_forced && !mirrorlist) {
         const char *accepts;
         accepts = apr_table_get(r->headers_in, "Accept");
@@ -668,6 +677,7 @@ static int zrkadlo_handler(request_rec *r)
     }
 
     if (clientip) {
+#ifndef MOD_GEOIP
         debugLog(r, cfg, "FAKE clientip address: '%s'", clientip);
 
         /* ensure that the string represents a valid IP address
@@ -679,6 +689,21 @@ static int zrkadlo_handler(request_rec *r)
             debugLog(r, cfg, "FAKE clientip address not valid: '%s'", clientip);
             return HTTP_BAD_REQUEST;
         }
+#else
+        debugLog(r, cfg, "obsolete clientip address parameter: '%s'", clientip);
+        ap_set_content_type(r, "text/html; charset=ISO-8859-1");
+        ap_rputs(DOCTYPE_XHTML_1_0T
+                 "<html xmlns=\"http://www.w3.org/1999/xhtml\">\n"
+                 "<head>\n"
+                 "  <title>Sorry</title>\n", r);
+        ap_rputs("</head>\n<body>\n\n", r);
+        ap_rprintf(r, "<p>\n<kbd>clientip</kbd> is no longer supported as query parameter. "
+                      "Please use <kbd>country=xy</kbd> instead, where <kbd>xy</kbd> is a two-letter "
+                      "<a href=\"http://en.wikipedia.org/wiki/ISO_3166-1\">"
+                      "ISO 3166 country code</a>.\n</p>\n");
+        ap_rputs("\n\n</body>\n</html>\n", r);
+        return OK;
+#endif
     } else 
         clientip = apr_pstrdup(r->pool, r->connection->remote_ip);
 
@@ -863,6 +888,10 @@ static int zrkadlo_handler(request_rec *r)
         continent_code = "--";
     }
 #endif
+
+    if (query_country) {
+        country_code = query_country;
+    }
 
     debugLog(r, cfg, "Country '%s', Continent '%s'", country_code, 
             continent_code);
