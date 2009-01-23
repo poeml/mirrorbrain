@@ -1,5 +1,18 @@
+Fri Jan 23 17:20:00 CET 2009
+- version 2.3
+- rename mod_zrkadlo to mod_mirrorbrain
+- use mod_geoip for GeoIP lookups, instead of doing it ourselves. We can now use
+  the GeoIP city database for instance 
+- handle satellite "country" called A2
+- auto-reenable dead mirrors
+- geoiplookup_city added, new tool to show details from GeoIP city databases
+- geoip-lite-update tool updated, with adjusted URL for GeoLite databases. It
+  also downloads the city database now.
+- deprecate "clientip" query parameter, which can no longer work
+  once we use mod_geoip. Implement 'country" parameter that can be used instead.
+
 Sat Dec 13 20:04:53 CET 2008
-- add commandline tool tohedit marker files. (Marker files are used to generate
+- add commandline tool to edit marker files. (Marker files are used to generate
   mirror lists. Each marker file is used to determine whether a mirror mirrors
   a certain subtree.)
 

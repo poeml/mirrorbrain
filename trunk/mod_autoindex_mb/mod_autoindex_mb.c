@@ -27,7 +27,7 @@
 
 /* mod_autoindex_mb.c: Optionally adds metalinks and mirrorlists to the HTML
  *
- * For use with transparent metalink generators, like mod_zrkadlo 
+ * For use with transparent metalink generators, like mod_mirrorbrain 
  * (http://mirrorbrain.org)
  * Based on mod_autoindex from httpd 2.2.8
  * 

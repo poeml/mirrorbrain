@@ -1,4 +1,4 @@
-These are instructions how to install mod_zrkadlo, the redirector module for apache.
+These are instructions how to install mod_mirrorbrain, the redirector module for apache.
 The module understands query arguments (optionally appended to the URL) for 
 diagnostic or other uses. See the config example for details.
 
@@ -8,20 +8,20 @@ https://forgesvn1.novell.com/svn/opensuse/trunk/tools/download-redirector-v2
 
 RPM packages are here:
 http://download.opensuse.org/repositories/Apache:/Modules/
-http://club.mandriva.com/xwiki/bin/view/rpms/Application/apache-mod_zrkadlo
+http://club.mandriva.com/xwiki/bin/view/rpms/Application/apache-mod_mirrorbrain
 
 It requires libGeoIP, mod_memcache, and mod_form.
 It can be built with
-apxs2 -c -lGeoIP -Wc,"-Wall -g" mod_zrkadlo.c
+apxs2 -c -lGeoIP -Wc,"-Wall -g" mod_mirrorbrain.c
 
 If you use an apr-util version prior to 1.3, the memcache client support isn't included. Then you'll
-need to get and build libapr_memcache, and then you'll probably build mod_zrkadlo like this:
-apxs2 -c -I/usr/include/apr_memcache-0 -lGeoIP -lapr_memcache '-Wc,-Wall -g -D_GNU_SOURCE' mod_zrkadlo.c
+need to get and build libapr_memcache, and then you'll probably build mod_mirrorbrain like this:
+apxs2 -c -I/usr/include/apr_memcache-0 -lGeoIP -lapr_memcache '-Wc,-Wall -g -D_GNU_SOURCE' mod_mirrorbrain.c
 
 
 
 
-After installation of mod_zrkadlo, you'll need to:
+After installation of mod_mirrorbrain, you'll need to:
 
 - install memcached
 - make sure it listens on localhost only (/etc/sysconfig/memcached)
@@ -56,7 +56,7 @@ After installation of mod_zrkadlo, you'll need to:
     grant all privileges on redirector.* to wwwrun@localhost identified by '12345';
 
   run the sql file which creates the tables and indices:
-    mysql -u wwwrun -p -D redirector < /usr/share/doc/packages/apache2-mod_zrkadlo/sql/opensuse-redirector.sql
+    mysql -u wwwrun -p -D redirector < /usr/share/doc/packages/apache2-mod_mirrorbrain/sql/opensuse-redirector.sql
 
 
 - create /etc/mirrorbrain.conf with the following content:
@@ -82,14 +82,14 @@ After installation of mod_zrkadlo, you'll need to:
    a2enmod form
    a2enmod memcache
    a2enmod dbd
-   a2enmod zrkadlo
+   a2enmod mirrorbrain
 
 
 - configure Apache:
 
   - create a DNS alias for your web host, if needed
 
-  - configure the database adapter, and mod_zrkadlo. Put it in server-wide
+  - configure the database adapter, and mod_mirrorbrain. Put it in server-wide
     context, and make the file chmod 640 because it contains the database
     password.
 
@@ -113,35 +113,35 @@ After installation of mod_zrkadlo, you'll need to:
     <IfModule mod_memcache.c>
         MemcacheServer 127.0.0.1:11211 min=0 smax=4 max=16 ttl=600
     </IfModule>
-    <IfModule mod_zrkadlo.c>
-        ZrkadloMemcached On
-        ZrkadloMemcachedLifetime 1800
-        ZrkadloGeoIPFile /usr/share/GeoIP/GeoIP.dat
+    <IfModule mod_mirrorbrain.c>
+        MirrorBrainMemcached On
+        MirrorBrainMemcachedLifetime 1800
+        MirrorBrainGeoIPFile /usr/share/GeoIP/GeoIP.dat
     </IfModule>
     ------------------------------------------------------------------------
 
 
 
-  - create a vhost for it (e.g. /etc/apache2/vhosts.d/go-oo.zrkadlo.org.conf)
+  - create a vhost for it (e.g. /etc/apache2/vhosts.d/go-oo.mirrorbrain.org.conf)
 
     ------------------------------------------------------------------------
     <VirtualHost your.host.name:80>
-        ServerName go-oo.zrkadlo.org
+        ServerName go-oo.mirrorbrain.org
     
-        ServerAdmin webmaster@zrkadlo.org
+        ServerAdmin webmaster@mirrorbrain.org
     
         DocumentRoot /srv/go-oo/pub/projects
     
-        ErrorLog     /var/log/apache2/go-oo.zrkadlo.org/logs/error_log
-        CustomLog    /var/log/apache2/go-oo.zrkadlo.org/logs/access_log combined
+        ErrorLog     /var/log/apache2/go-oo.mirrorbrain.org/logs/error_log
+        CustomLog    /var/log/apache2/go-oo.mirrorbrain.org/logs/access_log combined
 
         <Directory /srv/go-oo/pub/projects>
-            ZrkadloEngine On
-            ZrkadloDebug Off
+            MirrorBrainEngine On
+            MirrorBrainDebug Off
             FormGET On
-            ZrkadloHandleHEADRequestLocally Off
-            ZrkadloMinSize 0
-            ZrkadloHandleDirectoryIndexLocally On
+            MirrorBrainHandleHEADRequestLocally Off
+            MirrorBrainMinSize 0
+            MirrorBrainHandleDirectoryIndexLocally On
     
             Options FollowSymLinks Indexes
             AllowOverride None
