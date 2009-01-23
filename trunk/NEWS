@@ -1,5 +1,5 @@
 Fri Jan 23 17:20:00 CET 2009
-- version 2.3
+- version 2.4
 - rename mod_zrkadlo to mod_mirrorbrain
 - use mod_geoip for GeoIP lookups, instead of doing it ourselves. We can now use
   the GeoIP city database for instance 
@@ -10,6 +10,8 @@ Fri Jan 23 17:20:00 CET 2009
   also downloads the city database now.
 - deprecate "clientip" query parameter, which can no longer work
   once we use mod_geoip. Implement 'country" parameter that can be used instead.
+- make memcache support optional at compile time
+
 
 Sat Dec 13 20:04:53 CET 2008
 - add commandline tool to edit marker files. (Marker files are used to generate
