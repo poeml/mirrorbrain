@@ -10,13 +10,13 @@ RPM packages are here:
 http://download.opensuse.org/repositories/Apache:/Modules/
 http://club.mandriva.com/xwiki/bin/view/rpms/Application/apache-mod_mirrorbrain
 
-It requires libGeoIP, mod_memcache, and mod_form.
+It requires mod_memcache, and mod_form.
 It can be built with
-apxs2 -c -lGeoIP -Wc,"-Wall -g" mod_mirrorbrain.c
+apxs2 -c -Wc,"-Wall -g" mod_mirrorbrain.c
 
 If you use an apr-util version prior to 1.3, the memcache client support isn't included. Then you'll
 need to get and build libapr_memcache, and then you'll probably build mod_mirrorbrain like this:
-apxs2 -c -I/usr/include/apr_memcache-0 -lGeoIP -lapr_memcache '-Wc,-Wall -g -D_GNU_SOURCE' mod_mirrorbrain.c
+apxs2 -c -I/usr/include/apr_memcache-0 -lapr_memcache '-Wc,-Wall -g -D_GNU_SOURCE' mod_mirrorbrain.c
 
 
 
@@ -29,9 +29,17 @@ After installation of mod_mirrorbrain, you'll need to:
 - configure it to start at boot ("chkconfig -a memcached")
 
 
-- install GeoIP library and commandline tools
-  (openSUSE packages GeoIP + libGeoIP1)
+- install GeoIP library, commandline tools, and geoip apache module
+  (openSUSE packages GeoIP + libGeoIP1 + apache2-mod_geoip)
 
+- configure mod_geoip:
+    GeoIPEnable On
+    GeoIPOutput Env
+    GeoIPDBFile /usr/share/GeoIP/GeoIP.dat MMapCache
+  (You would typically put this into the server-wide context of a virtual host.)
+
+  Note that a caching mode like MMapCache needs to be used, when Apache runs with the worker MPM.
+  http://forum.maxmind.com/viewtopic.php?p=2078
 
 - install mod_form
   http://apache.webthing.com/svn/apache/forms/mod_form.c
@@ -116,7 +124,6 @@ After installation of mod_mirrorbrain, you'll need to:
     <IfModule mod_mirrorbrain.c>
         MirrorBrainMemcached On
         MirrorBrainMemcachedLifetime 1800
-        MirrorBrainGeoIPFile /usr/share/GeoIP/GeoIP.dat
     </IfModule>
     ------------------------------------------------------------------------
 
@@ -170,28 +177,28 @@ After installation of mod_mirrorbrain, you'll need to:
 
 
 
-  Now you need to enter the mirrors into the database; it could be done like this: 
-  (see 'mirrordoctor help new' for full option list)
+  Now you need to enter the mirrors into the database; it could be done using the
+  "mb" mirrorbrain tool. (See 'mb help new' for full option list.)
 
-    mirrordoctor new ftp.isr.ist.utl.pt \
-                     --http http://ftp.isr.ist.utl.pt/pub/MIRRORS/ftp.suse.com/projects/ \
-                     --rsync rsync://ftp.isr.ist.utl.pt/suse/projects/
+    mb new ftp.isr.ist.utl.pt \
+           --http http://ftp.isr.ist.utl.pt/pub/MIRRORS/ftp.suse.com/projects/ \
+           --rsync rsync://ftp.isr.ist.utl.pt/suse/projects/
 
-    mirrordoctor new ftp.kddilabs.jp \
-                     --http http://ftp.kddilabs.jp/Linux/distributions/ftp.suse.com/projects/ \
-                     --rsync rsync://ftp.kddilabs.jp/suse/projects/
+    mb new ftp.kddilabs.jp \
+           --http http://ftp.kddilabs.jp/Linux/distributions/ftp.suse.com/projects/ \
+           --rsync rsync://ftp.kddilabs.jp/suse/projects/
 
 
   The mirror doctor figures out the GeoIP location of each mirror by itself.
   But you could also specify them on the commandline.
 
   If you want to edit a mirror later, use
-    mirrordoctor edit <identifier>
+    mb edit <identifier>
 
-  See the output of 'mirrordoctor help' for more commands.
+  See the output of 'mb help' for more commands.
 
-  Each mirror needs to be scanned and enabled:
-    mirrordoctor scan --enable <identifier>
+  Finally, each mirror needs to be scanned and enabled:
+    mb scan --enable <identifier>
 
 
 
