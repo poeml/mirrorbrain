@@ -17,10 +17,11 @@ mirrors based on their capabilities.
 
 Implementation:
 
-  The core of the redirector is mod_zrkadlo, a module for the Apache HTTP server,
-written in C, and designed for high performance and scalability, with security
-in mind.
-  mod_zrkadlo is pronounced "mod zurrcat low". Zrkadlo is Slovakian for mirror.
+  The core of the redirector is mod_mirrorbrain, a module for the Apache HTTP
+server, written in C, and designed for high performance and scalability, with
+security in mind.
+  Previous name of mod_mirrorbrain was mod_zrkadlo, pronounced "mod zurrcat
+low". Zrkadlo is Slovakian for mirror.
 
   Due to the fast-evolving nature of the file tree offered by openSUSE project,
 the redirector doesn't simply choose one mirror for a client once, but acts as
