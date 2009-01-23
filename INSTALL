@@ -64,7 +64,7 @@ After installation of mod_mirrorbrain, you'll need to:
     grant all privileges on redirector.* to wwwrun@localhost identified by '12345';
 
   run the sql file which creates the tables and indices:
-    mysql -u wwwrun -p -D redirector < /usr/share/doc/packages/apache2-mod_mirrorbrain/sql/opensuse-redirector.sql
+    mysql -u wwwrun -p -D redirector < /usr/share/doc/packages/apache2-mod_zrkadlo/sql/opensuse-redirector.sql
 
 
 - create /etc/mirrorbrain.conf with the following content:
