@@ -49,7 +49,7 @@
 
 #include <unistd.h> /* for getpid */
 #include <arpa/inet.h>
-#ifndef MOD_GEOIP
+#ifdef NO_MOD_GEOIP
 #include <GeoIP.h>
 #endif
 #include "mod_memcache.h"
@@ -74,7 +74,7 @@
 #define MOD_MIRRORBRAIN_VER "2.3"
 #define VERSION_COMPONENT "mod_mirrorbrain/"MOD_MIRRORBRAIN_VER
 
-#ifndef MOD_GEOIP
+#ifdef NO_MOD_GEOIP
 #define DEFAULT_GEOIPFILE "/usr/share/GeoIP/GeoIP.dat"
 #endif
 #define DEFAULT_MEMCACHED_LIFETIME 600
@@ -97,7 +97,7 @@
 
 module AP_MODULE_DECLARE_DATA mirrorbrain_module;
 
-#ifndef MOD_GEOIP
+#ifdef NO_MOD_GEOIP
 /* could also be put into the server config */
 static const char *geoipfilename = DEFAULT_GEOIPFILE;
 static GeoIP *gip = NULL;     /* geoip object */
@@ -110,7 +110,7 @@ typedef struct mirror_entry mirror_entry_t;
 struct mirror_entry {
     int id;
     const char *identifier;
-#ifndef MOD_GEOIP
+#ifdef NO_MOD_GEOIP
     char *country_code;      /* 2-letter-string */
 #else
     const char *country_code;      /* 2-letter-string */
@@ -180,7 +180,7 @@ static void debugLog(const request_rec *r, const mb_dir_conf *cfg,
 
 static apr_status_t mb_cleanup()
 {
-#ifndef MOD_GEOIP
+#ifdef NO_MOD_GEOIP
         GeoIP_delete(gip);
         ap_log_error(APLOG_MARK, APLOG_INFO, 0, NULL, "[mod_mirrorbrain] cleaned up geoipfile");
 #endif
@@ -189,7 +189,7 @@ static apr_status_t mb_cleanup()
 
 static void mb_child_init(apr_pool_t *p, server_rec *s)
 {
-#ifndef MOD_GEOIP
+#ifdef NO_MOD_GEOIP
     if (!gip) {
         ap_log_error(APLOG_MARK, APLOG_INFO, 0, s, 
                 "[mod_mirrorbrain] opening geoip file %s", geoipfilename);
@@ -445,7 +445,7 @@ static const char *mb_cmd_dbdquery(cmd_parms *cmd, void *config,
     return NULL;
 }
 
-#ifndef MOD_GEOIP
+#ifdef NO_MOD_GEOIP
 static const char *mb_cmd_geoip_filename(cmd_parms *cmd, void *config,
                                          const char *arg1)
 {
@@ -575,7 +575,7 @@ static int mb_handler(request_rec *r)
     char metalink_forced = 0;                   /* metalink was explicitely requested */
     char metalink = 0;                          /* metalink was negotiated */ 
                                                 /* for negotiated metalinks, the exceptions are observed. */
-#ifndef MOD_GEOIP
+#ifdef NO_MOD_GEOIP
     short int country_id;
     char* country_code;
 #else
@@ -680,7 +680,7 @@ static int mb_handler(request_rec *r)
     }
 
     if (clientip) {
-#ifndef MOD_GEOIP
+#ifdef NO_MOD_GEOIP
         debugLog(r, cfg, "FAKE clientip address: '%s'", clientip);
 
         /* ensure that the string represents a valid IP address
@@ -869,7 +869,7 @@ static int mb_handler(request_rec *r)
     }
 
 
-#ifndef MOD_GEOIP
+#ifdef NO_MOD_GEOIP
     /* GeoIP lookup 
      * if mod_geoip was loaded, it would suffice to retrieve GEOIP_COUNTRY_CODE
      * as supplied by it via the notes table, but since we also need the
@@ -1738,7 +1738,7 @@ static const command_rec mb_cmds[] =
                   RSRC_CONF,
                   "the SQL query string to fetch the mirrors from the backend database"),
 
-#ifndef MOD_GEOIP
+#ifdef NO_MOD_GEOIP
     AP_INIT_TAKE1("MirrorBrainGeoIPFile", mb_cmd_geoip_filename, NULL, 
                   RSRC_CONF, 
                   "Path to GeoIP Data File"),
