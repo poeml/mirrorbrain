@@ -71,7 +71,7 @@
 #define UNSET (-1)
 #endif
 
-#define MOD_MIRRORBRAIN_VER "2.3"
+#define MOD_MIRRORBRAIN_VER "2.4"
 #define VERSION_COMPONENT "mod_mirrorbrain/"MOD_MIRRORBRAIN_VER
 
 #ifdef NO_MOD_GEOIP
