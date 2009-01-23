@@ -1,7 +1,8 @@
-These are instructions how to install mod_mirrorbrain, the redirector module for apache.
-The module understands query arguments (optionally appended to the URL) for 
-diagnostic or other uses. See the config example for details.
+These instructions show how to install:
 
+1. mod_mirrorbrain, the redirector module for apache.  
+2. other needed components
+3. the database
 
 It requires a backend to work with, which can be found at
 https://forgesvn1.novell.com/svn/opensuse/trunk/tools/download-redirector-v2
@@ -101,6 +102,9 @@ After installation of mod_mirrorbrain, you'll need to:
     context, and make the file chmod 640 because it contains the database
     password.
 
+
+Config example::
+
     ------------------------------------------------------------------------
     <IfModule mod_dbd.c>
         DBDriver mysql
@@ -127,7 +131,7 @@ After installation of mod_mirrorbrain, you'll need to:
     </IfModule>
     ------------------------------------------------------------------------
 
-
+  - create a vhost for it (e.g. /etc/apache2/vhosts.d/go-oo.zrkadlo.org.conf)
 
   - create a vhost for it (e.g. /etc/apache2/vhosts.d/go-oo.mirrorbrain.org.conf)
 
