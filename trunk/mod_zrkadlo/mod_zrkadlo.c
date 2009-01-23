@@ -659,8 +659,8 @@ static int zrkadlo_handler(request_rec *r)
     
     if (!query_country 
        || strlen(query_country) != 2
-       || !apr_isalpha(query_country[0])
-       || !apr_isalpha(query_country[1])) {
+       || !apr_isalnum(query_country[0])
+       || !apr_isalnum(query_country[1])) {
         query_country = NULL;
     }
 
