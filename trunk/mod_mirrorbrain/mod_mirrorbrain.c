@@ -52,8 +52,10 @@
 #ifdef NO_MOD_GEOIP
 #include <GeoIP.h>
 #endif
+#ifdef WITH_MEMCACHE
 #include "mod_memcache.h"
 #include "apr_memcache.h"
+#endif
 #include "ap_mpm.h" /* for ap_mpm_query */
 #include "mod_status.h"
 #include "mod_form.h"
@@ -77,7 +79,9 @@
 #ifdef NO_MOD_GEOIP
 #define DEFAULT_GEOIPFILE "/usr/share/GeoIP/GeoIP.dat"
 #endif
+#ifdef WITH_MEMCACHE
 #define DEFAULT_MEMCACHED_LIFETIME 600
+#endif
 #define DEFAULT_MIN_MIRROR_SIZE 4096
 
 #define DEFAULT_QUERY "SELECT file_server.serverid, server.identifier, server.country, " \
@@ -146,8 +150,10 @@ typedef struct
 typedef struct
 {
     const char *instance;
+#ifdef WITH_MEMCACHE
     int memcached_on;
     int memcached_lifetime;
+#endif
     const char *metalink_hashes_prefix;
     const char *metalink_publisher_name;
     const char *metalink_publisher_url;
@@ -301,8 +307,10 @@ static void *create_mb_server_config(apr_pool_t *p, server_rec *s)
             "[mod_mirrorbrain] creating server config");
 
     new->instance = "default";
+#ifdef WITH_MEMCACHE
     new->memcached_on = UNSET;
     new->memcached_lifetime = UNSET;
+#endif
     new->metalink_hashes_prefix = NULL;
     new->metalink_publisher_name = NULL;
     new->metalink_publisher_url = NULL;
@@ -323,8 +331,10 @@ static void *merge_mb_server_config(apr_pool_t *p, void *basev, void *addv)
             "[mod_mirrorbrain] merging server config");
 
     cfgMergeString(instance);
+#ifdef WITH_MEMCACHE
     cfgMergeBool(memcached_on);
     cfgMergeInt(memcached_lifetime);
+#endif
     cfgMergeString(metalink_hashes_prefix);
     cfgMergeString(metalink_publisher_name);
     cfgMergeString(metalink_publisher_url);
@@ -511,6 +521,7 @@ static const char *mb_cmd_metalink_torrentadd_mask(cmd_parms *cmd, void *config,
     return NULL;
 }
 
+#ifdef WITH_MEMCACHE
 static const char *mb_cmd_memcached_on(cmd_parms *cmd, void *config,
                                        int flag)
 {
@@ -534,6 +545,7 @@ static const char *mb_cmd_memcached_lifetime(cmd_parms *cmd, void *config,
         return "MirrorBrainMemcachedLifeTime requires an integer > 0.";
     return NULL;
 }
+#endif
 
 static int find_lowest_rank(apr_array_header_t *arr) 
 {
@@ -583,10 +595,7 @@ static int mb_handler(request_rec *r)
 #endif
     const char* continent_code;
     int i;
-    int cached_id;
     int mirror_cnt;
-    char *m_res;
-    char *m_key, *m_val;
     apr_size_t len;
     mirror_entry_t *new;
     mirror_entry_t *mirror;
@@ -601,7 +610,12 @@ static int mb_handler(request_rec *r)
     apr_array_header_t *mirrors_close_country;  /* pointers into the mirrors array */
     apr_array_header_t *mirrors_same_region;    /* pointers into the mirrors array */
     apr_array_header_t *mirrors_elsewhere;      /* pointers into the mirrors array */
+#ifdef WITH_MEMCACHE
     apr_memcache_t *memctxt;                    /* memcache context provided by mod_memcache */
+    char *m_res;
+    char *m_key, *m_val;
+    int cached_id;
+#endif
     const char* (*form_lookup)(request_rec*, const char*);
 
     cfg = (mb_dir_conf *)     ap_get_module_config(r->per_dir_config, 
@@ -840,6 +854,7 @@ static int mb_handler(request_rec *r)
     }
 
 
+#ifdef WITH_MEMCACHE
     memctxt = ap_memcache_client(r->server);
     if (memctxt == NULL) scfg->memcached_on = 0;
 
@@ -860,6 +875,7 @@ static int mb_handler(request_rec *r)
             }
         }
     }
+#endif
 
 
     if (scfg->query == NULL) {
@@ -1129,10 +1145,12 @@ static int mb_handler(request_rec *r)
             continue;
         }
 
+#ifdef WITH_MEMCACHE
         if (new->id && (new->id == cached_id)) {
             debugLog(r, cfg, "Mirror '%s' associated in memcache (cached_id %d)", new->identifier, cached_id);
             chosen = new;
         }
+#endif
 
         /* file too large for this mirror? */
         if (new->file_maxsize > 0 && r->finfo.size > new->file_maxsize) {
@@ -1601,6 +1619,7 @@ static int mb_handler(request_rec *r)
     apr_table_setn(r->err_headers_out, "X-MirrorBrain-Chose-Mirror", chosen->identifier);
     apr_table_setn(r->headers_out, "Location", uri);
 
+#ifdef WITH_MEMCACHE
     if (scfg->memcached_on) {
         /* memorize IP<->mirror association in memcache */
         m_val = apr_itoa(r->pool, chosen->id);
@@ -1614,10 +1633,12 @@ static int mb_handler(request_rec *r)
                          "with %d bytes of data", 
                          m_key, (int) strlen(m_val));
     }
+#endif
 
     return HTTP_MOVED_TEMPORARILY;
 }
 
+#ifdef WITH_MEMCACHE
 static int mb_status_hook(request_rec *r, int flags)
 {
     apr_uint16_t i;
@@ -1684,6 +1705,7 @@ static int mb_pre_config(apr_pool_t *pconf,
 
     return OK;
 }
+#endif
 
 
 
@@ -1748,6 +1770,7 @@ static const command_rec mb_cmds[] =
                   "Obsolete directive - use mod_geoip, please."),
 #endif
 
+#ifdef WITH_MEMCACHE
     AP_INIT_FLAG("MirrorBrainMemcached", mb_cmd_memcached_on, NULL,
                   RSRC_CONF, 
                   "Set to On/Off to use memcached to give clients repeatedly the same mirror"),
@@ -1756,6 +1779,7 @@ static const command_rec mb_cmds[] =
                   RSRC_CONF, 
                   "Lifetime (in seconds) associated with stored objects in "
                   "memcache daemon(s). Default is 600 s."),
+#endif
 
     AP_INIT_TAKE1("MirrorBrainMetalinkHashesPathPrefix", mb_cmd_metalink_hashes_prefix, NULL, 
                   RSRC_CONF, 
@@ -1775,7 +1799,9 @@ static const command_rec mb_cmds[] =
 /* Tell Apache what phases of the transaction we handle */
 static void mb_register_hooks(apr_pool_t *p)
 {
+#ifdef WITH_MEMCACHE
     ap_hook_pre_config    (mb_pre_config,  NULL, NULL, APR_HOOK_MIDDLE);
+#endif
     ap_hook_post_config   (mb_post_config, NULL, NULL, APR_HOOK_MIDDLE);
     ap_hook_handler       (mb_handler,     NULL, NULL, APR_HOOK_LAST);
     ap_hook_child_init    (mb_child_init,  NULL, NULL, APR_HOOK_MIDDLE );
