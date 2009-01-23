@@ -15,7 +15,7 @@
  * limitations under the License.
  *
  *
- * mod_zrkadlo, the heart of the MirrorBrain, does
+ * mod_mirrorbrain, the heart of the MirrorBrain, does
  *  - redirect clients to mirror servers, based on sql database
  *  - generate real-time metalinks
  *  - generate text or HTML mirror lists
@@ -71,8 +71,8 @@
 #define UNSET (-1)
 #endif
 
-#define MOD_ZRKADLO_VER "2.3"
-#define VERSION_COMPONENT "mod_zrkadlo/"MOD_ZRKADLO_VER
+#define MOD_MIRRORBRAIN_VER "2.3"
+#define VERSION_COMPONENT "mod_mirrorbrain/"MOD_MIRRORBRAIN_VER
 
 #ifndef MOD_GEOIP
 #define DEFAULT_GEOIPFILE "/usr/share/GeoIP/GeoIP.dat"
@@ -95,7 +95,7 @@
                              "AND server.score > 0"
 
 
-module AP_MODULE_DECLARE_DATA zrkadlo_module;
+module AP_MODULE_DECLARE_DATA mirrorbrain_module;
 
 #ifndef MOD_GEOIP
 /* could also be put into the server config */
@@ -140,7 +140,7 @@ typedef struct
     apr_array_header_t *exclude_ips;
     ap_regex_t *exclude_filemask;
     ap_regex_t *metalink_torrentadd_mask;
-} zrkadlo_dir_conf;
+} mb_dir_conf;
 
 /* per-server configuration */
 typedef struct
@@ -154,13 +154,13 @@ typedef struct
     const char *mirrorlist_stylesheet;
     const char *query;
     const char *query_prep;
-} zrkadlo_server_conf;
+} mb_server_conf;
 
 
-static ap_dbd_t *(*zrkadlo_dbd_acquire_fn)(request_rec*) = NULL;
-static void (*zrkadlo_dbd_prepare_fn)(server_rec*, const char*, const char*) = NULL;
+static ap_dbd_t *(*mb_dbd_acquire_fn)(request_rec*) = NULL;
+static void (*mb_dbd_prepare_fn)(server_rec*, const char*, const char*) = NULL;
 
-static void debugLog(const request_rec *r, const zrkadlo_dir_conf *cfg,
+static void debugLog(const request_rec *r, const mb_dir_conf *cfg,
                      const char *fmt, ...)
 {
     if (cfg->debug) {
@@ -174,39 +174,39 @@ static void debugLog(const request_rec *r, const zrkadlo_dir_conf *cfg,
         ap_log_rerror(APLOG_MARK,
                       APLOG_WARNING, 
                       APR_SUCCESS,
-                      r, "[mod_zrkadlo] %s", buf);
+                      r, "[mod_mirrorbrain] %s", buf);
     }
 }
 
-static apr_status_t zrkadlo_cleanup()
+static apr_status_t mb_cleanup()
 {
 #ifndef MOD_GEOIP
         GeoIP_delete(gip);
-        ap_log_error(APLOG_MARK, APLOG_INFO, 0, NULL, "[mod_zrkadlo] cleaned up geoipfile");
+        ap_log_error(APLOG_MARK, APLOG_INFO, 0, NULL, "[mod_mirrorbrain] cleaned up geoipfile");
 #endif
         return APR_SUCCESS;
 }
 
-static void zrkadlo_child_init(apr_pool_t *p, server_rec *s)
+static void mb_child_init(apr_pool_t *p, server_rec *s)
 {
 #ifndef MOD_GEOIP
     if (!gip) {
         ap_log_error(APLOG_MARK, APLOG_INFO, 0, s, 
-                "[mod_zrkadlo] opening geoip file %s", geoipfilename);
+                "[mod_mirrorbrain] opening geoip file %s", geoipfilename);
         gip = GeoIP_open(geoipfilename, GEOIP_STANDARD);
     }
     if (!gip) {
         ap_log_error(APLOG_MARK, APLOG_CRIT, 0, s, 
-                "[mod_zrkadlo] Error while opening geoip file '%s'", geoipfilename);
+                "[mod_mirrorbrain] Error while opening geoip file '%s'", geoipfilename);
     }
 #endif
-    apr_pool_cleanup_register(p, NULL, zrkadlo_cleanup, zrkadlo_cleanup);
+    apr_pool_cleanup_register(p, NULL, mb_cleanup, mb_cleanup);
 
     srand((unsigned int)getpid());
 }
 
-static int zrkadlo_post_config(apr_pool_t *pconf, apr_pool_t *plog, 
-                               apr_pool_t *ptemp, server_rec *s)
+static int mb_post_config(apr_pool_t *pconf, apr_pool_t *plog, 
+                          apr_pool_t *ptemp, server_rec *s)
 {
 
     /* be visible in the server signature */
@@ -215,41 +215,41 @@ static int zrkadlo_post_config(apr_pool_t *pconf, apr_pool_t *plog,
     /* make sure that mod_form is loaded */
     if (ap_find_linked_module("mod_form.c") == NULL) {
         ap_log_error(APLOG_MARK, APLOG_ERR, 0, s,
-                     "[mod_zrkadlo] Module mod_form missing. It must be "
-                     "loaded in order for mod_zrkadlo to function properly");
+                     "[mod_mirrorbrain] Module mod_form missing. It must be "
+                     "loaded in order for mod_mirrorbrain to function properly");
         return HTTP_INTERNAL_SERVER_ERROR;
     }
 
     /* make sure that mod_dbd is loaded */
-    if (zrkadlo_dbd_prepare_fn == NULL) {
-        zrkadlo_dbd_prepare_fn = APR_RETRIEVE_OPTIONAL_FN(ap_dbd_prepare);
-        if (zrkadlo_dbd_prepare_fn == NULL) {
+    if (mb_dbd_prepare_fn == NULL) {
+        mb_dbd_prepare_fn = APR_RETRIEVE_OPTIONAL_FN(ap_dbd_prepare);
+        if (mb_dbd_prepare_fn == NULL) {
             ap_log_error(APLOG_MARK, APLOG_ERR, 0, s,
-                         "[mod_zrkadlo] You must load mod_dbd to enable Zrkadlo functions");
+                         "[mod_mirrorbrain] You must load mod_dbd to enable MirrorBrain functions");
         return HTTP_INTERNAL_SERVER_ERROR;
         }
-        zrkadlo_dbd_acquire_fn = APR_RETRIEVE_OPTIONAL_FN(ap_dbd_acquire);
+        mb_dbd_acquire_fn = APR_RETRIEVE_OPTIONAL_FN(ap_dbd_acquire);
     }
 
     /* prepare DBD SQL statements */
     static unsigned int label_num = 0;
     server_rec *sp;
     for (sp = s; sp; sp = sp->next) {
-        zrkadlo_server_conf *cfg = ap_get_module_config(sp->module_config, 
-                                                        &zrkadlo_module);
+        mb_server_conf *cfg = ap_get_module_config(sp->module_config, 
+                                                        &mirrorbrain_module);
         /* make a label */
-        cfg->query_prep = apr_psprintf(pconf, "zrkadlo_dbd_%d", ++label_num);
-        zrkadlo_dbd_prepare_fn(sp, cfg->query, cfg->query_prep);
+        cfg->query_prep = apr_psprintf(pconf, "mirrorbrain_dbd_%d", ++label_num);
+        mb_dbd_prepare_fn(sp, cfg->query, cfg->query_prep);
     }
 
     return OK;
 }
 
 
-static void *create_zrkadlo_dir_config(apr_pool_t *p, char *dirspec)
+static void *create_mb_dir_config(apr_pool_t *p, char *dirspec)
 {
-    zrkadlo_dir_conf *new =
-      (zrkadlo_dir_conf *) apr_pcalloc(p, sizeof(zrkadlo_dir_conf));
+    mb_dir_conf *new =
+      (mb_dir_conf *) apr_pcalloc(p, sizeof(mb_dir_conf));
 
     new->engine_on                  = UNSET;
     new->debug                      = UNSET;
@@ -267,13 +267,13 @@ static void *create_zrkadlo_dir_config(apr_pool_t *p, char *dirspec)
     return (void *) new;
 }
 
-static void *merge_zrkadlo_dir_config(apr_pool_t *p, void *basev, void *addv)
+static void *merge_mb_dir_config(apr_pool_t *p, void *basev, void *addv)
 {
-    zrkadlo_dir_conf *mrg  = (zrkadlo_dir_conf *) apr_pcalloc(p, sizeof(zrkadlo_dir_conf));
-    zrkadlo_dir_conf *base = (zrkadlo_dir_conf *) basev;
-    zrkadlo_dir_conf *add  = (zrkadlo_dir_conf *) addv;
+    mb_dir_conf *mrg  = (mb_dir_conf *) apr_pcalloc(p, sizeof(mb_dir_conf));
+    mb_dir_conf *base = (mb_dir_conf *) basev;
+    mb_dir_conf *add  = (mb_dir_conf *) addv;
 
-    /* debugLog("merge_zrkadlo_dir_config: new=%08lx  base=%08lx  overrides=%08lx",
+    /* debugLog("merge_mb_dir_config: new=%08lx  base=%08lx  overrides=%08lx",
      *         (long)mrg, (long)base, (long)add); */
 
     cfgMergeInt(engine_on);
@@ -292,13 +292,13 @@ static void *merge_zrkadlo_dir_config(apr_pool_t *p, void *basev, void *addv)
     return (void *) mrg;
 }
 
-static void *create_zrkadlo_server_config(apr_pool_t *p, server_rec *s)
+static void *create_mb_server_config(apr_pool_t *p, server_rec *s)
 {
-    zrkadlo_server_conf *new =
-      (zrkadlo_server_conf *) apr_pcalloc(p, sizeof(zrkadlo_server_conf));
+    mb_server_conf *new =
+      (mb_server_conf *) apr_pcalloc(p, sizeof(mb_server_conf));
 
     ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, s, 
-            "[mod_zrkadlo] creating server config");
+            "[mod_mirrorbrain] creating server config");
 
     new->instance = "default";
     new->memcached_on = UNSET;
@@ -313,14 +313,14 @@ static void *create_zrkadlo_server_config(apr_pool_t *p, server_rec *s)
     return (void *) new;
 }
 
-static void *merge_zrkadlo_server_config(apr_pool_t *p, void *basev, void *addv)
+static void *merge_mb_server_config(apr_pool_t *p, void *basev, void *addv)
 {
-    zrkadlo_server_conf *base = (zrkadlo_server_conf *) basev;
-    zrkadlo_server_conf *add = (zrkadlo_server_conf *) addv;
-    zrkadlo_server_conf *mrg = apr_pcalloc(p, sizeof(zrkadlo_server_conf));
+    mb_server_conf *base = (mb_server_conf *) basev;
+    mb_server_conf *add = (mb_server_conf *) addv;
+    mb_server_conf *mrg = apr_pcalloc(p, sizeof(mb_server_conf));
 
     ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, NULL, 
-            "[mod_zrkadlo] merging server config");
+            "[mod_mirrorbrain] merging server config");
 
     cfgMergeString(instance);
     cfgMergeBool(memcached_on);
@@ -335,200 +335,203 @@ static void *merge_zrkadlo_server_config(apr_pool_t *p, void *basev, void *addv)
     return (void *) mrg;
 }
 
-static const char *zrkadlo_cmd_engine(cmd_parms *cmd, void *config, int flag)
+static const char *mb_cmd_engine(cmd_parms *cmd, void *config, int flag)
 {
-    zrkadlo_dir_conf *cfg = (zrkadlo_dir_conf *) config;
+    mb_dir_conf *cfg = (mb_dir_conf *) config;
     cfg->engine_on = flag;
     cfg->mirror_base = apr_pstrdup(cmd->pool, cmd->path);
     return NULL;
 }
 
-static const char *zrkadlo_cmd_debug(cmd_parms *cmd, void *config, int flag)
+static const char *mb_cmd_debug(cmd_parms *cmd, void *config, int flag)
 {
-    zrkadlo_dir_conf *cfg = (zrkadlo_dir_conf *) config;
+    mb_dir_conf *cfg = (mb_dir_conf *) config;
     cfg->debug = flag;
     return NULL;
 }
 
-static const char *zrkadlo_cmd_minsize(cmd_parms *cmd, void *config,
-                                   const char *arg1)
+static const char *mb_cmd_minsize(cmd_parms *cmd, void *config,
+                                  const char *arg1)
 {
-    zrkadlo_dir_conf *cfg = (zrkadlo_dir_conf *) config;
+    mb_dir_conf *cfg = (mb_dir_conf *) config;
     cfg->min_size = atoi(arg1);
     if (cfg->min_size < 0)
-        return "ZrkadloMinSize requires a non-negative integer.";
+        return "MirrorBrainMinSize requires a non-negative integer.";
     return NULL;
 }
 
-static const char *zrkadlo_cmd_excludemime(cmd_parms *cmd, void *config,
-                                       const char *arg1)
+static const char *mb_cmd_excludemime(cmd_parms *cmd, void *config,
+                                      const char *arg1)
 {
-    zrkadlo_dir_conf *cfg = (zrkadlo_dir_conf *) config;
+    mb_dir_conf *cfg = (mb_dir_conf *) config;
     char **mimepattern = (char **) apr_array_push(cfg->exclude_mime);
     *mimepattern = apr_pstrdup(cmd->pool, arg1);
     return NULL;
 }
 
-static const char *zrkadlo_cmd_excludeagent(cmd_parms *cmd, void *config,
-                                        const char *arg1)
+static const char *mb_cmd_excludeagent(cmd_parms *cmd, void *config,
+                                       const char *arg1)
 {
-    zrkadlo_dir_conf *cfg = (zrkadlo_dir_conf *) config;
+    mb_dir_conf *cfg = (mb_dir_conf *) config;
     char **agentpattern = (char **) apr_array_push(cfg->exclude_agents);
     *agentpattern = apr_pstrdup(cmd->pool, arg1);
     return NULL;
 }
 
-static const char *zrkadlo_cmd_excludenetwork(cmd_parms *cmd, void *config,
-                                        const char *arg1)
+static const char *mb_cmd_excludenetwork(cmd_parms *cmd, void *config,
+                                         const char *arg1)
 {
-    zrkadlo_dir_conf *cfg = (zrkadlo_dir_conf *) config;
+    mb_dir_conf *cfg = (mb_dir_conf *) config;
     char **network = (char **) apr_array_push(cfg->exclude_networks);
     *network = apr_pstrdup(cmd->pool, arg1);
     return NULL;
 }
 
-static const char *zrkadlo_cmd_excludeip(cmd_parms *cmd, void *config,
-                                        const char *arg1)
+static const char *mb_cmd_excludeip(cmd_parms *cmd, void *config,
+                                    const char *arg1)
 {
-    zrkadlo_dir_conf *cfg = (zrkadlo_dir_conf *) config;
+    mb_dir_conf *cfg = (mb_dir_conf *) config;
     char **ip = (char **) apr_array_push(cfg->exclude_ips);
     *ip = apr_pstrdup(cmd->pool, arg1);
     return NULL;
 }
 
-static const char *zrkadlo_cmd_exclude_filemask(cmd_parms *cmd, void *config, const char *arg)
+static const char *mb_cmd_exclude_filemask(cmd_parms *cmd, void *config, 
+                                           const char *arg)
 {
-    zrkadlo_dir_conf *cfg = (zrkadlo_dir_conf *) config;
+    mb_dir_conf *cfg = (mb_dir_conf *) config;
     cfg->exclude_filemask = ap_pregcomp(cmd->pool, arg, AP_REG_EXTENDED);
     if (cfg->exclude_filemask == NULL) {
-        return "ZrkadloExcludeFileMask regex could not be compiled";
+        return "MirrorBrainExcludeFileMask regex could not be compiled";
     }
     return NULL;
 }
 
-static const char *zrkadlo_cmd_handle_dirindex_locally(cmd_parms *cmd, 
-            void *config, int flag)
+static const char *mb_cmd_handle_dirindex_locally(cmd_parms *cmd, 
+                                                  void *config, int flag)
 {
-    zrkadlo_dir_conf *cfg = (zrkadlo_dir_conf *) config;
+    mb_dir_conf *cfg = (mb_dir_conf *) config;
     cfg->handle_dirindex_locally = flag;
     return NULL;
 }
 
-static const char *zrkadlo_cmd_handle_headrequest_locally(cmd_parms *cmd, 
-        void *config, int flag)
+static const char *mb_cmd_handle_headrequest_locally(cmd_parms *cmd, 
+                                                     void *config, int flag)
 {
-    zrkadlo_dir_conf *cfg = (zrkadlo_dir_conf *) config;
+    mb_dir_conf *cfg = (mb_dir_conf *) config;
     cfg->handle_headrequest_locally = flag;
     return NULL;
 }
 
-static const char *zrkadlo_cmd_instance(cmd_parms *cmd, 
-                                void *config, const char *arg1)
+static const char *mb_cmd_instance(cmd_parms *cmd, 
+                                   void *config, const char *arg1)
 {
     server_rec *s = cmd->server;
-    zrkadlo_server_conf *cfg = 
-        ap_get_module_config(s->module_config, &zrkadlo_module);
+    mb_server_conf *cfg = 
+        ap_get_module_config(s->module_config, &mirrorbrain_module);
 
     cfg->instance = arg1;
     return NULL;
 }
 
-static const char *zrkadlo_cmd_dbdquery(cmd_parms *cmd, 
-                                void *config, const char *arg1)
+static const char *mb_cmd_dbdquery(cmd_parms *cmd, void *config, 
+                                   const char *arg1)
 {
     server_rec *s = cmd->server;
-    zrkadlo_server_conf *cfg = 
-        ap_get_module_config(s->module_config, &zrkadlo_module);
+    mb_server_conf *cfg = 
+        ap_get_module_config(s->module_config, &mirrorbrain_module);
 
     cfg->query = arg1;
     return NULL;
 }
 
 #ifndef MOD_GEOIP
-static const char *zrkadlo_cmd_geoip_filename(cmd_parms *cmd, void *config,
-                                const char *arg1)
+static const char *mb_cmd_geoip_filename(cmd_parms *cmd, void *config,
+                                         const char *arg1)
 {
     geoipfilename = apr_pstrdup(cmd->pool, arg1);
 
     ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, NULL,
-                 "[mod_zrkadlo] Setting GeoIPFilename: '%s'", 
+                 "[mod_mirrorbrain] Setting GeoIPFilename: '%s'", 
                  geoipfilename);
     return NULL;
 }
 #else
-static const char *zrkadlo_cmd_geoip_filename(cmd_parms *cmd, void *config,
-                                const char *arg1)
+static const char *mb_cmd_geoip_filename(cmd_parms *cmd, void *config,
+                                         const char *arg1)
 {
-    return "mod_zrkadlo: the GeoIPFilename directive is obsolete. Use mod_geoip.";
+    return "mod_mirrorbrain: the GeoIPFilename directive is obsolete. Use mod_geoip.";
 }
 #endif
 
-static const char *zrkadlo_cmd_metalink_hashes_prefix(cmd_parms *cmd, 
-                                void *config, const char *arg1)
+static const char *mb_cmd_metalink_hashes_prefix(cmd_parms *cmd, 
+                                                 void *config, 
+                                                 const char *arg1)
 {
     server_rec *s = cmd->server;
-    zrkadlo_server_conf *cfg = 
-        ap_get_module_config(s->module_config, &zrkadlo_module);
+    mb_server_conf *cfg = 
+        ap_get_module_config(s->module_config, &mirrorbrain_module);
 
     cfg->metalink_hashes_prefix = arg1;
     return NULL;
 }
 
-static const char *zrkadlo_cmd_metalink_publisher(cmd_parms *cmd, 
-                                void *config, const char *arg1, 
-                                const char *arg2)
+static const char *mb_cmd_metalink_publisher(cmd_parms *cmd, void *config, 
+                                             const char *arg1, 
+                                             const char *arg2)
 {
     server_rec *s = cmd->server;
-    zrkadlo_server_conf *cfg = 
-        ap_get_module_config(s->module_config, &zrkadlo_module);
+    mb_server_conf *cfg = 
+        ap_get_module_config(s->module_config, &mirrorbrain_module);
 
     cfg->metalink_publisher_name = arg1;
     cfg->metalink_publisher_url = arg2;
     return NULL;
 }
 
-static const char *zrkadlo_cmd_mirrorlist_stylesheet(cmd_parms *cmd, 
-                                void *config, const char *arg1)
+static const char *mb_cmd_mirrorlist_stylesheet(cmd_parms *cmd, void *config, 
+                                                const char *arg1)
 {
     server_rec *s = cmd->server;
-    zrkadlo_server_conf *cfg = 
-        ap_get_module_config(s->module_config, &zrkadlo_module);
+    mb_server_conf *cfg = 
+        ap_get_module_config(s->module_config, &mirrorbrain_module);
 
     cfg->mirrorlist_stylesheet = arg1;
     return NULL;
 }
 
-static const char *zrkadlo_cmd_metalink_torrentadd_mask(cmd_parms *cmd, void *config, const char *arg)
+static const char *mb_cmd_metalink_torrentadd_mask(cmd_parms *cmd, void *config, 
+                                                   const char *arg)
 {
-    zrkadlo_dir_conf *cfg = (zrkadlo_dir_conf *) config;
+    mb_dir_conf *cfg = (mb_dir_conf *) config;
     cfg->metalink_torrentadd_mask = ap_pregcomp(cmd->pool, arg, AP_REG_EXTENDED);
     if (cfg->metalink_torrentadd_mask == NULL) {
-        return "ZrkadloMetalinkTorrentAddMask regex could not be compiled";
+        return "MirrorBrainMetalinkTorrentAddMask regex could not be compiled";
     }
     return NULL;
 }
 
-static const char *zrkadlo_cmd_memcached_on(cmd_parms *cmd, void *config,
-                                int flag)
+static const char *mb_cmd_memcached_on(cmd_parms *cmd, void *config,
+                                       int flag)
 {
     server_rec *s = cmd->server;
-    zrkadlo_server_conf *cfg = 
-        ap_get_module_config(s->module_config, &zrkadlo_module);
+    mb_server_conf *cfg = 
+        ap_get_module_config(s->module_config, &mirrorbrain_module);
 
     cfg->memcached_on = flag;
     return NULL;
 }
 
-static const char *zrkadlo_cmd_memcached_lifetime(cmd_parms *cmd, void *config,
-                                const char *arg1)
+static const char *mb_cmd_memcached_lifetime(cmd_parms *cmd, void *config,
+                                             const char *arg1)
 {
     server_rec *s = cmd->server;
-    zrkadlo_server_conf *cfg = 
-        ap_get_module_config(s->module_config, &zrkadlo_module);
+    mb_server_conf *cfg = 
+        ap_get_module_config(s->module_config, &mirrorbrain_module);
 
     cfg->memcached_lifetime = atoi(arg1);
     if (cfg->memcached_lifetime <= 0)
-        return "ZrkadloMemcachedLifeTime requires an integer > 0.";
+        return "MirrorBrainMemcachedLifeTime requires an integer > 0.";
     return NULL;
 }
 
@@ -558,10 +561,10 @@ static int cmp_mirror_rank(const void *v1, const void *v2)
     return m1->rank - m2->rank;
 }
 
-static int zrkadlo_handler(request_rec *r)
+static int mb_handler(request_rec *r)
 {
-    zrkadlo_dir_conf *cfg = NULL;
-    zrkadlo_server_conf *scfg = NULL;
+    mb_dir_conf *cfg = NULL;
+    mb_server_conf *scfg = NULL;
     char *uri = NULL;
     char *filename = NULL;
     const char *user_agent = NULL;
@@ -601,16 +604,16 @@ static int zrkadlo_handler(request_rec *r)
     apr_memcache_t *memctxt;                    /* memcache context provided by mod_memcache */
     const char* (*form_lookup)(request_rec*, const char*);
 
-    cfg = (zrkadlo_dir_conf *)     ap_get_module_config(r->per_dir_config, 
-                                                        &zrkadlo_module);
-    scfg = (zrkadlo_server_conf *) ap_get_module_config(r->server->module_config, 
-                                                        &zrkadlo_module);
+    cfg = (mb_dir_conf *)     ap_get_module_config(r->per_dir_config, 
+                                                   &mirrorbrain_module);
+    scfg = (mb_server_conf *) ap_get_module_config(r->server->module_config, 
+                                                   &mirrorbrain_module);
 
-    /* is ZrkadloEngine disabled for this directory? */
+    /* is MirrorBrainEngine disabled for this directory? */
     if (cfg->engine_on != 1) {
         return DECLINED;
     }
-    debugLog(r, cfg, "ZrkadloEngine On, instance '%s', mirror_base '%s'", 
+    debugLog(r, cfg, "MirrorBrainEngine On, instance '%s', mirror_base '%s'", 
             scfg->instance, cfg->mirror_base);
 
     /* is it a HEAD request? */
@@ -635,7 +638,7 @@ static int zrkadlo_handler(request_rec *r)
      * as DirectoryIndex ? */
     if (cfg->handle_dirindex_locally && ap_strcasestr(r->uri, "index.html")) {
         debugLog(r, cfg, "serving index.html locally "
-                "(ZrkadloHandleDirectoryIndexLocally)");
+                "(MirrorBrainHandleDirectoryIndexLocally)");
         return DECLINED;
     }
 
@@ -762,7 +765,7 @@ static int zrkadlo_handler(request_rec *r)
        && !metalink_forced
        && cfg->exclude_filemask 
        && !ap_regexec(cfg->exclude_filemask, r->uri, 0, NULL, 0) ) {
-        debugLog(r, cfg, "File '%s' is excluded by ZrkadloExcludeFileMask", r->uri);
+        debugLog(r, cfg, "File '%s' is excluded by MirrorBrainExcludeFileMask", r->uri);
         return DECLINED;
     }
 
@@ -861,7 +864,7 @@ static int zrkadlo_handler(request_rec *r)
 
     if (scfg->query == NULL) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-                "[mod_zrkadlo] No ZrkadloDBDQuery configured!");
+                "[mod_mirrorbrain] No MirrorBrainDBDQuery configured!");
         return DECLINED;
     }
 
@@ -880,11 +883,11 @@ static int zrkadlo_handler(request_rec *r)
     continent_code = apr_table_get(r->subprocess_env, "GEOIP_CONTINENT_CODE");
 
     if (!country_code) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] could not resolve country");
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] could not resolve country");
         country_code = "--";
     }
     if (!continent_code) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] could not resolve continent");
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] could not resolve continent");
         continent_code = "--";
     }
 #endif
@@ -897,30 +900,30 @@ static int zrkadlo_handler(request_rec *r)
             continent_code);
 
     /* save details for logging via a CustomLog */
-    apr_table_setn(r->subprocess_env, "ZRKADLO_FILESIZE", 
+    apr_table_setn(r->subprocess_env, "MIRRORBRAIN_FILESIZE", 
             apr_off_t_toa(r->pool, r->finfo.size));
-    apr_table_set(r->subprocess_env, "ZRKADLO_COUNTRY_CODE", country_code);
-    apr_table_set(r->subprocess_env, "ZRKADLO_CONTINENT_CODE", continent_code);
+    apr_table_set(r->subprocess_env, "MIRRORBRAIN_COUNTRY_CODE", country_code);
+    apr_table_set(r->subprocess_env, "MIRRORBRAIN_CONTINENT_CODE", continent_code);
 
 
     /* ask the database and pick the matching server according to region */
 
     if (scfg->query_prep == NULL) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] No database query prepared!");
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] No database query prepared!");
         return DECLINED;
     }
 
-    ap_dbd_t *dbd = zrkadlo_dbd_acquire_fn(r);
+    ap_dbd_t *dbd = mb_dbd_acquire_fn(r);
     if (dbd == NULL) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-                "[mod_zrkadlo] Error acquiring database connection");
+                "[mod_mirrorbrain] Error acquiring database connection");
         return DECLINED; /* fail gracefully */
     }
     debugLog(r, cfg, "Successfully acquired database connection.");
 
     statement = apr_hash_get(dbd->prepared, scfg->query_prep, APR_HASH_KEY_STRING);
     if (statement == NULL) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] Could not get prepared statement!");
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] Could not get prepared statement!");
         return DECLINED;
     }
 
@@ -931,7 +934,7 @@ static int zrkadlo_handler(request_rec *r)
     char *ptr = canonicalize_file_name(r->filename);
     if (ptr == NULL) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-                "[mod_zrkadlo] Error canonicalizing filename '%s'", r->filename);
+                "[mod_mirrorbrain] Error canonicalizing filename '%s'", r->filename);
         return HTTP_INTERNAL_SERVER_ERROR;
     }
     /* XXX we should forbid symlinks in mirror_base */
@@ -946,7 +949,7 @@ static int zrkadlo_handler(request_rec *r)
                       apr_dbd_get_row() will only return -1 after that. */
                 filename, NULL) != 0) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-                "[mod_zrkadlo] Error looking up %s in database", filename);
+                "[mod_mirrorbrain] Error looking up %s in database", filename);
         return DECLINED;
     }
 
@@ -957,9 +960,9 @@ static int zrkadlo_handler(request_rec *r)
     }
     else {
         ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, 
-                "[mod_zrkadlo] no mirrors found for %s", filename);
+                "[mod_mirrorbrain] no mirrors found for %s", filename);
         /* can be used for a CustomLog */
-        apr_table_setn(r->subprocess_env, "ZRKADLO_NOMIRROR", "1");
+        apr_table_setn(r->subprocess_env, "MIRRORBRAIN_NOMIRROR", "1");
 
         if (mirrorlist) {
             debugLog(r, cfg, "empty mirrorlist");
@@ -1005,7 +1008,7 @@ static int zrkadlo_handler(request_rec *r)
      * void **new_same = (void **)apr_array_push(mirrors_same_country);
      * *new_same = new;
      *
-     * ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, "[mod_zrkadlo] new_same->identifier: %s",
+     * ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, "[mod_mirrorbrain] new_same->identifier: %s",
      *        ((mirror_entry_t *)*new_same)->identifier);
      *
      * 2) one line version
@@ -1022,7 +1025,7 @@ static int zrkadlo_handler(request_rec *r)
         rv = apr_dbd_get_row(dbd->driver, r->pool, res, &row, i);
         if (rv != 0) {
             ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r,
-                      "[mod_zrkadlo] Error looking up %s in database", filename);
+                      "[mod_mirrorbrain] Error looking up %s in database", filename);
             return DECLINED;
         }
 
@@ -1040,41 +1043,41 @@ static int zrkadlo_handler(request_rec *r)
 
         /* id */
         if ((val = apr_dbd_get_entry(dbd->driver, row, 0)) == NULL) 
-            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] apr_dbd_get_entry found NULL for id");
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] apr_dbd_get_entry found NULL for id");
         else
             new->id = atoi(val);
 
         /* identifier */
         if ((val = apr_dbd_get_entry(dbd->driver, row, 1)) == NULL)
-            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] apr_dbd_get_entry found NULL for identifier");
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] apr_dbd_get_entry found NULL for identifier");
         else 
             new->identifier = apr_pstrdup(r->pool, val);
 
         /* country_code */
         if ((val = apr_dbd_get_entry(dbd->driver, row, 2)) == NULL)
-            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] apr_dbd_get_entry found NULL for country_code");
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] apr_dbd_get_entry found NULL for country_code");
         else
             new->country_code = apr_pstrndup(r->pool, val, 2); /* fixed length, two bytes */
 
         /* region */
         if ((val = apr_dbd_get_entry(dbd->driver, row, 3)) == NULL)
-            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] apr_dbd_get_entry found NULL for region");
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] apr_dbd_get_entry found NULL for region");
         else
             new->region = apr_pstrdup(r->pool, val);
 
         /* score */
         if ((val = apr_dbd_get_entry(dbd->driver, row, 4)) == NULL) {
-            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] apr_dbd_get_entry found NULL for score");
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] apr_dbd_get_entry found NULL for score");
             unusable = 1;
         } else
             new->score = atoi(val);
 
         /* baseurl */
         if ((val = apr_dbd_get_entry(dbd->driver, row, 5)) == NULL) {
-            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] apr_dbd_get_entry found NULL for baseurl");
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] apr_dbd_get_entry found NULL for baseurl");
             unusable = 1;
         } else if (!val[0]) {
-            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] mirror '%s' (#%d) has empty baseurl", 
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] mirror '%s' (#%d) has empty baseurl", 
                           new->identifier, new->id);
             unusable = 1;
         } else {
@@ -1086,25 +1089,25 @@ static int zrkadlo_handler(request_rec *r)
 
         /* country_only */
         if ((val = apr_dbd_get_entry(dbd->driver, row, 6)) == NULL) {
-            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] apr_dbd_get_entry found NULL for country_only");
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] apr_dbd_get_entry found NULL for country_only");
         } else
             new->country_only = (short)atoi(val);
 
         /* region_only */
         if ((val = apr_dbd_get_entry(dbd->driver, row, 7)) == NULL) {
-            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] apr_dbd_get_entry found NULL for region_only");
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] apr_dbd_get_entry found NULL for region_only");
         } else
             new->region_only = (short)atoi(val);
 
         /* other_countries */
         if ((val = apr_dbd_get_entry(dbd->driver, row, 8)) == NULL)
-            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] apr_dbd_get_entry found NULL for other_countries");
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] apr_dbd_get_entry found NULL for other_countries");
         else
             new->other_countries = apr_pstrdup(r->pool, val);
 
         /* file_maxsize */
         if ((val = apr_dbd_get_entry(dbd->driver, row, 9)) == NULL) {
-            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_zrkadlo] apr_dbd_get_entry found NULL for file_maxsize");
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] apr_dbd_get_entry found NULL for file_maxsize");
             unusable = 1;
         } else
             new->file_maxsize = atoi(val);
@@ -1374,7 +1377,7 @@ static int zrkadlo_handler(request_rec *r)
          * We use r->uri, not r->unparsed_uri, so we don't need to escape query strings for xml.
          */
         ap_rprintf(r, "  origin=\"http://%s%s.metalink\"\n", r->hostname, r->uri);
-        ap_rputs(     "  generator=\"mod_zrkadlo Download Redirector - http://mirrorbrain.org/\"\n", r);
+        ap_rputs(     "  generator=\"mod_mirrorbrain Download Redirector - http://mirrorbrain.org/\"\n", r);
         ap_rputs(     "  type=\"dynamic\"", r);
         ap_rprintf(r, "  pubdate=\"%s\"", time_str);
         ap_rprintf(r, "  refreshdate=\"%s\">\n\n", time_str);
@@ -1582,7 +1585,7 @@ static int zrkadlo_handler(request_rec *r)
 
     if (!chosen) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-            "[mod_zrkadlo] could not chose a server. Shouldn't have happened.");
+            "[mod_mirrorbrain] could not chose a server. Shouldn't have happened.");
         return DECLINED;
     }
 
@@ -1593,9 +1596,9 @@ static int zrkadlo_handler(request_rec *r)
     debugLog(r, cfg, "Redirect to '%s'", uri);
 
     /* for _conditional_ logging, leave some mark */
-    apr_table_setn(r->subprocess_env, "ZRKADLO_REDIRECTED", "1");
+    apr_table_setn(r->subprocess_env, "MIRRORBRAIN_REDIRECTED", "1");
 
-    apr_table_setn(r->err_headers_out, "X-Zrkadlo-Chose-Mirror", chosen->identifier);
+    apr_table_setn(r->err_headers_out, "X-MirrorBrain-Chose-Mirror", chosen->identifier);
     apr_table_setn(r->headers_out, "Location", uri);
 
     if (scfg->memcached_on) {
@@ -1607,7 +1610,7 @@ static int zrkadlo_handler(request_rec *r)
         rv = apr_memcache_set(memctxt, m_key, m_val, strlen(m_val), scfg->memcached_lifetime, 0);
         if (rv != APR_SUCCESS)
             ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r,
-                         "[mod_zrkadlo] memcache error setting key '%s' "
+                         "[mod_mirrorbrain] memcache error setting key '%s' "
                          "with %d bytes of data", 
                          m_key, (int) strlen(m_val));
     }
@@ -1615,13 +1618,13 @@ static int zrkadlo_handler(request_rec *r)
     return HTTP_MOVED_TEMPORARILY;
 }
 
-static int zrkadlo_status_hook(request_rec *r, int flags)
+static int mb_status_hook(request_rec *r, int flags)
 {
     apr_uint16_t i;
     apr_status_t rv;
     apr_memcache_t *memctxt;                    /* memcache context provided by mod_memcache */
     apr_memcache_stats_t *stats;
-    zrkadlo_server_conf *sc = ap_get_module_config(r->server->module_config, &zrkadlo_module);
+    mb_server_conf *sc = ap_get_module_config(r->server->module_config, &mirrorbrain_module);
 
     if (sc == NULL || flags & AP_STATUS_SHORT)
         return OK;
@@ -1667,102 +1670,102 @@ static int zrkadlo_status_hook(request_rec *r, int flags)
     return OK;
 }
 
-void zrkadlo_status_register(apr_pool_t *p)
+void mb_status_register(apr_pool_t *p)
 {
-    APR_OPTIONAL_HOOK(ap, status_hook, zrkadlo_status_hook, NULL, NULL, APR_HOOK_MIDDLE);
+    APR_OPTIONAL_HOOK(ap, status_hook, mb_status_hook, NULL, NULL, APR_HOOK_MIDDLE);
 }
 
-static int zrkadlo_pre_config(apr_pool_t *pconf,
+static int mb_pre_config(apr_pool_t *pconf,
                               apr_pool_t *plog,
                               apr_pool_t *ptemp)
 {
     /* Register to handle mod_status status page generation */
-    zrkadlo_status_register(pconf);
+    mb_status_register(pconf);
 
     return OK;
 }
 
 
 
-static const command_rec zrkadlo_cmds[] =
+static const command_rec mb_cmds[] =
 {
     /* to be used only in Directory et al. */
-    AP_INIT_FLAG("ZrkadloEngine", zrkadlo_cmd_engine, NULL, 
+    AP_INIT_FLAG("MirrorBrainEngine", mb_cmd_engine, NULL, 
                  ACCESS_CONF,
                  "Set to On or Off to enable or disable redirecting"),
-    AP_INIT_FLAG("ZrkadloDebug", zrkadlo_cmd_debug, NULL, 
+    AP_INIT_FLAG("MirrorBrainDebug", mb_cmd_debug, NULL, 
                  ACCESS_CONF,
                  "Set to On or Off to enable or disable debug logging to error log"),
 
     /* to be used everywhere */
-    AP_INIT_TAKE1("ZrkadloMinSize", zrkadlo_cmd_minsize, NULL, 
+    AP_INIT_TAKE1("MirrorBrainMinSize", mb_cmd_minsize, NULL, 
                   OR_OPTIONS,
                   "Minimum size, in bytes, that a file must be to be mirrored"),
-    AP_INIT_TAKE1("ZrkadloExcludeMimeType", zrkadlo_cmd_excludemime, 0, 
+    AP_INIT_TAKE1("MirrorBrainExcludeMimeType", mb_cmd_excludemime, 0, 
                   OR_OPTIONS,
                   "Mimetype to always exclude from redirecting (wildcards allowed)"),
-    AP_INIT_TAKE1("ZrkadloExcludeUserAgent", zrkadlo_cmd_excludeagent, 0, 
+    AP_INIT_TAKE1("MirrorBrainExcludeUserAgent", mb_cmd_excludeagent, 0, 
                   OR_OPTIONS,
                   "User-Agent to always exclude from redirecting (wildcards allowed)"),
-    AP_INIT_TAKE1("ZrkadloExcludeNetwork", zrkadlo_cmd_excludenetwork, 0, 
+    AP_INIT_TAKE1("MirrorBrainExcludeNetwork", mb_cmd_excludenetwork, 0, 
                   OR_OPTIONS,
                   "Network to always exclude from redirecting (simple string prefix)"),
-    AP_INIT_TAKE1("ZrkadloExcludeIP", zrkadlo_cmd_excludeip, 0,
+    AP_INIT_TAKE1("MirrorBrainExcludeIP", mb_cmd_excludeip, 0,
                   OR_OPTIONS,
                   "IP address to always exclude from redirecting"),
-    AP_INIT_TAKE1("ZrkadloExcludeFileMask", zrkadlo_cmd_exclude_filemask, NULL,
+    AP_INIT_TAKE1("MirrorBrainExcludeFileMask", mb_cmd_exclude_filemask, NULL,
                   ACCESS_CONF,
                   "Regexp which determines which files will be excluded form redirecting"),
 
-    AP_INIT_FLAG("ZrkadloHandleDirectoryIndexLocally", zrkadlo_cmd_handle_dirindex_locally, NULL, 
+    AP_INIT_FLAG("MirrorBrainHandleDirectoryIndexLocally", mb_cmd_handle_dirindex_locally, NULL, 
                   OR_OPTIONS,
                   "Set to On/Off to handle directory listings locally (don't redirect)"),
-    AP_INIT_FLAG("ZrkadloHandleHEADRequestLocally", zrkadlo_cmd_handle_headrequest_locally, NULL, 
+    AP_INIT_FLAG("MirrorBrainHandleHEADRequestLocally", mb_cmd_handle_headrequest_locally, NULL, 
                   OR_OPTIONS,
                   "Set to On/Off to handle HEAD requests locally (don't redirect)"),
 
-    AP_INIT_TAKE1("ZrkadloMetalinkTorrentAddMask", zrkadlo_cmd_metalink_torrentadd_mask, NULL, 
+    AP_INIT_TAKE1("MirrorBrainMetalinkTorrentAddMask", mb_cmd_metalink_torrentadd_mask, NULL, 
                   ACCESS_CONF,
                   "Regexp which determines for which files to look for correspondant "
                   ".torrent files, and add them into generated metalinks"),
 
     /* to be used only in server context */
-    AP_INIT_TAKE1("ZrkadloInstance", zrkadlo_cmd_instance, NULL, 
+    AP_INIT_TAKE1("MirrorBrainInstance", mb_cmd_instance, NULL, 
                   RSRC_CONF, 
-                  "Name of the Zrkadlo instance"),
+                  "Name of the MirrorBrain instance"),
 
-    AP_INIT_TAKE1("ZrkadloDBDQuery", zrkadlo_cmd_dbdquery, NULL,
+    AP_INIT_TAKE1("MirrorBrainDBDQuery", mb_cmd_dbdquery, NULL,
                   RSRC_CONF,
                   "the SQL query string to fetch the mirrors from the backend database"),
 
 #ifndef MOD_GEOIP
-    AP_INIT_TAKE1("ZrkadloGeoIPFile", zrkadlo_cmd_geoip_filename, NULL, 
+    AP_INIT_TAKE1("MirrorBrainGeoIPFile", mb_cmd_geoip_filename, NULL, 
                   RSRC_CONF, 
                   "Path to GeoIP Data File"),
 #else
-    AP_INIT_TAKE1("ZrkadloGeoIPFile", zrkadlo_cmd_geoip_filename, NULL, 
+    AP_INIT_TAKE1("MirrorBrainGeoIPFile", mb_cmd_geoip_filename, NULL, 
                   RSRC_CONF, 
                   "Obsolete directive - use mod_geoip, please."),
 #endif
 
-    AP_INIT_FLAG("ZrkadloMemcached", zrkadlo_cmd_memcached_on, NULL,
+    AP_INIT_FLAG("MirrorBrainMemcached", mb_cmd_memcached_on, NULL,
                   RSRC_CONF, 
                   "Set to On/Off to use memcached to give clients repeatedly the same mirror"),
 
-    AP_INIT_TAKE1("ZrkadloMemcachedLifeTime", zrkadlo_cmd_memcached_lifetime, NULL,
+    AP_INIT_TAKE1("MirrorBrainMemcachedLifeTime", mb_cmd_memcached_lifetime, NULL,
                   RSRC_CONF, 
                   "Lifetime (in seconds) associated with stored objects in "
                   "memcache daemon(s). Default is 600 s."),
 
-    AP_INIT_TAKE1("ZrkadloMetalinkHashesPathPrefix", zrkadlo_cmd_metalink_hashes_prefix, NULL, 
+    AP_INIT_TAKE1("MirrorBrainMetalinkHashesPathPrefix", mb_cmd_metalink_hashes_prefix, NULL, 
                   RSRC_CONF, 
                   "Prefix this path when looking for prepared hashes to inject into metalinks"),
 
-    AP_INIT_TAKE2("ZrkadloMetalinkPublisher", zrkadlo_cmd_metalink_publisher, NULL, 
+    AP_INIT_TAKE2("MirrorBrainMetalinkPublisher", mb_cmd_metalink_publisher, NULL, 
                   RSRC_CONF, 
                   "Name and URL for the metalinks publisher elements"),
 
-    AP_INIT_TAKE1("ZrkadloMirrorlistStyleSheet", zrkadlo_cmd_mirrorlist_stylesheet, NULL, 
+    AP_INIT_TAKE1("MirrorBrainMirrorlistStyleSheet", mb_cmd_mirrorlist_stylesheet, NULL, 
                   RSRC_CONF, 
                   "Sets a CSS stylesheet to add to mirror lists"),
 
@@ -1770,23 +1773,23 @@ static const command_rec zrkadlo_cmds[] =
 };
 
 /* Tell Apache what phases of the transaction we handle */
-static void zrkadlo_register_hooks(apr_pool_t *p)
+static void mb_register_hooks(apr_pool_t *p)
 {
-    ap_hook_pre_config    (zrkadlo_pre_config,  NULL, NULL, APR_HOOK_MIDDLE);
-    ap_hook_post_config   (zrkadlo_post_config, NULL, NULL, APR_HOOK_MIDDLE);
-    ap_hook_handler       (zrkadlo_handler,     NULL, NULL, APR_HOOK_LAST);
-    ap_hook_child_init    (zrkadlo_child_init,  NULL, NULL, APR_HOOK_MIDDLE );
+    ap_hook_pre_config    (mb_pre_config,  NULL, NULL, APR_HOOK_MIDDLE);
+    ap_hook_post_config   (mb_post_config, NULL, NULL, APR_HOOK_MIDDLE);
+    ap_hook_handler       (mb_handler,     NULL, NULL, APR_HOOK_LAST);
+    ap_hook_child_init    (mb_child_init,  NULL, NULL, APR_HOOK_MIDDLE );
 }
 
-module AP_MODULE_DECLARE_DATA zrkadlo_module =
+module AP_MODULE_DECLARE_DATA mirrorbrain_module =
 {
     STANDARD20_MODULE_STUFF,
-    create_zrkadlo_dir_config,    /* create per-directory config structures */
-    merge_zrkadlo_dir_config,     /* merge per-directory config structures  */
-    create_zrkadlo_server_config, /* create per-server config structures    */
-    merge_zrkadlo_server_config,  /* merge per-server config structures     */
-    zrkadlo_cmds,                 /* command handlers */
-    zrkadlo_register_hooks        /* register hooks */
+    create_mb_dir_config,    /* create per-directory config structures */
+    merge_mb_dir_config,     /* merge per-directory config structures  */
+    create_mb_server_config, /* create per-server config structures    */
+    merge_mb_server_config,  /* merge per-server config structures     */
+    mb_cmds,                 /* command handlers */
+    mb_register_hooks        /* register hooks */
 };
 
 
