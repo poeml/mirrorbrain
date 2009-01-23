@@ -11,23 +11,12 @@ RPM packages are here:
 http://download.opensuse.org/repositories/Apache:/Modules/
 http://club.mandriva.com/xwiki/bin/view/rpms/Application/apache-mod_zrkadlo
 
-It requires mod_memcache, and mod_form.
-It can be built with
+It can be built simply with
 apxs2 -c -Wc,"-Wall -g" mod_mirrorbrain.c
-
-If you use an apr-util version prior to 1.3, the memcache client support isn't included. Then you'll
-need to get and build libapr_memcache, and then you'll probably build mod_mirrorbrain like this:
-apxs2 -c -I/usr/include/apr_memcache-0 -lapr_memcache '-Wc,-Wall -g -D_GNU_SOURCE' mod_mirrorbrain.c
-
 
 
 
 After installation of mod_mirrorbrain, you'll need to:
-
-- install memcached
-- make sure it listens on localhost only (/etc/sysconfig/memcached)
-- start it ("/etc/init.d/memcached start")
-- configure it to start at boot ("chkconfig -a memcached")
 
 
 - install GeoIP library, commandline tools, and geoip apache module
@@ -48,10 +37,6 @@ After installation of mod_mirrorbrain, you'll need to:
   (openSUSE package apache2-webthings-collection)
 
 
-- install mod_memcache
-  http://code.google.com/p/modmemcache/
-  (openSUSE package apache2-mod_memcache)
-
 
 - install a database adapter for the DBD library, for example MySQL
   (openSUSE package: libapr-util1-dbd-mysql)
@@ -67,6 +52,13 @@ After installation of mod_mirrorbrain, you'll need to:
   run the sql file which creates the tables and indices:
     mysql -u wwwrun -p -D redirector < /usr/share/doc/packages/apache2-mod_zrkadlo/sql/opensuse-redirector.sql
 
+- the mysql InnoDB engine needs to be configured to use enough memory for the
+  database. This is probably the most important thing to know and the most
+  frequent deployment error, to not tune this. Use the innodb_buffer_pool_size
+  value to match it to the size of your database. The default value is tiny.
+  Although, when your database is tiny, too, it won't matter much. But for
+  larger databases, the value needs to be increased, possibly considerably.
+  
 
 - create /etc/mirrorbrain.conf with the following content:
 
@@ -89,7 +81,6 @@ After installation of mod_mirrorbrain, you'll need to:
   
 - load the Apache modules:
    a2enmod form
-   a2enmod memcache
    a2enmod dbd
    a2enmod mirrorbrain
 
@@ -122,13 +113,6 @@ Config example::
         </IfModule>
     </IfModule>
     
-    <IfModule mod_memcache.c>
-        MemcacheServer 127.0.0.1:11211 min=0 smax=4 max=16 ttl=600
-    </IfModule>
-    <IfModule mod_mirrorbrain.c>
-        MirrorBrainMemcached On
-        MirrorBrainMemcachedLifetime 1800
-    </IfModule>
     ------------------------------------------------------------------------
 
   - create a vhost for it (e.g. /etc/apache2/vhosts.d/go-oo.zrkadlo.org.conf)
@@ -220,4 +204,37 @@ TODO:
     su - mirror -s /bin/bash -c "/usr/bin/scanner.mine -f ftp.isr.ist.utl.pt"
     -*/3 * * * *     root  /usr/bin/mirrorprobe &>/dev/null
 
-- describe mysql tuning for innodb engine for performance
+
+
+
+Memcache support
+================
+
+Memcache support is optional. You should not need it normally, so it is
+suggested that you just ignore this. When compiling with memcache support,
+-DWITH_MEMCACHE needs to be among the compile flags.
+apxs2 -c -Wc,"-DWITH_MEMCACHE -Wall -g" mod_mirrorbrain.c
+If you use an apr-util version prior to 1.3, the memcache client support isn't included. Then you'll
+need to get and build libapr_memcache, and then you'll probably build mod_mirrorbrain like this:
+apxs2 -c -I/usr/include/apr_memcache-0 -lapr_memcache '-Wc,-Wall -DWITH_MEMCACHE -g -D_GNU_SOURCE' mod_mirrorbrain.c
+
+Further steps required for memcache support would be:
+- install memcached
+- make sure it listens on localhost only (/etc/sysconfig/memcached)
+- start it ("/etc/init.d/memcached start")
+- configure it to start at boot ("chkconfig -a memcached")
+- install mod_memcache
+  http://code.google.com/p/modmemcache/
+  (openSUSE package apache2-mod_memcache)
+  a2enmod memcache
+
+Configuration example:
+    <IfModule mod_memcache.c>
+        MemcacheServer 127.0.0.1:11211 min=0 smax=4 max=16 ttl=600
+    </IfModule>
+    <IfModule mod_mirrorbrain.c>
+        MirrorBrainMemcached On
+        MirrorBrainMemcachedLifetime 1800
+    </IfModule>
+
+
