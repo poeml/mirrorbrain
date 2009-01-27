@@ -39,10 +39,6 @@ Further ideas:
 * collect statistics on number and volume (cumulated file sizes) of redirects
   for mod_status, show per mirror identifier since last restart
 
-* implement a "give me a xml formatted list of 3 mirrors which fit for me" 
-  * ("and have the following files: ...")
-
-
 * check whether usage of explicit ap_dbd_open/ap_dbd_close, instead of the
   ap_dbd_acquire wrapping function, results in better utilization of the database
   connection pool
