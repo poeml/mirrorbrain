@@ -3,6 +3,13 @@ more important bugs at the top...
 
 * no important bug known at this time :-)
 
+* since "override countries" (overridden via query paramter)  are not resolved into region,
+  a wrong region is given in generated mirror lists:
+
+     http://download.opensuse.org/distribution/11.1/repo/oss/suse/noarch/rubygem-rails-2.1.1-1.14.noarch.rpm?mirrorlist&country=ZA
+     Found 2 mirrors which handle this country (ZA): <- ok
+     Found 61 mirrors in other countries, but same continent (EU): <- wrong
+
 * mirrorlist give inaccurate readings for "number of mirrors", if some mirrors
   where not considered, because they are configured country-only or region-only 
   (same_region=1 or same_country=1)
