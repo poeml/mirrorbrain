@@ -3,7 +3,8 @@
 ################################################################################
 # scanner.pl -- daemon for working through opensuse directories.
 #
-# Copyright (C) 2006-2007 Martin Polster, Juergen Weigert, Novell Inc.
+# Copyright (C) 2006-2009 Martin Polster, Juergen Weigert, 
+#                         Peter Poeml, Novell Inc.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License version 2
@@ -60,6 +61,8 @@
 # 2008-08-21, poeml - V0.10, be able to run on different mirrorbrain instances
 #                     (-b option)
 # 2008-11-22, poeml - V0.20, make usage of md5 hashes optional
+# 2009-02-02, poeml - V0.21, remove code dealing with md5 hashes, now 
+#                            considered obsolete.
 #
 # FIXME: 
 # should do optimize table file, file_server;
@@ -85,13 +88,12 @@ use LWP::UserAgent;
 use Net::FTP;
 use Net::Domain;
 use Data::Dumper;
-use Digest::MD5;
 use Time::HiRes;
 use Socket;
 use bytes;
 use Config::IniFiles;
 
-my $version = '0.20';
+my $version = '0.21';
 my $scanner_email = 'poeml@suse.de';
 my $verbose = 1;
 
@@ -117,7 +119,6 @@ my $ua = LWP::UserAgent->new;
 $ua->agent("MirrorBrain Scanner/$version (See http://mirrorbrain.org/scanner_info)");
 
 my $rsync_muxbuf = '';
-my $use_md5 = 0;
 my $all_servers = 0;
 my $start_dir = '/';
 my $parallel = 1;
@@ -728,7 +729,6 @@ sub save_file
   my ($path, $serverid, $file_tstamp, $mod_re, $ign_re) = @_;
 
   my $fileid;
-  my $md5;
 
   #
   # optional patch the file names by adding or removing components.
@@ -745,57 +745,29 @@ sub save_file
   }
 
   $path =~ s{^/+}{};  # be sure we have no leading slashes.
-  $path =~ s{//+}{/}g;  # double slashes easily fool md5sums. Avoid them.
+  $path =~ s{//+}{/}g;  # avoid double slashes.
 
 
-  if ($use_md5) {
-    ($fileid, $md5) = getfileid($path);
-    die "save_file: md5 undef" unless defined $md5;
+  $fileid = getfileid($path);
+
+
+  if(checkfileserver_fileid($serverid, $fileid)) {
+    my $sql = "UPDATE file_server SET 
+      timestamp_file = FROM_UNIXTIME(?),
+      timestamp_scanner = CURRENT_TIMESTAMP()
+      WHERE fileid = ? AND serverid = ?;";
+
+    my $sth = $dbh->prepare( $sql );
+    $sth->execute( $file_tstamp, $fileid, $serverid ) or die $sth->errstr;
   }
   else {
-    $fileid = getfileid($path);
-  }
-
-
-  if ($use_md5) {
-    if (checkfileserver_md5($serverid, $md5)) {
-      my $sql = "UPDATE file_server SET 
-	timestamp_file = FROM_UNIXTIME(?),
-	timestamp_scanner = CURRENT_TIMESTAMP()
-	WHERE path_md5 = ? AND serverid = ?;";
-
-      my $sth = $dbh->prepare( $sql );
-      $sth->execute( $file_tstamp, $md5, $serverid ) or die $sth->errstr;
-    }
-    else {
-      my $sql = "INSERT INTO file_server SET path_md5 = ?,
-	 fileid = ?, serverid = ?,
-	 timestamp_file = FROM_UNIXTIME(?),
-	 timestamp_scanner = CURRENT_TIMESTAMP();";
-      #convert timestamp to mysql timestamp
-      my $sth = $dbh->prepare( $sql );
-      $sth->execute( $md5, $fileid, $serverid, $file_tstamp ) or die $sth->errstr;
-    }
-  }
-  else {
-    if(checkfileserver_fileid($serverid, $fileid)) {
-      my $sql = "UPDATE file_server SET 
-	timestamp_file = FROM_UNIXTIME(?),
-	timestamp_scanner = CURRENT_TIMESTAMP()
-	WHERE fileid = ? AND serverid = ?;";
-
-      my $sth = $dbh->prepare( $sql );
-      $sth->execute( $file_tstamp, $fileid, $serverid ) or die $sth->errstr;
-    }
-    else {
-      my $sql = "INSERT INTO file_server SET fileid = ?,
-	serverid = ?,
-	timestamp_file = FROM_UNIXTIME(?), 
-	timestamp_scanner = CURRENT_TIMESTAMP();";
-      #convert timestamp to mysql timestamp
-      my $sth = $dbh->prepare( $sql );
-      $sth->execute( $fileid, $serverid, $file_tstamp ) or die $sth->errstr;
-    }
+    my $sql = "INSERT INTO file_server SET fileid = ?,
+      serverid = ?,
+      timestamp_file = FROM_UNIXTIME(?), 
+      timestamp_scanner = CURRENT_TIMESTAMP();";
+    #convert timestamp to mysql timestamp
+    my $sth = $dbh->prepare( $sql );
+    $sth->execute( $fileid, $serverid, $file_tstamp ) or die $sth->errstr;
   }
   return $path;
 }
@@ -830,13 +802,8 @@ sub cont
 }
 
 
-# getfileid returns the id as inserted in table file and the md5sum.
+# getfileid returns the id as inserted in table file.
 #
-# using md5 hashes, we still populate table file, 
-# so that we can ask the database to enumerate the files 
-# we have seen. Caller should still write the ids to file_server table, so that
-# a reverse lookup can be done. ("list me all files matching foo on server bar")
-# E.g. Option -d needs to list all files below a certain path prefix.
 sub getfileid
 {
   my $path = shift;
@@ -847,12 +814,7 @@ sub getfileid
                      or die $dbh->errstr();
   my $id = $ary_ref->[0][0];
 
-  if ($use_md5) {
-    return $id, Digest::MD5::md5_base64($path) if defined $id;
-  }
-  else {
-    return $id if defined $id;
-  }
+  return $id if defined $id;
   
   $sql = "INSERT INTO file SET path = ?;";
 
@@ -866,12 +828,7 @@ sub getfileid
 
   $id = $ary_ref->[0][0];
 
-  if ($use_md5) {
-    return $id, Digest::MD5::md5_base64($path);
-  }
-  else {
-    return $id;
-  }
+  return $id;
 }
 
 
@@ -881,18 +838,6 @@ sub checkfileserver_fileid
   my ($serverid, $fileid) = @_;
 
   my $sql = "SELECT 1 FROM file_server WHERE fileid = $fileid AND serverid = $serverid;";
-  my $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
-
-  return defined($ary_ref->[0]) ? 1 : 0;
-}  
-
-
-
-sub checkfileserver_md5
-{
-  my ($serverid, $md5) = @_;
-
-  my $sql = "SELECT 1 FROM file_server WHERE path_md5 = '$md5' AND serverid = $serverid";
   my $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
 
   return defined($ary_ref->[0]) ? 1 : 0;
