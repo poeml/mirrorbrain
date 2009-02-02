@@ -314,7 +314,7 @@ for my $row (@scan_list) {
   }
 
   unless ($extra_schedule_run) {
-    $sql = "UPDATE server SET last_scan = CURRENT_TIMESTAMP, scan_fpm = $fpm WHERE id = $row->{id};";
+    $sql = "UPDATE server SET last_scan = NOW(), scan_fpm = $fpm WHERE id = $row->{id};";
     print "$sql\n" if $verbose > 1;
     my $sth = $dbh->prepare( $sql );
     $sth->execute() or die $sth->err;
@@ -754,7 +754,7 @@ sub save_file
   if(checkfileserver_fileid($serverid, $fileid)) {
     my $sql = "UPDATE file_server SET 
       timestamp_file = FROM_UNIXTIME(?),
-      timestamp_scanner = CURRENT_TIMESTAMP()
+      timestamp_scanner = NOW()
       WHERE fileid = ? AND serverid = ?;";
 
     my $sth = $dbh->prepare( $sql );
@@ -764,7 +764,7 @@ sub save_file
     my $sql = "INSERT INTO file_server SET fileid = ?,
       serverid = ?,
       timestamp_file = FROM_UNIXTIME(?), 
-      timestamp_scanner = CURRENT_TIMESTAMP();";
+      timestamp_scanner = NOW();";
     #convert timestamp to mysql timestamp
     my $sth = $dbh->prepare( $sql );
     $sth->execute( $fileid, $serverid, $file_tstamp ) or die $sth->errstr;
