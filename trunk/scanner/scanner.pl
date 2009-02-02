@@ -187,11 +187,24 @@ my @brain_instances = split(/, /, $cfg->val('general', 'instances'));
 $brain_instance = $brain_instances[0] unless $brain_instance;
 $cfg->SectionExists($brain_instance) or die 'no [' . $brain_instance . '] section in config file';
 
-# port is optional
-my $db_port = '3306';
+
+my $db_driver = 'mysql'; # backwards compatible default
+$db_driver = $cfg->val($brain_instance, 'dbdriver') 
+		if $cfg->val($brain_instance, 'dbdriver');
+
+my $db_port = 'not set';
+if($db_driver eq 'Pg') {
+  $db_port = '5432';
+}
+elsif($db_driver eq 'mysql') {
+    $db_port = '3306';
+}
+else { die 'unknown dbddriver "' . $db_driver . '" in config file'; }
+
 $db_port = $cfg->val($brain_instance, 'dbport') 
 		if $cfg->val($brain_instance, 'dbport');
-my $db_cred = { dbi => 'dbi:' .  $cfg->val( $brain_instance, 'dbdriver')
+
+my $db_cred = { dbi => 'dbi:' .  $db_driver
                               . ':dbname=' . $cfg->val( $brain_instance, 'dbname') 
                               . ';host='   . $cfg->val( $brain_instance, 'dbhost')
                               . ';port='   . $db_port,
