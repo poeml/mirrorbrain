@@ -20,8 +20,6 @@ CREATE TABLE `file_server` (
 -- timestamp_file: the default and update trigger are not used
   `timestamp_file` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
   `timestamp_scanner` timestamp NOT NULL default '0000-00-00 00:00:00',
--- BUG: This index is a duplicate of file_server_fileid_serverid_idx
-  KEY `fileid` (`fileid`,`serverid`),
   KEY `file_server_fileid_idx` (`fileid`),
   KEY `file_server_serverid_idx` (`serverid`),
   KEY `file_server_fileid_serverid_idx` (`fileid`,`serverid`),
