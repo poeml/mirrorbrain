@@ -190,7 +190,8 @@ $cfg->SectionExists($brain_instance) or die 'no [' . $brain_instance . '] sectio
 my $db_port = '3306';
 $db_port = $cfg->val($brain_instance, 'dbport') 
 		if $cfg->val($brain_instance, 'dbport');
-my $db_cred = { dbi => 'dbi:mysql:dbname=' . $cfg->val( $brain_instance, 'dbname') 
+my $db_cred = { dbi => 'dbi:' .  $cfg->val( $brain_instance, 'dbdriver')
+                              . ':dbname=' . $cfg->val( $brain_instance, 'dbname') 
                               . ';host='   . $cfg->val( $brain_instance, 'dbhost')
                               . ';port='   . $db_port,
                 user => $cfg->val( $brain_instance, 'dbuser'), 
