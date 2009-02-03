@@ -149,19 +149,22 @@ class MirrorDoctor(cmdln.Cmdln):
         s = self.conn.Server(identifier   = identifier,
                              baseurl      = opts.http,
                              baseurlFtp   = opts.ftp or '',
-                             baseurlRsync = opts.rsync,
+                             baseurlRsync = opts.rsync or '',
                              region       = opts.region,
                              country      = opts.country,
                              score        = opts.score,
                              enabled      = 0,
                              statusBaseurl = 0,
-                             admin        = opts.admin,
-                             adminEmail   = opts.admin_email,
+                             admin        = opts.admin or '',
+                             adminEmail   = opts.admin_email or '',
                              operatorName = '',
                              operatorUrl  = '',
                              otherCountries = '',
                              publicNotes  = '',
-                             comment      = opts.comment)
+                             comment      = opts.comment or '',
+                             scanFpm      = 0,
+                             countryOnly  = 0,
+                             regionOnly   = 0)
         if self.options.debug:
             print s
 
