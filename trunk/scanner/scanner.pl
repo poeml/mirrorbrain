@@ -346,7 +346,7 @@ for my $row (@scan_list) {
   }
 
   if($enable_after_scan && $file_count > 1 && !$row->{enabled}) {
-    $sql = "UPDATE server SET enabled = 1 WHERE id = $row->{id};";
+    $sql = "UPDATE server SET enabled = '1' WHERE id = $row->{id};";
     print "$sql\n" if $sqlverbose;
     my $sth = $dbh->prepare( $sql );
     $sth->execute() or die $sth->err;
