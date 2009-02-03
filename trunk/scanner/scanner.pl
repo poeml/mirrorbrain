@@ -63,6 +63,8 @@
 # 2008-11-22, poeml - V0.20, make usage of md5 hashes optional
 # 2009-02-02, poeml - V0.21, remove code dealing with md5 hashes, now 
 #                            considered obsolete.
+# 2009-02-03, poeml - V0.22, prepare SQL statements *once*.
+#                            add -S option for SQL debugging
 #
 # FIXME: 
 # should do optimize table file, file_server;
@@ -93,7 +95,7 @@ use Socket;
 use bytes;
 use Config::IniFiles;
 
-my $version = '0.21';
+my $version = '0.22';
 my $scanner_email = 'poeml@suse.de';
 my $verbose = 1;
 my $sqlverbose = 0;
