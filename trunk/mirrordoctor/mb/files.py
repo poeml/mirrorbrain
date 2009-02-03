@@ -6,7 +6,7 @@ def has_file(conn, path, mirror_id):
     
     path can contain wildcards, which will result in a LIKE match.
     """
-    if path.find('*') > 0 or path.find('%') > 0:
+    if path.find('*') >= 0 or path.find('%') >= 0:
         pattern = True
         oprtr = 'like'
         path = path.replace('*', '%')
@@ -49,7 +49,7 @@ def check_for_marker_files(conn, markers, mirror_id):
 
 
 def ls(conn, path, mirror = None):
-    if path.find('*') > 0 or path.find('%') > 0:
+    if path.find('*') >= 0 or path.find('%') >= 0:
         pattern = True
         oprtr = 'like'
         path = path.replace('*', '%')
