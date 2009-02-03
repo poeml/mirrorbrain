@@ -133,6 +133,12 @@ my $topdirs = 'distribution|tools|repositories';
 my $cfgfile = '/etc/mirrorbrain.conf';
 my $brain_instance = '';
 
+# save prepared statements
+my $sth_update;
+my $sth_insert_rel;
+my $sth_select_file;
+my $sth_insert_file;
+
 my $gig2 = 1<<31; # 2*1024*1024*1024 == 2^1 * 2^10 * 2^10 * 2^10 = 2^31
 
 # these two vars are used in the largefile_check's http request callback to end
@@ -342,10 +348,10 @@ for my $row (@scan_list) {
     print "$sql\n" if $sqlverbose;
     my $sth = $dbh->prepare( $sql );
     $sth->execute() or die $sth->err;
-    print "server $row->{id} is now enabled.\n" if $verbose > 0;
+    print "server $row->{identifier} is now enabled.\n" if $verbose > 0;
   }
 
-  print "server $row->{id}, $file_count files.\n" if $verbose > 0;
+  print "server $row->{identifier}, $file_count files, $fpm files per minute.\n" if $verbose > 0;
 }
 
 $dbh->disconnect();
@@ -741,7 +747,6 @@ sub ftp_readdir
 }
 
 
-
 sub save_file
 {
   my ($path, $serverid, $file_tstamp, $mod_re, $ign_re) = @_;
@@ -771,17 +776,23 @@ sub save_file
 
   if(checkfileserver_fileid($serverid, $fileid)) {
     my $sql = "UPDATE file_server SET timestamp_file = FROM_UNIXTIME(?), timestamp_scanner = NOW() WHERE fileid = ? AND serverid = ?;";
-    my $sth = $dbh->prepare( $sql );
+    if (!defined $sth_update) {
+      printf "preparing update statement\n";
+      $sth_update = $dbh->prepare( $sql );
+    }
 
     printf "$sql  <-- $file_tstamp, $fileid, $serverid \n" if $sqlverbose;
-    $sth->execute( $file_tstamp, $fileid, $serverid ) or die $sth->errstr;
+    $sth_update->execute( $file_tstamp, $fileid, $serverid ) or die $sth_update->errstr;
   }
   else {
     my $sql = "INSERT INTO file_server (fileid, serverid, timestamp_file, timestamp_scanner) VALUES (?, ?, FROM_UNIXTIME(?), NOW());";
-    my $sth = $dbh->prepare( $sql );
+    if (!defined $sth_insert_rel) {
+      printf "preparing insert statement\n";
+      $sth_insert_rel = $dbh->prepare( $sql );
+    }
 
     printf "$sql  <-- $fileid, $serverid, $file_tstamp \n" if $sqlverbose;
-    $sth->execute( $fileid, $serverid, $file_tstamp ) or die $sth->errstr;
+    $sth_insert_rel->execute( $fileid, $serverid, $file_tstamp ) or die $sth_insert_rel->errstr;
   }
   return $path;
 }
@@ -821,31 +832,52 @@ sub cont
 sub getfileid
 {
   my $path = shift;
+  my @data;
+  my $id;
 
-  my $sql = "SELECT id FROM file WHERE path = " . $dbh->quote($path);
-  printf "$sql\n" if $sqlverbose;
+  # prepare statements once
+  my $sql_select_file = "SELECT id FROM file WHERE path = ? LIMIT 1;";
+  if (!defined $sth_select_file) {
+    printf "Preparing select_file statement: $sql_select_file\n";
+    $sth_select_file = $dbh->prepare( $sql_select_file );
+  }
 
-  my $ary_ref = $dbh->selectall_arrayref( $sql )
-                     or die $dbh->errstr();
-  my $id = $ary_ref->[0][0];
+  my $sql_insert_file = "INSERT INTO file (path) VALUES (?);";
+  if (!defined $sth_insert_file) {
+    printf "Preparing insert_file statement: $sql_insert_file\n";
+    $sth_insert_file = $dbh->prepare( $sql_insert_file );
+  }
 
-  return $id if defined $id;
+
+  printf "select_file: $sql_select_file  <--- $path \n" if $sqlverbose;
+
+  $sth_select_file->execute( $path ) or die $sth_select_file->errstr;
+  @data = $sth_select_file->fetchrow_array();
+  if ($sth_select_file->rows > 0) {
+    $id = $data[0];
+
+    $sth_select_file->finish;
+    printf "select_id result: $id \n" if $sqlverbose;
+    return $id if defined $id;
+  }
+
   
-  $sql = "INSERT INTO file (path) VALUES (?);";
-  printf "$sql  <--- $path \n" if $sqlverbose;
+  $sth_insert_file->execute( $path ) or die $sth_insert_file->err;
 
-  my $sth = $dbh->prepare( $sql );
-  $sth->execute( $path ) or die $sth->err;
+  # now we still need the id
+  # FIXME: should use something like last_insert_id rather
+  printf "select_file (get the id after insertion): $sql_insert_file  <--- $path \n" if $sqlverbose;
 
-  # FIXME: should use last_insert_id rather
-  $sql = "SELECT id FROM file WHERE path = " . $dbh->quote($path);
-  printf "$sql\n" if $sqlverbose;
+  $sth_select_file->execute( $path ) or die $sth_select_file->errstr;
+  @data = $sth_select_file->fetchrow_array();
+  if ($sth_select_file->rows > 0) {
+    $id = $data[0];
 
-  $ary_ref = $dbh->selectall_arrayref( $sql ) or die $dbh->errstr();
-
-  $id = $ary_ref->[0][0];
-
-  return $id;
+    $sth_select_file->finish;
+    printf "select_id result: $id \n" if $sqlverbose;
+    return $id;
+  }
+  die "insert of $path failed - could not get last id\n";
 }
 
 
