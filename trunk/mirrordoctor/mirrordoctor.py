@@ -60,8 +60,7 @@ class MirrorDoctor(cmdln.Cmdln):
 
     def get_optparser(self):
         """Parser for global options (that are not specific to a subcommand)"""
-        #optparser = cmdln.CmdlnOptionParser(self, version=get_version())
-        optparser = cmdln.CmdlnOptionParser(self)
+        optparser = cmdln.CmdlnOptionParser(self, version=__version__)
         optparser.add_option('-d', '--debug', action='store_true',
                              help='print info useful for debugging')
         optparser.add_option('-b', '--brain-instance', 
