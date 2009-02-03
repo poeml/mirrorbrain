@@ -193,8 +193,9 @@ $db_driver = $cfg->val($brain_instance, 'dbdriver')
 		if $cfg->val($brain_instance, 'dbdriver');
 
 my $db_port = 'not set';
-if($db_driver eq 'Pg') {
+if($db_driver eq 'Pg' or $db_driver eq 'postgres' or $db_driver eq 'postgresql') {
   $db_port = '5432';
+  $db_driver = 'Pg';
 }
 elsif($db_driver eq 'mysql') {
     $db_port = '3306';
