@@ -96,6 +96,7 @@ use Config::IniFiles;
 my $version = '0.21';
 my $scanner_email = 'poeml@suse.de';
 my $verbose = 1;
+my $sqlverbose = 0;
 
 #$DB::inhibit_exit = 0;
 
@@ -162,6 +163,7 @@ while (defined (my $arg = shift)) {
 	elsif ($arg =~ m{^(-i|--ignore)})      { push @norecurse_list, shift; }
 	elsif ($arg =~ m{^-q})                 { $verbose = 0; }
 	elsif ($arg =~ m{^-v})                 { $verbose++; }
+	elsif ($arg =~ m{^-S})                 { $sqlverbose++; }
 	elsif ($arg =~ m{^-a})                 { $all_servers++; }
 	elsif ($arg =~ m{^-j})                 { $parallel = shift; }
 	elsif ($arg =~ m{^-e})                 { $enable_after_scan++; }
@@ -228,6 +230,7 @@ exit usage("-j requires a positive number") unless $parallel =~ m{^\d+$} and $pa
 my $dbh = DBI->connect( $db_cred->{dbi}, $db_cred->{user}, $db_cred->{pass}, $db_cred->{opt}) or die $DBI::errstr;
 
 my $sql = qq{SELECT * FROM server where country != '**'};
+print "$sql\n" if $sqlverbose;
 my $ary_ref = $dbh->selectall_hashref($sql, 'id')
 		   or die $dbh->errstr();
 
@@ -321,22 +324,22 @@ for my $row (@scan_list) {
       $sql .= " AND fileid IN (SELECT id FROM file WHERE path LIKE ?)";
     }
 
-    print "$sql\n" if $verbose > 1;
     # Keep in sync with $start_dir setup above!
     my $sth = $dbh->prepare( $sql );
+    print "$sql  <--- " . length($start_dir) ? "$start_dir/%" : () . " \n" if $sqlverbose;
     $sth->execute(length($start_dir) ? "$start_dir/%" : ()) or die $sth->errstr;
   }
 
   unless ($extra_schedule_run) {
     $sql = "UPDATE server SET last_scan = NOW(), scan_fpm = $fpm WHERE id = $row->{id};";
-    print "$sql\n" if $verbose > 1;
+    print "$sql\n" if $sqlverbose;
     my $sth = $dbh->prepare( $sql );
     $sth->execute() or die $sth->err;
   }
 
   if($enable_after_scan && $file_count > 1 && !$row->{enabled}) {
     $sql = "UPDATE server SET enabled = 1 WHERE id = $row->{id};";
-    print "$sql\n" if $verbose > 1;
+    print "$sql\n" if $sqlverbose;
     my $sth = $dbh->prepare( $sql );
     $sth->execute() or die $sth->err;
     print "server $row->{id} is now enabled.\n" if $verbose > 0;
@@ -362,6 +365,7 @@ scanner [options] [mirror_ids ...]
   -b        MirrorBrain instance to use 
             Default: the first which is defined in the config.
   -v        Be more verbose (Default: $verbose).
+  -S        Show SQL statements.
   -q        Be quiet.
   -l        Do not scan. List enabled mirrors only.
   -ll       As -l, but include disabled mirrors and print urls.
@@ -489,7 +493,7 @@ sub mirror_new
       join(', ', map { "$_ = ".$dbh->quote($fields->{$_}) } keys %$fields) . 
       " WHERE id = $old->[0]{id}";
 
-    print "$sql\n" if $verbose;
+    print "$sql\n" if $sqlverbose;
     $dbh->do($sql) or die "$sql: ".$dbh->errstr;
   }
   else {
@@ -511,7 +515,7 @@ sub mirror_new
     my $sql = "INSERT INTO server SET " . 
       join(', ', map { "$_ = ".$dbh->quote($fields->{$_}) } keys %$fields);
 
-    print "$sql\n" if $verbose;
+    print "$sql\n" if $sqlverbose;
     $dbh->do($sql) or die "$sql: ".$dbh->errstr;
   }
 return 0;
@@ -766,21 +770,17 @@ sub save_file
 
 
   if(checkfileserver_fileid($serverid, $fileid)) {
-    my $sql = "UPDATE file_server SET 
-      timestamp_file = FROM_UNIXTIME(?),
-      timestamp_scanner = NOW()
-      WHERE fileid = ? AND serverid = ?;";
-
+    my $sql = "UPDATE file_server SET timestamp_file = FROM_UNIXTIME(?), timestamp_scanner = NOW() WHERE fileid = ? AND serverid = ?;";
     my $sth = $dbh->prepare( $sql );
+
+    printf "$sql  <-- $file_tstamp, $fileid, $serverid \n" if $sqlverbose;
     $sth->execute( $file_tstamp, $fileid, $serverid ) or die $sth->errstr;
   }
   else {
-    my $sql = "INSERT INTO file_server SET fileid = ?,
-      serverid = ?,
-      timestamp_file = FROM_UNIXTIME(?), 
-      timestamp_scanner = NOW();";
-    #convert timestamp to mysql timestamp
+    my $sql = "INSERT INTO file_server (fileid, serverid, timestamp_file, timestamp_scanner) VALUES (?, ?, FROM_UNIXTIME(?), NOW());";
     my $sth = $dbh->prepare( $sql );
+
+    printf "$sql  <-- $fileid, $serverid, $file_tstamp \n" if $sqlverbose;
     $sth->execute( $fileid, $serverid, $file_tstamp ) or die $sth->errstr;
   }
   return $path;
@@ -823,6 +823,7 @@ sub getfileid
   my $path = shift;
 
   my $sql = "SELECT id FROM file WHERE path = " . $dbh->quote($path);
+  printf "$sql\n" if $sqlverbose;
 
   my $ary_ref = $dbh->selectall_arrayref( $sql )
                      or die $dbh->errstr();
@@ -830,13 +831,15 @@ sub getfileid
 
   return $id if defined $id;
   
-  $sql = "INSERT INTO file SET path = ?;";
+  $sql = "INSERT INTO file (path) VALUES (?);";
+  printf "$sql  <--- $path \n" if $sqlverbose;
 
   my $sth = $dbh->prepare( $sql );
   $sth->execute( $path ) or die $sth->err;
 
   # FIXME: should use last_insert_id rather
   $sql = "SELECT id FROM file WHERE path = " . $dbh->quote($path);
+  printf "$sql\n" if $sqlverbose;
 
   $ary_ref = $dbh->selectall_arrayref( $sql ) or die $dbh->errstr();
 
@@ -852,6 +855,7 @@ sub checkfileserver_fileid
   my ($serverid, $fileid) = @_;
 
   my $sql = "SELECT 1 FROM file_server WHERE fileid = $fileid AND serverid = $serverid;";
+  printf "$sql\n" if $sqlverbose;
   my $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
 
   return defined($ary_ref->[0]) ? 1 : 0;
