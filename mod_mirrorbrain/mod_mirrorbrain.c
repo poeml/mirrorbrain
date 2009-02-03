@@ -73,7 +73,7 @@
 #define UNSET (-1)
 #endif
 
-#define MOD_MIRRORBRAIN_VER "2.4"
+#define MOD_MIRRORBRAIN_VER "2.5"
 #define VERSION_COMPONENT "mod_mirrorbrain/"MOD_MIRRORBRAIN_VER
 
 #ifdef NO_MOD_GEOIP
@@ -94,8 +94,8 @@
                       "LEFT JOIN server " \
                       "ON file_server.serverid = server.id " \
                       "WHERE file.path=%s " \
-                             "AND server.enabled=1 " \
-                             "AND server.status_baseurl=1 " \
+                             "AND server.enabled " \
+                             "AND server.status_baseurl " \
                              "AND server.score > 0"
 
 
