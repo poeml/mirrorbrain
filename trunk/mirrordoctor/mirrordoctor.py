@@ -398,9 +398,9 @@ class MirrorDoctor(cmdln.Cmdln):
         if not identifier:
             sys.exit('need to specify identifier')
 
-        s = self.conn.Server.select(self.conn.Server.q.identifier == identifier)
-        for i in s:
-            print self.conn.Server.delete(i.id)
+        moribund = self.conn.Server.select(self.conn.Server.q.identifier == identifier)[0]
+        self.conn.FileServer.deleteBy(serverid = moribund.id)
+        self.conn.Server.delete(moribund.id)
 
 
     @cmdln.option('-C', '--comment', metavar='ARG',
