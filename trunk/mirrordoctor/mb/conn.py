@@ -1,4 +1,5 @@
 
+import sys
 from sqlobject import *
 
 
@@ -75,11 +76,23 @@ def server2dict(s):
 
 class Conn:
     def __init__(self, config, debug = False):
-        uri_str = 'mysql://%s:%s@%s:%s/%s'
+        dbdriver = config.get('dbdriver', 'mysql')
+        if dbdriver in ['Pg', 'postgres', 'postgresql']:
+            dbdriver, dbport = 'postgres', '5432'
+            try: 
+                import psycopg2
+            except: 
+                sys.exit('To use mb with PostgreSQL, you need the pcycopg2 Python module installed.')
+        elif dbdriver in ['mysql']:
+            dbport = '3306'
+        else:
+            sys.exit('database driver %r not known' % dbdriver)
+
+        uri_str = dbdriver + '://%s:%s@%s:%s/%s'
         #if options.loglevel == 'DEBUG':
         #    uri_str += '?debug=1'
         self.uri = uri_str % (config['dbuser'], config['dbpass'], 
-                              config['dbhost'], config.get('dbport', '3306'), 
+                              config['dbhost'], config.get('dbport', dbport), 
                               config['dbname'])
 
         sqlhub.processConnection = connectionForURI(self.uri)
