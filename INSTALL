@@ -1,6 +1,6 @@
 These instructions show how to install:
 
-1. mod_mirrorbrain, the redirector module for apache.  
+1. mod_mirrorbrain, the Apache module
 2. other needed components
 3. the database
 
@@ -11,8 +11,16 @@ RPM packages are here:
 http://download.opensuse.org/repositories/Apache:/Modules/
 http://club.mandriva.com/xwiki/bin/view/rpms/Application/apache-mod_zrkadlo
 
-It can be built simply with
-apxs2 -c -Wc,"-Wall -g" mod_mirrorbrain.c
+It can be built with the following steps:
+# unpack the tarball
+cd mod_mirrorbrain
+apxs2 -c mod_mirrorbrain.c
+
+To install the module in the right place, you would typically call
+apxs2 -i mod_mirrorbrain.c
+
+Building, installing and activation can typically be combined in one call:
+apxs2 -cia mod_mirrorbrain.c
 
 
 
@@ -20,7 +28,7 @@ After installation of mod_mirrorbrain, you'll need to:
 
 
 - install GeoIP library, commandline tools, and geoip apache module
-  (openSUSE packages GeoIP + libGeoIP1 + apache2-mod_geoip)
+  (openSUSE/SLE packages: GeoIP, libGeoIP1, apache2-mod_geoip)
 
 - configure mod_geoip:
     GeoIPEnable On
@@ -34,33 +42,134 @@ After installation of mod_mirrorbrain, you'll need to:
 - install mod_form
   http://apache.webthing.com/svn/apache/forms/mod_form.c
   http://apache.webthing.com/svn/apache/forms/mod_form.h
-  (openSUSE package apache2-webthings-collection)
+  (openSUSE/SLE package: apache2-webthings-collection)
+
+- install the following Python modules:
+      python-cmdln
+      python-sqlobject
+      python-mysql (when using MySQL)
+      python-psycopg2 (when using PostgreSQL)
+
+- for the scanner, which is written in Perl, a few Perl modules are required:
+      perl-libwww-perl
+      perl-DBD-mysql (when using MySQL)
+      perl-DBD-Pg (when using PostgreSQL)
 
 
-
-- install a database adapter for the DBD library, for example MySQL
-  (openSUSE package: libapr-util1-dbd-mysql)
-
+- choose a database to use with MirrorBrain, and continue with the respective
+  description below:
 
 
-- log into your database at root, e.g. for mysql:
-    mysql -u root -p
-  there, create the database and grant write permissions for a local user:
-    create database redirector;
-    grant all privileges on redirector.* to wwwrun@localhost identified by '12345';
+   a) Using MySQL
 
-  run the sql file which creates the tables and indices:
-    mysql -u wwwrun -p -D redirector < /usr/share/doc/packages/apache2-mod_zrkadlo/sql/opensuse-redirector.sql
+      - install the MySQL database adapter for the DBD library
+        (openSUSE/SLE package: libapr-util1-dbd-mysql)
 
-- the mysql InnoDB engine needs to be configured to use enough memory for the
-  database. This is probably the most important thing to know and the most
-  frequent deployment error, to not tune this. Use the innodb_buffer_pool_size
-  value to match it to the size of your database. The default value is tiny.
-  Although, when your database is tiny, too, it won't matter much. But for
-  larger databases, the value needs to be increased, possibly considerably.
+      
+      - install and start MySQL
+      
+      - log into your database at root:
+          mysql -u root -p
+        there, create the database and grant write permissions for a local user:
+          create database mirrorbrain;
+          grant all privileges on mirrorbrain.* to wwwrun@localhost identified by '12345';
+      
+        run the sql file which creates the tables and indices:
+          mysql -u wwwrun -p -D mirrorbrain < /usr/share/doc/packages/apache2-mod_zrkadlo/sql/mirrorbrain-mysql.sql
+      
+      - the mysql InnoDB engine needs to be configured to use enough memory for the
+        database. This is probably the most important thing to know and the most
+        frequent deployment error, to not tune this. Use the innodb_buffer_pool_size
+        value to match it to the size of your database. The default value is tiny.
+        Although, when your database is tiny, too, it won't matter much. But for
+        larger databases, the value needs to be increased, possibly considerably.
   
 
-- create /etc/mirrorbrain.conf with the following content:
+    b) Using PostgreSQL
+
+       - install the PostgreSQL database adapter for the DBD library
+         (openSUSE/SLE package: libapr-util1-dbd-pgsql)
+       
+       - install postgresql and start it
+
+       - create the postgresql user account and database:
+
+
+           su - postgres
+           
+           root@powerpc:~ # su - postgres
+           postgres@powerpc:~> createuser -P mb
+           Enter password for new role: 
+           Enter it again: 
+           Shall the new role be a superuser? (y/n) n
+           Shall the new role be allowed to create databases? (y/n) n
+           Shall the new role be allowed to create more new roles? (y/n) n
+           CREATE ROLE
+           
+           postgres@powerpc:~> createdb -O mb mirrorbrain
+           CREATE DATABASE
+           postgres@powerpc:~> 
+
+
+           postgres@powerpc:~> vi data/pg_hba.conf
+           # TYPE  DATABASE    USER        CIDR-ADDRESS          METHOD
+           # "local" is for Unix domain socket connections only
+           #local   all         all                               ident sameuser
+           #local   all         all                               trust
+           local   all         all                               password
+           # IPv4 local connections:
+           host    all         all         127.0.0.1/32          password
+           # IPv6 local connections:
+           host    all         all         ::1/128               password
+           
+           
+           root@powerpc:~ # rcpostgresql restart
+           
+           root@powerpc:~ # su - postgres
+           postgres@powerpc:~> psql mirrorbrain mb
+           Password for user mb: 
+           Welcome to psql 8.1.11, the PostgreSQL interactive terminal.
+           [...]
+
+
+
+
+       - psql -U mb -f /dev/shm/mirrorbrain-postgresql.sql mirrorbrain
+
+           Password for user mb: 
+           BEGIN
+           psql:/dev/shm/mirrorbrain-postgresql.sql:14: NOTICE:  CREATE TABLE will create implicit sequence "file_id_seq" for serial column "file.id"
+           psql:/dev/shm/mirrorbrain-postgresql.sql:14: NOTICE:  CREATE TABLE / PRIMARY KEY will create implicit index "file_pkey" for table "file"
+           CREATE TABLE
+           CREATE INDEX
+           psql:/dev/shm/mirrorbrain-postgresql.sql:45: NOTICE:  CREATE TABLE will create implicit sequence "server_id_seq" for serial column "server.id"
+           psql:/dev/shm/mirrorbrain-postgresql.sql:45: NOTICE:  CREATE TABLE / PRIMARY KEY will create implicit index "server_pkey" for table "server"
+           psql:/dev/shm/mirrorbrain-postgresql.sql:45: NOTICE:  CREATE TABLE / UNIQUE will create implicit index "server_identifier_key" for table "server"
+           CREATE TABLE
+           CREATE INDEX
+           psql:/dev/shm/mirrorbrain-postgresql.sql:61: NOTICE:  CREATE TABLE / UNIQUE will create implicit index "file_server_fileid_key" for table "file_server"
+           CREATE TABLE
+           CREATE INDEX
+           CREATE INDEX
+           psql:/dev/shm/mirrorbrain-postgresql.sql:83: NOTICE:  CREATE TABLE will create implicit sequence "marker_id_seq" for serial column "marker.id"
+           psql:/dev/shm/mirrorbrain-postgresql.sql:83: NOTICE:  CREATE TABLE / PRIMARY KEY will create implicit index "marker_pkey" for table "marker"
+           CREATE TABLE
+           psql:/dev/shm/mirrorbrain-postgresql.sql:92: NOTICE:  CREATE TABLE will create implicit sequence "country_id_seq" for serial column "country.id"
+           psql:/dev/shm/mirrorbrain-postgresql.sql:92: NOTICE:  CREATE TABLE / PRIMARY KEY will create implicit index "country_pkey" for table "country"
+           CREATE TABLE
+           CREATE FUNCTION
+           COMMIT
+
+
+
+
+- create a group and user to run the mirrorbrain tools under:
+    groupadd mirrorbrain
+    useradd mirrorbrain -g mirrorbrain
+
+- create /etc/mirrorbrain.conf with the content below. File permissions should
+  be 0640, ownership root:mirrorbrain
+
 
   [general]
   instances = go-oo
@@ -68,9 +177,11 @@ After installation of mod_mirrorbrain, you'll need to:
   [go-oo]
   dbuser = wwwrun
   dbpass = 12345
+  # use "mysql" for MySQL, and "postgresql" for PostgreSQL
+  dbdriver = mysql
   dbhost = your_host.example.com
   dbport = 3306
-  dbname = redirector
+  dbname = mirrorbrain
   
   [mirrorprobe]
   logfile = /var/log/mirrorprobe.log
@@ -78,7 +189,6 @@ After installation of mod_mirrorbrain, you'll need to:
   mailto = your_mail@example.com, another_mail@example.com
 
 
-  
 - load the Apache modules:
    a2enmod form
    a2enmod dbd
@@ -102,7 +212,7 @@ Config example::
         # reconnect=0 is needed with the mysql adapter. It means that connections
         # should not be "reanimated", because prepared statements would be lost anyway,
         # so dead connections should rather be invalidated and new ones made.
-        DBDParams "host=localhost, user=wwwrun, pass=12345, dbname=redirector, reconnect=0"
+        DBDParams "host=localhost, user=wwwrun, pass=12345, dbname=mirrorbrain, reconnect=0"
         # # threaded MPMs only. prefork will have use db connection per process
         <IfModule !prefork.c>
                 # 
