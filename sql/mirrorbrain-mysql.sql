@@ -47,6 +47,7 @@ CREATE TABLE `server` (
   `admin_email` text,
   `operator_name` text NOT NULL,
   `operator_url` text NOT NULL,
+  `public_notes` varchar(512) NOT NULL default '',
   `netblock` text,
   `lat` float default NULL,
   `lng` float default NULL,
@@ -74,4 +75,12 @@ CREATE TABLE `country` (
   `name` char(64) NOT NULL,
   PRIMARY KEY  (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+
+CREATE TABLE `region` (
+  `id` int(2) NOT NULL auto_increment,
+  `code` char(2) NOT NULL,
+  `name` char(64) NOT NULL,
+  PRIMARY KEY  (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 | 
 
