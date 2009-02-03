@@ -455,7 +455,7 @@ class MirrorDoctor(cmdln.Cmdln):
 
     @cmdln.option('--sql-debug', action='store_true',
                   help='Show SQL statements for debugging purposes.')
-    @cmdln.option('-v', '--verbose', dest='verbosity', action='count',
+    @cmdln.option('-v', '--verbose', dest='verbosity', action='count', default=0,
                   help='Increase verbosity for debugging purposes. '
                        'Can be given multiple times.')
     @cmdln.option('-e', '--enable', action='store_true',
