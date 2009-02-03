@@ -453,6 +453,11 @@ class MirrorDoctor(cmdln.Cmdln):
         mirror.identifier = new_identifier
 
 
+    @cmdln.option('--sql-debug', action='store_true',
+                  help='Show SQL statements for debugging purposes.')
+    @cmdln.option('-v', '--verbose', dest='verbosity', action='count',
+                  help='Increase verbosity for debugging purposes. '
+                       'Can be given multiple times.')
     @cmdln.option('-e', '--enable', action='store_true',
                   help='Enable a mirror, after it was scanned. Useful with -f')
     @cmdln.option('-a', '--all', action='store_true',
@@ -477,6 +482,11 @@ class MirrorDoctor(cmdln.Cmdln):
         cmd += ' '
         if self.options.brain_instance:
             cmd += '-b %s ' % self.options.brain_instance
+
+        if opts.sql_debug:
+            cmd += '-S '
+        cmd += '-v ' * opts.verbosity
+
         if opts.enable:
             cmd += '-e '
         if opts.directory:
