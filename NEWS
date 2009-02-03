@@ -1,3 +1,16 @@
+Tue Feb  3 10:38:02 CET 2009
+- version 2.5
+- working on PostgreSQL support
+- working on the INSTALL documentation
+- scanner: 0.22
+   - more efficient SQL statement handling
+   - added SQL logging option for debugging
+- mb (mirrorbrain tool): 
+   - bugfix in the file command: make patterns work which have a wildcard as
+     first character.
+   - extend "mb scan" to accept -v and --sql-debug and pass it to the scanner
+
+
 Fri Jan 23 17:20:00 CET 2009
 - version 2.4
 - rename mod_zrkadlo to mod_mirrorbrain
