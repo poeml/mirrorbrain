@@ -218,7 +218,7 @@ def main():
         #
         # ignore wildcard mirrors, assuming that they can't be checked by normal means (i.e., baseurl itself may
         # not give a 200. Just some files are served maybe...
-        result = conn.Server.select(AND(conn.Server.q.enabled == 1, conn.Server.q.country != '**'))
+        result = conn.Server.select(AND(conn.Server.q.enabled == '1', conn.Server.q.country != '**'))
         for i in result:
             mirrors.append(i)
 
