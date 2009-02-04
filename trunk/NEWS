@@ -4,6 +4,7 @@ Tue Feb  3 10:38:02 CET 2009
 - working on the INSTALL documentation
 - scanner: 0.22
    - more efficient SQL statement handling
+   - output much improved
    - added SQL logging option for debugging
 - mb (mirrorbrain tool): 
    - bugfix in the file command: make patterns work which have a wildcard as
