@@ -257,22 +257,20 @@ def main():
                 mail.getSubject = lambda x: '[%s] mirrorprobe warning: %s replied with %s' \
                                     % (config.instance, mirror.identifier, mirror.response_code)
 
-                logging.warning("""%s: (%s): response code not 200: %s: 
-
+                logging.debug("""%s: (%s): response code not 200: %s: 
 I am not disabling this host, and continue to watch it...
-
 """ % (mirror.identifier, mirror.baseurl, mirror.response_code))
 
                 # reset the getSubject method...
                 mail.getSubject = lambda x: 'no subject set'
 
-                comment = mirror.comment or ''
-                comment += ('\n*** mirrorprobe, %s: got status code %s' % (time.ctime(), mirror.response_code))
+                #comment = mirror.comment or ''
+                #comment += ('\n*** mirrorprobe, %s: got status code %s' % (time.ctime(), mirror.response_code))
                 logging.debug('setting enabled=0 for %s' % (mirror.identifier))
                 if not options.no_run:
                     # mirror.enabled = 0
                     mirror.statusBaseurl = 0
-                    mirror.comment = comment
+                    #mirror.comment = comment
 
             logging.debug('still dead: %s (%s): %s: %s' % (mirror.identifier, mirror.baseurl, mirror.response_code, mirror.response))
 
