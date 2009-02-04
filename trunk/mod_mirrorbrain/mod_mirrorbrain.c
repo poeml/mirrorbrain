@@ -149,8 +149,8 @@ typedef struct
 /* per-server configuration */
 typedef struct
 {
-    const char *instance;
 #ifdef WITH_MEMCACHE
+    const char *instance;
     int memcached_on;
     int memcached_lifetime;
 #endif
@@ -306,8 +306,8 @@ static void *create_mb_server_config(apr_pool_t *p, server_rec *s)
     ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, s, 
             "[mod_mirrorbrain] creating server config");
 
-    new->instance = "default";
 #ifdef WITH_MEMCACHE
+    new->instance = "default";
     new->memcached_on = UNSET;
     new->memcached_lifetime = UNSET;
 #endif
@@ -330,8 +330,8 @@ static void *merge_mb_server_config(apr_pool_t *p, void *basev, void *addv)
     ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, NULL, 
             "[mod_mirrorbrain] merging server config");
 
-    cfgMergeString(instance);
 #ifdef WITH_MEMCACHE
+    cfgMergeString(instance);
     cfgMergeBool(memcached_on);
     cfgMergeInt(memcached_lifetime);
 #endif
@@ -433,6 +433,7 @@ static const char *mb_cmd_handle_headrequest_locally(cmd_parms *cmd,
     return NULL;
 }
 
+#ifdef WITH_MEMCACHE
 static const char *mb_cmd_instance(cmd_parms *cmd, 
                                    void *config, const char *arg1)
 {
@@ -443,6 +444,7 @@ static const char *mb_cmd_instance(cmd_parms *cmd,
     cfg->instance = arg1;
     return NULL;
 }
+#endif
 
 static const char *mb_cmd_dbdquery(cmd_parms *cmd, void *config, 
                                    const char *arg1)
@@ -627,8 +629,13 @@ static int mb_handler(request_rec *r)
     if (cfg->engine_on != 1) {
         return DECLINED;
     }
+#ifdef WITH_MEMCACHE
     debugLog(r, cfg, "MirrorBrainEngine On, instance '%s', mirror_base '%s'", 
             scfg->instance, cfg->mirror_base);
+#else
+    debugLog(r, cfg, "MirrorBrainEngine On, mirror_base '%s'", 
+            cfg->mirror_base);
+#endif
 
     /* is it a HEAD request? */
     if (r->header_only && cfg->handle_headrequest_locally) {
@@ -1752,10 +1759,6 @@ static const command_rec mb_cmds[] =
                   ".torrent files, and add them into generated metalinks"),
 
     /* to be used only in server context */
-    AP_INIT_TAKE1("MirrorBrainInstance", mb_cmd_instance, NULL, 
-                  RSRC_CONF, 
-                  "Name of the MirrorBrain instance"),
-
     AP_INIT_TAKE1("MirrorBrainDBDQuery", mb_cmd_dbdquery, NULL,
                   RSRC_CONF,
                   "the SQL query string to fetch the mirrors from the backend database"),
@@ -1771,6 +1774,10 @@ static const command_rec mb_cmds[] =
 #endif
 
 #ifdef WITH_MEMCACHE
+    AP_INIT_TAKE1("MirrorBrainInstance", mb_cmd_instance, NULL, 
+                  RSRC_CONF, 
+                  "Name of the MirrorBrain instance (used by Memcache)"),
+
     AP_INIT_FLAG("MirrorBrainMemcached", mb_cmd_memcached_on, NULL,
                   RSRC_CONF, 
                   "Set to On/Off to use memcached to give clients repeatedly the same mirror"),
