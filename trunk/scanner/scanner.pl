@@ -112,7 +112,7 @@ $SIG{__DIE__} = sub {
 
 $SIG{USR1} = sub { $verbose++; warn "sigusr1 seen. ++verbose = $verbose\n"; };
 $SIG{USR2} = sub { $verbose--; warn "sigusr2 seen. --verbose = $verbose\n"; };
-$SIG{ALRM} = sub { $verbose++; $verbose++; die "rsync timout...\n" };
+$SIG{ALRM} = sub { $verbose++; $verbose++; die "rsync timeout...\n" };
 
 $ENV{FTP_PASSIVE} = 1;	# used in LWP only, Net::FTP ignores this.
 
