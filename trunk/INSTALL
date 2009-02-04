@@ -237,50 +237,49 @@ After installation of mod_mirrorbrain, you'll need to:
 
   - create a DNS alias for your web host, if needed
 
-  - configure the database adapter (mod_dbd) and mod_mirrorbrain. Put this
-    configuration in server-wide context. Make the file chmod 0640, owned
-    root:root because it will contain the database password.
+  - configure the database adapter (mod_dbd), resp. its connection pool.
+    Put the configuration into server-wide context. 
 
+    Config example::
+    ------------------------------------------------------------------------
+    # for prefork, this configuration is inactive. prefork simply uses 1
+    # connection per child.
+    <IfModule !prefork.c>
+            DBDMin  0
+            DBDMax  32
+            DBDKeep 4
+            DBDExptime 10
+    </IfModule>
+    ------------------------------------------------------------------------
 
-Config example::
+  - configure the database driver.
+    Put this configuration into server-wide OR vhost context. Make the file
+    chmod 0640, owned root:root because it will contain the database password.
 
+    Config example::
     ------------------------------------------------------------------------
     # for MySQL:
 
-    <IfModule mod_dbd.c>
-        DBDriver mysql
-        # reconnect=0 is needed with the mysql adapter. It means that connections
-        # should not be "reanimated", because prepared statements would be lost anyway,
-        # so dead connections should rather be invalidated and new ones made.
-        DBDParams "host=localhost, user=wwwrun, pass=12345, dbname=mirrorbrain, reconnect=0"
-        # # threaded MPMs only. prefork will have use db connection per process
-        <IfModule !prefork.c>
-                # 
-                DBDMin  0
-                DBDMax  32
-                DBDKeep 4
-                DBDExptime 10
-        </IfModule>
-    </IfModule>
+    DBDriver mysql
+    # reconnect=0 is needed with the mysql adapter. It means that connections
+    # should not be "reanimated", because prepared statements would be lost anyway,
+    # so dead connections should rather be invalidated and new ones made.
+    DBDParams "host=localhost, user=wwwrun, pass=12345, dbname=mirrorbrain, reconnect=0"
+    # # threaded MPMs only. prefork will have use db connection per process
     
     # or, for PostgreSQL:
 
-    <IfModule mod_dbd.c>
-        DBDriver pgsql
-        DBDParams "host=localhost, user=wwwrun, pass=12345, dbname=mirrorbrain"
-        <IfModule !prefork.c>
-                #
-                DBDMin  0
-                DBDMax  32
-                DBDKeep 4
-                DBDExptime 10
-        </IfModule>
-    </IfModule>
+    DBDriver pgsql
+    # note that the connection string (which is passed straight through to
+    # PGconnectdb in this case) looks slightly different - pass vs. password
+    DBDParams "host=localhost user=mb password=12345 dbname=mirrorbrain connect_timeout=15"
     ------------------------------------------------------------------------
 
-  - create a vhost for it (e.g. /etc/apache2/vhosts.d/go-oo.zrkadlo.org.conf)
 
-  - create a vhost for it (e.g. /etc/apache2/vhosts.d/go-oo.mirrorbrain.org.conf)
+  - configure mod_mirrorbrain.
+    You probably want to reate a vhost (e.g.
+    /etc/apache2/vhosts.d/go-oo.mirrorbrain.org.conf) and add the MirrorBrain
+    configuration like shown here:
 
     ------------------------------------------------------------------------
     <VirtualHost your.host.name:80>
@@ -298,9 +297,12 @@ Config example::
             MirrorBrainDebug Off
             FormGET On
             MirrorBrainHandleHEADRequestLocally Off
-            MirrorBrainMinSize 0
+            MirrorBrainMinSize 2048
             MirrorBrainHandleDirectoryIndexLocally On
-    
+            MirrorBrainExcludeUserAgent rpm/4.4.2
+            MirrorBrainExcludeUserAgent *APT-HTTP*
+            MirrorBrainExcludeMimeType application/pgp-keys
+
             Options FollowSymLinks Indexes
             AllowOverride None
             Order allow,deny
@@ -315,8 +317,41 @@ Config example::
       rcapache2 restart
 
     
+  - mirror surveillance:
+    put this into /etc/crontab:
+      -* * * * *     root       /usr/bin/mirrorprobe -t 20 &>/dev/null
+    likewise, configure scanning:
+      44 0,4,8,12,16,20 * * *   mirrorbrain   mb scan -j 3 -a
 
 
+  - TODO: describe how to test that the install was successful
+    (When testing, consider any excludes that you configured, and which may
+    confuse you.)
+
+
+  - TODO: describe decent logging setup
+
+
+  - further things that you might want to configure:
+     - mod_autoindex_mb, a replacement for the standard module mod_autoindex:
+         a2dismod autoindex
+         a2enmod autoindex_mb
+         Add IndexOptions Metalink Mirrorlist
+         (or IndexOptions +Metalink +Mirrorlist, depending on your config)
+
+     - add a link to a CSS stylesheet for mirror lists: 
+         MirrorBrainMirrorlistStylesheet "http://static.opensuse.org/css/mirrorbrain.css"
+       and for the autoindex:
+         IndexStyleSheet "http://static.opensuse.org/css/mirrorbrain.css"
+ 
+     - prepare the metalink hashes. First, add some configuration:
+         MirrorBrainMetalinkPublisher "openSUSE" http://download.opensuse.org
+         MirrorBrainMetalinkHashesPathPrefix /var/lib/apache2/metalink-hashes/ppc
+       install the "metalink" tool from http://metamirrors.nl/metalinks_project
+       (openSUSE package called metalink, http://download.opensuse.org/repositories/network:/utilities/)
+       create the actual hashes:
+         metalink-hasher update -t /var/lib/apache2/metalink-hashes/ppc/srv/ftp/pub/opensuse/ppc -b /srv/ftp/pub/opensuse/ppc /srv/ftp/pub/opensuse/ppc
+       add the hashing command to /etc/crontab to be run every few hours.
 
 
 +++
