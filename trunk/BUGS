@@ -2,6 +2,18 @@ more important bugs at the top...
 
 
 * no important bug known at this time :-)
+  but there are some:
+
+* country_only mirrors show up in metalinks
+
+* mod_geoip should be required as mod_form - and Apache should check at
+  startup. On the other hand, it could be optional, because mod_mirrorbrain
+  also works without mod_geoip (distributing requests world-wide, according to
+  mirror priorities). So it could be a valid use case to run without mod_geoip.
+  On the other hand, at least a warning should be issued, so admins get a hint when
+  mod_geoip was simply forgotten. On the other hand, we could have a check that
+  prevents starting, unless geoip usage is explicitely disabled (e.g.
+  MirrorBrainRequireGeoIP off)
 
 * since "override countries" (overridden via query paramter)  are not resolved into region,
   a wrong region is given in generated mirror lists:
