@@ -61,31 +61,36 @@ After installation of mod_mirrorbrain, you'll need to:
   description below:
 
 
-   a) Using MySQL
+    a) Using MySQL
 
-      - install the MySQL database adapter for the DBD library
-        (openSUSE/SLE package: libapr-util1-dbd-mysql)
-        Note, if the web server is set up seperately from the database server,
-        only the web server needs this package.
+       - install the MySQL database adapter for the DBD library
+         (openSUSE/SLE package: libapr-util1-dbd-mysql)
+         Note, if the web server is set up seperately from the database server,
+         only the web server needs this package.
 
       
-      - install and start MySQL
+       - install and start MySQL
       
-      - log into your database at root:
-          mysql -u root -p
-        there, create the database and grant write permissions for a local user:
-          create database mb_samba;
-          grant all privileges on mb_samba.* to wwwrun@localhost identified by '12345';
+       - log into your database at root:
+           mysql -u root -p
+         there, create the database and grant write permissions for a local user:
+           create database mb_samba;
+           grant all privileges on mb_samba.* to wwwrun@localhost identified by '12345';
       
-        run the sql file which creates the tables and indices:
-          mysql -u wwwrun -p -D mb_samba < /usr/share/doc/packages/apache2-mod_zrkadlo/sql/mirrorbrain-mysql.sql
-      
-      - the mysql InnoDB engine needs to be configured to use enough memory for the
-        database. This is probably the most important thing to know and the most
-        frequent deployment error, to not tune this. Use the innodb_buffer_pool_size
-        value to match it to the size of your database. The default value is tiny.
-        Although, when your database is tiny, too, it won't matter much. But for
-        larger databases, the value needs to be increased, possibly considerably.
+         run the sql file which creates the tables and indices:
+           mysql -u wwwrun -p -D mb_samba < /usr/share/doc/packages/apache2-mod_zrkadlo/sql/schema-mysql.sql
+
+       - the mysql InnoDB engine needs to be configured to use enough memory for the
+         database. This is probably the most important thing to know and the most
+         frequent deployment error, to not tune this. Use the innodb_buffer_pool_size
+         value to match it to the size of your database. The default value is tiny.
+         Although, when your database is tiny, too, it won't matter much. But for
+         larger databases, the value needs to be increased, possibly considerably.
+
+
+       - import table structure, and initial data:
+           psql -U mb -f sql/schema-mysql.sql mb_samba
+           psql -U mb -f sql/initialdata-mysql.sql mb_samba
   
 
     b) Using PostgreSQL
@@ -144,21 +149,10 @@ After installation of mod_mirrorbrain, you'll need to:
 
 
 
-       - psql -U mb -f sql/mirrorbrain-postgresql.sql mb_samba
-
-           Password for user mb: 
-           BEGIN
-           psql:sql/mirrorbrain-postgresql.sql:14: NOTICE:  CREATE TABLE will create implicit sequence "file_id_seq" for serial column "file.id"
-	   
-	   [...]
-
-           psql:sql/mirrorbrain-postgresql.sql:92: NOTICE:  CREATE TABLE / PRIMARY KEY will create implicit index "country_pkey" for table "country"
-           CREATE TABLE
-           CREATE FUNCTION
-           COMMIT
-
-
-
+       - import table structure, and initial data:
+           psql -U mb -f sql/schema-postgresql.sql mb_samba
+           psql -U mb -f sql/initialdata-postgresql.sql mb_samba
+       
 
 - create a group and user to run the mirrorbrain tools under:
     groupadd mirrorbrain
@@ -226,7 +220,7 @@ After installation of mod_mirrorbrain, you'll need to:
 
 - example migration commands from MySQL to PostgreSQL: 
     createdb -O mb mb_samba
-    psql -U mb -f sql/mirrorbrain-postgresql.sql mb_samba
+    psql -U mb -f sql/schema-postgresql.sql mb_samba
 
     mb -b samba export --format postgresql | psql -U mb mb_samba
 
