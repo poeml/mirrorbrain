@@ -151,6 +151,8 @@ class MirrorDoctor(cmdln.Cmdln):
                              baseurlRsync = opts.rsync or '',
                              region       = opts.region,
                              country      = opts.country,
+                             asn          = 0,
+                             prefix       = '',
                              score        = opts.score,
                              enabled      = 0,
                              statusBaseurl = 0,
@@ -163,7 +165,9 @@ class MirrorDoctor(cmdln.Cmdln):
                              comment      = opts.comment or '',
                              scanFpm      = 0,
                              countryOnly  = 0,
-                             regionOnly   = 0)
+                             regionOnly   = 0,
+                             asOnly       = 0,
+                             prefixOnly   = 0)
         if self.options.debug:
             print s
 
@@ -231,6 +235,8 @@ class MirrorDoctor(cmdln.Cmdln):
         mb.testmirror.access_http(mirror.baseurl)
 
 
+    @cmdln.option('--md5', action='store_true',
+                        help='download and show the md5 sum')
     @cmdln.option('-m', '--mirror', 
                         help='probe only on this mirror')
     @cmdln.option('-a', '--all-mirrors', action='store_true',
@@ -257,8 +263,8 @@ class MirrorDoctor(cmdln.Cmdln):
             mirrors = self.conn.Server.select()
         else:
             mirrors = self.conn.Server.select(
-                         AND(self.conn.Server.q.statusBaseurl == 1, 
-                             self.conn.Server.q.enabled ==1))
+                         AND(self.conn.Server.q.statusBaseurl, 
+                             self.conn.Server.q.enabled))
 
         found_mirrors = 0
         try:
@@ -268,11 +274,16 @@ class MirrorDoctor(cmdln.Cmdln):
                 for baseurl in [mirror.baseurl, mirror.baseurlFtp, mirror.baseurlRsync]:
                     if baseurl == None or baseurl == '':
                         continue
-                    response = mb.testmirror.req(baseurl, filename)
+                    (response, md5) = mb.testmirror.req(baseurl, filename, do_digest=opts.md5)
                     if opts.hide_negative and response != 200:
                         continue
-                    print "%3d %-30s %s" \
-                            % (response, mirror.identifier, os.path.join(baseurl, filename))
+                    if opts.md5:
+                        print "%3d %-30s %-32s %s" \
+                                % (response, mirror.identifier, md5 or '', os.path.join(baseurl, filename))
+                    else:
+                        print "%3d %-30s %s" \
+                                % (response, mirror.identifier, os.path.join(baseurl, filename))
+
                     if response == 200: found_mirrors += 1
 
         except KeyboardInterrupt:
@@ -698,8 +709,10 @@ class MirrorDoctor(cmdln.Cmdln):
 
 
 
+    @cmdln.option('--format', metavar='FORMAT',
+            help='Specify the output format: [django|postgresql]')
     @cmdln.option('--project', metavar='PROJECT',
-                  help='Specify a project name.')
+                  help='Specify a project name (previously corresponding to a MirrorBrain instance).')
     def do_export(self, subcmd, opts, *args):
         """${cmd_name}: export the mirror list as text file
 
@@ -709,43 +722,26 @@ class MirrorDoctor(cmdln.Cmdln):
         ${cmd_option_list}
         """
 
-        if not opts.project:
-            sys.exit('specify a project name with --project')
+        import mb.exports
 
-        print """#!/usr/bin/env python
-import os, sys
+        if opts.format == 'django' and not opts.project:
+            sys.exit('For Django ORM format, specify a project name (roughly corresponding to a MirrorBrain instance) name with --project')
 
-mybasepath = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, mybasepath)
-os.environ['DJANGO_SETTINGS_MODULE'] = 'mirrordjango.settings'
+        if not opts.format:
+            sys.exit('You need to specify an output format. See --help output.')
 
-from django.db import connection
+        if opts.format == 'django':
+            print mb.exports.django_header
 
-from mirrordjango.mb.models import Contact, Operator, Project, Server, Mirror
+            # FIXME: add new fields: operator_name, operator_url, public_notes
+            print """Project(name='%s').save()""" % opts.project
 
-"""
+        elif opts.format == 'postgresql':
+            print mb.exports.postgresql_header
 
-        # FIXME: add new fields: operator_name, operator_url, public_notes
-        print """Project(name='%s').save()""" % opts.project
+        else:
+            sys.exit('unknown format %r' % opts.format)
 
-        django_template = """\
-
-# ------------------------------------------------------------
-try:
-    c = Contact.objects.get_or_create(username=%(admin)r, password='UNSET', name=%(admin)r, email=%(adminEmail)r)[0]
-except:
-    connection.connection.rollback()
-    c = None
-o = Operator.objects.get_or_create(name='%(identifier)s', logo='')[0]
-p = Project.objects.filter(name='""" + opts.project + """')
-p = p[0]
-s = Server.objects.get_or_create(identifier='%(identifier)s', operator=o, region='%(region)s', country='%(country)s', country_only='%(countryOnly)s', region_only='%(regionOnly)s', other_countries=%(otherCountries)r, file_maxsize='%(fileMaxsize)s', comment=%(comment)r, bandwidth=1)[0]
-m = Mirror.objects.get_or_create(http='%(baseurl)s', ftp='%(baseurlFtp)s', rsync='%(baseurlRsync)s', prio='%(score)s', project=p, server=s)[0]
-# s.mirrors.add(m)
-if c:
-    s.contacts.add(c)
-
-"""
 
         mirrors = self.conn.Server.select()
         for i in mirrors:
@@ -753,7 +749,21 @@ if c:
                 #print 'null comment', i
                 i.comment = ''
             d = mb.conn.server2dict(i)
-            print django_template % d
+            d.update(dict(project=opts.project))
+
+            #print >>sys.stderr, d
+
+            # replace None's
+            #for i in mb.conn.server_editable_attrs:
+            for i in ['asn', 'prefix', 'asOnly', 'prefixOnly', 'lat', 'lng', 'scanFpm']:
+                if d[i] == None: d[i] = '0'
+            for i in ['prefix', 'baseurlRsync', 'admin', 'adminEmail']:
+                if d[i] == None: d[i] = ''
+
+            if opts.format == 'django':
+                print mb.exports.django_template % d
+            elif opts.format == 'postgresql':
+                print mb.exports.postgresql_template % d
 
 
 if __name__ == '__main__':

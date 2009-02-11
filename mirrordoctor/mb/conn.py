@@ -7,14 +7,17 @@ server_show_template = """\
 identifier     : %(identifier)s
 operatorName   : %(operatorName)s
 operatorUrl    : %(operatorUrl)s
-id             : %(id)s
 baseurl        : %(baseurl)s
 baseurlFtp     : %(baseurlFtp)s
 baseurlRsync   : %(baseurlRsync)s
 region         : %(region)s
 country        : %(country)s
-countryOnly    : %(countryOnly)s
+asn            : %(asn)s
+prefix         : %(prefix)s
 regionOnly     : %(regionOnly)s
+countryOnly    : %(countryOnly)s
+asOnly         : %(asOnly)s
+prefixOnly     : %(prefixOnly)s
 otherCountries : %(otherCountries)s
 fileMaxsize    : %(fileMaxsize)s
 publicNotes    : %(publicNotes)s
@@ -34,8 +37,12 @@ server_editable_attrs = [ 'baseurl',
                           'baseurlRsync',
                           'region',
                           'country',
-                          'countryOnly',
+                          'asn',
+                          'prefix',
                           'regionOnly',
+                          'countryOnly',
+                          'asOnly',
+                          'prefixOnly',
                           'otherCountries',
                           'fileMaxsize',
                           'score',
@@ -56,17 +63,24 @@ def server2dict(s):
                 baseurlRsync  = s.baseurlRsync,
                 region        = s.region,
                 country       = s.country,
-                countryOnly   = s.countryOnly,
+                asn           = s.asn,
+                prefix        = s.prefix,
                 regionOnly    = s.regionOnly,
+                countryOnly   = s.countryOnly,
+                asOnly        = s.asOnly,
+                prefixOnly    = s.prefixOnly,
                 otherCountries = s.otherCountries,
                 fileMaxsize   = s.fileMaxsize,
                 score         = s.score,
+                scanFpm       = s.scanFpm,
                 publicNotes   = s.publicNotes,
                 enabled       = s.enabled,
                 statusBaseurl = s.statusBaseurl,
                 comment       = s.comment,
                 admin         = s.admin,
                 adminEmail    = s.adminEmail,
+                lat           = s.lat,
+                lng           = s.lng,
                 operatorName  = s.operatorName,
                 operatorUrl   = s.operatorUrl)
 
