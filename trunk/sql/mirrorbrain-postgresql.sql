@@ -27,6 +27,8 @@ CREATE TABLE "server" (
         "status_baseurl" boolean NOT NULL,
         "region"  varchar(2) NOT NULL,
         "country" varchar(2) NOT NULL,
+        "asn" integer NOT NULL,
+        "prefix" varchar(18) NOT NULL,
         "score" smallint NOT NULL,
         "scan_fpm" integer NOT NULL,
         "last_scan" timestamp with time zone NULL,
@@ -36,11 +38,12 @@ CREATE TABLE "server" (
         "public_notes" varchar(512) NOT NULL,
         "admin"       varchar(128) NOT NULL,
         "admin_email" varchar(128) NOT NULL,
-        "netblock" text,
         "lat" numeric(6, 3) NULL,
         "lng" numeric(6, 3) NULL,
         "country_only" boolean NOT NULL,
         "region_only" boolean NOT NULL,
+        "as_only" boolean NOT NULL,
+        "prefix_only" boolean NOT NULL,
         "other_countries" varchar(512) NOT NULL,
         "file_maxsize" integer NOT NULL default 0
 );
