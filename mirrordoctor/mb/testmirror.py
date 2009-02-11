@@ -46,14 +46,17 @@ def req(baseurl, filename, http_method='GET', do_digest=False):
             return (0, digest)
 
         if do_digest:
-            t = tempfile.NamedTemporaryFile()
-            while 1:
-                buf = response.read(1024*512)
-                if not buf: break
-                t.write(buf)
-            t.flush()
-            digest = mb.util.dgst(t.name)
-            t.close()
+            try:
+                t = tempfile.NamedTemporaryFile()
+                while 1:
+                    buf = response.read(1024*512)
+                    if not buf: break
+                    t.write(buf)
+                t.flush()
+                digest = mb.util.dgst(t.name)
+                t.close()
+            except:
+                return (0, digest)
 
         return (response.code, digest)
 
