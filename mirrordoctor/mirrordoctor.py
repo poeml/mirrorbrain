@@ -321,7 +321,7 @@ class MirrorDoctor(cmdln.Cmdln):
                     print """changing %s from '%s' to '%s'""" \
                             % (i, old_dict[i], new_dict[i])
                     a = new_dict[i]
-                    if type(getattr(mirror, i)) == type(1L):
+                    if type(getattr(mirror, i)) in [type(1L), type(1)]:
                         a = int(a)
                     setattr(mirror, i, a)
 
