@@ -695,7 +695,7 @@ class MirrorDoctor(cmdln.Cmdln):
             mirrors = mb.conn.servers_match(self.conn.Server, args[0])
         else:
             from sqlobject.sqlbuilder import AND
-            mirrors = self.conn.Server.select(AND(self.conn.Server.q.enabled == 1,
+            mirrors = self.conn.Server.select(AND(self.conn.Server.q.enabled,
                                                   self.conn.Server.q.country != '**'),
                                               orderBy=['region', 'country', '-score'])
 
