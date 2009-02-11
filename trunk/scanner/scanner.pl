@@ -952,7 +952,7 @@ sub rsync_readdir
   $port = 873 unless $port;
   $path =~ s{^/+}{};
 
-  my $peer = { addr => inet_aton($host), port => $port, serverid => $serverid };
+  my $peer = { identifier => $identifier, addr => inet_aton($host), port => $port, serverid => $serverid };
   $peer->{re} = $re if $re;
   $peer->{pass} = $1 if $cred and $cred =~ s{:(.*)}{};
   $peer->{user} = $cred if $cred;
