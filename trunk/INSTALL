@@ -65,6 +65,8 @@ After installation of mod_mirrorbrain, you'll need to:
 
       - install the MySQL database adapter for the DBD library
         (openSUSE/SLE package: libapr-util1-dbd-mysql)
+        Note, if the web server is set up seperately from the database server,
+        only the web server needs this package.
 
       
       - install and start MySQL
@@ -72,11 +74,11 @@ After installation of mod_mirrorbrain, you'll need to:
       - log into your database at root:
           mysql -u root -p
         there, create the database and grant write permissions for a local user:
-          create database mirrorbrain;
-          grant all privileges on mirrorbrain.* to wwwrun@localhost identified by '12345';
+          create database mb_samba;
+          grant all privileges on mb_samba.* to wwwrun@localhost identified by '12345';
       
         run the sql file which creates the tables and indices:
-          mysql -u wwwrun -p -D mirrorbrain < /usr/share/doc/packages/apache2-mod_zrkadlo/sql/mirrorbrain-mysql.sql
+          mysql -u wwwrun -p -D mb_samba < /usr/share/doc/packages/apache2-mod_zrkadlo/sql/mirrorbrain-mysql.sql
       
       - the mysql InnoDB engine needs to be configured to use enough memory for the
         database. This is probably the most important thing to know and the most
@@ -90,6 +92,8 @@ After installation of mod_mirrorbrain, you'll need to:
 
        - install the PostgreSQL database adapter for the DBD library
          (openSUSE/SLE package: libapr-util1-dbd-pgsql)
+         Note, if the web server is set up seperately from the database server,
+         only the web server needs this package.
        
        - install postgresql and start it
 
@@ -107,56 +111,48 @@ After installation of mod_mirrorbrain, you'll need to:
            Shall the new role be allowed to create more new roles? (y/n) n
            CREATE ROLE
            
-           postgres@powerpc:~> createdb -O mb mirrorbrain
+           postgres@powerpc:~> createdb -O mb mb_samba
            CREATE DATABASE
            postgres@powerpc:~> 
 
 
+           postgres@powerpc:~> cp data/pg_hba.conf data/pg_hba.conf.orig
            postgres@powerpc:~> vi data/pg_hba.conf
+
            # TYPE  DATABASE    USER        CIDR-ADDRESS          METHOD
            # "local" is for Unix domain socket connections only
            #local   all         all                               ident sameuser
-           #local   all         all                               trust
            local   all         all                               password
            # IPv4 local connections:
            host    all         all         127.0.0.1/32          password
            # IPv6 local connections:
            host    all         all         ::1/128               password
+           # remote connections:
+           host    mb_samba    mb          10.10.2.3/32          password
+
            
            
+           Tuning:
+
+	   If the database will be large, reserve enough memory for it (mainly
+	   by setting shared_buffers), and in any case you should switch off
+	   synchronous commit mode (synchronous_commit = off).
+
+
+
            root@powerpc:~ # rcpostgresql restart
-           
-           root@powerpc:~ # su - postgres
-           postgres@powerpc:~> psql mirrorbrain mb
-           Password for user mb: 
-           Welcome to psql 8.1.11, the PostgreSQL interactive terminal.
-           [...]
 
 
 
-
-       - psql -U mb -f /dev/shm/mirrorbrain-postgresql.sql mirrorbrain
+       - psql -U mb -f sql/mirrorbrain-postgresql.sql mb_samba
 
            Password for user mb: 
            BEGIN
-           psql:/dev/shm/mirrorbrain-postgresql.sql:14: NOTICE:  CREATE TABLE will create implicit sequence "file_id_seq" for serial column "file.id"
-           psql:/dev/shm/mirrorbrain-postgresql.sql:14: NOTICE:  CREATE TABLE / PRIMARY KEY will create implicit index "file_pkey" for table "file"
-           CREATE TABLE
-           CREATE INDEX
-           psql:/dev/shm/mirrorbrain-postgresql.sql:45: NOTICE:  CREATE TABLE will create implicit sequence "server_id_seq" for serial column "server.id"
-           psql:/dev/shm/mirrorbrain-postgresql.sql:45: NOTICE:  CREATE TABLE / PRIMARY KEY will create implicit index "server_pkey" for table "server"
-           psql:/dev/shm/mirrorbrain-postgresql.sql:45: NOTICE:  CREATE TABLE / UNIQUE will create implicit index "server_identifier_key" for table "server"
-           CREATE TABLE
-           CREATE INDEX
-           psql:/dev/shm/mirrorbrain-postgresql.sql:61: NOTICE:  CREATE TABLE / UNIQUE will create implicit index "file_server_fileid_key" for table "file_server"
-           CREATE TABLE
-           CREATE INDEX
-           CREATE INDEX
-           psql:/dev/shm/mirrorbrain-postgresql.sql:83: NOTICE:  CREATE TABLE will create implicit sequence "marker_id_seq" for serial column "marker.id"
-           psql:/dev/shm/mirrorbrain-postgresql.sql:83: NOTICE:  CREATE TABLE / PRIMARY KEY will create implicit index "marker_pkey" for table "marker"
-           CREATE TABLE
-           psql:/dev/shm/mirrorbrain-postgresql.sql:92: NOTICE:  CREATE TABLE will create implicit sequence "country_id_seq" for serial column "country.id"
-           psql:/dev/shm/mirrorbrain-postgresql.sql:92: NOTICE:  CREATE TABLE / PRIMARY KEY will create implicit index "country_pkey" for table "country"
+           psql:sql/mirrorbrain-postgresql.sql:14: NOTICE:  CREATE TABLE will create implicit sequence "file_id_seq" for serial column "file.id"
+	   
+	   [...]
+
+           psql:sql/mirrorbrain-postgresql.sql:92: NOTICE:  CREATE TABLE / PRIMARY KEY will create implicit index "country_pkey" for table "country"
            CREATE TABLE
            CREATE FUNCTION
            COMMIT
@@ -173,16 +169,16 @@ After installation of mod_mirrorbrain, you'll need to:
 
 
   [general]
-  instances = go-oo
+  instances = samba
 
-  [go-oo]
+  [samba]
   dbuser = wwwrun
   dbpass = 12345
   # use "mysql" for MySQL, and "postgresql" for PostgreSQL
   dbdriver = mysql
   dbhost = your_host.example.com
   dbport = 3306
-  dbname = mirrorbrain
+  dbname = mb_samba
   
   [mirrorprobe]
   logfile = /var/log/mirrorprobe.log
@@ -228,6 +224,12 @@ After installation of mod_mirrorbrain, you'll need to:
 
 
 
+- example migration commands from MySQL to PostgreSQL: 
+    createdb -O mb mb_samba
+    psql -U mb -f sql/mirrorbrain-postgresql.sql mb_samba
+
+    mb -b samba export --format postgresql | psql -U mb mb_samba
+
 
 - configure Apache:
 
@@ -265,7 +267,7 @@ After installation of mod_mirrorbrain, you'll need to:
     # reconnect=0 is needed with the mysql adapter. It means that connections
     # should not be "reanimated", because prepared statements would be lost anyway,
     # so dead connections should rather be invalidated and new ones made.
-    DBDParams "host=localhost, user=wwwrun, pass=12345, dbname=mirrorbrain, reconnect=0"
+    DBDParams "host=localhost, user=wwwrun, pass=12345, dbname=mb_samba, reconnect=0"
     # # threaded MPMs only. prefork will have use db connection per process
     
     # or, for PostgreSQL:
@@ -273,27 +275,27 @@ After installation of mod_mirrorbrain, you'll need to:
     DBDriver pgsql
     # note that the connection string (which is passed straight through to
     # PGconnectdb in this case) looks slightly different - pass vs. password
-    DBDParams "host=localhost user=mb password=12345 dbname=mirrorbrain connect_timeout=15"
+    DBDParams "host=localhost user=mb password=12345 dbname=mb_samba connect_timeout=15"
     ------------------------------------------------------------------------
 
 
   - configure mod_mirrorbrain.
     You probably want to reate a vhost (e.g.
-    /etc/apache2/vhosts.d/go-oo.mirrorbrain.org.conf) and add the MirrorBrain
+    /etc/apache2/vhosts.d/samba.mirrorbrain.org.conf) and add the MirrorBrain
     configuration like shown here:
 
     ------------------------------------------------------------------------
     <VirtualHost your.host.name:80>
-        ServerName go-oo.mirrorbrain.org
+        ServerName samba.mirrorbrain.org
     
         ServerAdmin webmaster@mirrorbrain.org
     
-        DocumentRoot /srv/go-oo/pub/projects
+        DocumentRoot /srv/samba/pub/projects
     
-        ErrorLog     /var/log/apache2/go-oo.mirrorbrain.org/logs/error_log
-        CustomLog    /var/log/apache2/go-oo.mirrorbrain.org/logs/access_log combined
+        ErrorLog     /var/log/apache2/samba.mirrorbrain.org/logs/error_log
+        CustomLog    /var/log/apache2/samba.mirrorbrain.org/logs/access_log combined
 
-        <Directory /srv/go-oo/pub/projects>
+        <Directory /srv/samba/pub/projects>
             MirrorBrainEngine On
             MirrorBrainDebug Off
             FormGET On
