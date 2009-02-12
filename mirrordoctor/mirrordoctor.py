@@ -66,14 +66,17 @@ class MirrorDoctor(cmdln.Cmdln):
         optparser.add_option('-b', '--brain-instance', 
                              help='the mirrorbrain instance to use. '
                                   'Corresponds to a section in '
-                                  '/etc/mirrorbrain.conf which is named the same.')
+                                  '/etc/mirrorbrain.conf which is named the same. '
+                                  'Can also specified via environment variable MB.')
         return optparser
 
 
     def postoptparse(self):
         """runs after parsing global options"""
 
-        import mb.conf
+        import os, mb.conf
+        if not self.options.brain_instance:
+            self.options.brain_instance = os.getenv('MB', default=None)
         self.config = mb.conf.Config(instance = self.options.brain_instance)
 
         # set up the database connection
