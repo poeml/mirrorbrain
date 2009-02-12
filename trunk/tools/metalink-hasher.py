@@ -33,7 +33,10 @@ def make_hashes(src, dst, opts):
     if not opts.dry_run:
         if not os.path.isdir(dst_dir):
             os.makedirs(dst_dir, mode = 0755)
-        os.chmod(dst_dir, src_dir_mode)
+        if opts.copy_permissions:
+            os.chmod(dst_dir, src_dir_mode)
+        else:
+            os.chmod(dst_dir, 0755)
 
     src_mtime = os.path.getmtime(src)
     try:
@@ -81,13 +84,21 @@ def make_hashes(src, dst, opts):
     d.write(''.join(lines))
     d.close()
 
-    os.chmod(dst, os.stat(src).st_mode)
+    if opts.copy_permissions:
+        os.chmod(dst, os.stat(src).st_mode)
+    else:
+        os.chmod(dst, 0644)
 
 
 class Metalinks(cmdln.Cmdln):
 
     @cmdln.option('-n', '--dry-run', action='store_true',
                         help='don\'t actually do anything')
+    @cmdln.option('--copy-permissions', action='store_true',
+                        help='copy the permissions of directories and files '
+                             'to the hashes files. Normally, this should not '
+                             'be needed, because the hash files don\'t contain '
+                             'any reversible information.')
     @cmdln.option('-f', '--file-mask', metavar='REGEX',
                         help='regular expression to select files to create hashes for')
     @cmdln.option('-b', '--base-dir', metavar='PATH',
