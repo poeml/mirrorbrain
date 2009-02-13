@@ -225,6 +225,86 @@ class MirrorDoctor(cmdln.Cmdln):
         print mb.conn.server_show_template % mb.conn.server2dict(mirror)
 
 
+    @cmdln.option('-p', '--prefix', action='store_true',
+                        help='print the network prefix')
+    @cmdln.option('-a', '--asn', action='store_true',
+                        help='print the AS number')
+    def do_iplookup(self, subcmd, opts, ip):
+        """${cmd_name}: lookup stuff about an IP address
+
+        Requires a pfx2asn table to be present, which can be used to look
+        up the AS (autonomous system) number and the closest network prefix
+        that an IP is contained in.
+        Such a table is probably used in conjunction with mod_asn.
+        (Get it. It is worth it ;-)
+
+        ${cmd_usage}
+        ${cmd_option_list}
+        """
+        import mb.asn
+
+        r = mb.asn.iplookup(self.conn, ip)
+
+        if opts.asn:
+            print r.asn
+        elif opts.prefix:
+            print r.prefix
+        else:
+            print '%s (AS%s)' % (r.prefix, r.asn)
+
+
+    @cmdln.option('--all-mirrors', action='store_true',
+                        help='update *all* mirrors (also disabled ones)')
+    @cmdln.option('-p', '--prefix', action='store_true',
+                        help='update the network prefix')
+    @cmdln.option('-a', '--asn', action='store_true',
+                        help='update the AS number')
+    def do_update(self, subcmd, opts, *args):
+        """${cmd_name}: update mirrors in the database
+
+        Requires a pfx2asn table to be present, which can be used to look
+        up the AS (autonomous system) number and the closest network prefix
+        that an IP is contained in.
+        Such a table is probably used in conjunction with mod_asn.
+
+        ${cmd_usage}
+        ${cmd_option_list}
+        """
+        from mb.asn import iplookup
+        from mb.util import hostname_from_url
+        from sqlobject.sqlbuilder import AND
+
+        #r = mb.asn.iplookup(self.conn, ip)
+
+        #if opts.asn:
+        #    print r.asn
+        #elif opts.prefix:
+        #    print r.prefix
+        #else:
+        #    print '%s (AS%s)' % (r.prefix, r.asn)
+
+        mirrors = []
+        for arg in args:
+            mirrors.append(lookup_mirror(self, arg))
+
+        if not args:
+            if opts.all_mirrors:
+                mirrors = self.conn.Server.select()
+            else:
+                mirrors = self.conn.Server.select(
+                             AND(self.conn.Server.q.statusBaseurl, 
+                                 self.conn.Server.q.enabled))
+
+        for mirror in mirrors:
+            hostname = hostname_from_url(mirror.baseurl)
+            res = iplookup(self.conn, hostname)
+            print mirror.identifier, res
+            if opts.prefix:
+                mirror.prefix = res.prefix
+            if opts.asn:
+                mirror.asn = res.asn
+
+
     def do_test(self, subcmd, opts, identifier):
         """${cmd_name}: test if a mirror is working
 
