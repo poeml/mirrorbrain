@@ -169,7 +169,7 @@ static void (*mb_dbd_prepare_fn)(server_rec*, const char*, const char*) = NULL;
 static void debugLog(const request_rec *r, const mb_dir_conf *cfg,
                      const char *fmt, ...)
 {
-    if (cfg->debug) {
+    if (cfg->debug == 1) {
         char buf[512];
         va_list ap;
         va_start(ap, fmt);
