@@ -1,3 +1,12 @@
+Fri Feb 13 02:39:45 CET 2009
+- updated database schemes and toolchain -- PostgreSQL support is solid now
+- work on installation documentation for both MySQL and PostgreSQL
+  (the latter is recommended now, because it allows for nifty features in the
+  future. The mb tool has an export subcommand now, perfect to migrate the
+  database.)
+- toolchain work
+
+
 Tue Feb  3 10:38:02 CET 2009
 - version 2.5
 - working on PostgreSQL support
