@@ -13,6 +13,16 @@ class Afile:
         return self.name
 
 
+class IpAddress:
+    """represent an IP address, or rather some data associated with it"""
+    def __init__(self, ip):
+        self.ip = ip
+        self.asn = None
+        self.prefix = None
+    def __str__(self):
+        return '%s (%s AS%s)' % (self.ip, self.prefix, self.asn)
+
+
 def b64_md5(path):
     import base64, md5
     return base64.standard_b64encode(md5.md5(path).digest())[:-2]
@@ -26,6 +36,14 @@ def data_url(basedir, path):
     ext = os.path.splitext(path)[1]
 
     return 'data:image/%s;base64,%s' % (ext, data)
+
+
+def hostname_from_url(url):
+    import urlparse
+    h = urlparse.urlparse(url)[1]
+    if ':' in h:
+        h = h.split(':')[0]
+    return h
 
 
 def dgst(file):

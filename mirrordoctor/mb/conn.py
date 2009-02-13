@@ -144,11 +144,18 @@ class Conn:
         self.Country = Country
 
         class Region(SQLObject):
-            """the countries table"""
+            """the regions table"""
             class sqlmeta:
                 fromDatabase = True
                 defaultOrder = 'code'
         self.Region = Region
+
+        class Pfx2asn(SQLObject):
+            """the pfx2asn table"""
+            class sqlmeta:
+                fromDatabase = True
+                defaultOrder = 'asn'
+        self.Pfx2asn = Pfx2asn
 
         if debug:
             self.Server._connection.debug = True
