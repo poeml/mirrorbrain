@@ -225,6 +225,8 @@ class MirrorDoctor(cmdln.Cmdln):
         print mb.conn.server_show_template % mb.conn.server2dict(mirror)
 
 
+    @cmdln.option('--all-prefixes', action='store_true',
+                        help='show all prefixes handled by this AS')
     @cmdln.option('-p', '--prefix', action='store_true',
                         help='print the network prefix')
     @cmdln.option('-a', '--asn', action='store_true',
@@ -251,6 +253,9 @@ class MirrorDoctor(cmdln.Cmdln):
             print r.prefix
         else:
             print '%s (AS%s)' % (r.prefix, r.asn)
+        if opts.all_prefixes:
+            r2 = mb.asn.asn_prefixes(self.conn, r.asn)
+            print ', '.join(r2)
 
 
     @cmdln.option('--all-mirrors', action='store_true',
