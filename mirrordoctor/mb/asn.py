@@ -32,3 +32,13 @@ def iplookup(conn, s):
         return a
     (a.prefix, a.asn) = res[0]
     return a
+
+def asn_prefixes(conn, asn):
+
+    query = """SELECT pfx \
+                   FROM pfx2asn \
+                   WHERE asn='%s'""" % asn
+
+    res = conn.Pfx2asn._connection.queryAll(query)
+    l = [ i[0] for i in res ]
+    return l
