@@ -17,8 +17,9 @@ CREATE TABLE `file` (
 CREATE TABLE `file_server` (
   `fileid` int(11) unsigned NOT NULL default '0',
   `serverid` int(11) unsigned NOT NULL default '0',
--- timestamp_file: the default and update trigger are not used
-  `timestamp_file` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+-- we never used the timestamp_file column
+-- the default and update trigger were not used either
+-- `timestamp_file` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
   `timestamp_scanner` timestamp NOT NULL default '0000-00-00 00:00:00',
   KEY `file_server_fileid_idx` (`fileid`),
   KEY `file_server_serverid_idx` (`serverid`),

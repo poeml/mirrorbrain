@@ -55,28 +55,29 @@ CREATE INDEX "server_enabled_status_baseurl_score_key" ON "server" (
 -- --------------------------------------------------------
 
 CREATE TABLE "file_server" (
-        -- can we just omit the id column?
-        -- no, sqlobject needs a primary key.
-        "id" serial NOT NULL PRIMARY KEY,
         "serverid" integer NOT NULL REFERENCES "server" ("id") DEFERRABLE INITIALLY DEFERRED,
         "fileid" integer NOT NULL REFERENCES "file" ("id") DEFERRABLE INITIALLY DEFERRED,
-        "timestamp_file" timestamp with time zone NULL,
+	-- we actually never used the timestamp_file column.
+        -- "timestamp_file" timestamp with time zone NULL,
+        -- and the next one should be a unix epoch, which needs only 4 bytes instead of 8:
         "timestamp_scanner" timestamp with time zone NULL,
         UNIQUE ("fileid", "serverid")
 );
-
--- indexes that are created with "id" column:
--- NOTICE:  CREATE TABLE will create implicit sequence "file_server_id_seq" for serial column "file_server.id"
--- NOTICE:  CREATE TABLE / PRIMARY KEY will create implicit index "file_server_pkey" for table "file_server"
 -- NOTICE:  CREATE TABLE / UNIQUE will create implicit index "file_server_fileid_key" for table "file_server"
 -- CREATE TABLE
 
--- that are created when not using the "id" column:
--- NOTICE:  CREATE TABLE / UNIQUE will create implicit index "file_server_fileid_key" for table "file_server"
--- CREATE TABLE
+CREATE INDEX "file_server_serverid_fileid_key" ON "file_server" ("serverid", "fileid");
 
-CREATE INDEX "file_server_serverid_key" ON "file_server" ("serverid");
-CREATE INDEX "file_server_fileid_serverid_key" ON "file_server" ("fileid", "serverid");
+
+-- For ORM's that require a primary key named 'id'; this way we don't need to
+-- actually store it and have an index for it.
+-- the index alone needs 800MB for 1.000.000 files
+CREATE VIEW file_server_withpk AS 
+        SELECT '1' 
+	|| LPAD(CAST(fileid AS TEXT), 12, '0') 
+	|| LPAD(CAST(serverid AS TEXT), 12, '0') 
+	AS id, serverid, fileid, timestamp_scanner 
+	FROM file_server;
 
 -- --------------------------------------------------------
 
