@@ -90,8 +90,8 @@
                              "s.region_only, s.country_only, " \
                              "s.as_only, s.prefix_only, " \
                              "s.other_countries, s.file_maxsize " \
-                      "FROM file f" \
-                      "LEFT JOIN file_server fs" \
+                      "FROM file f " \
+                      "LEFT JOIN file_server fs " \
                       "ON f.id = fs.fileid " \
                       "LEFT JOIN server s" \
                       "ON fs.serverid = s.id " \
