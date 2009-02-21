@@ -240,7 +240,7 @@ my $dbh = DBI->connect( $db_cred->{dbi}, $db_cred->{user}, $db_cred->{pass}, $db
 my $sql = qq{SELECT * FROM server where country != '**'};
 print "$sql\n" if $sqlverbose;
 my $ary_ref = $dbh->selectall_hashref($sql, 'id')
-		   or die $dbh->errstr();
+		   or die $DBI::errstr;
 
 my @scan_list;
 
@@ -335,21 +335,21 @@ for my $row (@scan_list) {
     # Keep in sync with $start_dir setup above!
     my $sth = $dbh->prepare( $sql );
     print "$sql  <--- " . length($start_dir) ? "$start_dir/%" : () . " \n" if $sqlverbose;
-    $sth->execute(length($start_dir) ? "$start_dir/%" : ()) or die "$row->{identifier}: $sth->errstr";
+    $sth->execute(length($start_dir) ? "$start_dir/%" : ()) or die "$row->{identifier}: $DBI::errstr";
   }
 
   unless ($extra_schedule_run) {
     $sql = "UPDATE server SET last_scan = NOW(), scan_fpm = $fpm WHERE id = $row->{id};";
     print "$sql\n" if $sqlverbose;
     my $sth = $dbh->prepare( $sql );
-    $sth->execute() or die "$row->{identifier}: $sth->errstr";
+    $sth->execute() or die "$row->{identifier}: $DBI::errstr";
   }
 
   if($enable_after_scan && $file_count > 1 && !$row->{enabled}) {
     $sql = "UPDATE server SET enabled = '1' WHERE id = $row->{id};";
     print "$sql\n" if $sqlverbose;
     my $sth = $dbh->prepare( $sql );
-    $sth->execute() or die "$row->{identifier}: $sth->errstr";
+    $sth->execute() or die "$row->{identifier}: $DBI::errstr";
     print "$row->{identifier}: now enabled.\n" if $verbose > 0;
   }
 
@@ -502,7 +502,7 @@ sub mirror_new
       " WHERE id = $old->[0]{id}";
 
     print "$sql\n" if $sqlverbose;
-    $dbh->do($sql) or die "$sql: ".$dbh->errstr;
+    $dbh->do($sql) or die "$sql: ".$DBI::errstr;
   }
   else {
     $fields->{identifier} ||= $name||'';
@@ -524,7 +524,7 @@ sub mirror_new
       join(', ', map { "$_ = ".$dbh->quote($fields->{$_}) } keys %$fields);
 
     print "$sql\n" if $sqlverbose;
-    $dbh->do($sql) or die "$sql: ".$dbh->errstr;
+    $dbh->do($sql) or die "$sql: ".$DBI::errstr;
   }
 return 0;
 }
@@ -751,7 +751,7 @@ sub ftp_readdir
 
 sub save_file
 {
-  my ($path, $identifier, $serverid, $file_tstamp, $mod_re, $ign_re) = @_;
+  my ($path, $identifier, $serverid, $mod_re, $ign_re) = @_;
 
   my $fileid;
 
@@ -777,24 +777,26 @@ sub save_file
 
 
   if(checkfileserver_fileid($serverid, $fileid)) {
-    my $sql = "UPDATE file_server SET timestamp_file = FROM_UNIXTIME(?), timestamp_scanner = NOW() WHERE fileid = ? AND serverid = ?;";
+    #my $sql = "UPDATE file_server SET timestamp_file = FROM_UNIXTIME(?), timestamp_scanner = NOW() WHERE fileid = ? AND serverid = ?;";
+    my $sql = "UPDATE file_server SET timestamp_scanner = NOW() WHERE fileid = ? AND serverid = ?;";
     if (!defined $sth_update) {
       printf "\nPreparing update statement\n\n" if $sqlverbose;
-      $sth_update = $dbh->prepare( $sql );
+      $sth_update = $dbh->prepare( $sql ) or die $DBI::errstr;
     }
 
-    printf "$sql  <-- $file_tstamp, $fileid, $serverid \n" if $sqlverbose;
-    $sth_update->execute( $file_tstamp, $fileid, $serverid ) or die "$identifier: $sth_update->errstr";
+    printf "$sql  <-- $fileid, $serverid \n" if $sqlverbose;
+    $sth_update->execute( $fileid, $serverid ) or die $DBI::errstr; 
   }
   else {
-    my $sql = "INSERT INTO file_server (fileid, serverid, timestamp_file, timestamp_scanner) VALUES (?, ?, FROM_UNIXTIME(?), NOW());";
+    #my $sql = "INSERT INTO file_server (fileid, serverid, timestamp_file, timestamp_scanner) VALUES (?, ?, FROM_UNIXTIME(?), NOW());";
+    my $sql = "INSERT INTO file_server (fileid, serverid, timestamp_scanner) VALUES (?, ?, NOW());";
     if (!defined $sth_insert_rel) {
       printf "\nPreparing insert statement\n\n" if $sqlverbose;
       $sth_insert_rel = $dbh->prepare( $sql );
     }
 
-    printf "$sql  <-- $fileid, $serverid, $file_tstamp \n" if $sqlverbose;
-    $sth_insert_rel->execute( $fileid, $serverid, $file_tstamp ) or die "$identifier: $sth_insert_rel->errstr";
+    printf "$sql  <-- $fileid, $serverid \n" if $sqlverbose;
+    $sth_insert_rel->execute( $fileid, $serverid ) or die "$identifier: $sth_insert_rel->errstr";
   }
   return $path;
 }
