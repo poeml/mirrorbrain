@@ -123,11 +123,14 @@ class Conn:
                 fromDatabase = True
         self.File = File
 
-        class FileServer(SQLObject):
+        # FileServerWithpk is a view of the file_server table, with a
+        # simulated primary key that this ORM requires.
+        class FileServerWithpk(SQLObject):
             """the file_server table"""
-            class sqlmeta:
-                fromDatabase = True
-        self.FileServer = FileServer
+            fileid = IntCol()
+            serverid = IntCol()
+            timestamp_scanner = IntCol()
+        self.FileServer = FileServerWithpk
 
         class Marker(SQLObject):
             """the marker table"""
