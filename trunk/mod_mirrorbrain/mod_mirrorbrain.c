@@ -93,7 +93,7 @@
                       "FROM file f " \
                       "LEFT JOIN file_server fs " \
                       "ON f.id = fs.fileid " \
-                      "LEFT JOIN server s" \
+                      "LEFT JOIN server s " \
                       "ON fs.serverid = s.id " \
                       "WHERE f.path=%s " \
                              "AND s.enabled " \
