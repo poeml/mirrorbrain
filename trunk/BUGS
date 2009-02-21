@@ -1,8 +1,24 @@
-more important bugs at the top...
+more important bugs at the top!
 
 
-* no important bug known at this time :-)
-  but there are some:
+* mod_asn fails sometimes and puts garbage into the env:
+
+  87.79.141.235 - - [16/Feb/2009:14:41:38 +0100] "GET /factory/repo/oss/suse/setup/descr/packages.gz HTTP/1.1" 200 2416300 "-" "ZYpp 5.25.0 (curl 7.19.0)" - r:- 145 2416594 -:- ASN:8422 P:87.78.0.0/15 size:- - - "-"
+  87.79.141.235 - - [16/Feb/2009:14:41:38 +0100] "GET /factory/repo/oss/suse/setup/descr/patterns HTTP/1.1" 200 164 "-" "ZYpp 5.25.0 (curl 7.19.0)" - r:- 142 431 -:- ASN:{&\x80\x02 P: size:- - - "-"
+  87.79.141.235 - - [16/Feb/2009:14:41:39 +0100] "GET /factory/repo/oss/license.tar.gz HTTP/1.1" 200 24492 "-" "ZYpp 5.25.0 (curl 7.19.0)" - r:- 131 24782 -:- ASN:8422 P:87.78.0.0/15 size:- - - "-"
+
+  Further, I noticed that for 404s the lookup is correctly done (can be seen in
+  the response headers), but ASN:- P:- is being logged.
+
+  Empty logging also happens for 200s, when e.g. requesting something from /icons, 
+  so that fits the configuration:
+  87.79.141.235 - - [16/Feb/2009:15:55:43 +0100] "GET /icons/torrent.png HTTP/1.1" 200 3445 "http://download.opensuse.org/distribution/11.1/iso/" "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_5_6; en-us) AppleWebKit/525.27.1 (KHTML, like Gecko) Shiira Safari/125" - r:- 405 3744 -:- ASN:- P:- size:- - - "-"
+
+
+  But what about redirections exceptions, like size?
+  78.34.103.82 - - [16/Feb/2009:16:05:54 +0100] "GET /distribution/11.1/repo/oss/suse/setup/descr/patterns HTTP/1.1" 200 170 "-" "ZYpp 5.24.5 (curl 7.19.0)" - r:- 152 448 -:- ASN:8422 P:78.34.0.0/15 size:- - - "-"
+
+* check if the Vary header on Accept is added on all requests!
 
 * country_only mirrors show up in metalinks
 
