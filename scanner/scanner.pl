@@ -65,10 +65,9 @@
 #                            considered obsolete.
 # 2009-02-03, poeml - V0.22, prepare SQL statements *once*.
 #                            add -S option for SQL debugging
+# 2009-02-21, poeml - V0.23, timestamp_scanner is a UNIX epoch now, instead of 
+#                            a SQL timestamp.
 #
-# FIXME: 
-# should do optimize table file, file_server;
-# once in a while.
 #
 # 
 #######################################################################
@@ -95,7 +94,7 @@ use Socket;
 use bytes;
 use Config::IniFiles;
 
-my $version = '0.22';
+my $version = '0.23';
 my $scanner_email = 'poeml@suse.de';
 my $verbose = 1;
 my $sqlverbose = 0;
@@ -324,7 +323,7 @@ for my $row (@scan_list) {
 
   unless ($keep_dead_files) {
     my $sql = "DELETE FROM file_server WHERE serverid = $row->{id} 
-      AND timestamp_scanner <= (SELECT last_scan FROM server 
+      AND timestamp_scanner <= (SELECT extract(epoch from last_scan) FROM server 
 	  WHERE id = $row->{id} limit 1)";
 
     if(length $start_dir) {
@@ -334,7 +333,7 @@ for my $row (@scan_list) {
 
     # Keep in sync with $start_dir setup above!
     my $sth = $dbh->prepare( $sql );
-    print "$sql  <--- " . length($start_dir) ? "$start_dir/%" : () . " \n" if $sqlverbose;
+    print "$row->{identifier}: $sql\n" if $sqlverbose;
     $sth->execute(length($start_dir) ? "$start_dir/%" : ()) or die "$row->{identifier}: $DBI::errstr";
   }
 
@@ -777,8 +776,7 @@ sub save_file
 
 
   if(checkfileserver_fileid($serverid, $fileid)) {
-    #my $sql = "UPDATE file_server SET timestamp_file = FROM_UNIXTIME(?), timestamp_scanner = NOW() WHERE fileid = ? AND serverid = ?;";
-    my $sql = "UPDATE file_server SET timestamp_scanner = NOW() WHERE fileid = ? AND serverid = ?;";
+    my $sql = "UPDATE file_server SET timestamp_scanner = ".time." WHERE fileid = ? AND serverid = ?;";
     if (!defined $sth_update) {
       printf "\nPreparing update statement\n\n" if $sqlverbose;
       $sth_update = $dbh->prepare( $sql ) or die $DBI::errstr;
@@ -788,8 +786,7 @@ sub save_file
     $sth_update->execute( $fileid, $serverid ) or die $DBI::errstr; 
   }
   else {
-    #my $sql = "INSERT INTO file_server (fileid, serverid, timestamp_file, timestamp_scanner) VALUES (?, ?, FROM_UNIXTIME(?), NOW());";
-    my $sql = "INSERT INTO file_server (fileid, serverid, timestamp_scanner) VALUES (?, ?, NOW());";
+    my $sql = "INSERT INTO file_server (fileid, serverid, timestamp_scanner) VALUES (?, ?, ".time.");";
     if (!defined $sth_insert_rel) {
       printf "\nPreparing insert statement\n\n" if $sqlverbose;
       $sth_insert_rel = $dbh->prepare( $sql );
