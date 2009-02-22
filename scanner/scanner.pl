@@ -93,6 +93,7 @@ use Time::HiRes;
 use Socket;
 use bytes;
 use Config::IniFiles;
+use Time::HiRes qw(gettimeofday);
 
 my $version = '0.23';
 my $scanner_email = 'poeml@suse.de';
@@ -133,6 +134,9 @@ my $enable_after_scan = 0;
 my $topdirs = 'distribution|tools|repositories';
 my $cfgfile = '/etc/mirrorbrain.conf';
 my $brain_instance = '';
+
+# FIXME: use DBI functions transaction handling
+my $do_transaction = 0;
 
 # save prepared statements
 my $sth_update;
@@ -304,24 +308,36 @@ if ($parallel > 1) {
 
 
 for my $row (@scan_list) {
-  print "$row->{identifier}: starting\n" if $verbose;
+  print localtime(time) . " $row->{identifier}: starting\n" if $verbose;
 
-  my $start = time();
+  if($do_transaction) {
+    $sql = "BEGIN;";
+    print "$sql\n" if $sqlverbose;
+    $dbh->do($sql) or die "$sql: ".$DBI::errstr;
+  }
+
+  my $start = int(gettimeofday * 1000);
   my $file_count = rsync_readdir($row->{identifier}, $row->{id}, $row->{baseurl_rsync}, $start_dir);
   if(!$file_count and $row->{baseurl_ftp}) {
-    print "$row->{identifier}: no rsync, trying ftp\n" if $verbose;
+    print localtime(time) . " $row->{identifier}: no rsync, trying ftp\n" if $verbose;
     $file_count = scalar ftp_readdir($row->{identifier}, $row->{id}, $row->{baseurl_ftp}, $start_dir);
   }
   if(!$file_count and $row->{baseurl}) {
-    print "$row->{identifier}: no rsync, no ftp, trying http\n" if $verbose;
+    print localtime(time) . " $row->{identifier}: no rsync, no ftp, trying http\n" if $verbose;
     $file_count = scalar http_readdir($row->{identifier}, $row->{id}, $row->{baseurl}, $start_dir);
   }
 
-  my $duration = time() - $start;
-  $duration = 1 if $duration < 1;
+  my $duration = (int(gettimeofday * 1000) - $start) / 1000;
+
   my $fpm = int(60*$file_count/$duration);
 
+  print localtime(time) . " $row->{identifier}: scanned $file_count files (" 
+         . int($fpm/60) . "/s) in " 
+         . int($duration) . "s\n" if $verbose;
+
   unless ($keep_dead_files) {
+    $start = time();
+    print localtime(time) . " $row->{identifier}: purging old files\n" if $verbose > 1;
     my $sql = "DELETE FROM file_server WHERE serverid = $row->{id} 
       AND timestamp_scanner <= (SELECT extract(epoch from last_scan) FROM server 
 	  WHERE id = $row->{id} limit 1)";
@@ -335,6 +351,9 @@ for my $row (@scan_list) {
     my $sth = $dbh->prepare( $sql );
     print "$row->{identifier}: $sql\n" if $sqlverbose;
     $sth->execute(length($start_dir) ? "$start_dir/%" : ()) or die "$row->{identifier}: $DBI::errstr";
+
+    $duration = time() - $start;
+    print localtime(time) . " $row->{identifier}: purged old files in " . $duration . "s.\n" if $verbose > 0;
   }
 
   unless ($extra_schedule_run) {
@@ -352,7 +371,13 @@ for my $row (@scan_list) {
     print "$row->{identifier}: now enabled.\n" if $verbose > 0;
   }
 
-  print "$row->{identifier}: done, $file_count files, $fpm files per minute.\n" if $verbose > 0;
+  if($do_transaction) {
+    $sql = "COMMIT;";
+    print "$sql\n" if $sqlverbose;
+    $dbh->do($sql) or die "$sql: ".$DBI::errstr;
+  }
+
+  print localtime(time) . " $row->{identifier}: done.\n" if $verbose > 0;
 }
 
 $dbh->disconnect();
