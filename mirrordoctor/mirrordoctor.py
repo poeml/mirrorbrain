@@ -186,6 +186,7 @@ class MirrorDoctor(cmdln.Cmdln):
     @cmdln.option('-r', '--region', metavar='XY',
                         help='show only mirrors whose region matches XY '
                         '(possible values: sa,na,oc,af,as,eu)')
+    # @cmdln.alias('ls') ?
     def do_list(self, subcmd, opts, *args):
         """${cmd_name}: list mirrors
 
@@ -265,12 +266,14 @@ class MirrorDoctor(cmdln.Cmdln):
     @cmdln.option('-a', '--asn', action='store_true',
                         help='update the AS number')
     def do_update(self, subcmd, opts, *args):
-        """${cmd_name}: update mirrors in the database
+        """${cmd_name}: update mirrors network data in the database
 
         Requires a pfx2asn table to be present, which can be used to look
         up the AS (autonomous system) number and the closest network prefix
         that an IP is contained in.
         Such a table is probably used in conjunction with mod_asn.
+
+        The IP to be looked up is derived from the HTTP base URL.
 
         ${cmd_usage}
         ${cmd_option_list}
@@ -301,12 +304,13 @@ class MirrorDoctor(cmdln.Cmdln):
                                  self.conn.Server.q.enabled))
 
         for mirror in mirrors:
+            print mirror.identifier, 
             hostname = hostname_from_url(mirror.baseurl)
             res = iplookup(self.conn, hostname)
-            print mirror.identifier, res
-            if opts.prefix:
+            if res: print res
+            if res and opts.prefix:
                 mirror.prefix = res.prefix
-            if opts.asn:
+            if res and opts.asn:
                 mirror.asn = res.asn
 
 

@@ -11,7 +11,12 @@ def iplookup(conn, s):
         import sys, socket
         # note the difference between socket.gethostbyname 
         # and socket.gethostbyname_ex
-        host, aliases, ips = socket.gethostbyname_ex(s)
+        try:
+            host, aliases, ips = socket.gethostbyname_ex(s)
+        except socket.error, e:
+            print str(e)
+            return None
+
 
         #print host, aliases, ips
         if len(ips) != 1:
