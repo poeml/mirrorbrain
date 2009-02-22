@@ -131,7 +131,6 @@ my $keep_dead_files = 0;
 my $recursion_delay = 0;	# seconds delay per *_readdir recuursion
 my $force_scan = 0;
 my $enable_after_scan = 0;
-my $topdirs = 'distribution|tools|repositories';
 my $cfgfile = '/etc/mirrorbrain.conf';
 my $brain_instance = '';
 
@@ -240,14 +239,15 @@ exit usage("-j requires a positive number") unless $parallel =~ m{^\d+$} and $pa
 
 my $dbh = DBI->connect( $db_cred->{dbi}, $db_cred->{user}, $db_cred->{pass}, $db_cred->{opt}) or die $DBI::errstr;
 
-my $sql = qq{SELECT * FROM server where country != '**'};
+# we fetch last_scan timestamp as epoch, because below we want to sort by it.
+my $sql = qq{SELECT id, identifier, baseurl, baseurl_ftp, baseurl_rsync, enabled, extract(epoch from last_scan) as last_scan FROM server WHERE country != '**' };
 print "$sql\n" if $sqlverbose;
 my $ary_ref = $dbh->selectall_hashref($sql, 'id')
 		   or die $DBI::errstr;
 
 my @scan_list;
 
-for my $row(sort { $a->{id} <=> $b->{id} } values %$ary_ref) {
+for my $row(sort { int(\$a->{last_scan}) <=> int(\$b->{last_scan}) } values %$ary_ref) {
   if(keys %only_server_ids) {
     next if !defined $only_server_ids{$row->{id}} and !defined $only_server_ids{$row->{identifier}};
 
@@ -260,6 +260,7 @@ for my $row(sort { $a->{id} <=> $b->{id} } values %$ary_ref) {
     push @scan_list, $row;
   }
 }
+#print Dumper \%only_server_ids, \@scan_list;
 
 if(scalar(keys %only_server_ids) > 2 * scalar(@scan_list)) {
   # print Dumper \%only_server_ids, \@scan_list;
@@ -408,29 +409,9 @@ scanner [options] [mirror_ids ...]
   -f        Force. Scan listed mirror_ids even if they are not enabled.
   -d dir    Scan only in dir under mirror's baseurl. 
             Default: start at baseurl. Consider using -x and or -k with -d .
-  -x        Extra-Schedule run. Do not update 'scanner.last_scan' tstamp.
-            Default: 'scanner.last_scan' is updated after each run.
+  -x        Extra-Schedule run. Do not update 'server.last_scan' tstamp.
+            Default: 'server.last_scan' is updated after each run.
   -k        Keep dead files. Default: Entries not found again are removed.
-
-  -N url mirror_id
-            Add (or replace) a new url to the named mirror.
-  -N enabled=1 mirror_id
-  	    Enable a mirror.
-  -N url rsync=url ftp=url score=100 country=de region=europe name=identifier
-            Create a new mirror.
-	    Scanned path names (starting after url) should start with 
-	    '$topdirs'.
-	    Urls may be suffixed with #\@^foo/\@bar/\@ to modify scanned path names.
-
-  -Z mirror_id
-	    Delete the named mirror completly from the database.
-	    (Use "-N enabled=0 mirror_id" to disable a mirror.
-	     Use "-N http='' mirror_id" to delete an url.)
-
-  -A mirror_id path
-  -A url
-  	    Add an url to the mirror (as if it was found by scanning).
-	    If only one parameter is given, mirror_id is derived from url.
 
   -j N      Run up to N scanner queries in parallel.
 
@@ -440,13 +421,6 @@ scanner [options] [mirror_ids ...]
 
 Both, names(identifier) and numbers(id) are accepted as mirror_ids.
 };
- my $hide = qq{
-            
-  -D mirror_id path
-  -D url
-  	    As -A, but removes an url from a mirror.
-};
-
   print STDERR "\nERROR: $msg\n" if $msg;
   return 0;
 }
@@ -476,85 +450,6 @@ sub mirror_list
 
 
 
-sub mirror_new
-{
-  my ($dbh, $mirror_new, $old) = @_;
-
-  my $fields;
-  my %proto2field = 
-    (
-     http => 'baseurl', ftp => 'baseurl_ftp', rsync => 'baseurl_rsync', 'rsync:' => 'baseurl_rsync',
-     name => 'identifier'
-    );
-
-  my $name;
-  if($mirror_new->[0] =~ m{^(http|ftp|rsync:?)://([^/]+)/(.*)$}) {
-    my ($proto, $host, $path) = ($1,$2,$3);
-
-    if($path !~ m{#} and $path =~ s{(^|/)($topdirs)(/.*?)?$}{}) {
-      warn qq{path truncated before component "/$2/": $path\n};
-      warn qq{Press Enter to continue, CTRL-C to abort\n};
-      <STDIN>;
-    }
-    $fields->{$proto2field{$proto}} = "$proto://$host/$path";
-    shift @$mirror_new;
-    $name = $host;
-  }
-
-  die "mirror_new: try (http|ftp|rsync)://hostname/path\n (seen '$mirror_new')\n"
-    unless $name or scalar @$mirror_new;
-
-  for my $i (0..$#$mirror_new) {
-    die "mirror_new: cannot parse $mirror_new->[$i]" unless $mirror_new->[$i] =~ m{^([^=]+)=(.*)$};
-    my ($key, $val) = ($1, $2);
-    $key = $proto2field{$key} if defined $proto2field{$key};
-    $fields->{$key} = $val;
-  }
-
-  if($#$old == 0) {	# exactly one id given.
-    for my $k (keys %$fields) {
-      delete $fields->{$k} if $fields->{$k} eq ($old->[0]{$k}||'');
-    }
-
-    unless (keys %$fields) {
-      warn "nothing changes.\n";
-      return 1;
-    }
-    warn "updating id=$old->[0]{id}: @{[keys %$fields]}\n";
-    my $sql = "UPDATE server SET " . 
-      join(', ', map { "$_ = ".$dbh->quote($fields->{$_}) } keys %$fields) . 
-      " WHERE id = $old->[0]{id}";
-
-    print "$sql\n" if $sqlverbose;
-    $dbh->do($sql) or die "$sql: ".$DBI::errstr;
-  }
-  else {
-    $fields->{identifier} ||= $name||'';
-    $fields->{country} = $1 if !$fields->{country} and $fields->{identifier} =~ m{\.(\w\w)$};
-    die "cannot create new mirror without name or url.\n" unless $fields->{identifier};
-
-    $fields->{score} = 100 unless defined $fields->{score};
-    $fields->{enabled} = 1 unless defined $fields->{enabled};
-    my $dup_id;
-    for my $o(@$old) {
-      $dup_id = "$o->{id}: identifier"    if lc $o->{identifier} eq lc $fields->{identifier};
-      $dup_id = "$o->{id}: baseurl"       if $fields->{baseurl} and $fields->{baseurl} eq ($o->{baseurl}||'');
-      $dup_id = "$o->{id}: baseurl_ftp"   if $fields->{baseurl_ftp} and $fields->{baseurl_ftp} eq ($o->{baseurl_ftp}||'');
-      $dup_id = "$o->{id}: baseurl_rsync" if $fields->{baseurl_rsync} and $fields->{baseurl_rsync} eq ($o->{baseurl_rsync}||'');
-    }
-    die "new mirror and existing $dup_id is identical\n" if $dup_id;
-
-    my $sql = "INSERT INTO server SET " . 
-      join(', ', map { "$_ = ".$dbh->quote($fields->{$_}) } keys %$fields);
-
-    print "$sql\n" if $sqlverbose;
-    $dbh->do($sql) or die "$sql: ".$DBI::errstr;
-  }
-return 0;
-}
-
-
-
 
 sub wait_worker
 {
@@ -574,8 +469,11 @@ sub wait_worker
       $pids{$p} = $i; # not? okay wait.
     }
     my $p = wait;
+    my $rc = $?;
     if(defined(my $i = $pids{$p})) {
-      print "$a->[$i]{identifier}: [#$i, id=$a->[$i]{serverid} pid=$p exit: $?]\n" if $verbose;
+      if (($verbose > 1) || ($rc != 0)) {
+        print "$a->[$i]{identifier}: [#$i, id=$a->[$i]{serverid} pid=$p exit: $?]\n";
+      }
       undef $a->[$i];
       return $i;  # now, been there, done that.
     }
