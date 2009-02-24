@@ -590,6 +590,7 @@ static int mb_handler(request_rec *r)
     const char *user_agent = NULL;
     const char *clientip = NULL;
     const char *query_country = NULL;
+    char *query_asn = NULL;
     char fakefile = 0, newmirror = 0;
     char mirrorlist = 0, mirrorlist_txt = 0;
     char metalink_forced = 0;                   /* metalink was explicitely requested */
@@ -688,6 +689,7 @@ static int mb_handler(request_rec *r)
         if (form_lookup(r, "fakefile")) fakefile = 1;
         clientip = form_lookup(r, "clientip");
         query_country = form_lookup(r, "country");
+        query_asn = (char *) form_lookup(r, "as");
         if (form_lookup(r, "newmirror")) newmirror = 1;
         if (form_lookup(r, "mirrorlist")) mirrorlist =1;
         if (form_lookup(r, "metalink")) metalink_forced = 1;
@@ -698,6 +700,12 @@ static int mb_handler(request_rec *r)
        || !apr_isalnum(query_country[0])
        || !apr_isalnum(query_country[1])) {
         query_country = NULL;
+    }
+
+    if (query_asn) {
+        for (i = 0; apr_isdigit(query_asn[i]); i++)
+            ;
+        query_asn[i] = '\0';
     }
 
     if (!mirrorlist_txt && !metalink_forced && !mirrorlist) {
@@ -949,9 +957,13 @@ static int mb_handler(request_rec *r)
 
     /* see if we find info about autonomous system and network prefix
      * in the subprocess environment - set for us by mod_asn */
-    as = apr_table_get(r->subprocess_env, "ASN");
-    if (!as) {
-        as = "--";
+    if (query_asn && (query_asn[0] != '\0')) {
+        as = query_asn;
+    } else {
+        as = apr_table_get(r->subprocess_env, "ASN");
+        if (!as) {
+            as = "--";
+        }
     }
     prefix = apr_table_get(r->subprocess_env, "PFX");
     if (!prefix) {
