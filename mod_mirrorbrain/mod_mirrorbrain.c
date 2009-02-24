@@ -1251,14 +1251,14 @@ static int mb_handler(request_rec *r)
 
         /* same AS? */
         else if ((strcmp(new->as, as) == 0) 
-                   && (new->prefix_only != 1)) {
+                   && !new->prefix_only) {
             *(void **)apr_array_push(mirrors_same_as) = new;
         }
 
         /* same country? */
         else if ((strcasecmp(new->country_code, country_code) == 0) 
-                   && (new->as_only != 1)
-                   && (new->prefix_only != 1)) {
+                   && !new->as_only
+                   && !new->prefix_only) {
             *(void **)apr_array_push(mirrors_same_country) = new;
         }
 
@@ -1282,19 +1282,19 @@ static int mb_handler(request_rec *r)
         /* to be actually considered for this group, the mirror must be willing 
          * to take redirects from foreign country */
         else if ((strcasecmp(new->region, continent_code) == 0) 
-                    && (new->country_only != 1)
-                    && (new->as_only != 1)
-                    && (new->prefix_only != 1)) {
+                    && !new->country_only
+                    && !new->as_only
+                    && !new->prefix_only) {
             *(void **)apr_array_push(mirrors_same_region) = new;
         }
 
         /* to be considered as "worldwide" mirror, it must be willing 
          * to take redirects from foreign regions.
          * (N.B. region_only implies country_only)  */
-        else if ((new->region_only != 1) 
-                    && (new->country_only != 1)
-                    && (new->as_only != 1)
-                    && (new->prefix_only != 1)) {
+        else if (!new->region_only 
+                    && !new->country_only
+                    && !new->as_only
+                    && !new->prefix_only) {
             *(void **)apr_array_push(mirrors_elsewhere) = new;
         }
 
@@ -1629,8 +1629,10 @@ static int mb_handler(request_rec *r)
                    (strcmp(as, "--") == 0) ? "unknown" : as);
         mirrorp = (mirror_entry_t **)mirrors_same_as->elts;
         for (i = 0; i < mirrors_same_as->nelts; i++) {
-            if (pref) pref--;
             mirror = mirrorp[i];
+            if (mirror->prefix_only)
+                continue;
+            if (pref) pref--;
             ap_rprintf(r, "      <url type=\"http\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
                        mirror->country_code,
                        pref,
@@ -1642,8 +1644,10 @@ static int mb_handler(request_rec *r)
                    (strcmp(country_code, "--") == 0) ? "unknown" : country_code);
         mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
         for (i = 0; i < mirrors_same_country->nelts; i++) {
-            if (pref) pref--;
             mirror = mirrorp[i];
+            if (mirror->prefix_only || mirror->as_only)
+                continue;
+            if (pref) pref--;
             ap_rprintf(r, "      <url type=\"http\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
                        mirror->country_code,
                        pref,
@@ -1654,8 +1658,10 @@ static int mb_handler(request_rec *r)
                    (strcmp(continent_code, "--") == 0) ? "unknown" : continent_code);
         mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
         for (i = 0; i < mirrors_same_region->nelts; i++) {
-            if (pref) pref--;
             mirror = mirrorp[i];
+            if (mirror->prefix_only || mirror->as_only || mirror->country_only)
+                continue;
+            if (pref) pref--;
             ap_rprintf(r, "      <url type=\"http\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
                        mirror->country_code,
                        pref,
@@ -1665,8 +1671,12 @@ static int mb_handler(request_rec *r)
         ap_rputs("\n      <!-- Mirrors in the rest of the world: -->\n", r);
         mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
         for (i = 0; i < mirrors_elsewhere->nelts; i++) {
-            if (pref) pref--;
             mirror = mirrorp[i];
+            if (mirror->prefix_only || mirror->as_only 
+                    || mirror->country_only || mirror->region_only) {
+                continue;
+            }
+            if (pref) pref--;
             ap_rprintf(r, "      <url type=\"http\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
                        mirror->country_code,
                        pref,
