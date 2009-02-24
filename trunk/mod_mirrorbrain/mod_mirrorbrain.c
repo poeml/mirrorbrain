@@ -1613,7 +1613,8 @@ static int mb_handler(request_rec *r)
          * we'll decrement it for each mirror by one, until zero is reached */
         int pref = 101;
 
-        ap_rprintf(r, "\n      <!-- Mirrors in the same network (%s): -->\n", prefix);
+        ap_rprintf(r, "\n      <!-- Mirrors in the same network (%s): -->\n",
+                   (strcmp(prefix, "--") == 0) ? "unknown" : prefix);
         mirrorp = (mirror_entry_t **)mirrors_same_prefix->elts;
         for (i = 0; i < mirrors_same_prefix->nelts; i++) {
             if (pref) pref--;
@@ -1624,7 +1625,8 @@ static int mb_handler(request_rec *r)
                        mirror->baseurl, filename);
         }
 
-        ap_rprintf(r, "\n      <!-- Mirrors in the same AS (%s): -->\n", as);
+        ap_rprintf(r, "\n      <!-- Mirrors in the same AS (%s): -->\n",
+                   (strcmp(as, "--") == 0) ? "unknown" : as);
         mirrorp = (mirror_entry_t **)mirrors_same_as->elts;
         for (i = 0; i < mirrors_same_as->nelts; i++) {
             if (pref) pref--;
