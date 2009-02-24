@@ -1238,12 +1238,15 @@ static int mb_handler(request_rec *r)
         }
 
         /* same AS? */
-        else if (strcmp(new->as, as) == 0) {
+        else if ((strcmp(new->as, as) == 0) 
+                   && (new->prefix_only != 1)) {
             *(void **)apr_array_push(mirrors_same_as) = new;
         }
 
         /* same country? */
-        else if (strcasecmp(new->country_code, country_code) == 0) {
+        else if ((strcasecmp(new->country_code, country_code) == 0) 
+                   && (new->as_only != 1)
+                   && (new->prefix_only != 1)) {
             *(void **)apr_array_push(mirrors_same_country) = new;
         }
 
@@ -1267,14 +1270,19 @@ static int mb_handler(request_rec *r)
         /* to be actually considered for this group, the mirror must be willing 
          * to take redirects from foreign country */
         else if ((strcasecmp(new->region, continent_code) == 0) 
-                    && (new->country_only != 1)) {
+                    && (new->country_only != 1)
+                    && (new->as_only != 1)
+                    && (new->prefix_only != 1)) {
             *(void **)apr_array_push(mirrors_same_region) = new;
         }
 
         /* to be considered as "worldwide" mirror, it must be willing 
          * to take redirects from foreign regions.
          * (N.B. region_only implies country_only)  */
-        else if ((new->region_only != 1) && (new->country_only != 1)) {
+        else if ((new->region_only != 1) 
+                    && (new->country_only != 1)
+                    && (new->as_only != 1)
+                    && (new->prefix_only != 1)) {
             *(void **)apr_array_push(mirrors_elsewhere) = new;
         }
 
