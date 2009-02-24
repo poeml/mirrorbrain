@@ -1177,25 +1177,25 @@ static int mb_handler(request_rec *r)
         if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL) {
             ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] apr_dbd_get_entry found NULL for region_only");
         } else
-            new->region_only = (unsigned char)atoi(val);
+            new->region_only = ((val[0] == 't') || (val[0] == '1')) ? 1 : 0;
 
         /* country_only */
         if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL) {
             ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] apr_dbd_get_entry found NULL for country_only");
         } else
-            new->country_only = (unsigned char)atoi(val);
+            new->country_only = ((val[0] == 't') || (val[0] == '1')) ? 1 : 0;
 
         /* as_only */
         if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL) {
             ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] apr_dbd_get_entry found NULL for as_only");
         } else
-            new->as_only = (unsigned char)atoi(val);
+            new->as_only = ((val[0] == 't') || (val[0] == '1')) ? 1 : 0;
 
         /* prefix_only */
         if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL) {
             ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] apr_dbd_get_entry found NULL for prefix_only");
         } else
-            new->prefix_only = (unsigned char)atoi(val);
+            new->prefix_only = ((val[0] == 't') || (val[0] == '1')) ? 1 : 0;
 
         /* other_countries */
         if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL)
