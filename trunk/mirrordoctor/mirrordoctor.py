@@ -755,7 +755,8 @@ class MirrorDoctor(cmdln.Cmdln):
     @cmdln.option('-F', '--filter', metavar='REGEX',
                   help='only markers matching this regular expression are used')
     @cmdln.option('-l', '--list-markers', action='store_true',
-                  help='just show the defined marker files.')
+                  help='just show the defined marker files. (See "mb markers" '
+                        'which also allows editing markers.)')
     def do_mirrorlist(self, subcmd, opts, *args):
         """${cmd_name}: generate a mirror list
 
@@ -788,11 +789,12 @@ class MirrorDoctor(cmdln.Cmdln):
         if args:
             mirrors = mb.conn.servers_match(self.conn.Server, args[0])
         else:
-            from sqlobject.sqlbuilder import AND
+            from sqlobject.sqlbuilder import AND, NOT
             mirrors = self.conn.Server.select(AND(self.conn.Server.q.enabled,
+                                                  NOT(self.conn.Server.q.prefixOnly),
+                                                  NOT(self.conn.Server.q.asOnly),
                                                   self.conn.Server.q.country != '**'),
                                               orderBy=['region', 'country', '-score'])
-
 
         import mb.mirrorlists
 
