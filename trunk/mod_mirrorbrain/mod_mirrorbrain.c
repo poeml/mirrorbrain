@@ -1839,7 +1839,11 @@ static int mb_handler(request_rec *r)
         } else if (mirrors_same_country->nelts) {
             mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
             chosen = mirrorp[find_lowest_rank(mirrors_same_country)];
-            found_in = "country";
+            if (strcasecmp(chosen->country_code, country_code) == 0) {
+                found_in = "country";
+            } else {
+                found_in = "other_country";
+            }
         } else if (mirrors_same_region->nelts) {
             mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
             chosen = mirrorp[find_lowest_rank(mirrors_same_region)];
