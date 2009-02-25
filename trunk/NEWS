@@ -1,3 +1,10 @@
+Fri Feb 13 08:18:42 CET 2009
+- MirrorBrain 2.6 
+- supports additional, finer mirror selection, based on network
+  topological criteria, network prefix and autonomous system number, using
+  mod_asn and global routing data.
+  
+
 Fri Feb 13 02:39:45 CET 2009
 - updated database schemes and toolchain -- PostgreSQL support is solid now
 - work on installation documentation for both MySQL and PostgreSQL
