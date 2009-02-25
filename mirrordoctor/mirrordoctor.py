@@ -603,6 +603,10 @@ class MirrorDoctor(cmdln.Cmdln):
         else:
             cmd += '-f '
 
+        scan_top_include = self.config.dbconfig.get('scan_top_include', '').split()
+        for i in scan_top_include:
+            cmd += '-I %s ' % i
+
         mirrors = []
         for arg in args:
             mirrors.append(lookup_mirror(self, arg))
@@ -611,7 +615,7 @@ class MirrorDoctor(cmdln.Cmdln):
 
         if self.options.debug:
             print cmd
-
+        
         rc = os.system(cmd)
 
         if opts.enable and rc == 0:
