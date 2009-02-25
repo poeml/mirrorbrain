@@ -3,10 +3,10 @@ def stale(conn):
     """show statistics about stale files in the database"""
 
     # file_server table
-    query = 'select count(*) from file_server as fs left outer join server as s on fs.serverid = s.id where isnull(s.id)'
+    query = 'SELECT COUNT(*) FROM file_server fs LEFT OUTER JOIN server s ON fs.serverid = s.id WHERE s.id IS NULL'
     n_file_stale = conn.FileServer._connection.queryAll(query)[0]
 
-    query = 'select count(*) from file_server as fs left outer join server as s on fs.serverid = s.id where isnull(s.id) or s.enabled = 0'
+    query = 'SELECT COUNT(*) FROM file_server fs LEFT OUTER JOIN server s ON fs.serverid = s.id WHERE s.id IS NULL OR NOT s.enabled'
     n_file_disabled_stale = conn.FileServer._connection.queryAll(query)[0]
 
 
@@ -14,7 +14,7 @@ def stale(conn):
     # file table
     n_file_total = conn.File.select().count()
 
-    query = 'select count(*) from file as f left outer join file_server as fs on f.id = fs.fileid where isnull(fs.fileid)'
+    query = 'SELECT COUNT(*) FROM file f LEFT OUTER JOIN file_server fs ON f.id = fs.fileid WHERE fs.fileid IS NULL'
     n_file_stale = conn.File._connection.queryAll(query)[0]
 
 
@@ -29,11 +29,12 @@ def stale(conn):
 def vacuum(conn):
     """delete stale file entries from the database"""
 
-    print 'Deleting...'
-    query = 'delete fs from file_server fs left outer join server s on fs.serverid = s.id where isnull(s.id) or s.enabled = 0'
-    result = conn.FileServer._connection.queryAll(query)
+    print 'Deleting stales from file_server...'
+    query = 'DELETE FROM file_server WHERE serverid IN (SELECT id FROM server WHERE NOT enabled)'
+    conn.FileServer._connection.query(query)
 
-    query = 'delete f from file as f left outer join file_server as fs on f.id = fs.fileid where isnull(fs.fileid)'
-    result = conn.File._connection.queryAll(query)
+    print 'Deleting stales from file...'
+    query = 'DELETE FROM file WHERE id IN (SELECT f.id FROM file f LEFT OUTER JOIN file_server fs ON f.id = fs.fileid WHERE fs.fileid IS NULL)'
+    conn.File._connection.query(query)
     print 'Done.'
 
