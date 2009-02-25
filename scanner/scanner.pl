@@ -652,10 +652,19 @@ sub ftp_readdir
   my $text = ftp_cont($ftp, "$url/$name");
 
   if(!ref($text) && $text =~ m/^(\d\d\d)\s/) {	# some FTP status code? Not good.
-    warn "$identifier: ftp status code $1, closing.\n";
+
+    # Bug: Net::FTP wrongly reports timeouts (421) as code 550:
+    # sunsite.informatik.rwth-aachen.de: ftp dir: ftp://sunsite.informatik.rwth-aachen.de/pub/linux/opensuse/distribution/11.0/repo/debug/suse/i686
+    # Net::FTP=GLOB(0x112f480)>>> CWD /pub/linux/opensuse/distribution/11.0/repo/debug/suse/i686
+    # Net::FTP=GLOB(0x112f480)<<< 421 Timeout.
+    # sunsite.informatik.rwth-aachen.de: ftp status code 550 (550 failed: ftp-cwd(/pub/linux/opensuse/distribution/11.0/repo/debug/suse/i686):  ), closing.
+
+    warn "$identifier: ftp status code $1. This *could* be a timeout; attempting a reconnect.\n";
     print "$identifier: $text" if $verbose > 2;
     ftp_close($ftp);
-    return;
+    $ftp = ftp_connect($identifier, "$url/$name", "anonymous", $scanner_email);
+    return unless defined $ftp;
+    $text = ftp_cont($ftp, "$url/$name");
   }  
 
   print "$identifier: ".join("\n", @$text)."\n" if $verbose > 2;
