@@ -534,7 +534,7 @@ sub http_readdir
       $included = 1;
     }
   }
-  if (("$name/" ne "/") && !$included) {
+  if (scalar(@top_include_list) && ("$name/" ne "/") && !$included) {
     print "$identifier: not in top_include_list: $name\n";# if $verbose > 1;
     return;
   }
