@@ -136,12 +136,15 @@ my $brain_instance = '';
 
 # FIXME: use DBI functions transaction handling
 my $do_transaction = 0;
+# experimental other database scheme
+my $use_file_array = 0;
 
 # save prepared statements
 my $sth_update;
 my $sth_insert_rel;
 my $sth_select_file;
 my $sth_insert_file;
+my $sth_mirr_addbyname;
 
 my $gig2 = 1<<31; # 2*1024*1024*1024 == 2^1 * 2^10 * 2^10 * 2^10 = 2^31
 
@@ -149,6 +152,9 @@ my $gig2 = 1<<31; # 2*1024*1024*1024 == 2^1 * 2^10 * 2^10 * 2^10 = 2^31
 # transmission after a maximum amount of data (specified by $http_slice_counter)
 my $http_size_hint;
 my $http_slice_counter;
+
+# directories to be included from top-level
+my @top_include_list;
 
 #my $global_ign_re = qr{(
 #  /repoview/	|
@@ -171,6 +177,7 @@ while (defined (my $arg = shift)) {
 	if    ($arg !~ m{^-})                  { unshift @ARGV, $arg; last; }
 	elsif ($arg =~ m{^(-h|--help|-\?)})    { exit usage(); }
 	elsif ($arg =~ m{^(-i|--ignore)})      { push @norecurse_list, shift; }
+	elsif ($arg =~ m{^(-I|--top-include)}) { push @top_include_list, shift; }
 	elsif ($arg =~ m{^-q})                 { $verbose = 0; }
 	elsif ($arg =~ m{^-v})                 { $verbose++; }
 	elsif ($arg =~ m{^-S})                 { $sqlverbose++; }
@@ -329,6 +336,8 @@ for my $row (@scan_list) {
   }
 
   my $duration = (int(gettimeofday * 1000) - $start) / 1000;
+  if (!$duration) { $duration = 1; }
+  if (!$file_count) { $file_count = 0; }
 
   my $fpm = int(60*$file_count/$duration);
 
@@ -339,19 +348,26 @@ for my $row (@scan_list) {
   unless ($keep_dead_files) {
     $start = time();
     print localtime(time) . " $row->{identifier}: purging old files\n" if $verbose > 1;
-    my $sql = "DELETE FROM file_server WHERE serverid = $row->{id} 
-      AND timestamp_scanner <= (SELECT extract(epoch from last_scan) FROM server 
-	  WHERE id = $row->{id} limit 1)";
 
-    if(length $start_dir) {
-    ## let us hope subselects with paramaters work in mysql.
-      $sql .= " AND fileid IN (SELECT id FROM file WHERE path LIKE ?)";
+    if ($use_file_array) {
+
+      print "$row->{identifier}: FIXME cleanup \n";
+
+    } else {
+      my $sql = "DELETE FROM file_server WHERE serverid = $row->{id} 
+        AND timestamp_scanner <= (SELECT extract(epoch from last_scan) FROM server 
+            WHERE id = $row->{id} limit 1)";
+
+      if(length $start_dir) {
+      ## let us hope subselects with paramaters work in mysql.
+        $sql .= " AND fileid IN (SELECT id FROM file WHERE path LIKE ?)";
+      }
+
+      # Keep in sync with $start_dir setup above!
+      my $sth = $dbh->prepare( $sql );
+      print "$row->{identifier}: $sql\n" if $sqlverbose;
+      $sth->execute(length($start_dir) ? "$start_dir/%" : ()) or die "$row->{identifier}: $DBI::errstr";
     }
-
-    # Keep in sync with $start_dir setup above!
-    my $sth = $dbh->prepare( $sql );
-    print "$row->{identifier}: $sql\n" if $sqlverbose;
-    $sth->execute(length($start_dir) ? "$start_dir/%" : ()) or die "$row->{identifier}: $DBI::errstr";
 
     $duration = time() - $start;
     print localtime(time) . " $row->{identifier}: purged old files in " . $duration . "s.\n" if $verbose > 0;
@@ -418,6 +434,7 @@ scanner [options] [mirror_ids ...]
   -i regexp 
             Define regexp-pattern for path names to ignore. 
 	    Use '-i 0' to disable any ignore patterns. Default: @norecurse_list
+  -T /dir/  Directory to be scanned at the top level; option can be repeated.
 
 Both, names(identifier) and numbers(id) are accepted as mirror_ids.
 };
@@ -506,11 +523,23 @@ sub http_readdir
 
   my $urlraw = $url;
   my $re = ''; $re = $1 if $url =~ s{#(.*?)$}{};
-  print "$identifier: http_readdir: url=$url re=$re\n" if $verbose > 1;
+  print "$identifier: http_readdir: url=$url re=$re\n" if $verbose > 2;
   $url =~ s{/+$}{};	# we add our own trailing slashes...
   $name =~ s{/+$}{};
 
-  foreach my $item(@norecurse_list) {
+  my $item;
+  my $included = 0;
+  foreach my $item(@top_include_list) {
+    if ($name =~ $item) {
+      $included = 1;
+    }
+  }
+  if (("$name/" ne "/") && !$included) {
+    print "$identifier: not in top_include_list: $name\n";# if $verbose > 1;
+    return;
+  }
+
+  foreach $item(@norecurse_list) {
     $item =~ s/([^.])(\*)/$1.$2/g;
     $item =~ s/^\*/.*/;
     #$item =~ s/[^.]\*/.\*/g;
@@ -521,7 +550,8 @@ sub http_readdir
   }
 
   my @r;
-  print "$identifier: http dir: $url/$name\n" if $verbose > 1;
+  print "$identifier: http dir: $url/$name\n" if $verbose > 2;
+  print "$identifier: http dir: $name\n" if $verbose == 2;
   my $contents = cont("$url/$name/?F=1");
   if($contents =~ s{^.*<(PRE|pre|table)>.*<(a href|A HREF)="\?(N=A|C=.*;O=)[^"]*">}{}s) {
     ## good, we know that one. It is a standard apache dir-listing.
@@ -546,7 +576,7 @@ sub http_readdir
         $name1 =~ s{%([\da-fA-F]{2})}{pack 'c', hex $1}ge;
         $name1 =~ s{^\./}{};
         my $dir = 1 if $pre =~ m{"\[DIR\]"};
-	print "$identifier: $pre^$name1^$date^$size\n" if $verbose > 1;
+	#print "$identifier: $pre^$name1^$date^$size\n" if $verbose > 1;
         my $t = length($name) ? "$name/$name1" : $name1;
         if($size eq '-' and ($dir or $name1 =~ m{/$})) {
 	  ## we must be really sure it is a directory, when we come here.
@@ -675,8 +705,6 @@ sub save_file
 {
   my ($path, $identifier, $serverid, $mod_re, $ign_re) = @_;
 
-  my $fileid;
-
   #
   # optional patch the file names by adding or removing components.
   # you never know what strange paths mirror admins choose.
@@ -695,29 +723,43 @@ sub save_file
   $path =~ s{//+}{/}g;  # avoid double slashes.
 
 
-  $fileid = getfileid($path);
-
-
-  if(checkfileserver_fileid($serverid, $fileid)) {
-    my $sql = "UPDATE file_server SET timestamp_scanner = ".time." WHERE fileid = ? AND serverid = ?;";
-    if (!defined $sth_update) {
-      printf "\nPreparing update statement\n\n" if $sqlverbose;
-      $sth_update = $dbh->prepare( $sql ) or die $DBI::errstr;
+  if ($use_file_array) {
+    my $sql = "SELECT mirr_add_byname(?, ?);";
+    if (!defined $sth_mirr_addbyname) {
+      printf "\nPreparing add statement\n\n" if $sqlverbose;
+      $sth_mirr_addbyname = $dbh->prepare( $sql ) or die "$identifier: $DBI::errstr";
     }
 
-    printf "$sql  <-- $fileid, $serverid \n" if $sqlverbose;
-    $sth_update->execute( $fileid, $serverid ) or die $DBI::errstr; 
-  }
-  else {
-    my $sql = "INSERT INTO file_server (fileid, serverid, timestamp_scanner) VALUES (?, ?, ".time.");";
-    if (!defined $sth_insert_rel) {
-      printf "\nPreparing insert statement\n\n" if $sqlverbose;
-      $sth_insert_rel = $dbh->prepare( $sql );
-    }
+    printf "$sql  <-- $serverid, $path \n" if $sqlverbose;
+    $sth_mirr_addbyname->execute( $serverid, $path ) or die "$identifier: $DBI::errstr"; 
+    $sth_mirr_addbyname->finish;
 
-    printf "$sql  <-- $fileid, $serverid \n" if $sqlverbose;
-    $sth_insert_rel->execute( $fileid, $serverid ) or die "$identifier: $sth_insert_rel->errstr";
+  } else {
+
+    my $fileid = getfileid($path);
+
+    if(checkfileserver_fileid($serverid, $fileid)) {
+      my $sql = "UPDATE file_server SET timestamp_scanner = ".time." WHERE fileid = ? AND serverid = ?;";
+      if (!defined $sth_update) {
+        printf "\nPreparing update statement\n\n" if $sqlverbose;
+        $sth_update = $dbh->prepare( $sql ) or die $DBI::errstr;
+      }
+
+      printf "$sql  <-- $fileid, $serverid \n" if $sqlverbose;
+      $sth_update->execute( $fileid, $serverid ) or die $DBI::errstr; 
+    }
+    else {
+      my $sql = "INSERT INTO file_server (fileid, serverid, timestamp_scanner) VALUES (?, ?, ".time.");";
+      if (!defined $sth_insert_rel) {
+        printf "\nPreparing insert statement\n\n" if $sqlverbose;
+        $sth_insert_rel = $dbh->prepare( $sql );
+      }
+
+      printf "$sql  <-- $fileid, $serverid \n" if $sqlverbose;
+      $sth_insert_rel->execute( $fileid, $serverid ) or die "$identifier: $DBI::errstr";
+    }
   }
+
   return $path;
 }
 
@@ -834,7 +876,7 @@ sub rsync_cb
     if($mode & 004) { # readable for the world is good.
       # params for largefile check: url=$ary_ref->{$priv->{serverid}}/$name, size=$len
       if(largefile_check($priv->{identifier}, $priv->{serverid}, $name, $len) == 0) {
-	printf "$priv->{identifier}: ERROR: file $name cannot be delivererd via http! Skipping\n" if $verbose > 1;
+	printf "$priv->{identifier}: warning: $name cannot be delivererd via HTTP! Skipping\n" if $verbose > 0;
       }
       else {
 	$name = save_file($name, $priv->{identifier}, $priv->{serverid}, $mtime, $priv->{re});
@@ -1011,12 +1053,20 @@ sub rsync_get_filelist
   my @args = ('--server', '--sender', '-rl');
   push @args, '--exclude=/*/*' if $norecurse;
 
+  if(@top_include_list) {
+    foreach my $item (@top_include_list) {
+      push @args, "--include=/$item";
+    }
+    push @args, "--exclude=/*";
+  }
+
   # set exclude flag for all dirs specified by '-p' option:
   if(@norecurse_list) {
     foreach my $item (@norecurse_list) {
       push @args, "--exclude=$item";
     }
   }
+  print "$identifier: rsync args: @args\n" if $verbose > 2;
 
   for my $arg (@args, '.', "$syncroot/.", '') {
     swrite(*S, "$arg\n");
