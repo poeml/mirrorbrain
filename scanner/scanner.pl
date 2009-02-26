@@ -328,7 +328,7 @@ for my $row (@scan_list) {
   my $file_count = rsync_readdir($row->{identifier}, $row->{id}, $row->{baseurl_rsync}, $start_dir);
   if(!$file_count and $row->{baseurl_ftp}) {
     print localtime(time) . " $row->{identifier}: no rsync, trying ftp\n" if $verbose;
-    $file_count = scalar ftp_readdir($row->{identifier}, $row->{id}, $row->{baseurl_ftp}, $start_dir);
+    $file_count = scalar ftp_readdir($row->{identifier}, $row->{id}, $row->{baseurl_ftp}, time, $start_dir);
   }
   if(!$file_count and $row->{baseurl}) {
     print localtime(time) . " $row->{identifier}: no rsync, no ftp, trying http\n" if $verbose;
@@ -629,11 +629,15 @@ sub byte_size
 
 
 
-# $file_count = scalar ftp_readdir($row->{identifier}, $row->{id}, $row->{baseurl_ftp}, $start_dir);
+# $file_count = scalar ftp_readdir($row->{identifier}, $row->{id}, $row->{baseurl_ftp}, $ftp_timer, $start_dir);
 # first call: $ftp undefined
 sub ftp_readdir
 {
-  my ($identifier, $id, $url, $name, $ftp) = @_;
+  my ($identifier, $id, $url, $ftp_timer, $name, $ftp) = @_;
+
+  my $ftp_age = (time() - $ftp_timer);
+  print "$identifier: last command issued $ftp_age"."s ago\n" if $verbose > 2;
+  $ftp_timer = time;
 
   my $item;
   my $included = 0;
@@ -666,20 +670,29 @@ sub ftp_readdir
   return unless defined $ftp;
   my $text = ftp_cont($ftp, "$url/$name");
 
-  if(!ref($text) && $text =~ m/^(\d\d\d)\s/) {	# some FTP status code? Not good.
+  if(!ref($text) && \$text =~ m/^(\d\d\d)\s/) {	# some FTP status code? Not good.
 
     # Bug: Net::FTP wrongly reports timeouts (421) as code 550:
     # sunsite.informatik.rwth-aachen.de: ftp dir: ftp://sunsite.informatik.rwth-aachen.de/pub/linux/opensuse/distribution/11.0/repo/debug/suse/i686
     # Net::FTP=GLOB(0x112f480)>>> CWD /pub/linux/opensuse/distribution/11.0/repo/debug/suse/i686
     # Net::FTP=GLOB(0x112f480)<<< 421 Timeout.
     # sunsite.informatik.rwth-aachen.de: ftp status code 550 (550 failed: ftp-cwd(/pub/linux/opensuse/distribution/11.0/repo/debug/suse/i686):  ), closing.
-
-    warn "$identifier: ftp status code $1. This *could* be a timeout; attempting a reconnect.\n";
-    print "$identifier: $text" if $verbose > 2;
-    ftp_close($ftp);
-    $ftp = ftp_connect($identifier, "$url/$name", "anonymous", $scanner_email);
-    return unless defined $ftp;
-    $text = ftp_cont($ftp, "$url/$name");
+    #
+    # Thus, if the connection is older than 60 seconds, we attempt a reconnect.
+    # Otherwise we quit.
+    if ($ftp_age > 60) {
+      warn "$identifier: ftp status code $1. Last command " . $ftp_age . "s ago; attempting reconnect\n";
+      print "$identifier: $text" if $verbose > 2;
+      ftp_close($ftp);
+      $ftp = ftp_connect($identifier, "$url/$name", "anonymous", $scanner_email);
+      return unless defined $ftp;
+      $text = ftp_cont($ftp, "$url/$name");
+    } else {
+      warn "$identifier: ftp status code $1, closing.\n";
+      print "$identifier: $text" if $verbose > 2;
+      ftp_close($ftp);
+      return;
+    }
   }  
 
   print "$identifier: ".join("\n", @$text)."\n" if $verbose > 2;
@@ -700,7 +713,7 @@ sub ftp_readdir
 	  next;
 	}
 	sleep($recursion_delay) if $recursion_delay;
-	push @r, ftp_readdir($identifier, $id, $urlraw, $t, $ftp);
+	push @r, ftp_readdir($identifier, $id, $urlraw, $ftp_timer, $t, $ftp);
       }
       if($type eq 'l') {
 	warn "symlink($t) not impl.";
