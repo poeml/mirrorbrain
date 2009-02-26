@@ -434,7 +434,7 @@ scanner [options] [mirror_ids ...]
   -i regexp 
             Define regexp-pattern for path names to ignore. 
 	    Use '-i 0' to disable any ignore patterns. Default: @norecurse_list
-  -T /dir/  Directory to be scanned at the top level; option can be repeated.
+  -T dir    Directory to be scanned at the top level; option can be repeated.
 
 Both, names(identifier) and numbers(id) are accepted as mirror_ids.
 };
@@ -635,16 +635,31 @@ sub ftp_readdir
 {
   my ($identifier, $id, $url, $name, $ftp) = @_;
 
-  # ignore paths matching those in @norecurse-list:
-  for my $item(@norecurse_list) {
-    return if $start_dir =~ $item;
+  my $item;
+  my $included = 0;
+  foreach my $item(@top_include_list) {
+    if ($name =~ $item) {
+      $included = 1;
+    }
   }
+  if (scalar(@top_include_list) && ("$name/" ne "/") && !$included) {
+    print "$identifier: not in top_include_list: $name\n";# if $verbose > 1;
+    return;
+  }
+
+  # ignore paths matching those in @norecurse-list:
+  for $item(@norecurse_list) {
+    if ($name =~ $item) {
+      print "$identifier: ignore match: $name matches ignored item $item, skipped.\n" if $verbose > 1;
+      return;
+    }
+  }
+
+  print "$identifier: ftp dir: $name\n" if $verbose > 1;
 
   my $urlraw = $url;
   my $re = ''; $re = $1 if $url =~ s{#(.*?)$}{};
   $url =~ s{/+$}{};	# we add our own trailing slashes...
-
-  print "$identifier: ftp dir: $url/$name\n" if $verbose > 1;
 
   my $toplevel = ($ftp) ? 0 : 1;
   $ftp = ftp_connect($identifier, "$url/$name", "anonymous", $scanner_email) unless defined $ftp;
