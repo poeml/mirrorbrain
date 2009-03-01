@@ -503,9 +503,8 @@ class MirrorDoctor(cmdln.Cmdln):
         if not identifier:
             sys.exit('need to specify identifier')
 
-        moribund = self.conn.Server.select(self.conn.Server.q.identifier == identifier)[0]
-        self.conn.FileServer.deleteBy(serverid = moribund.id)
-        self.conn.Server.delete(moribund.id)
+        import mb.core
+        mb.core.delete_mirror(self.conn, identifier)
 
 
     @cmdln.option('-C', '--comment', metavar='ARG',
@@ -715,16 +714,17 @@ class MirrorDoctor(cmdln.Cmdln):
             mirror = None
 
         if action == 'ls':
-            rows = mb.files.ls(self.conn, path, mirror = mirror)
+            rows = mb.files.ls(self.conn, path)
 
             for row in rows:
-                print '%s %s %4d %s %s %-30s %s%s' % \
-                        (row['region'].lower(), row['country'].lower(),
-                         row['score'], 
-                         row['enabled'] == 1 and 'ok      ' or 'disabled',
-                         row['status_baseurl'] == 1 and 'ok  ' or 'dead',
-                         row['identifier'], 
-                         row['baseurl'], row['path'])
+                if not mirror or (str(mirror.identifier) == row['identifier']):
+                    print '%s %s %4d %s %s %-30s %s%s' % \
+                            (row['region'].lower(), row['country'].lower(),
+                             row['score'], 
+                             row['enabled'] == 1 and 'ok      ' or 'disabled',
+                             row['status_baseurl'] == 1 and 'ok  ' or 'dead',
+                             row['identifier'], 
+                             row['baseurl'], row['path'])
 
         elif action == 'add':
             mb.files.add(self.conn, path, mirror)

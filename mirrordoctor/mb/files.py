@@ -1,5 +1,6 @@
 from sqlobject.sqlbuilder import AND
 
+
 def has_file(conn, path, mirror_id):
     """check if file 'path' exists on mirror 'mirror_id'
     by looking at the database.
@@ -14,17 +15,9 @@ def has_file(conn, path, mirror_id):
         pattern = False
         oprtr = '='
 
-    query = 'SELECT path \
-                FROM file \
-                LEFT JOIN file_server \
-                ON file.id = file_server.fileid \
-                WHERE file_server.serverid = %s \
-                 AND  file.path %s \'%s\' \
-                ORDER BY file.path' \
-                  % (mirror_id, oprtr, path)
-
-
-    rows = conn.FileServer._connection.queryAll(query)
+    query = 'SELECT mirr_hasfile_byname(%s, %s)' \
+                  % (mirror_id, path)
+    rows = conn.Server._connection.queryAll(query)
 
     return len(rows) > 0
 
@@ -48,7 +41,7 @@ def check_for_marker_files(conn, markers, mirror_id):
     return found_all
 
 
-def ls(conn, path, mirror = None):
+def ls(conn, path):
     if path.find('*') >= 0 or path.find('%') >= 0:
         pattern = True
         oprtr = 'like'
@@ -57,33 +50,16 @@ def ls(conn, path, mirror = None):
         pattern = False
         oprtr = '='
 
-    if mirror:
-        query = 'SELECT server.identifier, server.country, server.region, \
-                           server.score, server.baseurl, server.enabled, \
-                           server.status_baseurl, file.path \
-                    FROM file \
-                    LEFT JOIN file_server \
-                    ON file.id = file_server.fileid \
-                    LEFT JOIN server \
-                    ON file_server.serverid = server.id \
-                    WHERE file.path %s \'%s\' \
-                    AND file_server.serverid = %s \
-                    ORDER BY server.region, server.country, server.score DESC' \
-                      % (oprtr, path, mirror.id)
-    else:
-        query = 'SELECT server.identifier, server.country, server.region, \
-                           server.score, server.baseurl, server.enabled, \
-                           server.status_baseurl, file.path \
-                    FROM file \
-                    LEFT JOIN file_server \
-                    ON file.id = file_server.fileid \
-                    LEFT JOIN server \
-                    ON file_server.serverid = server.id \
-                    WHERE file.path %s \'%s\' \
-                    ORDER BY server.region, server.country, server.score DESC' \
-                      % (oprtr, path)
-
-    rows = conn.FileServer._connection.queryAll(query)
+    query = 'SELECT server.identifier, server.country, server.region, \
+                       server.score, server.baseurl, server.enabled, \
+                       server.status_baseurl, filearr.path \
+                FROM filearr \
+                LEFT JOIN server \
+                ON server.id = ANY(filearr.mirrors) \
+                WHERE filearr.path %s \'%s\' \
+                ORDER BY server.region, server.country, server.score DESC' \
+                  % (oprtr, path)
+    rows = conn.Server._connection.queryAll(query)
 
     files = []
     # ugly. Really need to let an ORM do this.
@@ -107,39 +83,12 @@ def ls(conn, path, mirror = None):
 
 def add(conn, path, mirror):
 
-    files = conn.File.select(conn.File.q.path==path)
-    if files.count() == 0:
-        f = conn.File(path = path)
-        fileid = f.id
-    else:
-        fileid = list(files)[0].id
-
-    relations = conn.FileServer.select(AND(conn.FileServer.q.fileid == fileid,
-                                           conn.FileServer.q.serverid == mirror.id))
-    if relations.count() == 0:
-
-        # this doesn't work because the table doesn't have a primary key 'id'...
-        # (our primary Key consists only of a number of columns)
-        #import datetime
-        #fs = conn.FileServer(fileid = f.id,
-        #                     serverid = mirror.id,
-        #                     pathMd5 = b64_md5(path),
-        #                     timestampScanner = datetime.datetime.now())
-        #print fs
-
-        query = """INSERT INTO file_server SET fileid=%d, serverid=%d""" \
-                   % (fileid, mirror.id)
-        conn.FileServer._connection.queryAll(query)
-    else:
-        print 'already exists'
+    query = """SELECT mirr_add_bypath(%d, '%s')""" \
+               % (mirror.id, path)
+    conn.Server._connection.queryAll(query)
 
 
 def rm(conn, path, mirror):
-    fileobj = conn.File.select(conn.File.q.path==path)
-    fileid = list(fileobj)[0].id
-    print fileid
-    query = """DELETE FROM file_server WHERE serverid=%s AND fileid=%s""" \
-                 % (mirror.id, fileid)
-    print query
-    print conn.FileServer._connection.queryAll(query)
-
+    query = """SELECT mirr_del_byid(%d, (SELECT id FROM filearr WHERE path='%s'))""" \
+                   % (mirror.id, path)
+    conn.Server._connection.queryAll(query)

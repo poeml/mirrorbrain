@@ -7,3 +7,13 @@ class Directory:
         #return '%s:\n%s' % (self.name, '\n'.join(self.files))
         return '%-45s: %6s files' % (self.name, int(len(self.files)))
 
+
+def delete_mirror(conn, mirror):
+    m = conn.Server.select(conn.Server.q.identifier == mirror)[0]
+
+    query = """SELECT mirr_del_byid(%d, id) FROM filearr WHERE %s = ANY(mirrors)""" \
+                   % (m.id, m.id)
+    conn.Server._connection.queryAll(query)
+
+    #self.conn.Server.delete(m.id)
+
