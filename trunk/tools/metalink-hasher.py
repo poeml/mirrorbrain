@@ -101,6 +101,8 @@ class Metalinks(cmdln.Cmdln):
                              'any reversible information.')
     @cmdln.option('-f', '--file-mask', metavar='REGEX',
                         help='regular expression to select files to create hashes for')
+    @cmdln.option('-i', '--ignore-mask', metavar='REGEX',
+                        help='regular expression to ignore certain files, and don\'t create hashes for them')
     @cmdln.option('-b', '--base-dir', metavar='PATH',
                         help='set the base directory (so that you can work on a subdirectory)')
     @cmdln.option('-t', '--target-dir', metavar='PATH',
@@ -152,15 +154,16 @@ class Metalinks(cmdln.Cmdln):
 
                 if os.path.isfile(fullpath):
                     if not opts.file_mask or re.match(opts.file_mask, name):
-                        #print fullpath
-                        if opts.base_dir:
-                            target = fullpath[len(opts.base_dir):]
-                        else:
-                            target = fullpath
-                        target = os.path.join(opts.target_dir, target.lstrip('/'))
-                        if opts.verbose:
-                            print 'target:', target
-                        make_hashes(fullpath, target, opts=opts)
+                        if not opts.ignore_mask or not re.match(opts.ignore_mask, name):
+                            #print fullpath
+                            if opts.base_dir:
+                                target = fullpath[len(opts.base_dir):]
+                            else:
+                                target = fullpath
+                            target = os.path.join(opts.target_dir, target.lstrip('/'))
+                            if opts.verbose:
+                                print 'target:', target
+                            make_hashes(fullpath, target, opts=opts)
 
                 elif os.path.isdir(fullpath):
                     directories.append(fullpath)  # It's a directory, store it.
