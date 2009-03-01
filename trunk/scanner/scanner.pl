@@ -67,6 +67,13 @@
 #                            add -S option for SQL debugging
 # 2009-02-21, poeml - V0.23, timestamp_scanner is a UNIX epoch now, instead of 
 #                            a SQL timestamp.
+# 2009-02-27, poeml - V0.30, new database scheme, which is based on arrays, 5x 
+#                            faster and 1/3 the size. Also a lot more
+#                            versatile. Timestamps are no longer stored along
+#                            the found files. Instead, the scanner saves known
+#                            files to a temporary table at start, and uses it
+#                            after the scan to delete the remaining (unseen)
+#                            files. Various fixes for scanning.
 #
 #
 # 
@@ -95,7 +102,7 @@ use bytes;
 use Config::IniFiles;
 use Time::HiRes qw(gettimeofday);
 
-my $version = '0.23';
+my $version = '0.30';
 my $scanner_email = 'poeml@suse.de';
 my $verbose = 1;
 my $sqlverbose = 0;
@@ -135,16 +142,16 @@ my $cfgfile = '/etc/mirrorbrain.conf';
 my $brain_instance = '';
 
 # FIXME: use DBI functions transaction handling
-my $do_transaction = 0;
+my $do_transaction = 1;
 # experimental other database scheme
-my $use_file_array = 0;
+my $use_file_array = 1;
 
 # save prepared statements
 my $sth_update;
 my $sth_insert_rel;
 my $sth_select_file;
 my $sth_insert_file;
-my $sth_mirr_addbyname;
+my $sth_mirr_addbypath;
 
 my $gig2 = 1<<31; # 2*1024*1024*1024 == 2^1 * 2^10 * 2^10 * 2^10 = 2^31
 
@@ -171,6 +178,9 @@ push @norecurse_list, '/.~tmp~/';
 # because itentical to directories in the directory listing HTML
 push @norecurse_list, '/openSUSE-current/';
 push @norecurse_list, '/openSUSE-stable/';
+push @norecurse_list, '/SL-OSS-factory/';
+push @norecurse_list, '/SL-OSS-factory-debug/';
+push @norecurse_list, '/SL-10.1/';
 
 exit usage() unless @ARGV;
 while (defined (my $arg = shift)) {
@@ -295,6 +305,9 @@ if ($parallel > 1) {
   push @cmd, '-b', $brain_instance;
   push @cmd, '-q' unless $verbose;
   push @cmd, ('-v') x ($verbose - 1) if $verbose > 1;
+  foreach my $item(@top_include_list) {
+    push @cmd, '-I', $item;
+  }
   push @cmd, '-x' if $extra_schedule_run;
   push @cmd, '-k' if $keep_dead_files;
   push @cmd, '-d', $start_dir if length $start_dir;
@@ -319,10 +332,33 @@ for my $row (@scan_list) {
   print localtime(time) . " $row->{identifier}: starting\n" if $verbose;
 
   if($do_transaction) {
-    $sql = "BEGIN;";
-    print "$sql\n" if $sqlverbose;
-    $dbh->do($sql) or die "$sql: ".$DBI::errstr;
+    $dbh->{AutoCommit} = 0;
+    #$dbh�>{RaiseError} = 1;
   }
+  if ($use_file_array) {
+    if (!$keep_dead_files) {
+      $sql = "CREATE TEMPORARY TABLE temp1 AS SELECT id FROM filearr WHERE $row->{id} = ANY(mirrors); CREATE INDEX temp1_key ON temp1 (id)";
+      print "$sql\n" if $sqlverbose;
+      $dbh->do($sql) or die "$sql: ".$DBI::errstr;
+
+      $sql = "SELECT COUNT(*) FROM temp1";
+      print "$sql\n" if $sqlverbose;
+      my $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
+      my $file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
+      print "$row->{identifier}: files before scan: $file_count\n";
+    } else {
+      $sql = "SELECT COUNT(*) FROM filearr WHERE $row->{id} = ANY(mirrors)";
+      print "$sql\n" if $sqlverbose;
+      my $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
+      my $file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
+      print "$row->{identifier}: files before scan: $file_count\n";
+    }
+  }
+
+  if($do_transaction) {
+    $dbh->commit or die "$DBI::errstr";
+  }
+
 
   my $start = int(gettimeofday * 1000);
   my $file_count = rsync_readdir($row->{identifier}, $row->{id}, $row->{baseurl_rsync}, $start_dir);
@@ -335,6 +371,9 @@ for my $row (@scan_list) {
     $file_count = scalar http_readdir($row->{identifier}, $row->{id}, $row->{baseurl}, $start_dir);
   }
 
+  if($do_transaction) {
+    $dbh->commit or die "$DBI::errstr";
+  }
   my $duration = (int(gettimeofday * 1000) - $start) / 1000;
   if (!$duration) { $duration = 1; }
   if (!$file_count) { $file_count = 0; }
@@ -351,7 +390,20 @@ for my $row (@scan_list) {
 
     if ($use_file_array) {
 
-      print "$row->{identifier}: FIXME cleanup \n";
+      #$sql = "SELECT COUNT(*) FROM temp1";
+      $sql = "SELECT COUNT(mirr_del_byid($row->{id}, id)) FROM temp1";
+      print "$sql\n" if $sqlverbose;
+      $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
+      $file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
+      print localtime(time) . " $row->{identifier}: files to be purged: $file_count\n";
+
+
+      $sql = "SELECT COUNT(*) FROM filearr WHERE $row->{id} = ANY(mirrors);";
+      print "$sql\n" if $sqlverbose;
+      my $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
+      my $file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
+      print localtime(time) . " $row->{identifier}: number of files: $file_count\n";
+
 
     } else {
       my $sql = "DELETE FROM file_server WHERE serverid = $row->{id} 
@@ -389,9 +441,7 @@ for my $row (@scan_list) {
   }
 
   if($do_transaction) {
-    $sql = "COMMIT;";
-    print "$sql\n" if $sqlverbose;
-    $dbh->do($sql) or die "$sql: ".$DBI::errstr;
+    $dbh->commit or die "$DBI::errstr";
   }
 
   print localtime(time) . " $row->{identifier}: done.\n" if $verbose > 0;
@@ -433,7 +483,7 @@ scanner [options] [mirror_ids ...]
 
   -i regexp 
             Define regexp-pattern for path names to ignore. 
-	    Use '-i 0' to disable any ignore patterns. Default: @norecurse_list
+            Use '-i 0' to disable any ignore patterns. Default: @norecurse_list
   -T dir    Directory to be scanned at the top level; option can be repeated.
 
 Both, names(identifier) and numbers(id) are accepted as mirror_ids.
@@ -457,7 +507,7 @@ sub mirror_list
       print "\t$row->{baseurl_ftp}$nl"   if length($row->{baseurl_ftp}||'') > 0;
       print "\t$row->{baseurl}$nl"       if length($row->{baseurl}||'') > 0;
       printf "\tscore=%d country=%s region=%s enabled=%d$nl", 
-	     $row->{score}||0, $row->{country}||'', $row->{region}||'', $row->{enabled}||0;
+           $row->{score}||0, $row->{country}||'', $row->{region}||'', $row->{enabled}||0;
       print "\n";
     }
   }
@@ -479,9 +529,9 @@ sub wait_worker
       return $i unless $a->[$i];
       my $p = $a->[$i]{pid};
       unless (kill(0, $p)) {  # already dead? okay take him home.
-	print "kill(0, $p) returned 0. reusing $i!\n" if $verbose;
-	undef $a->[$i];	
-	return $i;
+        print "kill(0, $p) returned 0. reusing $i!\n" if $verbose;
+        undef $a->[$i];
+        return $i;
       }
       $pids{$p} = $i; # not? okay wait.
     }
@@ -564,8 +614,8 @@ sub http_readdir
       $line =~ s/<\/*t[rd].*?>/ /g;
       print "$identifier: line: $line\n" if $verbose > 2;
       if($line =~ m{^(.*)[Hh][Rr][Ee][Ff]="([^"]+)">([^<]+)</[Aa]>\s+([\w\s:-]+)\s+(-|[\d\.]+[KMG]?)}) {
-	my ($pre, $name1, $name2, $date, $size) = ($1, $2, $3, $4, $5);
-	next if $name1 =~ m{^/} or $name1 =~ m{^\.\.};
+        my ($pre, $name1, $name2, $date, $size) = ($1, $2, $3, $4, $5);
+        next if $name1 =~ m{^/} or $name1 =~ m{^\.\.};
         if($verbose > 2) {
           print "$identifier: pre $pre\n";
           print "$identifier: name1 $name1\n";
@@ -576,33 +626,37 @@ sub http_readdir
         $name1 =~ s{%([\da-fA-F]{2})}{pack 'c', hex $1}ge;
         $name1 =~ s{^\./}{};
         my $dir = 1 if $pre =~ m{"\[DIR\]"};
-	#print "$identifier: $pre^$name1^$date^$size\n" if $verbose > 1;
+        #print "$identifier: $pre^$name1^$date^$size\n" if $verbose > 1;
         my $t = length($name) ? "$name/$name1" : $name1;
         if($size eq '-' and ($dir or $name1 =~ m{/$})) {
-	  ## we must be really sure it is a directory, when we come here.
-	  ## otherwise, we'll retrieve the contents of a file!
-	  sleep($recursion_delay) if $recursion_delay;
-	  push @r, http_readdir($identifier, $id, $urlraw, $t);
-	}
-	else {
-	  ## it is a file.
-	  my $time = str2time($date);
-	  my $len = byte_size($size);
+          ## we must be really sure it is a directory, when we come here.
+          ## otherwise, we'll retrieve the contents of a file!
+          sleep($recursion_delay) if $recursion_delay;
+          push @r, http_readdir($identifier, $id, $urlraw, $t);
+        }
+        else {
+          ## it is a file.
+          my $time = str2time($date);
+          my $len = byte_size($size);
 
-	  # str2time returns undef in some rare cases causing KILL! FIXME
-	  # workaround: don't store files with broken times
-	  if(not defined($time)) {
-	    print "$identifier: Error: str2time returns undef on parsing \"$date\". Skipping file $name1\n";
-	    print "$identifier: current line was:\n$line\nat url $url\nname= $name1\n";
-	  }
-	  elsif(largefile_check($identifier, $id, $t, $len)) {
-	    #save timestamp and file in database
-	    if(save_file($t, $identifier, $id, $time, $re)) {
-	      push @r, [ $t , $time ];
-	    }
-	  }
-	}
+          # str2time returns undef in some rare cases causing KILL! FIXME
+          # workaround: don't store files with broken times
+          if(not defined($time)) {
+            print "$identifier: Error: str2time returns undef on parsing \"$date\". Skipping file $name1\n";
+            print "$identifier: current line was:\n$line\nat url $url\nname= $name1\n";
+          }
+          elsif(largefile_check($identifier, $id, $t, $len)) {
+            #save timestamp and file in database
+            if(save_file($t, $identifier, $id, $time, $re)) {
+              push @r, [ $t , $time ];
+            }
+          }
+        }
       }
+    }
+    print "$identifier: committing http dir $name\n" if $verbose > 1;
+    if($do_transaction) {
+      $dbh->commit or die "$DBI::errstr";
     }
   }
   else {
@@ -708,29 +762,34 @@ sub ftp_readdir
       my $t = length($name) ? "$name/$fname" : $fname;
 
       if($type eq "d") {
-	if($mode !~ m{r.[xs]r.[xs]r.[xs]}) {
-	  print "$identifier: bad mode $mode, skipping directory $fname\n" if $verbose;
-	  next;
-	}
-	sleep($recursion_delay) if $recursion_delay;
-	push @r, ftp_readdir($identifier, $id, $urlraw, $ftp_timer, $t, $ftp);
+        if($mode !~ m{r.[xs]r.[xs]r.[xs]}) {
+          print "$identifier: bad mode $mode, skipping directory $fname\n" if $verbose;
+          next;
+        }
+        sleep($recursion_delay) if $recursion_delay;
+        push @r, ftp_readdir($identifier, $id, $urlraw, $ftp_timer, $t, $ftp);
       }
+
       if($type eq 'l') {
-	warn "symlink($t) not impl.";
-      }
-      else {
-	if ($mode !~ m{r..r..r..}) {
-	  print "$identifier: bad mode $mode, skipping file $fname\n" if $verbose;
-	  next;
-	}
-	#save timestamp and file in database
-	if(largefile_check($identifier, $id, $t, $size)) {
-	  if(save_file($t, $identifier, $id, $time, $re)) {
-	    push @r, [ $t , $time ];
-	  }
-	}
+        warn "symlink($t) not impl.";
+      } else {
+        if ($mode !~ m{r..r..r..}) {
+          print "$identifier: bad mode $mode, skipping file $fname\n" if $verbose;
+          next;
+        }
+        #save timestamp and file in database
+        if(largefile_check($identifier, $id, $t, $size)) {
+          if(save_file($t, $identifier, $id, $time, $re)) {
+            push @r, [ $t , $time ];
+          }
+        }
       }
     }
+  }
+  
+  print "$identifier: committing ftp dir $name\n" if $verbose > 1;
+  if($do_transaction) {
+    $dbh->commit or die "$DBI::errstr";
   }
 
   ftp_close($ftp) if $toplevel;
@@ -761,15 +820,27 @@ sub save_file
 
 
   if ($use_file_array) {
-    my $sql = "SELECT mirr_add_byname(?, ?);";
-    if (!defined $sth_mirr_addbyname) {
+    my $sql = "SELECT mirr_add_bypath(?, ?);";
+    if (!defined $sth_mirr_addbypath) {
       printf "\nPreparing add statement\n\n" if $sqlverbose;
-      $sth_mirr_addbyname = $dbh->prepare( $sql ) or die "$identifier: $DBI::errstr";
+      $sth_mirr_addbypath = $dbh->prepare( $sql ) or die "$identifier: $DBI::errstr";
+
     }
 
     printf "$sql  <-- $serverid, $path \n" if $sqlverbose;
-    $sth_mirr_addbyname->execute( $serverid, $path ) or die "$identifier: $DBI::errstr"; 
-    $sth_mirr_addbyname->finish;
+    $sth_mirr_addbypath->execute( $serverid, $path ) or die "$identifier: $DBI::errstr"; 
+
+    my @data = $sth_mirr_addbypath->fetchrow_array();
+    #if ($sth_mirr_addbypath->rows > 0) {
+      my $fileid = $data[0];
+      #print "fileid: $fileid\n";
+      #}
+    $sth_mirr_addbypath->finish;
+      if (!$keep_dead_files) {
+      $sql = "DELETE FROM temp1 WHERE id = $fileid";
+      print "$sql\n" if $sqlverbose;
+      $dbh->do($sql) or die "$sql: ".$DBI::errstr;
+    }
 
   } else {
 
@@ -826,7 +897,7 @@ sub cont
   }
   else {
     return ($res->status_line);
-  }        
+  }
 }
 
 
@@ -907,19 +978,28 @@ sub rsync_cb
   if($priv->{subdir}) {
     # subdir is expected not to start or end in slashes.
     $name = $priv->{subdir} . '/' . $name;
+
   }
 
-  if($mode & 0x1000) {	# directories have 0 here.
+
+  if($mode & 0x1000) {        # directories have 0 here.
     if($mode & 004) { # readable for the world is good.
       # params for largefile check: url=$ary_ref->{$priv->{serverid}}/$name, size=$len
       if(largefile_check($priv->{identifier}, $priv->{serverid}, $name, $len) == 0) {
-	printf "$priv->{identifier}: warning: $name cannot be delivererd via HTTP! Skipping\n" if $verbose > 0;
+        printf "$priv->{identifier}: warning: $name cannot be delivererd via HTTP! Skipping\n" if $verbose > 0;
       }
       else {
-	$name = save_file($name, $priv->{identifier}, $priv->{serverid}, $mtime, $priv->{re});
-	$priv->{counter}++;
-	$r = [$name, $len, $mode, $mtime, @info];
-	printf "%s: rsync ADD: %03o %10d %-25s %-50s\n", $priv->{identifier}, ($mode & 0777), $len, scalar(localtime $mtime), $name if $verbose > 2;
+        $name = save_file($name, $priv->{identifier}, $priv->{serverid}, $mtime, $priv->{re});
+        $priv->{counter}++;
+        if (($priv->{counter} % 500) == 0) {
+          print "$priv->{identifier}: commit after 500 files\n" if $verbose > 1;
+          if($do_transaction) {
+            $dbh->commit or die "$DBI::errstr";
+          }
+        }
+
+        $r = [$name, $len, $mode, $mtime, @info];
+        printf "%s: rsync ADD: %03o %10d %-25s %-50s\n", $priv->{identifier}, ($mode & 0777), $len, scalar(localtime $mtime), $name if $verbose > 2;
       }
     }
     else {
@@ -1286,7 +1366,7 @@ sub largefile_check
       return largefile_check($id, $result->header('location'), $size, $recurse+1);
     }
   }
-	
+
   if($result->code() == 416) {
     print "$identifier: Error: range error: filesize broken for file $url\n" if $verbose >= 2;
   }
@@ -1301,3 +1381,4 @@ sub largefile_check
   return 1;
 }
 
+# vim: ai ts=2 sw=2 smarttab expandtab
