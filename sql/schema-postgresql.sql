@@ -3,17 +3,21 @@
 -- MirrorBrain Database scheme for PostgreSQL
 -- 
 
+-- before PL/pgSQL functions can be used, the languages needs to be "installed"
+-- in the database. This is done with:
+-- 
+-- createlang plpgsql <dbname>
+
 -- --------------------------------------------------------
 BEGIN;
 -- --------------------------------------------------------
 
 
-CREATE TABLE "file" (
+CREATE TABLE "filearr" (
         "id" serial NOT NULL PRIMARY KEY,
-        "path" varchar(512) NOT NULL
+        "path" varchar(512) UNIQUE NOT NULL,
+	"mirrors" smallint[]
 );
-
-CREATE INDEX "file_path_key" ON "file" ("path");
 
 -- --------------------------------------------------------
 
@@ -54,32 +58,6 @@ CREATE INDEX "server_enabled_status_baseurl_score_key" ON "server" (
 
 -- --------------------------------------------------------
 
-CREATE TABLE "file_server" (
-        "serverid" integer NOT NULL REFERENCES "server" ("id") DEFERRABLE INITIALLY DEFERRED,
-        "fileid" integer NOT NULL REFERENCES "file" ("id") DEFERRABLE INITIALLY DEFERRED,
-	-- we actually never used the timestamp_file column.
-        -- "timestamp_file" timestamp with time zone NULL,
-        -- and the next one should be a unix epoch, which needs only 4 bytes instead of 8:
-        "timestamp_scanner" timestamp with time zone NULL,
-        UNIQUE ("fileid", "serverid")
-);
--- NOTICE:  CREATE TABLE / UNIQUE will create implicit index "file_server_fileid_key" for table "file_server"
--- CREATE TABLE
-
-CREATE INDEX "file_server_serverid_fileid_key" ON "file_server" ("serverid", "fileid");
-
-
--- For ORM's that require a primary key named 'id'; this way we don't need to
--- actually store it and have an index for it.
--- the index alone needs 800MB for 1.000.000 files
-CREATE VIEW file_server_withpk AS 
-        SELECT '1' 
-	|| LPAD(CAST(fileid AS TEXT), 12, '0') 
-	|| LPAD(CAST(serverid AS TEXT), 12, '0') 
-	AS id, serverid, fileid, timestamp_scanner 
-	FROM file_server;
-
--- --------------------------------------------------------
 
 CREATE TABLE "marker" (
         "id" serial NOT NULL PRIMARY KEY,
@@ -103,24 +81,136 @@ CREATE TABLE "region" (
 
 
 
--- --------------------------------------------------------
 
---
--- from_unixtime
---
--- Takes a seconds-since-the-epoch integer and returns a timestamp
---
--- => select from_unixtime('1233609530');
---     from_unixtime    
--- ---------------------
---  2009-02-02 22:18:50
--- (1 row)
 
-CREATE OR REPLACE FUNCTION from_unixtime(integer) RETURNS timestamp AS '
-        SELECT $1::abstime::timestamp without time zone AS result
+-- add a mirror to the list of mirrors where a file was seen
+CREATE OR REPLACE FUNCTION mirr_add_byid(arg_serverid integer, arg_fileid integer) RETURNS integer AS $$
+DECLARE
+    arr smallint[];
+BEGIN
+    SELECT INTO arr mirrors FROM filearr WHERE id = arg_fileid;
+    IF arg_serverid = ANY(arr) THEN
+        RAISE DEBUG 'already there -- nothing to do';
+        RETURN 0;
+    ELSE
+        arr := array_append(arr, arg_serverid::smallint);
+        RAISE DEBUG 'arr: %', arr;
+        update filearr set mirrors = arr where id = arg_fileid;
+        return 1;
+    END IF;
+END;
+$$ LANGUAGE 'plpgsql';
+
+
+-- remove a mirror from the list of mirrors where a file was seen
+CREATE OR REPLACE FUNCTION mirr_del_byid(arg_serverid integer, arg_fileid integer) RETURNS integer AS $$
+DECLARE
+    arr smallint[];
+BEGIN
+    SELECT INTO arr mirrors FROM filearr WHERE id = arg_fileid;
+
+    IF NOT arg_serverid = ANY(arr) THEN
+        -- it's not there - nothing to do
+        RAISE DEBUG 'not there -- nothing to do';
+        RETURN 0;
+    ELSE
+        arr := ARRAY(
+                    SELECT arr[i] 
+                    FROM generate_series(array_lower(arr, 1), array_upper(arr, 1)) 
+                    AS i 
+                    WHERE arr[i] <> arg_serverid
+                );
+        RAISE DEBUG 'arr: %', arr;
+        -- update the array in the table
+        -- if arr is empty, we could actually remove the row instead, thus deleting the file
+        UPDATE filearr 
+            SET mirrors = arr WHERE id = arg_fileid;
+        RETURN 1;
+    END IF;
+END;
+$$ LANGUAGE 'plpgsql';
+
+
+-- check whether a given mirror is known to have a file (id)
+CREATE OR REPLACE FUNCTION mirr_hasfile_byid(arg_serverid integer, arg_fileid integer) RETURNS boolean AS $$
+DECLARE
+    result integer;
+BEGIN
+    SELECT INTO result 1 FROM filearr WHERE id = arg_fileid AND arg_serverid = ANY(mirrors);
+    IF result > 0 THEN
+        RETURN true;
+    END IF;
+    RETURN false;
+END;
+$$ LANGUAGE 'plpgsql';
+
+-- check whether a given mirror is known to have a file (name)
+CREATE OR REPLACE FUNCTION mirr_hasfile_byname(arg_serverid integer, arg_path text) RETURNS boolean AS $$
+DECLARE
+    result integer;
+BEGIN
+    SELECT INTO result 1 FROM filearr WHERE path = arg_path AND arg_serverid = ANY(mirrors);
+    IF result > 0 THEN
+        RETURN true;
+    END IF;
+    RETURN false;
+END;
+$$ LANGUAGE 'plpgsql';
+
+
+CREATE OR REPLACE FUNCTION mirr_add_bypath(arg_serverid integer, arg_path text) RETURNS integer AS $$
+DECLARE
+    fileid integer;
+    arr smallint[];
+    rc boolean;
+BEGIN
+    SELECT INTO fileid, arr
+        id, mirrors FROM filearr WHERE path = arg_path;
+
+    -- There are three cases to handle, and we want to handle each of them
+    -- with the minimal effort.
+    -- In any case, we return a file id in the end.
+    IF arg_serverid = ANY(arr) THEN
+        RAISE DEBUG 'nothing to do';
+    ELSIF fileid IS NULL THEN
+        RAISE DEBUG 'creating entry for new file.';
+        INSERT INTO filearr (path, mirrors) VALUES (arg_path, ARRAY[arg_serverid]);
+        fileid := currval('filearr_id_seq');
+    ELSE
+        RAISE DEBUG 'update existing file entry (id: %)', fileid;
+        arr := array_append(arr, arg_serverid::smallint);
+        update filearr set mirrors = arr where id = fileid;
+    END IF;
+
+    RETURN fileid;
+END;
+$$ LANGUAGE 'plpgsql';
+
+
+
+CREATE OR REPLACE FUNCTION mirr_get_name(integer) RETURNS text AS '
+    SELECT identifier FROM server WHERE id=$1
 ' LANGUAGE 'SQL';
+
+
+CREATE OR REPLACE FUNCTION mirr_get_name(ids smallint[]) RETURNS text[] AS $$
+DECLARE
+    names text[];
+    -- i integer;
+BEGIN
+    names := ARRAY(
+                  select mirr_get_name(cast(ids[i] AS integer)) from generate_series(array_lower(ids, 1), array_upper(ids, 1)) as i
+                  );
+    RETURN names;
+END;
+$$ LANGUAGE 'plpgsql';
+
+
+
+
 
 -- --------------------------------------------------------
 COMMIT;
 -- --------------------------------------------------------
 
+-- vim: ft=sql ai ts=4 sw=4 smarttab expandtab
