@@ -162,7 +162,6 @@ CREATE OR REPLACE FUNCTION mirr_add_bypath(arg_serverid integer, arg_path text) 
 DECLARE
     fileid integer;
     arr smallint[];
-    rc boolean;
 BEGIN
     SELECT INTO fileid, arr
         id, mirrors FROM filearr WHERE path = arg_path;
@@ -183,6 +182,12 @@ BEGIN
     END IF;
 
     RETURN fileid;
+EXCEPTION
+    WHEN unique_violation THEN
+        RAISE NOTICE 'file % was just inserted by somebody else', arg_path;
+        -- just update it by calling ourselves again
+        SELECT into fileid mirr_add_bypath(arg_serverid, arg_path);
+        RETURN fileid;
 END;
 $$ LANGUAGE 'plpgsql';
 
