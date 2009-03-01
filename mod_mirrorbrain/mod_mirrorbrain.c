@@ -84,21 +84,17 @@
 #endif
 #define DEFAULT_MIN_MIRROR_SIZE 4096
 
-#define DEFAULT_QUERY "SELECT fs.serverid, s.identifier, " \
-                             "s.region, s.country, s.asn, s.prefix, " \
-                             "s.score, s.baseurl, " \
-                             "s.region_only, s.country_only, " \
-                             "s.as_only, s.prefix_only, " \
-                             "s.other_countries, s.file_maxsize " \
-                      "FROM file f " \
-                      "LEFT JOIN file_server fs " \
-                      "ON f.id = fs.fileid " \
-                      "LEFT JOIN server s " \
-                      "ON fs.serverid = s.id " \
-                      "WHERE f.path=%s " \
-                             "AND s.enabled " \
-                             "AND s.status_baseurl " \
-                             "AND s.score > 0"
+#define DEFAULT_QUERY "SELECT id, identifier, region, country, " \
+                             "asn, prefix, score, baseurl " \
+                             "region_only, country_only, " \
+                             "as_only, prefix_only, " \
+                             "other_countries, file_maxsize " \
+                      "FROM server " \
+                      "WHERE id::smallint = any(" \
+                          "(SELECT mirrors " \
+                           "FROM filearr " \
+                           "WHERE path = %s)::smallint[]) " \
+                      "AND enabled AND status_baseurl AND score > 0"
 
 
 module AP_MODULE_DECLARE_DATA mirrorbrain_module;
