@@ -1613,6 +1613,7 @@ static int mb_handler(request_rec *r)
         /* insert broken mirrors at the top, for failover testing? */
         if(apr_table_get(r->headers_in, "X-Broken-Mirrors")) {
             debugLog(r, cfg, "Client sent X-Broken-Mirrors header -- adding broken mirrors");
+            apr_table_mergen(r->headers_out, "Cache-Control", "no-store,max-age=0");
             ap_rprintf(r, "\n      <!-- Broken mirrors for testing: -->\n");
             /* hostname does not resolve */
             ap_rprintf(r, "      <url type=\"http\" location=\"de\" preference=\"%d\">"
