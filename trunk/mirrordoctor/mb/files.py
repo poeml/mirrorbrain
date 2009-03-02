@@ -17,9 +17,9 @@ def has_file(conn, path, mirror_id):
 
     query = "SELECT mirr_hasfile_byname(%s, '%s')" \
                   % (mirror_id, path)
-    rows = conn.Server._connection.queryAll(query)
+    result = conn.Server._connection.queryAll(query)[0][0]
 
-    return len(rows) > 0
+    return result
 
 
 def check_for_marker_files(conn, markers, mirror_id):
