@@ -941,13 +941,9 @@ static int mb_handler(request_rec *r)
             continent_code);
 
     /* save details for logging via a CustomLog */
-    apr_table_setn(r->subprocess_env, "MIRRORBRAIN_FILESIZE",       /* FIXME: obsolete the long names soon */
-            apr_off_t_toa(r->pool, r->finfo.size));
     apr_table_setn(r->subprocess_env, "MB_FILESIZE", 
             apr_off_t_toa(r->pool, r->finfo.size));
-    apr_table_set(r->subprocess_env, "MIRRORBRAIN_COUNTRY_CODE", country_code);
     apr_table_set(r->subprocess_env, "MB_COUNTRY_CODE", country_code);
-    apr_table_set(r->subprocess_env, "MIRRORBRAIN_CONTINENT_CODE", continent_code);
     apr_table_set(r->subprocess_env, "MB_CONTINENT_CODE", continent_code);
 
 
@@ -1024,7 +1020,6 @@ static int mb_handler(request_rec *r)
         ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, 
                 "[mod_mirrorbrain] no mirrors found for %s", filename);
         /* can be used for a CustomLog */
-        apr_table_setn(r->subprocess_env, "MIRRORBRAIN_NOMIRROR", "1");
         apr_table_setn(r->subprocess_env, "MB_NOMIRROR", "1");
 
         if (mirrorlist) {
@@ -1901,7 +1896,6 @@ static int mb_handler(request_rec *r)
     debugLog(r, cfg, "Redirect to '%s'", uri);
 
     /* for _conditional_ logging, leave some mark */
-    apr_table_setn(r->subprocess_env, "MIRRORBRAIN_REDIRECTED", "1");
     apr_table_setn(r->subprocess_env, "MB_REDIRECTED", "1");
     apr_table_setn(r->subprocess_env, "MB_REALM", apr_pstrdup(r->pool, found_in));
 
