@@ -85,7 +85,7 @@
 #define DEFAULT_MIN_MIRROR_SIZE 4096
 
 #define DEFAULT_QUERY "SELECT id, identifier, region, country, " \
-                             "asn, prefix, score, baseurl " \
+                             "asn, prefix, score, baseurl, " \
                              "region_only, country_only, " \
                              "as_only, prefix_only, " \
                              "other_countries, file_maxsize " \
