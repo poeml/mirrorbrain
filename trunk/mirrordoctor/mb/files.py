@@ -15,7 +15,7 @@ def has_file(conn, path, mirror_id):
         pattern = False
         oprtr = '='
 
-    query = 'SELECT mirr_hasfile_byname(%s, %s)' \
+    query = "SELECT mirr_hasfile_byname(%s, '%s')" \
                   % (mirror_id, path)
     rows = conn.Server._connection.queryAll(query)
 
