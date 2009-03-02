@@ -123,15 +123,6 @@ class Conn:
                 fromDatabase = True
         self.Filearr = Filearr
 
-        # FileServerWithpk is a view of the file_server table, with a
-        # simulated primary key that this ORM requires.
-        class FileServerWithpk(SQLObject):
-            """the file_server table"""
-            fileid = IntCol()
-            serverid = IntCol()
-            timestamp_scanner = IntCol()
-        self.FileServer = FileServerWithpk
-
         class Marker(SQLObject):
             """the marker table"""
             class sqlmeta:
