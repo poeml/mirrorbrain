@@ -117,11 +117,11 @@ class Conn:
                 fromDatabase = True
         self.Server = Server
 
-        class File(SQLObject):
+        class Filearr(SQLObject):
             """the file table"""
             class sqlmeta:
                 fromDatabase = True
-        self.File = File
+        self.Filearr = Filearr
 
         # FileServerWithpk is a view of the file_server table, with a
         # simulated primary key that this ORM requires.
