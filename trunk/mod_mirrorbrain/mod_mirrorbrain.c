@@ -1609,6 +1609,40 @@ static int mb_handler(request_rec *r)
          * we'll decrement it for each mirror by one, until zero is reached */
         int pref = 101;
 
+
+        /* insert broken mirrors at the top, for failover testing? */
+        if(apr_table_get(r->headers_in, "X-Broken-Mirrors")) {
+            debugLog(r, cfg, "Client sent X-Broken-Mirrors header -- adding broken mirrors");
+            ap_rprintf(r, "\n      <!-- Broken mirrors for testing: -->\n");
+            /* hostname does not resolve */
+            ap_rprintf(r, "      <url type=\"http\" location=\"de\" preference=\"%d\">"
+                          "http://doesnotexist/%s</url>\n",
+                       --pref,
+                       filename);
+            /* 404 Not found */
+            ap_rprintf(r, "      <url type=\"http\" location=\"de\" preference=\"%d\">"
+                          "http://www.poeml.de/nonexisting_file_for_libzypp</url>\n",
+                       --pref);
+            /* Connection refused */
+            ap_rprintf(r, "      <url type=\"http\" location=\"de\" preference=\"%d\">"
+                          "http://www.poeml.de:83/nonexisting_file_for_libzypp</url>\n",
+                       --pref);
+            /* A totally obscure reply ("server busy") */
+            ap_rprintf(r, "      <url type=\"http\" location=\"de\" preference=\"%d\">"
+                          "http://ftp.opensuse.org:21/foobar</url>\n",
+                       --pref);
+            /* 403 Forbidden */
+            ap_rprintf(r, "      <url type=\"http\" location=\"de\" preference=\"%d\">"
+                          "http://download.opensuse.org/error/</url>\n",
+                       --pref);
+            /* Times out */
+            /* Maybe we should leave this one commented, so the timeouts don't hinder initial
+             * testing and progress too much - but let's try */
+            ap_rprintf(r, "      <url type=\"http\" location=\"de\" preference=\"%d\">"
+                          "http://widehat.opensuse.org:22/foobar</url>\n",
+                       --pref);
+        }
+
         ap_rprintf(r, "\n      <!-- Mirrors in the same network (%s): -->\n",
                    (strcmp(prefix, "--") == 0) ? "unknown" : prefix);
         mirrorp = (mirror_entry_t **)mirrors_same_prefix->elts;
