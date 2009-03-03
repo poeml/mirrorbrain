@@ -2,6 +2,7 @@
 
 import sys, os, os.path
 import mb
+import mb.util
 import mb.files
 import tempfile
 import cgi
@@ -72,7 +73,6 @@ def xhtml(conn, opts, mirrors, markers):
 
     if opts.inline_images_from:
         import os
-        import mb.util
         if not os.path.exists(opts.inline_images_from):
             sys.exit('path %r does not exist' % opts.inline_images_from)
 

@@ -194,7 +194,6 @@ class MirrorDoctor(cmdln.Cmdln):
             mirrordoctor list [IDENTIFIER]
         ${cmd_option_list}
         """
-        from sqlobject.sqlbuilder import LIKE
         if opts.country:
             mirrors = self.conn.Server.select("""country LIKE '%%%s%%'""" % opts.country)
         elif opts.region:
@@ -791,6 +790,7 @@ class MirrorDoctor(cmdln.Cmdln):
         
 
         if args:
+            import mb.conn
             mirrors = mb.conn.servers_match(self.conn.Server, args[0])
         else:
             from sqlobject.sqlbuilder import AND, NOT
