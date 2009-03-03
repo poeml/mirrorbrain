@@ -133,7 +133,9 @@ class MirrorDoctor(cmdln.Cmdln):
         ${cmd_option_list}
         """
 
+        import time
         import urlparse
+        import mb.asn
 
 
         if not opts.http:
@@ -145,8 +147,11 @@ class MirrorDoctor(cmdln.Cmdln):
         if not opts.country:
             opts.country = mb.geoip.lookup_country_code(host)
 
+        r = mb.asn.iplookup(self.conn, host)
+        asn, prefix = r.asn, r.prefix
+
         if opts.region == '--' or opts.country == '--':
-            raise ValueError('region lookup failed')
+            raise ValueError('Region lookup failed. Use the -c and -r option.')
 
         s = self.conn.Server(identifier   = identifier,
                              baseurl      = opts.http,
@@ -154,8 +159,8 @@ class MirrorDoctor(cmdln.Cmdln):
                              baseurlRsync = opts.rsync or '',
                              region       = opts.region,
                              country      = opts.country,
-                             asn          = 0,
-                             prefix       = '',
+                             asn          = asn,
+                             prefix       = prefix,
                              score        = opts.score,
                              enabled      = 0,
                              statusBaseurl = 0,
@@ -165,7 +170,8 @@ class MirrorDoctor(cmdln.Cmdln):
                              operatorUrl  = '',
                              otherCountries = '',
                              publicNotes  = '',
-                             comment      = opts.comment or '',
+                             comment      = opts.comment \
+                               or 'Added - %s' % time.ctime(),
                              scanFpm      = 0,
                              countryOnly  = 0,
                              regionOnly   = 0,
