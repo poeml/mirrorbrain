@@ -159,6 +159,7 @@ typedef struct
     const char *metalink_hashes_prefix;
     const char *metalink_publisher_name;
     const char *metalink_publisher_url;
+    const char *metalink_broken_test_mirrors;
     const char *mirrorlist_stylesheet;
     const char *query;
     const char *query_prep;
@@ -316,6 +317,7 @@ static void *create_mb_server_config(apr_pool_t *p, server_rec *s)
     new->metalink_hashes_prefix = NULL;
     new->metalink_publisher_name = NULL;
     new->metalink_publisher_url = NULL;
+    new->metalink_broken_test_mirrors = NULL;
     new->mirrorlist_stylesheet = NULL;
     new->query = DEFAULT_QUERY;
     new->query_prep = NULL;
@@ -340,6 +342,7 @@ static void *merge_mb_server_config(apr_pool_t *p, void *basev, void *addv)
     cfgMergeString(metalink_hashes_prefix);
     cfgMergeString(metalink_publisher_name);
     cfgMergeString(metalink_publisher_url);
+    cfgMergeString(metalink_broken_test_mirrors);
     cfgMergeString(mirrorlist_stylesheet);
     mrg->query = (add->query != (char *) DEFAULT_QUERY) ? add->query : base->query;
     cfgMergeString(query_prep);
@@ -500,6 +503,18 @@ static const char *mb_cmd_metalink_publisher(cmd_parms *cmd, void *config,
 
     cfg->metalink_publisher_name = arg1;
     cfg->metalink_publisher_url = arg2;
+    return NULL;
+}
+
+static const char *mb_cmd_metalink_broken_test_mirrors(cmd_parms *cmd, 
+                                                 void *config, 
+                                                 const char *arg1)
+{
+    server_rec *s = cmd->server;
+    mb_server_conf *cfg = 
+        ap_get_module_config(s->module_config, &mirrorbrain_module);
+
+    cfg->metalink_broken_test_mirrors = arg1;
     return NULL;
 }
 
@@ -1409,29 +1424,6 @@ static int mb_handler(request_rec *r)
         ap_rputs("# mirrorlist-txt version=1.0\n", r);
         ap_rputs("# url baseurl_len mirrorid region:country power\n", r);
 
-        /* for failover testing, insert broken mirrors at the top */
-        const char *ua;
-        ua = apr_table_get(r->headers_in, "User-Agent");
-        if (ua != NULL) {
-            if (ap_strstr_c(ua, "getPrimaryFailover-agent/0.1")) {
-                /* hostname does not resolve */
-                ap_rprintf(r, "http://doesnotexist/%s 20 10001 EU:DE 100\n", filename);
-                /* 404 Not found */
-                ap_rputs("http://www.poeml.de/nonexisting_file_for_libzypp 20 10002 EU:DE 100\n", r);
-                /* Connection refused */
-                ap_rputs("http://www.poeml.de:83/nonexisting_file_for_libzypp 23 10003 EU:DE 100\n", r);
-                /* Totally off reply ("server busy") */
-                ap_rputs("http://ftp.opensuse.org:21/foobar 27 10004 EU:DE 100\n", r);
-                /* 403 Forbidden */
-                ap_rputs("http://download.opensuse.org/server-status 42 10005 EU:DE 100\n", r);
-                /* Times out */
-                /* I'll leave this one commented for now, so the timeouts don't hinder initial 
-                 * testing and progress too much. */
-                /* ap_rputs("http://widehat.opensuse.org:22/foobar 37 10006 EU:DE 100\n", r); */
-            } 
-        }
-
-
         mirrorp = (mirror_entry_t **)mirrors_same_prefix->elts;
         for (i = 0; i < mirrors_same_prefix->nelts; i++) {
             mirror = mirrorp[i];
@@ -1539,7 +1531,7 @@ static int mb_handler(request_rec *r)
          * We use r->uri, not r->unparsed_uri, so we don't need to escape query strings for xml.
          */
         ap_rprintf(r, "  origin=\"http://%s%s.metalink\"\n", r->hostname, r->uri);
-        ap_rputs(     "  generator=\"mod_mirrorbrain Download Redirector - http://mirrorbrain.org/\"\n", r);
+        ap_rputs(     "  generator=\"MirrorBrain - http://mirrorbrain.org/\"\n", r);
         ap_rputs(     "  type=\"dynamic\"", r);
         ap_rprintf(r, "  pubdate=\"%s\"", time_str);
         ap_rprintf(r, "  refreshdate=\"%s\">\n\n", time_str);
@@ -1606,39 +1598,35 @@ static int mb_handler(request_rec *r)
 
 
         /* insert broken mirrors at the top, for failover testing? */
-        if(apr_table_get(r->headers_in, "X-Broken-Mirrors")) {
-            debugLog(r, cfg, "Client sent X-Broken-Mirrors header -- adding broken mirrors");
+        if(scfg->metalink_broken_test_mirrors 
+                && (ptr = (char*) apr_table_get(r->headers_in, "X-Broken-Mirrors")) 
+                && (apr_stat(&sb, scfg->metalink_broken_test_mirrors, 
+                         APR_FINFO_MIN, r->pool) == APR_SUCCESS)) {
+
+            debugLog(r, cfg, "adding broken mirrors (requested via X-Broken-Mirrors header)");
             apr_table_mergen(r->headers_out, "Cache-Control", "no-store,max-age=0");
-            apr_table_addn(r->headers_out, "X-Broken-Mirrors", "true");
             apr_table_mergen(r->headers_out, "Vary", "X-Broken-Mirrors");
-            ap_rprintf(r, "\n      <!-- Broken mirrors for testing: -->\n");
-            /* hostname does not resolve */
-            ap_rprintf(r, "      <url type=\"http\" location=\"de\" preference=\"%d\">"
-                          "http://doesnotexist/%s</url>\n",
-                       --pref,
-                       filename);
-            /* 404 Not found */
-            ap_rprintf(r, "      <url type=\"http\" location=\"de\" preference=\"%d\">"
-                          "http://www.poeml.de/nonexisting_file_for_libzypp</url>\n",
-                       --pref);
-            /* Connection refused */
-            ap_rprintf(r, "      <url type=\"http\" location=\"de\" preference=\"%d\">"
-                          "http://www.poeml.de:83/nonexisting_file_for_libzypp</url>\n",
-                       --pref);
-            /* A totally obscure reply ("server busy") */
-            ap_rprintf(r, "      <url type=\"http\" location=\"de\" preference=\"%d\">"
-                          "http://ftp.opensuse.org:21/foobar</url>\n",
-                       --pref);
-            /* 403 Forbidden */
-            ap_rprintf(r, "      <url type=\"http\" location=\"de\" preference=\"%d\">"
-                          "http://download.opensuse.org/error/</url>\n",
-                       --pref);
-            /* Times out */
-            /* Maybe we should leave this one commented, so the timeouts don't hinder initial
-             * testing and progress too much - but let's try */
-            ap_rprintf(r, "      <url type=\"http\" location=\"de\" preference=\"%d\">"
-                          "http://widehat.opensuse.org:22/foobar</url>\n",
-                       --pref);
+            apr_table_addn(r->headers_out, "X-Broken-Mirrors", "true");
+
+            apr_file_t *fh;
+            if (apr_file_open(&fh, scfg->metalink_broken_test_mirrors,
+                              APR_READ, APR_OS_DEFAULT, r->pool) == APR_SUCCESS) {
+                ap_send_fd(fh, r, 0, sb.size, &len);
+                apr_file_close(fh);
+            }
+
+            if (strcmp(ptr, "only") == 0) {
+                /* finish here */
+                ap_rputs(     "      </resources>\n"
+                              "    </file>\n"
+                              "  </files>\n"
+                              "</metalink>\n", r);
+                return OK;
+            }
+
+            /* we leave a gap for insertion of 15 such non-working URLs,
+             * still keeping decrementing the preference in order */
+            pref = 85;
         }
 
         ap_rprintf(r, "\n      <!-- Mirrors in the same network (%s): -->\n",
@@ -2072,6 +2060,11 @@ static const command_rec mb_cmds[] =
     AP_INIT_TAKE2("MirrorBrainMetalinkPublisher", mb_cmd_metalink_publisher, NULL, 
                   RSRC_CONF, 
                   "Name and URL for the metalinks publisher elements"),
+
+    AP_INIT_TAKE1("MirrorBrainMetalinkBrokenTestMirrors", mb_cmd_metalink_broken_test_mirrors, NULL, 
+                  RSRC_CONF, 
+                  "Filename with snippet to include at the top of a metalink's "
+                  "<resources> section, for testing broken mirrors"),
 
     AP_INIT_TAKE1("MirrorBrainMirrorlistStyleSheet", mb_cmd_mirrorlist_stylesheet, NULL, 
                   RSRC_CONF, 
