@@ -38,6 +38,13 @@ class CommandExecuteError(Error):
         self.cmd = cmd
         self.msg = msg
 
+class MirrorNotFoundError(Error):
+    """Raised when a mirror wasn't found in the database"""
+
+    def __init__(self, msg):
+        Error.__init__(self, 'A mirror with identifier %r doesn\'t exist in the database' % (msg,))
+        self.msg = msg
+
 class SocketError(Error):
     """Raised for network errors"""
 
