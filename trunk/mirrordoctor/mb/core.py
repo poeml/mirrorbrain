@@ -15,5 +15,5 @@ def delete_mirror(conn, mirror):
                    % (m.id, m.id)
     conn.Server._connection.queryAll(query)
 
-    self.conn.Server.delete(m.id)
+    conn.Server.delete(m.id)
 
