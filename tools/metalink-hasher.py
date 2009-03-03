@@ -141,6 +141,10 @@ class Metalinks(cmdln.Cmdln):
 
         directories = [startdir]
 
+        if opts.ignore_mask: 
+            opts.ignore_mask = re.compile(opts.ignore_mask)
+        if opts.file_mask: 
+            opts.file_mask = re.compile(opts.file_mask)
 
         while len(directories)>0:
             directory = directories.pop()
@@ -152,18 +156,20 @@ class Metalinks(cmdln.Cmdln):
                 if os.path.islink(fullpath):
                     continue
 
+                if opts.ignore_mask and re.match(opts.ignore_mask, fullpath):
+                    continue
+
                 if os.path.isfile(fullpath):
                     if not opts.file_mask or re.match(opts.file_mask, name):
-                        if not opts.ignore_mask or not re.match(opts.ignore_mask, name):
-                            #print fullpath
-                            if opts.base_dir:
-                                target = fullpath[len(opts.base_dir):]
-                            else:
-                                target = fullpath
-                            target = os.path.join(opts.target_dir, target.lstrip('/'))
-                            if opts.verbose:
-                                print 'target:', target
-                            make_hashes(fullpath, target, opts=opts)
+                        #print fullpath
+                        if opts.base_dir:
+                            target = fullpath[len(opts.base_dir):]
+                        else:
+                            target = fullpath
+                        target = os.path.join(opts.target_dir, target.lstrip('/'))
+                        if opts.verbose:
+                            print 'target:', target
+                        make_hashes(fullpath, target, opts=opts)
 
                 elif os.path.isdir(fullpath):
                     directories.append(fullpath)  # It's a directory, store it.
