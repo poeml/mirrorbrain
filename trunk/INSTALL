@@ -47,111 +47,75 @@ After installation of mod_mirrorbrain, you'll need to:
 - install the following Python modules:
       python-cmdln
       python-sqlobject
-      python-mysql (when using MySQL)
       python-psycopg2 (when using PostgreSQL)
 
 - for the scanner, which is written in Perl, a few Perl modules are required:
       perl-libwww-perl
       perl-Digest-MD4 (it is not *really* needed, but prevents an ugly error message)
-      perl-DBD-mysql (when using MySQL)
       perl-DBD-Pg (when using PostgreSQL)
 
 
-- choose a database to use with MirrorBrain, and continue with the respective
+- configure the database to use with MirrorBrain, and continue with the respective
   description below:
 
 
-    a) Using MySQL
+   - install the PostgreSQL database adapter for the DBD library
+     (openSUSE/SLE package: libapr-util1-dbd-pgsql)
+     Note, if the web server is set up seperately from the database server,
+     only the web server needs this package.
+   
+   - install postgresql and start it
 
-       - install the MySQL database adapter for the DBD library
-         (openSUSE/SLE package: libapr-util1-dbd-mysql)
-         Note, if the web server is set up seperately from the database server,
-         only the web server needs this package.
-
-      
-       - install and start MySQL
-      
-       - log into your database at root:
-           mysql -u root -p
-         there, create the database and grant write permissions for a local user:
-           create database mb_samba;
-           grant all privileges on mb_samba.* to wwwrun@localhost identified by '12345';
-      
-         run the sql file which creates the tables and indices:
-           mysql -u wwwrun -p -D mb_samba < /usr/share/doc/packages/apache2-mod_zrkadlo/sql/schema-mysql.sql
-
-       - the mysql InnoDB engine needs to be configured to use enough memory for the
-         database. This is probably the most important thing to know and the most
-         frequent deployment error, to not tune this. Use the innodb_buffer_pool_size
-         value to match it to the size of your database. The default value is tiny.
-         Although, when your database is tiny, too, it won't matter much. But for
-         larger databases, the value needs to be increased, possibly considerably.
+   - create the postgresql user account and database:
 
 
-       - import table structure, and initial data:
-           psql -U mb -f sql/schema-mysql.sql mb_samba
-           psql -U mb -f sql/initialdata-mysql.sql mb_samba
-  
-
-    b) Using PostgreSQL
-
-       - install the PostgreSQL database adapter for the DBD library
-         (openSUSE/SLE package: libapr-util1-dbd-pgsql)
-         Note, if the web server is set up seperately from the database server,
-         only the web server needs this package.
+       su - postgres
        
-       - install postgresql and start it
-
-       - create the postgresql user account and database:
-
-
-           su - postgres
-           
-           root@powerpc:~ # su - postgres
-           postgres@powerpc:~> createuser -P mb
-           Enter password for new role: 
-           Enter it again: 
-           Shall the new role be a superuser? (y/n) n
-           Shall the new role be allowed to create databases? (y/n) n
-           Shall the new role be allowed to create more new roles? (y/n) n
-           CREATE ROLE
-           
-           postgres@powerpc:~> createdb -O mb mb_samba
-           CREATE DATABASE
-           postgres@powerpc:~> 
+       root@powerpc:~ # su - postgres
+       postgres@powerpc:~> createuser -P mb
+       Enter password for new role: 
+       Enter it again: 
+       Shall the new role be a superuser? (y/n) n
+       Shall the new role be allowed to create databases? (y/n) n
+       Shall the new role be allowed to create more new roles? (y/n) n
+       CREATE ROLE
+       
+       postgres@powerpc:~> createdb -O mb mb_samba
+       CREATE DATABASE
+       postgres@powerpc:~> 
 
 
-           postgres@powerpc:~> cp data/pg_hba.conf data/pg_hba.conf.orig
-           postgres@powerpc:~> vi data/pg_hba.conf
+       postgres@powerpc:~> cp data/pg_hba.conf data/pg_hba.conf.orig
+       postgres@powerpc:~> vi data/pg_hba.conf
 
-           # TYPE  DATABASE    USER        CIDR-ADDRESS          METHOD
-           # "local" is for Unix domain socket connections only
-           #local   all         all                               ident sameuser
-           local   all         all                               password
-           # IPv4 local connections:
-           host    all         all         127.0.0.1/32          password
-           # IPv6 local connections:
-           host    all         all         ::1/128               password
-           # remote connections:
-           host    mb_samba    mb          10.10.2.3/32          password
+       # TYPE  DATABASE    USER        CIDR-ADDRESS          METHOD
+       # "local" is for Unix domain socket connections only
+       #local   all         all                               ident sameuser
+       local   all         all                               password
+       # IPv4 local connections:
+       host    all         all         127.0.0.1/32          password
+       # IPv6 local connections:
+       host    all         all         ::1/128               password
+       # remote connections:
+       host    mb_samba    mb          10.10.2.3/32          password
 
-           
-           
-           Tuning:
+       
+       
+       Tuning:
 
-	   If the database will be large, reserve enough memory for it (mainly
-	   by setting shared_buffers), and in any case you should switch off
-	   synchronous commit mode (synchronous_commit = off).
+       If the database will be large, reserve enough memory for it (mainly
+       by setting shared_buffers), and in any case you should switch off
+       synchronous commit mode (synchronous_commit = off).
 
 
 
-           root@powerpc:~ # rcpostgresql restart
+       root@powerpc:~ # rcpostgresql restart
 
 
 
-       - import table structure, and initial data:
-           psql -U mb -f sql/schema-postgresql.sql mb_samba
-           psql -U mb -f sql/initialdata-postgresql.sql mb_samba
+   - import table structure, and initial data:
+       psql -U mb -f sql/schema-postgresql.sql mb_samba
+       psql -U mb -f sql/initialdata-postgresql.sql mb_samba
        
 
 - create a group and user to run the mirrorbrain tools under:
@@ -168,8 +132,7 @@ After installation of mod_mirrorbrain, you'll need to:
   [samba]
   dbuser = wwwrun
   dbpass = 12345
-  # use "mysql" for MySQL, and "postgresql" for PostgreSQL
-  dbdriver = mysql
+  dbdriver = postgresql
   dbhost = your_host.example.com
   dbport = 3306
   dbname = mb_samba
@@ -218,13 +181,6 @@ After installation of mod_mirrorbrain, you'll need to:
 
 
 
-- example migration commands from MySQL to PostgreSQL: 
-    createdb -O mb mb_samba
-    psql -U mb -f sql/schema-postgresql.sql mb_samba
-
-    mb -b samba export --format postgresql | psql -U mb mb_samba
-
-
 - configure Apache:
 
   - load the Apache modules:
@@ -255,17 +211,6 @@ After installation of mod_mirrorbrain, you'll need to:
 
     Config example::
     ------------------------------------------------------------------------
-    # for MySQL:
-
-    DBDriver mysql
-    # reconnect=0 is needed with the mysql adapter. It means that connections
-    # should not be "reanimated", because prepared statements would be lost anyway,
-    # so dead connections should rather be invalidated and new ones made.
-    DBDParams "host=localhost, user=wwwrun, pass=12345, dbname=mb_samba, reconnect=0"
-    # # threaded MPMs only. prefork will have use db connection per process
-    
-    # or, for PostgreSQL:
-
     DBDriver pgsql
     # note that the connection string (which is passed straight through to
     # PGconnectdb in this case) looks slightly different - pass vs. password
