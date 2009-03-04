@@ -1,3 +1,23 @@
+Wed Mar  4 16:40:06 CET 2009
+- MirrorBrain 2.7
+- Completely reworked the file database. It is 5x faster and one third the
+  size. Instead of a potentially huge relational table including timestamps (48
+  bytes per row), files and associations are now in a single table, using
+  smallint arrays for the mirror ids. This makes the table 5x faster and 1/3
+  the size. In addition, we need only a single index on the path, which is a
+  small and very fast b-tree.  This also gives us a good search, and the chance
+  to do partial deletions (e.g. for a subtree).
+- With this change, MySQL is no longer supported. The core, mod_mirrorbrain,
+  would still work fine, but the toolchain around is quite a bit specific to
+  the PostgreSQL database scheme now. If there's interest, MySQL support in the
+  toolchain can be maintained as well.
+- many little improvements in the toolchain were made.
+- Notably, the scanner has been improved to be more efficient and give better
+  output.
+- mirror choice can be influenced for testing with a query parameter (as=),
+  specifying the autonomous system number.
+
+
 Fri Feb 13 08:18:42 CET 2009
 - MirrorBrain 2.6 
 - supports additional, finer mirror selection, based on network
