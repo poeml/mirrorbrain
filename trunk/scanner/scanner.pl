@@ -3,8 +3,8 @@
 ################################################################################
 # scanner.pl -- daemon for working through opensuse directories.
 #
-# Copyright (C) 2006-2009 Martin Polster, Juergen Weigert, 
-#                         Peter Poeml, Novell Inc.
+# Copyright 2006,2007,2008,2009 Martin Polster, Juergen Weigert, 
+#                               Peter Poeml, Novell Inc.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License version 2

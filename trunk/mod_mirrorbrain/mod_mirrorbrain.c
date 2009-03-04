@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007,2008 Peter Poeml <poeml@suse.de> / Novell Inc.
+ * Copyright 2007,2008,2009 Peter Poeml / Novell Inc.
  * All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,10 +15,10 @@
  * limitations under the License.
  *
  *
- * mod_mirrorbrain, the heart of the MirrorBrain, does
- *  - redirect clients to mirror servers, based on sql database
- *  - generate real-time metalinks
- *  - generate text or HTML mirror lists
+ * mod_mirrorbrain is the heart of MirrorBrain, which
+ *  - redirects clients to mirror servers, based on an SQL database
+ *  - generates metalinks in real-time
+ *  - generates text or HTML mirror lists
  * See http://mirrorbrain.org/ 
  *
  * Credits:
