@@ -1,17 +1,27 @@
 #!/usr/bin/python
 
-"""
-Script to get info on modules on rsync servers
+# rsyncinfo - script to get info on modules on rsync servers
+# 
+# This script requires the cmdln module, which you can obtain here:
+# http://trentm.com/projects/cmdln/
+#
+#
+# Copyright 2007,2008,2009 Peter Poeml
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License version 2
+# as published by the Free Software Foundation;
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 
-Requirements:
-cmdln from http://trentm.com/projects/cmdln/
-"""
 
-__version__ = '1.0'
-__author__ = 'Peter Poeml <poeml@suse.de>'
-__copyright__ = 'Peter poeml <poeml@suse.de>'
-__license__ = 'GPL'
-__url__ = 'http://mirrorbrain.org'
 
 import sys, commands
 import cmdln
