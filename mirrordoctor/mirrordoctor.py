@@ -679,6 +679,12 @@ class MirrorDoctor(cmdln.Cmdln):
             mb.vacuum.vacuum(self.conn)
 
 
+    @cmdln.option('-u', '--url', action='store_true',
+                        help='show the URL on the mirror')
+    @cmdln.option('-p', '--probe', action='store_true',
+                        help='probe the file')
+    @cmdln.option('--md5', action='store_true',
+                        help='show md5 hash of probed file')
     @cmdln.option('-m', '--mirror', 
                   help='apply operation to this mirror')
     def do_file(self, subcmd, opts, action, path):
@@ -708,6 +714,7 @@ class MirrorDoctor(cmdln.Cmdln):
             path = path[1:]
 
         import mb.files
+        import mb.testmirror
 
         if action in ['add', 'rm']:
             if not opts.mirror:
@@ -722,14 +729,28 @@ class MirrorDoctor(cmdln.Cmdln):
             rows = mb.files.ls(self.conn, path)
 
             for row in rows:
+                
                 if not mirror or (str(mirror.identifier) == row['identifier']):
-                    print '%s %s %4d %s %s %-30s %s%s' % \
+                    if opts.probe:
+                        (response, md5) = mb.testmirror.req(row['baseurl'],
+                                                            path,
+                                                            do_digest=opts.md5)
+                    else:
+                        response = '   '
+                    print '%s %s %4d %s %s %-30s ' % \
                             (row['region'].lower(), row['country'].lower(),
                              row['score'], 
                              row['enabled'] == 1 and 'ok      ' or 'disabled',
                              row['status_baseurl'] == 1 and 'ok  ' or 'dead',
-                             row['identifier'], 
-                             row['baseurl'], row['path'])
+                             row['identifier']),
+                    if opts.probe:
+                        print '%3s' % response,
+                    if opts.md5 and opts.probe:
+                        print md5,
+                    if opts.url:
+                        print row['baseurl'] + row['path'],
+                    print
+
 
         elif action == 'add':
             mb.files.add(self.conn, path, mirror)
