@@ -309,6 +309,7 @@ if ($parallel > 1) {
     push @cmd, '-I', $item;
   }
   push @cmd, '-f' if $force_scan;
+  push @cmd, '-e' if $enable_after_scan;
   push @cmd, '-x' if $extra_schedule_run;
   push @cmd, '-k' if $keep_dead_files;
   push @cmd, '-d', $start_dir if length $start_dir;
@@ -395,14 +396,14 @@ for my $row (@scan_list) {
       $sql = "SELECT COUNT(mirr_del_byid($row->{id}, id)) FROM temp1";
       print "$sql\n" if $sqlverbose;
       $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
-      $file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
-      print localtime(time) . " $row->{identifier}: files to be purged: $file_count\n";
+      my $purge_file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
+      print localtime(time) . " $row->{identifier}: files to be purged: $purge_file_count\n";
 
 
       $sql = "SELECT COUNT(*) FROM filearr WHERE $row->{id} = ANY(mirrors);";
       print "$sql\n" if $sqlverbose;
       my $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
-      my $file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
+      $file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
       print localtime(time) . " $row->{identifier}: number of files: $file_count\n";
 
 
