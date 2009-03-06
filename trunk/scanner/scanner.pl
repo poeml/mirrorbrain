@@ -308,6 +308,7 @@ if ($parallel > 1) {
   foreach my $item(@top_include_list) {
     push @cmd, '-I', $item;
   }
+  push @cmd, '-f' if $force_scan;
   push @cmd, '-x' if $extra_schedule_run;
   push @cmd, '-k' if $keep_dead_files;
   push @cmd, '-d', $start_dir if length $start_dir;
