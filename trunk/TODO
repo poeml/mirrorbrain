@@ -1,6 +1,5 @@
 Missing features:
 
-
 * mirrorprobe: does it deal with FTP urls entered as baseurl (which is meant for HTTP)?
 
 * make ZrkadloExcludeNetwork work by prefix match, instead of simple string
@@ -12,6 +11,15 @@ Improvements:
 
 * rewrite debugLog(r, cfg, ...) as Macro which checks for cfg->debug==1 before
   caling ebugLog()
+
+* check whether the maxconnections metalink attribute should be included, so that
+  aria2c downloads from more than one server even when every server has a distinct
+  preference value.
+
+* add "md5" and "sha1" or "checksums" link to mod_autoindex_mb. Make it configurable so
+  it can be switched off for the very large directories that are already slow
+  to show anyway.
+  In addition, the checksum(s) could be added into the mirror list. Would be highly useful.
 
 
 Further ideas:
