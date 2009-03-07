@@ -181,15 +181,23 @@ class MirrorDoctor(cmdln.Cmdln):
             print s
 
 
-    #@cmdln.option('-s', '--show-score', action='store_true',
-    #                    help='show score of each mirror')
+    @cmdln.option('--country', action='store_true',
+                        help='also display the country')
+    @cmdln.option('--region', action='store_true',
+                        help='also display the region')
+    @cmdln.option('--prefix', action='store_true',
+                        help='also display the network prefix')
+    @cmdln.option('--as', action='store_true',
+                        help='also display the AS')
+    @cmdln.option('--prio', action='store_true',
+                        help='also display priorities')
     @cmdln.option('--disabled', action='store_true',
                         help='show only disabled mirrors')
     @cmdln.option('-a', '--show-disabled', action='store_true',
                         help='do not hide disabled mirrors')
-    @cmdln.option('-c', '--country', metavar='XY',
+    @cmdln.option('-c', metavar='XY',
                         help='show only mirrors whose country matches XY')
-    @cmdln.option('-r', '--region', metavar='XY',
+    @cmdln.option('-r', metavar='XY',
                         help='show only mirrors whose region matches XY '
                         '(possible values: sa,na,oc,af,as,eu)')
     # @cmdln.alias('ls') ?
@@ -200,9 +208,9 @@ class MirrorDoctor(cmdln.Cmdln):
             mirrordoctor list [IDENTIFIER]
         ${cmd_option_list}
         """
-        if opts.country:
+        if opts.c:
             mirrors = self.conn.Server.select("""country LIKE '%%%s%%'""" % opts.country)
-        elif opts.region:
+        elif opts.r:
             mirrors = self.conn.Server.select("""region LIKE '%%%s%%'""" % opts.region)
         elif args:
             mirrors = mb.conn.servers_match(self.conn.Server, args[0])
@@ -210,14 +218,28 @@ class MirrorDoctor(cmdln.Cmdln):
             mirrors = self.conn.Server.select()
 
         for mirror in mirrors:
+            s = []
+            s.append('%-30s' % mirror.identifier)
+            if opts.prio:
+                s.append('%3s' % mirror.score)
+            if opts.region:
+                s.append('%2s' % mirror.region)
+            if opts.country:
+                s.append('%2s' % mirror.country)
+            if opts.as:
+                s.append('%5s' % mirror.asn)
+            if opts.prefix:
+                s.append('%-19s' % mirror.prefix)
+            s = ' '.join(s)
+
             if opts.show_disabled:
-                print mirror.identifier #, mirror.score
+                print s
             elif opts.disabled:
                 if not mirror.enabled:
-                    print mirror.identifier #, mirror.score
+                    print s
             else:
                 if mirror.enabled:
-                    print mirror.identifier #, mirror.score
+                    print s
 
 
     def do_show(self, subcmd, opts, identifier):
