@@ -356,7 +356,7 @@ for my $row (@scan_list) {
   my $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
   my $initial_file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
   if(length $start_dir) {
-    print localtime(time) . " $row->{identifier}: files in subdir $start_dir before scan: $initial_file_count\n";
+    print localtime(time) . " $row->{identifier}: files in '$start_dir' before scan: $initial_file_count\n";
   } else {
     print localtime(time) . " $row->{identifier}: files before scan: $initial_file_count\n";
   }
