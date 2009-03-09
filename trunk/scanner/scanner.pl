@@ -133,7 +133,6 @@ my $all_servers = 0;
 my $start_dir = '/';
 my $parallel = 1;
 my $list_only = 0;
-my $extra_schedule_run = 0;
 my $keep_dead_files = 0;
 my $recursion_delay = 0;	# seconds delay per *_readdir recuursion
 my $force_scan = 0;
@@ -143,8 +142,6 @@ my $brain_instance = '';
 
 # FIXME: use DBI functions transaction handling
 my $do_transaction = 1;
-# experimental other database scheme
-my $use_file_array = 1;
 
 # save prepared statements
 my $sth_update;
@@ -195,8 +192,6 @@ while (defined (my $arg = shift)) {
 	elsif ($arg =~ m{^-j})                 { $parallel = shift; }
 	elsif ($arg =~ m{^-e})                 { $enable_after_scan++; }
 	elsif ($arg =~ m{^-f})                 { $force_scan++; }
-	elsif ($arg =~ m{^-x})                 { $extra_schedule_run++; }
-	elsif ($arg =~ m{^-k})                 { $keep_dead_files++; }
 	elsif ($arg =~ m{^-d})                 { $start_dir = shift; }
 	elsif ($arg =~ m{^-b})                 { $brain_instance = shift; }
 	elsif ($arg =~ m{^-l})                 { $list_only++; 
@@ -291,7 +286,6 @@ die sprintf "serverid not found: %s\n", @missing if @missing;
 exit mirror_list(\@scan_list, $list_only-1) if $list_only;
 
 ###################
-# Keep in sync with "$start_dir/%" in unless ($keep_dead_files) below!
 $start_dir =~ s{^/+}{};	# leading slash is implicit; leads to '' per default.
 $start_dir =~ s{/+$}{};	# trailing slashes likewise. 
 ##################
@@ -310,8 +304,6 @@ if ($parallel > 1) {
   }
   push @cmd, '-f' if $force_scan;
   push @cmd, '-e' if $enable_after_scan;
-  push @cmd, '-x' if $extra_schedule_run;
-  push @cmd, '-k' if $keep_dead_files;
   push @cmd, '-d', $start_dir if length $start_dir;
   # We must not propagate -j here.
   # All other options we should propagate.
@@ -330,36 +322,51 @@ if ($parallel > 1) {
 }
 
 
+if($do_transaction) {
+  $dbh->{AutoCommit} = 0;
+  #$dbh->{RaiseError} = 1;
+}
+
 for my $row (@scan_list) {
   print localtime(time) . " $row->{identifier}: starting\n" if $verbose;
 
-  if($do_transaction) {
-    $dbh->{AutoCommit} = 0;
-    #$dbh�>{RaiseError} = 1;
-  }
-  if ($use_file_array) {
-    if (!$keep_dead_files) {
-      $sql = "CREATE TEMPORARY TABLE temp1 AS SELECT id FROM filearr WHERE $row->{id} = ANY(mirrors); CREATE INDEX temp1_key ON temp1 (id)";
-      print "$sql\n" if $sqlverbose;
-      $dbh->do($sql) or die "$sql: ".$DBI::errstr;
+  # already in a transaction? why??
+  #if($do_transaction) {
+  #  $dbh->begin_work or die "$DBI::errstr";
+  #}
 
-      $sql = "SELECT COUNT(*) FROM temp1";
-      print "$sql\n" if $sqlverbose;
-      my $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
-      my $file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
-      print "$row->{identifier}: files before scan: $file_count\n";
-    } else {
-      $sql = "SELECT COUNT(*) FROM filearr WHERE $row->{id} = ANY(mirrors)";
-      print "$sql\n" if $sqlverbose;
-      my $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
-      my $file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
-      print "$row->{identifier}: files before scan: $file_count\n";
-    }
+  if(length $start_dir) {
+    $sql = "CREATE TEMPORARY TABLE temp1 AS 
+            SELECT id FROM filearr 
+            WHERE path LIKE '$start_dir%' 
+                  AND $row->{id} = ANY(mirrors)";
+  } else {
+    $sql = "CREATE TEMPORARY TABLE temp1 AS 
+            SELECT id FROM filearr 
+            WHERE $row->{id} = ANY(mirrors)";
+  }
+  print "$sql\n" if $sqlverbose;
+  $dbh->do($sql) or die "$sql: ".$DBI::errstr;
+
+  $sql = "CREATE INDEX temp1_key ON temp1 (id);
+          ANALYZE temp1;
+          SELECT COUNT(*) FROM temp1";
+  print "$sql\n" if $sqlverbose;
+    
+  my $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
+  my $initial_file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
+  if(length $start_dir) {
+    print localtime(time) . " $row->{identifier}: files in subdir $start_dir before scan: $initial_file_count\n";
+  } else {
+    print localtime(time) . " $row->{identifier}: files before scan: $initial_file_count\n";
   }
 
   if($do_transaction) {
     $dbh->commit or die "$DBI::errstr";
   }
+
+  #$sql = "SELECT COUNT(*) FROM filearr WHERE $row->{id} = ANY(mirrors)";
+  #print "$sql\n" if $sqlverbose;
 
 
   my $start = int(gettimeofday * 1000);
@@ -390,44 +397,28 @@ for my $row (@scan_list) {
     $start = time();
     print localtime(time) . " $row->{identifier}: purging old files\n" if $verbose > 1;
 
-    if ($use_file_array) {
 
-      #$sql = "SELECT COUNT(*) FROM temp1";
-      $sql = "SELECT COUNT(mirr_del_byid($row->{id}, id)) FROM temp1";
-      print "$sql\n" if $sqlverbose;
-      $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
-      my $purge_file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
-      print localtime(time) . " $row->{identifier}: files to be purged: $purge_file_count\n";
-
-
-      $sql = "SELECT COUNT(*) FROM filearr WHERE $row->{id} = ANY(mirrors);";
-      print "$sql\n" if $sqlverbose;
-      my $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
-      $file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
-      print localtime(time) . " $row->{identifier}: number of files: $file_count\n";
+    #$sql = "SELECT COUNT(*) FROM temp1";
+    $sql = "SELECT COUNT(mirr_del_byid($row->{id}, id)) FROM temp1";
+    print "$sql\n" if $sqlverbose;
+    $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
+    my $purge_file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
+    print localtime(time) . " $row->{identifier}: files to be purged: $purge_file_count\n";
 
 
-    } else {
-      my $sql = "DELETE FROM file_server WHERE serverid = $row->{id} 
-        AND timestamp_scanner <= (SELECT extract(epoch from last_scan) FROM server 
-            WHERE id = $row->{id} limit 1)";
+    $sql = "SELECT COUNT(*) FROM filearr WHERE $row->{id} = ANY(mirrors);";
+    print "$sql\n" if $sqlverbose;
+    my $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
+    $file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
+    print localtime(time) . " $row->{identifier}: number of files: $file_count\n";
 
-      if(length $start_dir) {
-      ## let us hope subselects with paramaters work in mysql.
-        $sql .= " AND fileid IN (SELECT id FROM file WHERE path LIKE ?)";
-      }
-
-      # Keep in sync with $start_dir setup above!
-      my $sth = $dbh->prepare( $sql );
-      print "$row->{identifier}: $sql\n" if $sqlverbose;
-      $sth->execute(length($start_dir) ? "$start_dir/%" : ()) or die "$row->{identifier}: $DBI::errstr";
-    }
 
     $duration = time() - $start;
     print localtime(time) . " $row->{identifier}: purged old files in " . $duration . "s.\n" if $verbose > 0;
   }
 
-  unless ($extra_schedule_run) {
+  # update the last_scan timestamp; but only if we did a complete scan.
+  unless ($start_dir) {
     $sql = "UPDATE server SET last_scan = NOW(), scan_fpm = $fpm WHERE id = $row->{id};";
     print "$sql\n" if $sqlverbose;
     my $sth = $dbh->prepare( $sql );
@@ -441,6 +432,10 @@ for my $row (@scan_list) {
     $sth->execute() or die "$row->{identifier}: $DBI::errstr";
     print "$row->{identifier}: now enabled.\n" if $verbose > 0;
   }
+
+  $sql = "DROP TABLE temp1";
+  print "$sql\n" if $sqlverbose;
+  $dbh->do($sql) or die "$sql: ".$DBI::errstr;
 
   if($do_transaction) {
     $dbh->commit or die "$DBI::errstr";
@@ -573,22 +568,29 @@ sub http_readdir
 {
   my ($identifier, $id, $url, $name) = @_;
 
+  my $item;
+
   my $urlraw = $url;
   my $re = ''; $re = $1 if $url =~ s{#(.*?)$}{};
   print "$identifier: http_readdir: url=$url re=$re\n" if $verbose > 2;
   $url =~ s{/+$}{};	# we add our own trailing slashes...
   $name =~ s{/+$}{};
 
-  my $item;
-  my $included = 0;
-  foreach my $item(@top_include_list) {
-    if ($name =~ $item) {
-      $included = 1;
+  # are we looking at a top-level directory name?
+  # (we recognize it by not containing slashes)
+  my $attop = 0;
+  $attop = 1 if (length $name) && !($name =~ "/");
+  if ($attop && scalar(@top_include_list)) {
+    my $included = 0;
+    foreach my $item(@top_include_list) {
+      if ($name =~ $item) {
+        $included = 1;
+      }
     }
-  }
-  if (scalar(@top_include_list) && ("$name/" ne "/") && !$included) {
-    print "$identifier: not in top_include_list: $name\n";# if $verbose > 1;
-    return;
+    if (!$included) {
+      print "$identifier: not in top_include_list: $name\n";# if $verbose > 1;
+      return;
+    }
   }
 
   foreach $item(@norecurse_list) {
@@ -634,7 +636,7 @@ sub http_readdir
           ## we must be really sure it is a directory, when we come here.
           ## otherwise, we'll retrieve the contents of a file!
           sleep($recursion_delay) if $recursion_delay;
-          push @r, http_readdir($identifier, $id, $urlraw, $t);
+          push @r, http_readdir($identifier, $id, $urlraw, $t, 0);
         }
         else {
           ## it is a file.
@@ -696,16 +698,6 @@ sub ftp_readdir
   $ftp_timer = time;
 
   my $item;
-  my $included = 0;
-  foreach my $item(@top_include_list) {
-    if ($name =~ $item) {
-      $included = 1;
-    }
-  }
-  if (scalar(@top_include_list) && ("$name/" ne "/") && !$included) {
-    print "$identifier: not in top_include_list: $name\n";# if $verbose > 1;
-    return;
-  }
 
   # ignore paths matching those in @norecurse-list:
   for $item(@norecurse_list) {
@@ -720,6 +712,25 @@ sub ftp_readdir
   my $urlraw = $url;
   my $re = ''; $re = $1 if $url =~ s{#(.*?)$}{};
   $url =~ s{/+$}{};	# we add our own trailing slashes...
+
+
+  # are we looking at a top-level directory name?
+  # (we recognize it by not containing slashes)
+  my $attop = 0;
+  $attop = 1 if (length $name) && !($name =~ "/");
+  if ($attop && scalar(@top_include_list)) {
+    my $included = 0;
+    foreach my $item(@top_include_list) {
+      if ($name =~ $item) {
+        $included = 1;
+      }
+    }
+    if (!$included) {
+      print "$identifier: not in top_include_list: $name\n";# if $verbose > 1;
+      return;
+    }
+  }
+
 
   my $toplevel = ($ftp) ? 0 : 1;
   $ftp = ftp_connect($identifier, "$url/$name", "anonymous", $scanner_email) unless defined $ftp;
@@ -821,53 +832,26 @@ sub save_file
   $path =~ s{//+}{/}g;  # avoid double slashes.
 
 
-  if ($use_file_array) {
-    my $sql = "SELECT mirr_add_bypath(?, ?);";
-    if (!defined $sth_mirr_addbypath) {
-      printf "\nPreparing add statement\n\n" if $sqlverbose;
-      $sth_mirr_addbypath = $dbh->prepare( $sql ) or die "$identifier: $DBI::errstr";
+  my $sql = "SELECT mirr_add_bypath(?, ?);";
+  if (!defined $sth_mirr_addbypath) {
+    printf "\nPreparing add statement\n\n" if $sqlverbose;
+    $sth_mirr_addbypath = $dbh->prepare( $sql ) or die "$identifier: $DBI::errstr";
 
-    }
+  }
 
-    printf "$sql  <-- $serverid, $path \n" if $sqlverbose;
-    $sth_mirr_addbypath->execute( $serverid, $path ) or die "$identifier: $DBI::errstr"; 
+  printf "$sql  <-- $serverid, $path \n" if $sqlverbose;
+  $sth_mirr_addbypath->execute( $serverid, $path ) or die "$identifier: $DBI::errstr"; 
 
-    my @data = $sth_mirr_addbypath->fetchrow_array();
-    #if ($sth_mirr_addbypath->rows > 0) {
-      my $fileid = $data[0];
-      #print "fileid: $fileid\n";
-      #}
-    $sth_mirr_addbypath->finish;
-      if (!$keep_dead_files) {
-      $sql = "DELETE FROM temp1 WHERE id = $fileid";
-      print "$sql\n" if $sqlverbose;
-      $dbh->do($sql) or die "$sql: ".$DBI::errstr;
-    }
-
-  } else {
-
-    my $fileid = getfileid($path);
-
-    if(checkfileserver_fileid($serverid, $fileid)) {
-      my $sql = "UPDATE file_server SET timestamp_scanner = ".time." WHERE fileid = ? AND serverid = ?;";
-      if (!defined $sth_update) {
-        printf "\nPreparing update statement\n\n" if $sqlverbose;
-        $sth_update = $dbh->prepare( $sql ) or die $DBI::errstr;
-      }
-
-      printf "$sql  <-- $fileid, $serverid \n" if $sqlverbose;
-      $sth_update->execute( $fileid, $serverid ) or die $DBI::errstr; 
-    }
-    else {
-      my $sql = "INSERT INTO file_server (fileid, serverid, timestamp_scanner) VALUES (?, ?, ".time.");";
-      if (!defined $sth_insert_rel) {
-        printf "\nPreparing insert statement\n\n" if $sqlverbose;
-        $sth_insert_rel = $dbh->prepare( $sql );
-      }
-
-      printf "$sql  <-- $fileid, $serverid \n" if $sqlverbose;
-      $sth_insert_rel->execute( $fileid, $serverid ) or die "$identifier: $DBI::errstr";
-    }
+  my @data = $sth_mirr_addbypath->fetchrow_array();
+  #if ($sth_mirr_addbypath->rows > 0) {
+    my $fileid = $data[0];
+    #print "fileid: $fileid\n";
+    #}
+  $sth_mirr_addbypath->finish;
+    if (!$keep_dead_files) {
+    $sql = "DELETE FROM temp1 WHERE id = $fileid";
+    print "$sql\n" if $sqlverbose;
+    $dbh->do($sql) or die "$sql: ".$DBI::errstr;
   }
 
   return $path;
@@ -958,19 +942,7 @@ sub getfileid
 
 
 
-sub checkfileserver_fileid
-{
-  my ($serverid, $fileid) = @_;
-
-  my $sql = "SELECT 1 FROM file_server WHERE fileid = $fileid AND serverid = $serverid;";
-  printf "$sql\n" if $sqlverbose;
-  my $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
-
-  return defined($ary_ref->[0]) ? 1 : 0;
-}  
-
-
-
+# callback function
 sub rsync_cb
 {
   my ($priv, $name, $len, $mode, $mtime, @info) = @_;
@@ -993,7 +965,7 @@ sub rsync_cb
       else {
         $name = save_file($name, $priv->{identifier}, $priv->{serverid}, $mtime, $priv->{re});
         $priv->{counter}++;
-        if (($priv->{counter} % 500) == 0) {
+        if (($priv->{counter} % 50) == 0) {
           print "$priv->{identifier}: commit after 500 files\n" if $verbose > 1;
           if($do_transaction) {
             $dbh->commit or die "$DBI::errstr";
@@ -1040,6 +1012,7 @@ sub rsync_readdir
   $peer->{pass} = $1 if $cred and $cred =~ s{:(.*)}{};
   $peer->{user} = $cred if $cred;
   $peer->{subdir} = $d if length $d;
+  $peer->{counter} = 0;
   $path .= "/". $d if length $d;
   rsync_get_filelist($identifier, $peer, $path, 0, \&rsync_cb, $peer);
   return $peer->{counter};
@@ -1172,7 +1145,7 @@ sub rsync_get_filelist
   my @args = ('--server', '--sender', '-rl');
   push @args, '--exclude=/*/*' if $norecurse;
 
-  if(@top_include_list) {
+  if(@top_include_list && !defined($peer->{subdir})) {
     foreach my $item (@top_include_list) {
       push @args, "--include=/$item";
     }
