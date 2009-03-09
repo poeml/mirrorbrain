@@ -621,7 +621,7 @@ class MirrorDoctor(cmdln.Cmdln):
         if opts.enable:
             cmd += '-e '
         if opts.directory:
-            cmd += '-k -x -d %s ' % opts.directory
+            cmd += '-d %s ' % opts.directory
         if opts.jobs:
             cmd += '-j %s ' % opts.jobs
         if opts.all:
