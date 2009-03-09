@@ -755,7 +755,7 @@ class MirrorDoctor(cmdln.Cmdln):
                 if not mirror or (str(mirror.identifier) == row['identifier']):
                     if opts.probe:
                         (response, md5) = mb.testmirror.req(row['baseurl'],
-                                                            path,
+                                                            row.get('path'),
                                                             do_digest=opts.md5)
                     else:
                         response = '   '
