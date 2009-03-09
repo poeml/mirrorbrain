@@ -21,6 +21,11 @@ Improvements:
   to show anyway.
   In addition, the checksum(s) could be added into the mirror list. Would be highly useful.
 
+  On further thought about this, I realize that serving the hash from the
+  metalink-hashes-dir by appending .md5, would shadow existing .md5 files;
+  likewise for sha1 files.  But it would still be worthwhile and it wouldn't
+  matter I guess.
+
 
 Further ideas:
 
