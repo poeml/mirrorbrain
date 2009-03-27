@@ -209,9 +209,9 @@ class MirrorDoctor(cmdln.Cmdln):
         ${cmd_option_list}
         """
         if opts.c:
-            mirrors = self.conn.Server.select("""country LIKE '%%%s%%'""" % opts.country)
+            mirrors = self.conn.Server.select("""country LIKE '%%%s%%'""" % opts.c)
         elif opts.r:
-            mirrors = self.conn.Server.select("""region LIKE '%%%s%%'""" % opts.region)
+            mirrors = self.conn.Server.select("""region LIKE '%%%s%%'""" % opts.r)
         elif args:
             mirrors = mb.conn.servers_match(self.conn.Server, args[0])
         else:
