@@ -101,6 +101,7 @@ use Socket;
 use bytes;
 use Config::IniFiles;
 use Time::HiRes qw(gettimeofday);
+use Encode;
 
 my $version = '0.30';
 my $scanner_email = 'poeml@suse.de';
@@ -831,6 +832,8 @@ sub save_file
   $path =~ s{^/+}{};  # be sure we have no leading slashes.
   $path =~ s{//+}{/}g;  # avoid double slashes.
 
+  # explicitely tell Perl that the filename is in UTF-8 encoding
+  $path = decode_utf8($path);
 
   my $sql = "SELECT mirr_add_bypath(?, ?);";
   if (!defined $sth_mirr_addbypath) {
