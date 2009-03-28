@@ -150,7 +150,7 @@ class MirrorDoctor(cmdln.Cmdln):
         r = mb.asn.iplookup(self.conn, host)
         asn, prefix = r.asn, r.prefix
         if not asn: asn = 0
-        if not prefix: ''
+        if not prefix: prefix = ''
 
         if opts.region == '--' or opts.country == '--':
             raise ValueError('Region lookup failed. Use the -c and -r option.')
