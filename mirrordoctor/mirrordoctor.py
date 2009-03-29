@@ -610,40 +610,46 @@ class MirrorDoctor(cmdln.Cmdln):
         ${cmd_option_list}
         """
 
-        import os
-        cmd = opts.scanner or '/usr/bin/scanner'
-        cmd += ' '
+        cmd = []
+        cmd.append(opts.scanner or '/usr/bin/scanner')
+
         if self.options.brain_instance:
-            cmd += '-b %s ' % self.options.brain_instance
+            cmd.append('-b %s' % self.options.brain_instance)
 
         if opts.sql_debug:
-            cmd += '-S '
-        cmd += '-v ' * opts.verbosity
+            cmd.append('-S')
+        for i in range(opts.verbosity):
+            cmd.append('-v')
 
         if opts.enable:
-            cmd += '-e '
+            cmd.append('-e')
         if opts.directory:
-            cmd += '-d %s ' % opts.directory
+            cmd.append('-d %s' % opts.directory)
         if opts.jobs:
-            cmd += '-j %s ' % opts.jobs
+            cmd += [ '-j', opts.jobs ]
         if opts.all:
-            cmd += '-a '
+            cmd.append('-a')
         else:
-            cmd += '-f '
+            cmd.append('-f')
 
-        scan_top_include = self.config.dbconfig.get('scan_top_include', '').split()
-        for i in scan_top_include:
-            cmd += '-I %s ' % i
+        cmd += [ '-I %s' % i for i in 
+                 self.config.dbconfig.get('scan_top_include', '').split() ]
+        cmd += [ '--exclude %s' % i for i in 
+                 self.config.dbconfig.get('scan_exclude', '').split() ]
+        cmd += [ '--exclude-rsync %s' % i for i in 
+                 self.config.dbconfig.get('scan_exclude_rsync', '').split() ]
 
         mirrors = []
         for arg in args:
             mirrors.append(lookup_mirror(self, arg))
 
-        cmd += ' '.join([mirror.identifier for mirror in mirrors])
+        cmd += [ mirror.identifier for mirror in mirrors ]
 
+        cmd = ' '.join(cmd)
         if self.options.debug:
             print cmd
         
+        import os
         rc = os.system(cmd)
 
         if opts.enable and rc == 0:
