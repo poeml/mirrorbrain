@@ -20,69 +20,8 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 ################################################################################
 
-#
-# 2007-01-19, jw: - added md5 support. Speedup of ca. factor 2. 
-#                   Requires column 'path_md5 binary(22)' in file_server;
-#                   Obsoletes 'file.id' and 'file_server.fileid';
-#                 - Usage: optional parameter serverid, to limit the crawler.
-# 2007-01-24, jw  - Multiple server ids as parameter accepted. 
-#                   recording scan_fpm for benchmarking, 
-#                   and inserting both, fileid and path_md5 in file_server.
-#                   http_readdir added.
-# 2007-02-15, jw  - rsync_readdir added.
-#
-# 2007-03-08, jw  - option parser added. -l -ll implemented.
-#                   -d subdir done. -x, -k done.
-# 2007-03-13, jw  - V0.5 option -j added. 
-# 2007-03-15, jw  - V0.6, allow identifier as well as ID on command line.
-#                   added recursion_delay = 2 sec, fixed rsync with -d.
-# 2007-03-22, jw  - V0.7, skipping unreadable files in ftp-scan.
-# 2007-03-27, jw  - V0.8a, -N, -Z and -A fully implemented.
-#                   -D started, delete_file() tbd.
-# 2007-03-30, jw  - V0.8b, -lll list long format all in one line for easier grep.
-# 2007-04-04, jw  - V0.8c, implemented #@..@..@ url suffix for all backends.
-#                          it is now in save_file, (was in rsync_readdir before)
-# 2007-05-02, jw  - V0.8d, bugzilla 267245 fix
-# 2007-05-15, jw  - V0.8e, -f added, %only_server_ids usage fixed, so that 
-#                          a disabled id no longer scans the next enabled ids.
-# 2007-06-13, jw  - V0.8f, s-bits accepted in ftp_readdir
-# 2007-07-03, jw  - V0.8g, -e added.
-# 2007-07-05, jw  - V0.8h, reimplemented ftp_readdir() with Net::FTP
-#                   to avoid silly one shot LWP.
-# 2007-08-02, jw  - V0.8i, exiting ftp_readdir early, if connect fails.
-# 2007-08-13, jw  - V0.9a, $global_ign_re added to save_file(); -i option added.
-# 2007-08-28, jw  - V0.9b, sigusr1/sigusr2 added to switch verbosity level.
-# 		    
-# 2007-11-21, jcborn -V0.9c, implemented norecurse-list.
-# 2008-03-06, jcborn -V0.9d, implemented sanity checks for large files
-# 2008-04-17, jcborn -V0.9e, range request terminates after a fixed amount of data
-# 2008-05-28, jcborn - bugfix for bnc394470
-#   (fixes problem for mirrors that disable range headers)
-# 2008-08-21, poeml - V0.10, be able to run on different mirrorbrain instances
-#                     (-b option)
-# 2008-11-22, poeml - V0.20, make usage of md5 hashes optional
-# 2009-02-02, poeml - V0.21, remove code dealing with md5 hashes, now 
-#                            considered obsolete.
-# 2009-02-03, poeml - V0.22, prepare SQL statements *once*.
-#                            add -S option for SQL debugging
-# 2009-02-21, poeml - V0.23, timestamp_scanner is a UNIX epoch now, instead of 
-#                            a SQL timestamp.
-# 2009-02-27, poeml - V0.30, new database scheme, which is based on arrays, 5x 
-#                            faster and 1/3 the size. Also a lot more
-#                            versatile. Timestamps are no longer stored along
-#                            the found files. Instead, the scanner saves known
-#                            files to a temporary table at start, and uses it
-#                            after the scan to delete the remaining (unseen)
-#                            files. Various fixes for scanning.
-# 2009-03-28, poeml - V0.40, Subdirectory scans with deletions are now implemented.
-#                            Add --exclude and --exclude-rsync parameters.
-#                            Hard-coded ignore patterns were removed.
-#                            Bug fixes.
-#
-#
-# 
 #######################################################################
-# rsync protocol
+# rsync protocol implementation
 #######################################################################
 #
 # Copyright (c) 2005 Michael Schroeder (mls@suse.de)
