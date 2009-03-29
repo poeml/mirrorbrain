@@ -792,6 +792,49 @@ class MirrorDoctor(cmdln.Cmdln):
             sys.exit('ACTION must be either ls, rm or add.')
 
 
+    @cmdln.option('-s', dest='segments', metavar='N', default=2,
+                  help='show up to N distinct path segments.')
+    @cmdln.option('-d', dest='dirpath', metavar='DIR',
+                  help='list mirrors on which DIR was found.')
+    def do_dirs(self, subcmd, opts, *args):
+        """${cmd_name}: show directories that are in the database
+
+        This subcommand is helpful when tuning scan excludes. You can
+        list the directories of all paths that have ended up in the database,
+        which is a good basis to define excludes, so the files can be eliminated
+        from the database.
+
+        Use -s N to show path components aggregated up to N segments.
+
+        Use -d PATH to show mirrors which host directories that match PATH*.
+
+        Examples for listing directories:
+          mb dirs 
+          mb dirs ftp.mirrorservice.org
+          mb dirs -s 3
+        Example for listing mirrors:
+          mb dirs -d distribution/11.1-
+
+        Usage:
+            mb dirs [OPTS] [MIRROR]
+        ${cmd_option_list}
+        """
+        
+        import mb.files
+
+        if args:
+            mirror = lookup_mirror(self, args[0])
+        else:
+            mirror = None
+
+        if opts.dirpath:
+            for i in mb.files.dir_show_mirrors(self.conn, opts.dirpath):
+                print i[0]
+        else:
+            for i in mb.files.dir_ls(self.conn, segments=opts.segments, mirror=mirror):
+                print i[0]
+
+
     @cmdln.option('-c', '--caption', metavar='STRING',
                   help='insert this string as table caption')
     @cmdln.option('-t', '--title', metavar='STRING',
