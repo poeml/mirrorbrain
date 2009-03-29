@@ -1,3 +1,31 @@
+Mon Mar 30 01:06:02 CEST 2009
+- MirrorBrain 2.8
+- Improvements in the scanner, mainly with regard to the definition of
+  patterns for files (and directories) that are to be included from scanning.
+  Old, hardcoded stuff from the scanner has been removed. Now, excludes can be
+  defined in /etc/mirrorbrain.conf by scan_exclude and scan_exclude_rsync
+  directive. 
+  The former takes regular expressions and is effective for FTP and HTTP scans,
+  while the latter takes rsync patterns, which are passed directly to the
+  remote rsync daemon.
+  See http://mirrorbrain.org/archive/mirrorbrain-commits/0140.html for details.
+- Fixed a bug where the scanner aborted when encountering filenames in (valid
+  or invalid) UTF-8 encoding. See https://bugzilla.novell.com/show_bug.cgi?id=490009
+- Improved the implementation of exclusions as well as the top-level-inclusion
+  pattern, which were not correctly implemented to work in subdir scans. 
+- The documentation was enhanced in some places.
+- mod_autoindex_mb (which is based on mod_autoindex) was rebased on httpd-2.2.11.
+- mb dirs: new subcommand for showing directories that the database contains,
+  useful to tune scan exclude patterns.
+- Partial deletions (for subdir scans) have been implemented.
+- mb list accept --country --region --prefix --as --prio options to influence
+  which details are output by it.
+- mb file: support for probing files, with optional md5 hash check of the
+  downloaded content.
+- The latter three changes have already been described in more detail at
+  http://mirrorbrain.org/news_items/2.7_mb_toolchain_work
+
+
 Wed Mar  4 16:40:06 CET 2009
 - MirrorBrain 2.7
 - Completely reworked the file database. It is 5x faster and one third the
