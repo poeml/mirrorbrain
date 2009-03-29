@@ -74,6 +74,10 @@
 #                            files to a temporary table at start, and uses it
 #                            after the scan to delete the remaining (unseen)
 #                            files. Various fixes for scanning.
+# 2009-03-28, poeml - V0.40, Subdirectory scans with deletions are now implemented.
+#                            Add --exclude and --exclude-rsync parameters.
+#                            Hard-coded ignore patterns were removed.
+#                            Bug fixes.
 #
 #
 # 
@@ -103,7 +107,7 @@ use Config::IniFiles;
 use Time::HiRes qw(gettimeofday);
 use Encode;
 
-my $version = '0.30';
+my $version = '0.40';
 my $scanner_email = 'poeml@suse.de';
 my $verbose = 1;
 my $sqlverbose = 0;
@@ -161,31 +165,19 @@ my $http_slice_counter;
 # directories to be included from top-level
 my @top_include_list;
 
-#my $global_ign_re = qr{(
-#  /repoview/	|
-#  /drpmsync/  |
-#  /.~tmp~/
-#)}x;
-
-# default ignores:
-my @norecurse_list;# = ();
-push @norecurse_list, '/repoview/';
-push @norecurse_list, '/drpmsync/';
-push @norecurse_list, '/.~tmp~/';
-# these are symlinks, which would (via HTTP) be crawled just like a directory,
-# because itentical to directories in the directory listing HTML
-push @norecurse_list, '/openSUSE-current/';
-push @norecurse_list, '/openSUSE-stable/';
-push @norecurse_list, '/SL-OSS-factory/';
-push @norecurse_list, '/SL-OSS-factory-debug/';
-push @norecurse_list, '/SL-10.1/';
+my @exclude_list;
+my @exclude_list_rsync;
+# default excludes:
+push @exclude_list, '/.~tmp~/';
+push @exclude_list_rsync, '*/.~tmp~/';
 
 exit usage() unless @ARGV;
 while (defined (my $arg = shift)) {
 	if    ($arg !~ m{^-})                  { unshift @ARGV, $arg; last; }
 	elsif ($arg =~ m{^(-h|--help|-\?)})    { exit usage(); }
-	elsif ($arg =~ m{^(-i|--ignore)})      { push @norecurse_list, shift; }
 	elsif ($arg =~ m{^(-I|--top-include)}) { push @top_include_list, shift; }
+	elsif ($arg =~ m{^--exclude$})         { push @exclude_list, shift; }
+	elsif ($arg =~ m{^--exclude-rsync$})   { push @exclude_list_rsync, shift; }
 	elsif ($arg =~ m{^-q})                 { $verbose = 0; }
 	elsif ($arg =~ m{^-v})                 { $verbose++; }
 	elsif ($arg =~ m{^-S})                 { $sqlverbose++; }
@@ -302,6 +294,12 @@ if ($parallel > 1) {
   push @cmd, ('-v') x ($verbose - 1) if $verbose > 1;
   foreach my $item(@top_include_list) {
     push @cmd, '-I', $item;
+  }
+  foreach my $item(@exclude_list) {
+    push @cmd, '--exclude', $item;
+  }
+  foreach my $item(@exclude_list_rsync) {
+    push @cmd, '--exclude-rsync', $item;
   }
   push @cmd, '-f' if $force_scan;
   push @cmd, '-e' if $enable_after_scan;
@@ -479,9 +477,24 @@ scanner [options] [mirror_ids ...]
 
   -j N      Run up to N scanner queries in parallel.
 
-  -i regexp 
-            Define regexp-pattern for path names to ignore. 
-            Use '-i 0' to disable any ignore patterns. Default: @norecurse_list
+  --exclude regexp 
+            Define pattern(s) for path names to ignore. Paths matching this pattern
+            will not be recursed into (thus saving resources) and also, when
+            matching a file, not added into the database.
+            This option is effective only for scans via HTTP/FTP. For rsync,
+            use the --exclude-rsync option (due to different patterns used there).
+            Here, regular expressions are used. 
+            Path names don't start with a slash; thus, if the regexp starts with a slash
+            it will not match at the top-level directory.
+            Option can be repeated.
+            Default: @exclude_list
+  --exclude-rsync pattern 
+            Similar like --exclude, but used (only) for rsync scans.
+            For HTTP/FTP, use the --exclude option (due to different patterns
+            used there).
+            The patterns are rsync(1) patterns. Option can be repeated.
+            Default: @exclude_list_rsync
+
   -T dir    Directory to be scanned at the top level; option can be repeated.
 
 Both, names(identifier) and numbers(id) are accepted as mirror_ids.
@@ -594,10 +607,7 @@ sub http_readdir
     }
   }
 
-  foreach $item(@norecurse_list) {
-    $item =~ s/([^.])(\*)/$1.$2/g;
-    $item =~ s/^\*/.*/;
-    #$item =~ s/[^.]\*/.\*/g;
+  foreach $item(@exclude_list) {
     if("$name/" =~ $item) {
       print "$identifier: ignore match: $name matches ignored item $item, skipped.\n" if $verbose > 1;
       return;
@@ -648,7 +658,7 @@ sub http_readdir
           # workaround: don't store files with broken times
           if(not defined($time)) {
             print "$identifier: Error: str2time returns undef on parsing \"$date\". Skipping file $name1\n";
-            print "$identifier: current line was:\n$line\nat url $url\nname= $name1\n";
+            print "$identifier: current line was:\n$line\nat url $url/$name\nname= $name1\n" if $verbose > 1;
           }
           elsif(largefile_check($identifier, $id, $t, $len)) {
             #save timestamp and file in database
@@ -659,7 +669,7 @@ sub http_readdir
         }
       }
     }
-    print "$identifier: committing http dir $name\n" if $verbose > 1;
+    print "$identifier: committing http dir $name\n" if $verbose > 2;
     if($do_transaction) {
       $dbh->commit or die "$DBI::errstr";
     }
@@ -700,37 +710,11 @@ sub ftp_readdir
 
   my $item;
 
-  # ignore paths matching those in @norecurse-list:
-  for $item(@norecurse_list) {
-    if ($name =~ $item) {
-      print "$identifier: ignore match: $name matches ignored item $item, skipped.\n" if $verbose > 1;
-      return;
-    }
-  }
-
   print "$identifier: ftp dir: $name\n" if $verbose > 1;
 
   my $urlraw = $url;
   my $re = ''; $re = $1 if $url =~ s{#(.*?)$}{};
   $url =~ s{/+$}{};	# we add our own trailing slashes...
-
-
-  # are we looking at a top-level directory name?
-  # (we recognize it by not containing slashes)
-  my $attop = 0;
-  $attop = 1 if (length $name) && !($name =~ "/");
-  if ($attop && scalar(@top_include_list)) {
-    my $included = 0;
-    foreach my $item(@top_include_list) {
-      if ($name =~ $item) {
-        $included = 1;
-      }
-    }
-    if (!$included) {
-      print "$identifier: not in top_include_list: $name\n";# if $verbose > 1;
-      return;
-    }
-  }
 
 
   my $toplevel = ($ftp) ? 0 : 1;
@@ -771,6 +755,36 @@ sub ftp_readdir
       my ($type, $mode, $size, $timestamp, $fname) = ($1, $2, $3, $4, $5);
       next if $fname eq "." or $fname eq "..";
 
+      #print "$name / $fname\n";
+
+      # are we looking at a top-level directory name?
+      # (can be recognized by name being an empty string)
+      if (!length($name) && scalar(@top_include_list)) {
+        my $included = 0;
+        foreach my $item(@top_include_list) {
+          if ($fname =~ $item) {
+            $included = 1;
+          }
+        }
+        if (!$included) {
+          print "$identifier: not in top_include_list: $fname\n";# if $verbose > 1;
+          next;
+        }
+      }
+  
+      my $excluded = 0;
+      my $s = "$name/$fname";
+      if($type eq "d") {
+        $s = "$s/";
+      }
+      for $item(@exclude_list) {
+        if ($s =~ $item) {
+          print "$identifier: $s ignored (matches $item)\n" if $verbose > 0;
+          $excluded = 1;
+        }
+      }
+      next if ($excluded);
+
       #convert to timestamp
       my $time = str2time($timestamp);
       my $t = length($name) ? "$name/$fname" : $fname;
@@ -801,7 +815,7 @@ sub ftp_readdir
     }
   }
   
-  print "$identifier: committing ftp dir $name\n" if $verbose > 1;
+  print "$identifier: committing ftp dir $name\n" if $verbose > 2;
   if($do_transaction) {
     $dbh->commit or die "$DBI::errstr";
   }
@@ -1155,11 +1169,9 @@ sub rsync_get_filelist
     push @args, "--exclude=/*";
   }
 
-  # set exclude flag for all dirs specified by '-p' option:
-  if(@norecurse_list) {
-    foreach my $item (@norecurse_list) {
-      push @args, "--exclude=$item";
-    }
+  print "$identifier: rsync excludes: @exclude_list_rsync\n" if $verbose > 1;
+  foreach my $item (@exclude_list_rsync) {
+    push @args, "--exclude=$item";
   }
   print "$identifier: rsync args: @args\n" if $verbose > 2;
 
@@ -1243,7 +1255,7 @@ sub ftp_connect
   }
   $url =~ s{/.*$}{};  # no path components please
   $port = $1 if $url =~ s{:(\d+)$}{};	# port number?
-  my $ftp = Net::FTP->new($url, Timeout => 360, Port => $port, Debug => (($verbose||0)>1)?1:0, Passive => 1, Hash => 0);
+  my $ftp = Net::FTP->new($url, Timeout => 360, Port => $port, Debug => (($verbose||0)>2)?1:0, Passive => 1, Hash => 0);
   unless (defined $ftp) {
     warn "$identifier: ftp_connect($identifier, $url, $port) failed: $! $@\n";
     return undef;
@@ -1346,10 +1358,10 @@ sub largefile_check
   }
 
   if($result->code() == 416) {
-    print "$identifier: Error: range error: filesize broken for file $url\n" if $verbose >= 2;
+    print "$identifier: Error: range error: filesize broken for file $url\n" if $verbose >= 1;
   }
   else {
-    print "$identifier: Error ".$result->code()." occured\n" if $verbose >= 2;
+    print "$identifier: Error ".$result->code()." occured\n" if $verbose >= 1;
   }
 
   error:
