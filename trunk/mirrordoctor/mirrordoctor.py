@@ -207,7 +207,7 @@ class MirrorDoctor(cmdln.Cmdln):
         """${cmd_name}: list mirrors
 
         Usage:
-            mirrordoctor list [IDENTIFIER]
+            mb list [IDENTIFIER]
         ${cmd_option_list}
         """
         if opts.c:
@@ -420,7 +420,7 @@ class MirrorDoctor(cmdln.Cmdln):
         """${cmd_name}: edit a new mirror entry in $EDITOR
 
         Usage:
-            mirrordoctor edit IDENTIFIER
+            mb edit IDENTIFIER
         ${cmd_option_list}
         """
         mirror = lookup_mirror(self, identifier)
@@ -463,7 +463,7 @@ class MirrorDoctor(cmdln.Cmdln):
         You need to enter files, not directories.
 
         Usage:
-            mirrordoctor markers 
+            mb markers 
         ${cmd_option_list}
         """
         markers = self.conn.Marker.select()
@@ -606,7 +606,7 @@ class MirrorDoctor(cmdln.Cmdln):
         """${cmd_name}: scan mirrors
 
         Usage:
-            mirrordoctor scan [OPTS] IDENTIFIER [IDENTIFIER...]
+            mb scan [OPTS] IDENTIFIER [IDENTIFIER...]
         ${cmd_option_list}
         """
 
@@ -666,7 +666,7 @@ class MirrorDoctor(cmdln.Cmdln):
         IDENTIFIER can be either the identifier or a substring.
 
         Usage:
-            mirrordoctor score IDENTIFIER [SCORE]
+            mb score IDENTIFIER [SCORE]
         ${cmd_option_list}
         """
 
@@ -730,10 +730,10 @@ class MirrorDoctor(cmdln.Cmdln):
 
 
         Examples:
-          mirrordoctor file ls /path/to/xorg-x11-libXfixes-7.4-1.14.i586.rpm
-          mirrordoctor file ls '*xorg-x11-libXfixes-7.4-1.14.i586.rpm'
-          mirrordoctor file add distribution/11.0/SHOULD_NOT_BE_VISIBLE -m cdn.novell.com
-          mirrordoctor file rm distribution/11.0/SHOULD_NOT_BE_VISIBLE -m MIRROR
+          mb file ls /path/to/xorg-x11-libXfixes-7.4-1.14.i586.rpm
+          mb file ls '*xorg-x11-libXfixes-7.4-1.14.i586.rpm'
+          mb file add distribution/11.0/SHOULD_NOT_BE_VISIBLE -m cdn.novell.com
+          mb file rm distribution/11.0/SHOULD_NOT_BE_VISIBLE -m MIRROR
 
 
         ${cmd_usage}
@@ -792,7 +792,6 @@ class MirrorDoctor(cmdln.Cmdln):
             sys.exit('ACTION must be either ls, rm or add.')
 
 
-
     @cmdln.option('-c', '--caption', metavar='STRING',
                   help='insert this string as table caption')
     @cmdln.option('-t', '--title', metavar='STRING',
@@ -829,7 +828,7 @@ class MirrorDoctor(cmdln.Cmdln):
 
 
         Usage:
-            mirrordoctor mirrorlist [IDENTIFIER]
+            mb mirrorlist [IDENTIFIER]
         ${cmd_option_list}
         """
         
