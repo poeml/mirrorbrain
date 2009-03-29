@@ -92,3 +92,44 @@ def rm(conn, path, mirror):
     query = """SELECT mirr_del_byid(%d, (SELECT id FROM filearr WHERE path='%s'))""" \
                    % (mirror.id, path)
     conn.Server._connection.queryAll(query)
+
+
+def dir_ls(conn, segments = 1, mirror=None):
+    """Show distinct directory names, looking only on the first path components.
+
+    Manually, this could be done in the following way:
+    select distinct array_to_string((string_to_array(path, '/'))[0:2], '/') from filearr
+    """
+
+    query = """SELECT DISTINCT array_to_string(
+                                   (string_to_array(path, '/'))[0:%s],
+                                   '/') FROM filearr""" % segments
+
+    if mirror:
+        query += ' where %s = any(mirrors)' % mirror.id
+
+    result = conn.Server._connection.queryAll(query)
+    return result
+
+def dir_show_mirrors(conn, path):
+    """Show mirrors on which a certain directory path was found.
+    """
+
+    query = """select distinct(mirrors) from filearr where path like '%s%%'""" % path
+    result = conn.Server._connection.queryAll(query)
+
+    mirror_ids = []
+    for i in result:
+        i = i[0]
+        for mirror_id in i:
+            mirror_id = str(mirror_id)
+            if mirror_id not in mirror_ids:
+                mirror_ids.append(mirror_id)
+
+    if not mirror_ids:
+        return []
+    query = """select identifier from server where id in (%s)""" % ','.join(mirror_ids)
+    result = conn.Server._connection.queryAll(query)
+
+    return result
+
