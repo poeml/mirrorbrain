@@ -4,8 +4,12 @@ These instructions show how to install:
 2. other needed components
 3. the database
 
-It requires a backend to work with, which can be found at
-https://forgesvn1.novell.com/svn/opensuse/trunk/tools/download-redirector-v2
+
+
+
+Install Apache 2.2.6 or later. For openSUSE/SLE, you'll find it here:
+http://download.opensuse.org/repositories/Apache/
+
 
 RPM packages are here:
 http://download.opensuse.org/repositories/Apache:/Modules/
@@ -24,7 +28,23 @@ apxs2 -cia mod_mirrorbrain.c
 
 
 
+
+
+
+FIXME:
+At least for openSUSE, where packages exist, copy & paste directions could
+easily be given. For other distros as well, of course (contributions welcome!)
+
+copy & paste directions for openSUSE:
+===================
+FIXME
+...
+===================
+
+
+
 After installation of mod_mirrorbrain, you'll need to:
+
 
 
 - install GeoIP library, commandline tools, and geoip apache module
@@ -47,12 +67,14 @@ After installation of mod_mirrorbrain, you'll need to:
 - install the following Python modules:
       python-cmdln
       python-sqlobject
-      python-psycopg2 (when using PostgreSQL)
+      python-psycopg2
+  For openSUSE/SLE, these can be found here:
+      http://download.opensuse.org/repositories/devel:/languages:/python/
 
 - for the scanner, which is written in Perl, a few Perl modules are required:
       perl-libwww-perl
       perl-Digest-MD4 (it is not *really* needed, but prevents an ugly error message)
-      perl-DBD-Pg (when using PostgreSQL)
+      perl-DBD-Pg
 
 
 - configure the database to use with MirrorBrain, and continue with the respective
@@ -82,6 +104,7 @@ After installation of mod_mirrorbrain, you'll need to:
        
        postgres@powerpc:~> createdb -O mb mb_samba
        CREATE DATABASE
+       postgres@powerpc:~> createlang plpgsql mb_samba
        postgres@powerpc:~> 
 
 
@@ -105,7 +128,8 @@ After installation of mod_mirrorbrain, you'll need to:
 
        If the database will be large, reserve enough memory for it (mainly
        by setting shared_buffers), and in any case you should switch off
-       synchronous commit mode (synchronous_commit = off).
+       synchronous commit mode (synchronous_commit = off). This can be set in
+       data/postgresql.conf.
 
 
 
@@ -116,6 +140,9 @@ After installation of mod_mirrorbrain, you'll need to:
    - import table structure, and initial data:
        psql -U mb -f sql/schema-postgresql.sql mb_samba
        psql -U mb -f sql/initialdata-postgresql.sql mb_samba
+     (the sql directory can be found, on openSUSE, in
+     /usr/share/doc/packages/apache2-mod_mirrorbrain)
+
        
 
 - create a group and user to run the mirrorbrain tools under:
@@ -130,11 +157,11 @@ After installation of mod_mirrorbrain, you'll need to:
   instances = samba
 
   [samba]
-  dbuser = wwwrun
+  dbuser = mb
   dbpass = 12345
   dbdriver = postgresql
   dbhost = your_host.example.com
-  dbport = 3306
+  # optional: dbport = ...
   dbname = mb_samba
   
   [mirrorprobe]
@@ -142,6 +169,10 @@ After installation of mod_mirrorbrain, you'll need to:
   loglevel = INFO
   mailto = your_mail@example.com, another_mail@example.com
 
+
+- now you should be able to type 'mb list' without getting an error.
+  It'll produce no output, but exit with 0. If it gives an error, something is
+  wrong.
 
 - collect a list of mirrors (their HTTP baseurl, and their rsync or FTP baseurl
   for scanning). For example:
@@ -241,7 +272,7 @@ After installation of mod_mirrorbrain, you'll need to:
             MirrorBrainHandleHEADRequestLocally Off
             MirrorBrainMinSize 2048
             MirrorBrainHandleDirectoryIndexLocally On
-            MirrorBrainExcludeUserAgent rpm/4.4.2
+            MirrorBrainExcludeUserAgent rpm/4.4.2*
             MirrorBrainExcludeUserAgent *APT-HTTP*
             MirrorBrainExcludeMimeType application/pgp-keys
 
