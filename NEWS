@@ -9,6 +9,8 @@ Mon Mar 30 01:06:02 CEST 2009
   while the latter takes rsync patterns, which are passed directly to the
   remote rsync daemon.
   See http://mirrorbrain.org/archive/mirrorbrain-commits/0140.html for details.
+  This can decrease the size of the database (>20% for openSUSE), and for many
+  mirrors it considerably shortens the scan time.
 - Fixed a bug where the scanner aborted when encountering filenames in (valid
   or invalid) UTF-8 encoding. See https://bugzilla.novell.com/show_bug.cgi?id=490009
 - Improved the implementation of exclusions as well as the top-level-inclusion
