@@ -18,6 +18,9 @@ more important bugs at the top!
   But what about redirections exceptions, like size?
   78.34.103.82 - - [16/Feb/2009:16:05:54 +0100] "GET /distribution/11.1/repo/oss/suse/setup/descr/patterns HTTP/1.1" 200 170 "-" "ZYpp 5.24.5 (curl 7.19.0)" - r:- 152 448 -:- ASN:8422 P:78.34.0.0/15 size:- - - "-"
 
+* when the AS is overridden with a query parameter, the one being logged/put
+  into the headers is not the overriding one
+
 * check if the Vary header on Accept is added on all requests!
 
 * mod_geoip should be required as mod_form - and Apache should check at
