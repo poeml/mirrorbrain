@@ -296,7 +296,7 @@ for my $row (@scan_list) {
   if(length $start_dir) {
     print localtime(time) . " $row->{identifier}: files in '$start_dir' before scan: $initial_file_count\n";
   } else {
-    print localtime(time) . " $row->{identifier}: files before scan: $initial_file_count\n";
+    print localtime(time) . " $row->{identifier}: total files before scan: $initial_file_count\n";
   }
 
   if($do_transaction) {
@@ -348,7 +348,7 @@ for my $row (@scan_list) {
     print "$sql\n" if $sqlverbose;
     my $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
     $file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
-    print localtime(time) . " $row->{identifier}: number of files: $file_count\n";
+    print localtime(time) . " $row->{identifier}: total files after scan: $file_count\n";
 
 
     $duration = time() - $start;
