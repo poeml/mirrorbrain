@@ -1,4 +1,4 @@
-Mon Mar 30 01:06:02 CEST 2009
+Tue Mar 31 02:10:38 CEST 2009
 - MirrorBrain 2.8
 - Improvements in the scanner, mainly with regard to the definition of
   patterns for files (and directories) that are to be included from scanning.
@@ -19,6 +19,9 @@ Mon Mar 30 01:06:02 CEST 2009
 - mod_autoindex_mb (which is based on mod_autoindex) was rebased on httpd-2.2.11.
 - mb dirs: new subcommand for showing directories that the database contains,
   useful to tune scan exclude patterns.
+- mb export: implement a new output format, named "vcs". Can be used to commit
+  changes to a subversion repository and get change notifications from it. See 
+  http://mirrorbrain.org/archive/mirrorbrain-commits/0152.html
 - Partial deletions (for subdir scans) have been implemented.
 - mb list accept --country --region --prefix --as --prio options to influence
   which details are output by it.
