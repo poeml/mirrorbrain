@@ -922,7 +922,7 @@ sub rsync_cb
         $name = save_file($name, $priv->{identifier}, $priv->{serverid}, $mtime, $priv->{re});
         $priv->{counter}++;
         if (($priv->{counter} % 50) == 0) {
-          print "$priv->{identifier}: commit after 50 files\n" if $verbose > 1;
+          print "$priv->{identifier}: commit after 50 files\n" if $verbose > 2;
           if($do_transaction) {
             $dbh->commit or die "$DBI::errstr";
           }
