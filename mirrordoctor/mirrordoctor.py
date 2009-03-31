@@ -908,14 +908,32 @@ class MirrorDoctor(cmdln.Cmdln):
 
 
 
-    @cmdln.option('--format', metavar='FORMAT',
-            help='Specify the output format: [django|postgresql]')
     @cmdln.option('--project', metavar='PROJECT',
                   help='Specify a project name (previously corresponding to a MirrorBrain instance).')
+    @cmdln.option('--commit', metavar='VCS',
+                  help='run "VCS commit" on the directory specified via --target-dir')
+    @cmdln.option('--target-dir', metavar='PATH',
+                  help='For the "vcs" output format, specify a target directory to place files into')
+    @cmdln.option('--format', metavar='FORMAT',
+            help='Specify the output format: [django|postgresql|vcs]')
     def do_export(self, subcmd, opts, *args):
         """${cmd_name}: export the mirror list as text file
 
-        Output format is suitable to be used in a Django ORM.
+        There are different output formats:
+
+        Format "django" is suitable to be used in a Django ORM.
+
+        Format "postgresql" is suitable to be imported into a PostgreSQL
+        database.
+
+        Format "vcs" generates a file tree which can be imported/committed into
+        a version control system (VCS). This can be used to periodically dump
+        the database into a working copy of such a repository and commit the
+        changes, making use of the commit mail mechanism of the VCS to send
+        change notifications.
+        You need to specify --target-dir=PATH for this. 
+        If you use the --commit=VCS option, "VCS commit" will be run after the
+        export on the directory.
 
         ${cmd_usage}
         ${cmd_option_list}
@@ -923,11 +941,13 @@ class MirrorDoctor(cmdln.Cmdln):
 
         import mb.exports
 
-        if opts.format == 'django' and not opts.project:
-            sys.exit('For Django ORM format, specify a project name (roughly corresponding to a MirrorBrain instance) name with --project')
-
         if not opts.format:
             sys.exit('You need to specify an output format. See --help output.')
+
+        if opts.format == 'django' and not opts.project:
+            sys.exit('For Django ORM format, specify a project name (roughly corresponding to a MirrorBrain instance) name with --project')
+        if opts.format == 'vcs' and not opts.target_dir:
+            sys.exit('To export for a version control system, specify a target directory')
 
         if opts.format == 'django':
             print mb.exports.django_header
@@ -938,16 +958,22 @@ class MirrorDoctor(cmdln.Cmdln):
         elif opts.format == 'postgresql':
             print mb.exports.postgresql_header
 
+        elif opts.format == 'vcs':
+            import os, os.path
+            if not os.path.exists(opts.target_dir):
+                os.makedirs(opts.target_dir, 0750)
+            os.chdir(opts.target_dir)
+
         else:
             sys.exit('unknown format %r' % opts.format)
 
 
         mirrors = self.conn.Server.select()
-        for i in mirrors:
-            if i.comment == None:
-                #print 'null comment', i
-                i.comment = ''
-            d = mb.conn.server2dict(i)
+        for m in mirrors:
+            if m.comment == None:
+                #print 'null comment', m
+                m.comment = ''
+            d = mb.conn.server2dict(m)
             d.update(dict(project=opts.project))
 
             #print >>sys.stderr, d
@@ -961,9 +987,18 @@ class MirrorDoctor(cmdln.Cmdln):
 
             if opts.format == 'django':
                 print mb.exports.django_template % d
+
             elif opts.format == 'postgresql':
                 print mb.exports.postgresql_template % d
 
+            elif opts.format == 'vcs':
+                s = mb.conn.server_show_template % mb.conn.server2dict(m)
+                s = '\n'.join([ i for i in s.splitlines() if not i.startswith('statusBaseurl') ]) + '\n'
+                open(m.identifier, 'w').write(s)
+
+        if opts.format == 'vcs' and opts.commit:
+            os.system('%s commit -m "autocommit by mb" %s > /dev/null' \
+                        % (opts.commit, opts.target_dir))
 
 if __name__ == '__main__':
     import sys
