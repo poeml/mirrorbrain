@@ -935,6 +935,10 @@ class MirrorDoctor(cmdln.Cmdln):
         If you use the --commit=VCS option, "VCS commit" will be run after the
         export on the directory.
 
+        Example:
+          mb export --format vcs --target-dir ~/svn/mirrors-export --commit=svn
+        (you could run it hourly by cron)
+
         ${cmd_usage}
         ${cmd_option_list}
         """
