@@ -72,6 +72,7 @@ After installation of mod_mirrorbrain, you'll need to:
       http://download.opensuse.org/repositories/devel:/languages:/python/
 
 - for the scanner, which is written in Perl, a few Perl modules are required:
+      perl-Config-IniFiles
       perl-libwww-perl
       perl-Digest-MD4 (it is not *really* needed, but prevents an ugly error message)
       perl-DBD-Pg
