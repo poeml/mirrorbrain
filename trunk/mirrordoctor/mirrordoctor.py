@@ -1006,7 +1006,6 @@ class MirrorDoctor(cmdln.Cmdln):
         if opts.format == 'vcs' and opts.commit:
             import commands
             lines = commands.getoutput('%s status' % opts.commit).splitlines()
-            print lines
             for line in lines:
                 state, i = line.split()
                 if state == '!':
