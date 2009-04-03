@@ -967,6 +967,9 @@ class MirrorDoctor(cmdln.Cmdln):
             if not os.path.exists(opts.target_dir):
                 os.makedirs(opts.target_dir, 0750)
             os.chdir(opts.target_dir)
+            for i in os.listdir('.'):
+                if i.startswith('.'): continue
+                os.unlink(i)
 
         else:
             sys.exit('unknown format %r' % opts.format)
@@ -1001,8 +1004,19 @@ class MirrorDoctor(cmdln.Cmdln):
                 open(m.identifier, 'w').write(s)
 
         if opts.format == 'vcs' and opts.commit:
+            import commands
+            lines = commands.getoutput('%s status' % opts.commit).splitlines()
+            print lines
+            for line in lines:
+                state, i = line.split()
+                if state == '!':
+                    os.system('%s delete %s > /dev/null' % (opts.commit, i))
+                elif state == '?':
+                    os.system('%s add %s > /dev/null' % (opts.commit, i))
+
             os.system('%s commit -m "autocommit by mb" %s > /dev/null' \
                         % (opts.commit, opts.target_dir))
+
 
 if __name__ == '__main__':
     import sys
