@@ -746,6 +746,9 @@ class MirrorDoctor(cmdln.Cmdln):
         import mb.files
         import mb.testmirror
 
+        if opts.md5:
+            opts.probe = True
+
         if action in ['add', 'rm']:
             if not opts.mirror:
                 sys.exit('this command needs to be used with -m')
