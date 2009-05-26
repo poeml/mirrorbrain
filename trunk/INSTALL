@@ -12,10 +12,13 @@ http://download.opensuse.org/repositories/Apache/
 
 
 RPM packages are here:
-http://download.opensuse.org/repositories/Apache:/Modules/
+For openSUSE/SLE:
+http://download.opensuse.org/repositories/Apache:/MirrorBrain/
+Lance Albertson is working on a Gento ebuild. (5/2009)
+A Mandriva package, which is outdated though (note the previous name), is here:
 http://club.mandriva.com/xwiki/bin/view/rpms/Application/apache-mod_zrkadlo
 
-It can be built with the following steps:
+The main Apache module can be built with the following steps:
 # unpack the tarball
 cd mod_mirrorbrain
 apxs2 -c mod_mirrorbrain.c
@@ -23,7 +26,7 @@ apxs2 -c mod_mirrorbrain.c
 To install the module in the right place, you would typically call
 apxs2 -i mod_mirrorbrain.c
 
-Building, installing and activation can typically be combined in one call:
+Building, installing and activation can typically be combined in one apxs call:
 apxs2 -cia mod_mirrorbrain.c
 
 
