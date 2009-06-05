@@ -1,3 +1,23 @@
+Fri Jun  5 14:09:40 CEST 2009
+- MirrorBrain 2.8.1
+  - Python 2.6 compatibility fixes:
+    - mb file ls --md5: use hashlib module, if available (this fixes a
+      DepracationWarning given by Python 2.6 when importing the md5 module)
+    - mb list: the --as option had to be renamed to --asn, because "as" is a
+      reserved keyword in Python, and Python 2.6 is more strict about noticing
+      this also in cases where just used as an attribute.
+    - remove the b64_md5 function, which is no longer used since a while
+  - mb file ls:
+    - make the --md5 imply the --probe option
+  - mb export: 
+    - when exporting metadata for import into a VCS, handle additions and deletions
+  - update docs to point to new RPM packages in the openSUSE build service (in
+    a repository named Apache:MirrorBrain). The formerly monolithic package has
+    been split up into subpackages.
+  - perl-Config-IniFiles added to the list of perl packages required by the
+    scanner
+
+
 Tue Mar 31 02:10:38 CEST 2009
 - MirrorBrain 2.8
 - Improvements in the scanner, mainly with regard to the definition of
