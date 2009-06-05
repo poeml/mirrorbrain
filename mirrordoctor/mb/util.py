@@ -23,11 +23,6 @@ class IpAddress:
         return '%s (%s AS%s)' % (self.ip, self.prefix, self.asn)
 
 
-def b64_md5(path):
-    import base64, md5
-    return base64.standard_b64encode(md5.md5(path).digest())[:-2]
-
-
 def data_url(basedir, path):
     import os, base64
 
@@ -47,16 +42,23 @@ def hostname_from_url(url):
 
 
 def dgst(file):
-    import md5
+    # Python 2.5 depracates the md5 modules
+    # Python 2.4 doesn't have hashlib yet
+    try:
+        import hashlib
+        md5_hash = hashlib.md5()
+    except ImportError:
+        import md5
+        md5_hash = md5.new()
+
     BUFSIZE = 1024*1024
-    s = md5.new()
     f = open(file, 'r')
     while 1:
         buf = f.read(BUFSIZE)
         if not buf: break
-        s.update(buf)
-    return s.hexdigest()
+        md5_hash.update(buf)
     f.close()
+    return md5_hash.hexdigest()
 
 
 def edit_file(data, boilerplate = None):
