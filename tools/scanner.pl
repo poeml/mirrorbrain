@@ -1091,8 +1091,10 @@ sub rsync_get_filelist
     die("$identifier: $buf\n") if $buf =~ /^\@ERROR/s;
     if($buf =~ /^\@RSYNCD: AUTHREQD /) {
       die("$identifier: '$module' needs authentification, but Digest::MD4 is not installed\n") unless $peer->{have_md4};
-      my $user = "nobody" if !defined($peer->{user}) || $peer->{user} eq '';
-      my $password = '' unless defined $peer->{password};
+      my ($user,$password)='';
+      # my $user = "nobody"; is not needed IMO
+      $user = $peer->{user} if defined $peer->{user};
+      $password = $peer->{pass} if defined $peer->{pass};
       my $digest = "$user ".Digest::MD4::md4_base64("\0\0\0\0$password".substr($buf, 18))."\n";
       swrite(*S, $digest);
       next;
