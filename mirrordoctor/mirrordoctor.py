@@ -189,7 +189,7 @@ class MirrorDoctor(cmdln.Cmdln):
                         help='also display the region')
     @cmdln.option('--prefix', action='store_true',
                         help='also display the network prefix')
-    @cmdln.option('--as', action='store_true',
+    @cmdln.option('--asn', action='store_true',
                         help='also display the AS')
     @cmdln.option('--prio', action='store_true',
                         help='also display priorities')
@@ -228,7 +228,7 @@ class MirrorDoctor(cmdln.Cmdln):
                 s.append('%2s' % mirror.region)
             if opts.country:
                 s.append('%2s' % mirror.country)
-            if opts.as:
+            if opts.asn:
                 s.append('%5s' % mirror.asn)
             if opts.prefix:
                 s.append('%-19s' % mirror.prefix)
