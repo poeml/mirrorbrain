@@ -31,13 +31,6 @@ apxs2 -cia mod_mirrorbrain.c
 
 
 
-FIXME:
-An openSUSE RPM package which is split up into several subpackages is available here:
-http://download.opensuse.org/repositories/Apache:/MirrorBrain/
-It should be easier to install just some components in this way, without
-requiring all dependencies. However, those packages are not tested yet.
-
-
 
 FIXME:
 At least for openSUSE, where packages exist, copy & paste directions could
