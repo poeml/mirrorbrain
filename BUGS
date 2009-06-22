@@ -31,11 +31,6 @@ more important bugs at the top!
   That doesn't harm, because the symlinks are (intentionally) ignored anyway,
   but it clutters the output and of course is confusing.
 
-
-* scanner: the parallelization (scanning mirrors in parallel with -j N -a)
-  seems not to work when the scanner is spawned by a cronjob. Judging by mail
-  output, it seems to run the forked processes serially and not in parallel.
-
 * check if the Vary header on Accept is added on all requests!
 
 * mod_geoip should be required as mod_form - and Apache should check at
