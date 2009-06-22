@@ -409,10 +409,7 @@ scanner [options] [mirror_ids ...]
   -e        Enable mirror, after it was scanned. Useful with -f.
   -f        Force. Scan listed mirror_ids even if they are not enabled.
   -d dir    Scan only in dir under mirror's baseurl. 
-            Default: start at baseurl. Consider using -x and or -k with -d .
-  -x        Extra-Schedule run. Do not update 'server.last_scan' tstamp.
-            Default: 'server.last_scan' is updated after each run.
-  -k        Keep dead files. Default: Entries not found again are removed.
+            Default: start at baseurl.
 
   -j N      Run up to N scanner queries in parallel.
 
