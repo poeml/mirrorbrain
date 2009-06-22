@@ -610,9 +610,12 @@ class MirrorDoctor(cmdln.Cmdln):
         ${cmd_option_list}
         """
         from sqlobject.sqlbuilder import AND
+        import mb.util
         import textwrap
         import mb.testmirror
         mb.testmirror.dont_use_proxies()
+
+        mb.util.timer_start()
 
         cmd = []
         cmd.append(opts.scanner or '/usr/bin/scanner')
@@ -709,6 +712,7 @@ class MirrorDoctor(cmdln.Cmdln):
             print textwrap.fill(', '.join(mirrors_skipped),
                                 initial_indent='    ', subsequent_indent='  ')
 
+        print 'Completed in', mb.util.timer_elapsed()
 
 
     def do_score(self, subcmd, opts, *args):

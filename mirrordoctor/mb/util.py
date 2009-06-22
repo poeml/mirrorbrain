@@ -105,3 +105,24 @@ def edit_file(data, boilerplate = None):
                 return
             else:
                 pass
+
+import time
+
+t_start = 0
+#@staticmethod
+def timer_start():
+    global t_start
+    t_start = time.time()
+
+def timer_elapsed():
+    global t_start
+
+    t_end = time.time()
+    t_delta = int(t_end - t_start)
+    if t_delta > 60 * 60: 
+        return '%s hours' % round((t_delta / 60 / 60), 1)
+    elif t_delta > 60:
+        return '%s minutes' % round((t_delta / 60), 1)
+    else:
+        return '%s seconds' % t_delta
+
