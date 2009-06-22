@@ -1,4 +1,7 @@
 import sys, os
+import time
+
+t_start = 0
 
 
 class Afile:
@@ -106,13 +109,11 @@ def edit_file(data, boilerplate = None):
             else:
                 pass
 
-import time
 
-t_start = 0
-#@staticmethod
 def timer_start():
     global t_start
     t_start = time.time()
+
 
 def timer_elapsed():
     global t_start
