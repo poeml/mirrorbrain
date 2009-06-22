@@ -58,7 +58,16 @@ def req(baseurl, filename, http_method='GET', do_digest=False):
             except:
                 return (0, digest)
 
-        return (response.code, digest)
+        if url.startswith('http://'):
+            rc = response.code
+        elif url.startswith('ftp://'):
+            out = response.readline()
+            if len(out):
+                rc = 1
+            else:
+                rc = 0
+
+        return (rc, digest)
 
     elif url.startswith('rsync://'):
 
@@ -67,7 +76,14 @@ def req(baseurl, filename, http_method='GET', do_digest=False):
             # note the -r; *some* option is needed because many rsync servers
             # don't reply properly if they don't get any option at all.
             # -t (as the most harmless option) also isn't sufficient.
-            cmd = 'rsync -r --timeout=%d %s %s/' % (TIMEOUT, url, tmpdir)
+            #
+            # replaced -r with -d, because it allows to probe for directories
+            # without transferring them recursively. With 92 mirrors tested, it
+            # worked just as well, with a single exception. (ftp3.gwdg.de, which 
+            # presumabely runs a really old rsync server. The system seems to be 
+            # SuSE Linux 8.2.)
+            # poeml, Mon Jun 22 18:10:33 CEST 2009
+            cmd = 'rsync -d --timeout=%d %s %s/' % (TIMEOUT, url, tmpdir)
             (rc, out) = commands.getstatusoutput(cmd)
             targetfile = os.path.join(tmpdir, os.path.basename(filename))
             worked = os.path.exists(targetfile)
@@ -79,7 +95,7 @@ def req(baseurl, filename, http_method='GET', do_digest=False):
             shutil.rmtree(tmpdir, ignore_errors=True)
 
         if rc != 0:
-            return (1, digest)
+            return (0, digest)
 
         if worked:
             return (200, digest)

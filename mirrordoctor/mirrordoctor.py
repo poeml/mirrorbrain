@@ -376,7 +376,7 @@ class MirrorDoctor(cmdln.Cmdln):
         import mb.testmirror
         import os.path
 
-        mb.testmirror.dont_use_proxies
+        mb.testmirror.dont_use_proxies()
 
         if opts.mirror:
             mirrors = [ lookup_mirror(self, opts.mirror) ]
@@ -609,6 +609,10 @@ class MirrorDoctor(cmdln.Cmdln):
             mb scan [OPTS] IDENTIFIER [IDENTIFIER...]
         ${cmd_option_list}
         """
+        from sqlobject.sqlbuilder import AND
+        import textwrap
+        import mb.testmirror
+        mb.testmirror.dont_use_proxies()
 
         cmd = []
         cmd.append(opts.scanner or '/usr/bin/scanner')
@@ -627,8 +631,6 @@ class MirrorDoctor(cmdln.Cmdln):
             cmd.append('-d %s' % opts.directory)
         if opts.jobs:
             cmd += [ '-j', opts.jobs ]
-        if opts.all:
-            cmd.append('-a')
         else:
             cmd.append('-f')
 
@@ -639,24 +641,73 @@ class MirrorDoctor(cmdln.Cmdln):
         cmd += [ '--exclude-rsync %s' % i for i in 
                  self.config.dbconfig.get('scan_exclude_rsync', '').split() ]
 
-        mirrors = []
-        for arg in args:
-            mirrors.append(lookup_mirror(self, arg))
+        if not opts.all and not args:
+            sys.exit('No mirrors specified for scanning. Either give identifiers, or use -a [-j N].')
 
-        cmd += [ mirror.identifier for mirror in mirrors ]
+        mirrors = []
+        if opts.all:
+            mirrors = self.conn.Server.select(
+                         AND(self.conn.Server.q.statusBaseurl, 
+                             self.conn.Server.q.enabled))
+        else:
+            for arg in args:
+                mirrors.append(lookup_mirror(self, arg))
+
+        mirrors_to_scan = []
+        mirrors_skipped = []
+        if not opts.directory:
+            mirrors_to_scan = [ i for i in mirrors ]
+        else:
+            print 'Checking for existance of %r directory' % opts.directory
+            for mirror in mirrors:
+                # check whether the mirror has the requested directory, and if yes, add it
+                # to the list of mirrors to be scanned. Try URLs in order of efficacy for scanning.
+                has_dir = 0
+                for u in [mirror.baseurlRsync, mirror.baseurlFtp, mirror.baseurl]:
+                    if u == None or u == '':
+                        continue
+                    has_dir = mb.testmirror.req(u, opts.directory)[0]
+                    if has_dir:
+                        if self.options.debug:
+                            print '%s: scheduling scan.' % mirror.identifier
+                        mirrors_to_scan.append(mirror)
+                    break
+                if not has_dir:
+                    if self.options.debug:
+                        print '%s: directory %s not found. Skipping.' % (mirror.identifier, opts.directory)
+                    mirrors_skipped.append(mirror.identifier)
+
+            if len(mirrors_to_scan):
+                print 'Scheduling scan on:'
+                print textwrap.fill(', '.join([ i.identifier for i in mirrors_to_scan ]),
+                                    initial_indent='    ', subsequent_indent='  ')
+
+
+        if not len(mirrors_to_scan):
+            print 'No mirror to scan. Exiting.'
+            sys.exit(0)
+
+        cmd += [ mirror.identifier for mirror in mirrors_to_scan ]
 
         cmd = ' '.join(cmd)
         if self.options.debug:
             print cmd
         
+        sys.stdout.flush()
         import os
         rc = os.system(cmd)
 
         if opts.enable and rc == 0:
             import time
             comment = ('*** scanned and enabled at %s.' % (time.ctime()))
-            for mirror in mirrors:
+            for mirror in mirrors_to_scan:
                 mirror.comment = ' '.join([mirror.comment or '', '\n\n' + comment])
+
+        sys.stdout.flush()
+        if opts.directory and len(mirrors_skipped):
+            print 'Skipped mirrors:'
+            print textwrap.fill(', '.join(mirrors_skipped),
+                                initial_indent='    ', subsequent_indent='  ')
 
 
 
