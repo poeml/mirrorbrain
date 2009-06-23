@@ -365,7 +365,7 @@ class MirrorDoctor(cmdln.Cmdln):
     @cmdln.option('--md5', action='store_true',
                         help='download and show the md5 sum')
     @cmdln.option('--urls', dest='url_type', metavar='TYPE', default='scan',
-                        help='type of URLs to be probed: [http|all|scan]')
+                        help='type of URLs to be probed (scan|http|all). Default: scam.')
     @cmdln.option('-m', '--mirror', 
                         help='probe only on this mirror')
     @cmdln.option('-a', '--all-mirrors', action='store_true',
@@ -375,6 +375,23 @@ class MirrorDoctor(cmdln.Cmdln):
     def do_probefile(self, subcmd, opts, filename):
         """${cmd_name}: list mirrors on which a given file is present
         by probing them
+
+        The --urls option selects the kind of URLs to be probed. Meanings are:
+          'scan' - probes those URLs that would be used in scanning (rsync, 
+                   and FTP/HTTP only as fallback). This is fastest, and 
+                   suitable for quick probing.
+          'http' - probes the base URLs that the clients get to see (those 
+                   used in redirection). Gives the most realistic view.
+          'all'  - probes all and every URL registered for a host. The most
+                   thourough method, which can be useful to discover permission
+                   problems on mirrors, serving staged content already where
+                   they shouldn't.
+
+        Proxy settings via environmental variables are ignored. 
+
+        Examples:
+             mb probefile --md5 update/11.0/rpm/i586/insserv-1.11.0-31.2.i586.rpm
+             mb probefile distribution/.timestamp --content --urls=http
 
         ${cmd_usage}
         ${cmd_option_list}
