@@ -26,6 +26,43 @@ class IpAddress:
         return '%s (%s AS%s)' % (self.ip, self.prefix, self.asn)
 
 
+class Sample:
+    """used for probe results."""
+    def __init__(self, identifier, probebaseurl, filename, 
+                 get_digest=False, get_content=False):
+        self.identifier = identifier
+        self.probebaseurl = probebaseurl
+        self.filename = filename
+        self.has_file = False
+        self.http_code = None
+        self.get_digest = get_digest
+        self.digest = None
+        self.get_content = get_content
+        self.content = None
+
+        if self.probebaseurl.startswith('http://'):
+            self.scheme = 'http'
+        elif self.probebaseurl.startswith('ftp://'): 
+            self.scheme = 'ftp'
+        elif self.probebaseurl.startswith('rsync://') \
+                or ('://' not in self.probebaseurl and '::' in self.probebaseurl):
+            self.scheme = 'rsync'
+        else:
+            raise 'unknown url type: %s' % self.probebaseurl
+
+        self.probeurl = self.probebaseurl.rstrip('/') + '/' + self.filename.lstrip('/')
+
+
+    def __str__(self):
+        s = 'M: %s %s, has_file=%s' \
+                % (self.identifier, self.probeurl, self.has_file)
+        if self.http_code:
+            s += ', http_code=%s' % self.http_code
+        if self.digest:
+            s += ', digest=%s' % self.digest
+        return s
+
+
 def data_url(basedir, path):
     import os, base64
 
@@ -119,11 +156,11 @@ def timer_elapsed():
     global t_start
 
     t_end = time.time()
-    t_delta = int(t_end - t_start)
+    t_delta = t_end - t_start
     if t_delta > 60 * 60: 
         return '%s hours' % round((t_delta / 60 / 60), 1)
     elif t_delta > 60:
         return '%s minutes' % round((t_delta / 60), 1)
     else:
-        return '%s seconds' % t_delta
+        return '%s seconds' % int(t_delta)
 
