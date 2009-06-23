@@ -13,8 +13,10 @@ TIMEOUT = 20
 socket.setdefaulttimeout(TIMEOUT)
 
 def access_http(url):
-    r = urllib2.urlopen(url).read()
-    print r
+    from mb.util import Sample
+    S = Sample('', url, '', get_content=True)
+    probe(S)
+    return S.content
 
 
 def dont_use_proxies():
@@ -24,28 +26,33 @@ def dont_use_proxies():
             del os.environ[i]
 
 
-def req(baseurl, filename, http_method='GET', do_digest=False):
+def req(baseurl, filename, http_method='GET', get_digest=False):
+    """compatibility method that wraps around probe(). It was used
+    before probe() existed and is probably not needed anymore.
+    """
+    from mb.util import Sample
+    S = Sample('', baseurl, filename, get_digest=get_digest)
+    probe(S, http_method=http_method)
+    return (S.http_code, S.digest)
 
-    url = baseurl + filename
-    worked = False
-    digest = None
 
-    if url.startswith('http://') or url.startswith('ftp://'):
-        req = urllib2.Request(url)
-        if url.startswith('http://') and http_method=='HEAD':
+def probe(S, http_method='GET'):
+
+    if S.scheme in ['http', 'ftp']:
+        req = urllib2.Request(S.probeurl)
+        if S.scheme == 'http' and http_method=='HEAD':
             # not for FTP URLs
             req.get_method = lambda: 'HEAD'
 
         try:
             response = urllib2.urlopen(req)
-            worked = True
         except KeyboardInterrupt:
             print >>sys.stderr, 'interrupted!'
             raise
         except:
-            return (0, digest)
+            return S
 
-        if do_digest:
+        if S.get_digest:
             try:
                 t = tempfile.NamedTemporaryFile()
                 while 1:
@@ -53,23 +60,30 @@ def req(baseurl, filename, http_method='GET', do_digest=False):
                     if not buf: break
                     t.write(buf)
                 t.flush()
-                digest = mb.util.dgst(t.name)
+                S.digest = mb.util.dgst(t.name)
                 t.close()
             except:
-                return (0, digest)
+                return S
+        if S.get_content:
+            S.content = response.read()
 
-        if url.startswith('http://'):
-            rc = response.code
-        elif url.startswith('ftp://'):
+        if S.scheme == 'http':
+            S.http_code = response.code
+            if S.http_code == 200:
+                S.has_file = True
+            else:
+                raise 'unhandled HTTP response code %s' % S.http_code
+        elif S.scheme == 'ftp':
+            # this works for directories. Not tested for files yet
             out = response.readline()
             if len(out):
-                rc = 1
+                has_file = True
             else:
-                rc = 0
+                has_file = False
 
-        return (rc, digest)
+        return S
 
-    elif url.startswith('rsync://'):
+    elif S.scheme == 'rsync':
 
         try:
             tmpdir = tempfile.mkdtemp(prefix='mb_probefile_')
@@ -83,25 +97,126 @@ def req(baseurl, filename, http_method='GET', do_digest=False):
             # presumabely runs a really old rsync server. The system seems to be 
             # SuSE Linux 8.2.)
             # poeml, Mon Jun 22 18:10:33 CEST 2009
-            cmd = 'rsync -d --timeout=%d %s %s/' % (TIMEOUT, url, tmpdir)
+            cmd = 'rsync -d --timeout=%d %s %s/' % (TIMEOUT, S.probeurl, tmpdir)
             (rc, out) = commands.getstatusoutput(cmd)
-            targetfile = os.path.join(tmpdir, os.path.basename(filename))
-            worked = os.path.exists(targetfile)
-            if worked and do_digest:
-                digest = mb.util.dgst(targetfile)
-
+            targetfile = os.path.join(tmpdir, os.path.basename(S.filename))
+            if os.path.exists(targetfile):
+                S.has_file = True
+            if S.has_file and S.get_digest:
+                S.digest = mb.util.dgst(targetfile)
+            if S.has_file and S.get_content:
+                S.content = open(targetfile).read()
 
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
 
-        if rc != 0:
-            return (0, digest)
-
-        if worked:
-            return (200, digest)
-        else:
-            return (0, digest)
+        return S
 
     else:
-        raise 'unknown URL type: %r' % baseurl
+        raise 'unknown URL type: %r' % S.probebaseurl
 
+
+
+def get_all_urls(mirror):
+    r = []
+    if mirror.baseurl:      r.append(mirror.baseurl)
+    if mirror.baseurlFtp:   r.append(mirror.baseurlFtp)
+    if mirror.baseurlRsync: r.append(mirror.baseurlRsync)
+    return r
+
+
+def get_best_scan_url(mirror):
+    return mirror.baseurlRsync or mirror.baseurlFtp or mirror.baseurl or None
+
+
+def make_probelist(mirrors, filename, url_type='http', get_digest=False, get_content=False):
+    """return list of Sample instances, in order to be probed.
+    The Sample instances are used to hold the probing results.
+    """
+    from mb.util import Sample
+    if url_type == 'http':
+        return [ Sample(i.identifier, i.baseurl, filename, 
+                        get_digest=get_digest, get_content=get_content) 
+                        for i in mirrors ]
+    elif url_type == 'scan':
+        return [ Sample(i.identifier, get_best_scan_url(i), filename, 
+                        get_digest=get_digest, get_content=get_content) 
+                        for i in mirrors ]
+    elif url_type == 'all':
+        return [ Sample(i.identifier, url, filename, 
+                        get_digest=get_digest, get_content=get_content) 
+                        for i in mirrors 
+                        for url in get_all_urls(i) ]
+    else:
+        raise 'unknown url_type value: %r' % url_type
+
+
+def probe_report(m):
+    m = probe(m)
+    #print 'checked %s' % m.probeurl
+    print '.',
+    sys.stdout.flush()
+    return m
+
+# TODO:
+# for do_scan:
+#  - get list of mirrors that have directory or file foo
+#    find only the first URL
+# for do_probefile:
+#  - get list of mirrors that have directory or file foo, checking
+#    all URLs
+#  - optionally with md5 sums
+# for the mirrorprobe?
+# for general mirror testing?
+# for timestamp fetching? -> get the content of the timestamp file
+
+# use the multiprocessing module if available (Python 2.6/3.0)
+# fall back to the processing module
+# if none is availabe, serialize
+def mirrors_have_file(mirrors, filename, url_type='all', 
+                      get_digest=False, get_content=False):
+    mirrors = [ i for i in mirrors ]
+
+    # we create a list of "simple" objects that can be serialized (pickled) by the
+    # multiprocessing modules. That doesn't work with SQLObjects's result objects.
+    return probes_run(make_probelist(mirrors, filename, 
+                                     url_type=url_type, 
+                                     get_digest=get_digest, 
+                                     get_content=get_content))
+
+def lookups_probe(mirrors, get_digest=False, get_content=False):
+    from mb.util import Sample
+    probelist = [ Sample(i['identifier'], i['baseurl'], i['path'], 
+                         get_digest=get_digest, get_content=get_content) 
+                  for i in mirrors ]
+
+    return probes_run(probelist)
+
+
+def probes_run(probelist):
+    mp_mod = None
+    try:
+        from multiprocessing import Pool
+        mp_mod = 'multiprocessing'
+    except:
+        pass
+    try:
+        from processing import Pool
+        mp_mod = 'processing'
+    except:
+        if len(probelist) > 8:
+            print '>>> No multiprocessing module was found installed. For parallelizing'
+            print '>>> probing, install the "processing" or "multiprocessing" Python module.'
+
+
+    if mp_mod in ['processing', 'multiprocessing']:
+        p = Pool(24)
+        result = p.map_async(probe_report, probelist)
+        #print result.get(timeout=20)
+        return result.get()
+
+    else:
+        res = []
+        for i in probelist:
+            res.append(probe_report(i))
+        return res

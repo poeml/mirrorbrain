@@ -346,6 +346,10 @@ class MirrorDoctor(cmdln.Cmdln):
     def do_test(self, subcmd, opts, identifier):
         """${cmd_name}: test if a mirror is working
 
+        This does only rudimentary checking for now. It only does a request
+        on the base URL. But more checks could easily be added.
+        (See the implementation of do_probefile() for ideas.)
+
         ${cmd_usage}
         ${cmd_option_list}
         """
@@ -353,11 +357,15 @@ class MirrorDoctor(cmdln.Cmdln):
         mirror = lookup_mirror(self, identifier)
         print mirror.baseurl
         import mb.testmirror
-        mb.testmirror.access_http(mirror.baseurl)
+        print mb.testmirror.access_http(mirror.baseurl)
 
 
+    @cmdln.option('--content', action='store_true',
+                        help='download and show the content')
     @cmdln.option('--md5', action='store_true',
                         help='download and show the md5 sum')
+    @cmdln.option('--urls', dest='url_type', metavar='TYPE', default='scan',
+                        help='type of URLs to be probed: [http|all|scan]')
     @cmdln.option('-m', '--mirror', 
                         help='probe only on this mirror')
     @cmdln.option('-a', '--all-mirrors', action='store_true',
@@ -387,32 +395,33 @@ class MirrorDoctor(cmdln.Cmdln):
                          AND(self.conn.Server.q.statusBaseurl, 
                              self.conn.Server.q.enabled))
 
-        found_mirrors = 0
         try:
+            mirrors_have_file = mb.testmirror.mirrors_have_file(mirrors, filename, 
+                                                               url_type=opts.url_type, get_digest=opts.md5,
+                                                               get_content=opts.content)
+            print
+            found_mirrors = 0
             for mirror in mirrors:
+                for sample in mirrors_have_file:
+                    if mirror.identifier == sample.identifier:
 
-                # TODO: add a nice library function for this
-                for baseurl in [mirror.baseurl, mirror.baseurlFtp, mirror.baseurlRsync]:
-                    if baseurl == None or baseurl == '':
-                        continue
-                    (response, md5) = mb.testmirror.req(baseurl, filename, do_digest=opts.md5)
-                    if opts.hide_negative and response != 200:
-                        continue
-                    if opts.md5:
-                        print "%3d %-30s %-32s %s" \
-                                % (response, mirror.identifier, md5 or '', os.path.join(baseurl, filename))
-                    else:
-                        print "%3d %-30s %s" \
-                                % (response, mirror.identifier, os.path.join(baseurl, filename))
+                        s = "%d %-30s" % (sample.has_file, sample.identifier)
+                        if opts.md5:
+                            s += " %-32s" % (sample.digest or '')
+                        s += " %s" % (os.path.join(sample.probeurl, filename))
+                        if sample.http_code:
+                            s += " http=%s" % (sample.http_code)
+                        print s
+                        if opts.content and sample.content:
+                            print repr(sample.content)
 
-                    if response == 200: found_mirrors += 1
+                        if sample.has_file: found_mirrors += 1
 
         except KeyboardInterrupt:
             print >>sys.stderr, 'interrupted!'
             return 1
 
-
-        print 'Broken:', found_mirrors
+        print 'Found:', found_mirrors
 
 
 
@@ -662,23 +671,19 @@ class MirrorDoctor(cmdln.Cmdln):
             mirrors_to_scan = [ i for i in mirrors ]
         else:
             print 'Checking for existance of %r directory' % opts.directory
+            mirrors_have_file = mb.testmirror.mirrors_have_file(mirrors, opts.directory, url_type='scan')
+            print
             for mirror in mirrors:
-                # check whether the mirror has the requested directory, and if yes, add it
-                # to the list of mirrors to be scanned. Try URLs in order of efficacy for scanning.
-                has_dir = 0
-                for u in [mirror.baseurlRsync, mirror.baseurlFtp, mirror.baseurl]:
-                    if u == None or u == '':
-                        continue
-                    has_dir = mb.testmirror.req(u, opts.directory)[0]
-                    if has_dir:
-                        if self.options.debug:
-                            print '%s: scheduling scan.' % mirror.identifier
-                        mirrors_to_scan.append(mirror)
-                    break
-                if not has_dir:
-                    if self.options.debug:
-                        print '%s: directory %s not found. Skipping.' % (mirror.identifier, opts.directory)
-                    mirrors_skipped.append(mirror.identifier)
+                for sample in mirrors_have_file:
+                    if mirror.identifier == sample.identifier:
+                        if sample.has_file:
+                            if self.options.debug:
+                                print '%s: scheduling scan.' % mirror.identifier
+                            mirrors_to_scan.append(mirror)
+                        else:
+                            if self.options.debug:
+                                print '%s: directory %s not found. Skipping.' % (mirror.identifier, opts.directory)
+                            mirrors_skipped.append(mirror.identifier)
 
             if len(mirrors_to_scan):
                 print 'Scheduling scan on:'
@@ -696,7 +701,12 @@ class MirrorDoctor(cmdln.Cmdln):
         if self.options.debug:
             print cmd
         
+        if opts.directory:
+            print 'Completed in', mb.util.timer_elapsed()
+            mb.util.timer_start()
+
         sys.stdout.flush()
+
         import os
         rc = os.system(cmd)
 
@@ -800,6 +810,7 @@ class MirrorDoctor(cmdln.Cmdln):
 
         import mb.files
         import mb.testmirror
+        mb.testmirror.dont_use_proxies()
 
         if opts.md5:
             opts.probe = True
@@ -816,28 +827,31 @@ class MirrorDoctor(cmdln.Cmdln):
         if action == 'ls':
             rows = mb.files.ls(self.conn, path)
 
-            for row in rows:
-                
-                if not mirror or (str(mirror.identifier) == row['identifier']):
-                    if opts.probe:
-                        (response, md5) = mb.testmirror.req(row['baseurl'],
-                                                            row.get('path'),
-                                                            do_digest=opts.md5)
-                    else:
-                        response = '   '
+            if opts.probe:
+                samples = mb.testmirror.lookups_probe(rows, get_digest=opts.md5, get_content=False)
+            else:
+                samples = []
+
+            try:
+                for row in rows:
                     print '%s %s %4d %s %s %-30s ' % \
                             (row['region'].lower(), row['country'].lower(),
                              row['score'], 
                              row['enabled'] == 1 and 'ok      ' or 'disabled',
                              row['status_baseurl'] == 1 and 'ok  ' or 'dead',
                              row['identifier']),
-                    if opts.probe:
-                        print '%3s' % response,
-                    if opts.md5 and opts.probe:
-                        print md5,
+                    for sample in samples:
+                        if row['identifier'] == sample.identifier:
+                            if opts.probe:
+                                print '%3s' % (sample.http_code or '   '),
+                            if opts.probe and opts.md5:
+                                print (sample.digest or ' ' * 32),
                     if opts.url:
                         print row['baseurl'] + row['path'],
                     print
+            except KeyboardInterrupt:
+                print >>sys.stderr, 'interrupted!'
+                return 1
 
 
         elif action == 'add':
