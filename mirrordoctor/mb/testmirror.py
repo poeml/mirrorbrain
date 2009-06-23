@@ -154,7 +154,7 @@ def make_probelist(mirrors, filename, url_type='http', get_digest=False, get_con
 def probe_report(m):
     m = probe(m)
     #print 'checked %s' % m.probeurl
-    print '.',
+    sys.stdout.write('.')
     sys.stdout.flush()
     return m
 
