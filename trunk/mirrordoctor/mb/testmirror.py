@@ -68,11 +68,11 @@ def probe(S, http_method='GET'):
             S.content = response.read()
 
         if S.scheme == 'http':
-            S.http_code = response.code
+            S.http_code = getattr(response, "code", None)
             if S.http_code == 200:
                 S.has_file = True
             else:
-                raise 'unhandled HTTP response code %s' % S.http_code
+                print 'unhandled HTTP response code %r for URL %r' % (S.http_code, S.probeurl)
         elif S.scheme == 'ftp':
             # this works for directories. Not tested for files yet
             out = response.readline()
