@@ -1,5 +1,9 @@
 Missing features:
 
+* mb probefile: follow redirects. Testcase:
+  http://distro.ibiblio.org/pub/linux/distributions/opensuse/factory/iso/openSUSE-NET-i586-Build0138-Media.iso
+  which "blindly" redirects to an FTP server (by URL rewriting), but the file isn't there.
+
 * mirrorprobe: does it deal with FTP urls entered as baseurl (which is meant for HTTP)?
 
 * make ZrkadloExcludeNetwork work by prefix match, instead of simple string
