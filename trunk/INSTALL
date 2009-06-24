@@ -6,6 +6,10 @@ These instructions show how to install:
 
 
 
+>> For installation on openSUSE, best refer to 
+>>   http://en.opensuse.org/Mirrorbrain
+>> which gives directions suitable for copy & paste.
+
 
 Install Apache 2.2.6 or later. For openSUSE/SLE, you'll find it here:
 http://download.opensuse.org/repositories/Apache/
@@ -29,18 +33,6 @@ apxs2 -i mod_mirrorbrain.c
 Building, installing and activation can typically be combined in one apxs call:
 apxs2 -cia mod_mirrorbrain.c
 
-
-
-
-FIXME:
-At least for openSUSE, where packages exist, copy & paste directions could
-easily be given. For other distros as well, of course (contributions welcome!)
-
-copy & paste directions for openSUSE:
-===================
-FIXME
-...
-===================
 
 
 
