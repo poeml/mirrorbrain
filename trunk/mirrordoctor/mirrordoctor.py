@@ -392,6 +392,7 @@ class MirrorDoctor(cmdln.Cmdln):
         Examples:
              mb probefile --md5 update/11.0/rpm/i586/insserv-1.11.0-31.2.i586.rpm
              mb probefile distribution/.timestamp --content --urls=http
+             mb probefile distribution/.timestamp --content -m widehat.opensuse.org
 
         ${cmd_usage}
         ${cmd_option_list}
