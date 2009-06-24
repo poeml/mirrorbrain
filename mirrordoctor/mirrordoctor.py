@@ -846,6 +846,7 @@ class MirrorDoctor(cmdln.Cmdln):
 
             if opts.probe:
                 samples = mb.testmirror.lookups_probe(rows, get_digest=opts.md5, get_content=False)
+                print
             else:
                 samples = []
 
