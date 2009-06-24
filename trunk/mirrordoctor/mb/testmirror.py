@@ -94,13 +94,15 @@ def probe(S, http_method='GET'):
             # replaced -r with -d, because it allows to probe for directories
             # without transferring them recursively. With 92 mirrors tested, it
             # worked just as well, with a single exception. (ftp3.gwdg.de, which 
-            # presumabely runs a really old rsync server. The system seems to be 
+            # presumably runs a really old rsync server. The system seems to be 
             # SuSE Linux 8.2.)
             # poeml, Mon Jun 22 18:10:33 CEST 2009
             cmd = 'rsync -d --timeout=%d %s %s/' % (TIMEOUT, S.probeurl, tmpdir)
+            if not S.get_content:
+                cmd += ' --list-only'
             (rc, out) = commands.getstatusoutput(cmd)
             targetfile = os.path.join(tmpdir, os.path.basename(S.filename))
-            if os.path.exists(targetfile):
+            if rc == 0 or os.path.exists(targetfile):
                 S.has_file = True
             if S.has_file and S.get_digest:
                 S.digest = mb.util.dgst(targetfile)
