@@ -52,6 +52,10 @@ class Sample:
 
         self.probeurl = self.probebaseurl.rstrip('/') + '/' + self.filename.lstrip('/')
 
+        # checksumming content implies downloading it
+        if self.get_digest:
+            self.get_content = True
+
 
     def __str__(self):
         s = 'M: %s %s, has_file=%s' \
