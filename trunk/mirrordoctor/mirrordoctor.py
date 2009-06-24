@@ -392,7 +392,7 @@ class MirrorDoctor(cmdln.Cmdln):
         Examples:
              mb probefile --md5 update/11.0/rpm/i586/insserv-1.11.0-31.2.i586.rpm
              mb probefile distribution/.timestamp --content --urls=http
-             mb probefile distribution/.timestamp --content -m widehat.opensuse.org
+             mb probefile distribution/.timestamp -m widehat.opensuse.org
 
         ${cmd_usage}
         ${cmd_option_list}
@@ -426,7 +426,7 @@ class MirrorDoctor(cmdln.Cmdln):
                         s = "%d %-30s" % (sample.has_file, sample.identifier)
                         if opts.md5:
                             s += " %-32s" % (sample.digest or '')
-                        s += " %s" % (os.path.join(sample.probeurl, filename))
+                        s += " %s" % sample.probeurl
                         if sample.http_code:
                             s += " http=%s" % (sample.http_code)
                         print s
