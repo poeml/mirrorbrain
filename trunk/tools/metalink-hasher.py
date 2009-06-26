@@ -31,52 +31,42 @@ __license__ = 'GPLv2'
 __url__ = 'http://mirrorbrain.org'
 
 
-import os, os.path
+import os
+import os.path
+import stat
+import shutil
 import cmdln
 import re
 import subprocess
+import errno
 
 ML_EXTENSION = '.metalink-hashes'
 line_mask = re.compile('.*</*(verification|hash|pieces).*>.*')
 
-def make_hashes(src, dst, opts):
-    src_dir = os.path.dirname(src)
-    src_dir_mode = os.stat(src_dir).st_mode
-    dst_dir = os.path.dirname(dst)
+def make_hashes(src, src_statinfo, dst, opts):
 
-    dst = dst + ML_EXTENSION
-
-    if not opts.dry_run:
-        if not os.path.isdir(dst_dir):
-            os.makedirs(dst_dir, mode = 0755)
-        if opts.copy_permissions:
-            os.chmod(dst_dir, src_dir_mode)
-        else:
-            os.chmod(dst_dir, 0755)
-
-    src_mtime = os.path.getmtime(src)
     try:
-        dst_mtime = os.path.getmtime(dst)
-        dst_size = os.path.getsize(dst)
+        dst_statinfo = os.stat(dst)
+        dst_mtime = dst_statinfo.st_mtime
+        dst_size = dst_statinfo.st_size
     except OSError:
         dst_mtime = dst_size = 0 # file missing
 
-    if dst_mtime >= src_mtime and dst_size != 0:
+    if dst_mtime >= src_statinfo.st_mtime and dst_size != 0:
         if opts.verbose:
-            print 'up to date:', src
+            print 'Up to date: %r' % dst
         return 
 
     cmd = [ 'metalink',
             '--nomirrors', 
             '-d', 'md5', 
             '-d', 'sha1', 
+            '-d', 'sha256', 
             '-d', 'sha1pieces',
             src ]
 
-    if opts.verbose or opts.dry_run:
-        print ' '.join(cmd)
-
     if opts.dry_run: 
+        print 'Would run: ', ' '.join(cmd)
         return
 
     o = subprocess.Popen(cmd, stdout=subprocess.PIPE,
@@ -101,7 +91,7 @@ def make_hashes(src, dst, opts):
     d.close()
 
     if opts.copy_permissions:
-        os.chmod(dst, os.stat(src).st_mode)
+        os.chmod(dst, src_statinfo.st_mode)
     else:
         os.chmod(dst, 0644)
 
@@ -128,14 +118,21 @@ class Metalinks(cmdln.Cmdln):
     def do_update(self, subcmd, opts, startdir):
         """${cmd_name}: Update the hash pieces that are included in metalinks
 
-        Example:
+        Examples:
+
+        metalink-hasher update /srv/mirrors/mozilla -t /srv/metalink-hashes/srv/mirrors/mozilla
 
         metalink-hasher update \\
-           -f '.*.(torrent|iso)$' \\
-          -t /var/lib/apache2/metalink-hashes/srv/ftp/pub/opensuse/distribution/11.0/iso \\
-          -b /srv/ftp-stage/pub/opensuse/distribution/11.0/iso \\
-          /srv/ftp-stage/pub/opensuse/distribution/11.0/iso \\
-          -n
+            -t /srv/metalink-hashes/srv/ftp/pub/opensuse/repositories/home:/poeml \\
+            /srv/ftp-stage/pub/opensuse/repositories/home:/poeml \\
+            -i '^.*/repoview/.*$'
+
+        metalink-hasher update \\
+            -f '.*.(torrent|iso)$' \\
+            -t /var/lib/apache2/metalink-hashes/srv/ftp/pub/opensuse/distribution/11.0/iso \\
+            -b /srv/ftp-stage/pub/opensuse/distribution/11.0/iso \\
+            /srv/ftp-stage/pub/opensuse/distribution/11.0/iso \\
+            -n
 
         ${cmd_usage}
         ${cmd_option_list}
@@ -144,7 +141,8 @@ class Metalinks(cmdln.Cmdln):
         if not opts.target_dir:
             sys.exit('You must specify the target directory (-t)')
         if not opts.base_dir:
-            sys.exit('You must specify the base directory (-b)')
+            opts.base_dir = startdir
+            #sys.exit('You must specify the base directory (-b)')
 
         if not opts.target_dir.startswith('/'):
             sys.exit('The target directory must be an absolut path')
@@ -155,40 +153,90 @@ class Metalinks(cmdln.Cmdln):
         opts.target_dir = opts.target_dir.rstrip('/')
         opts.base_dir = opts.base_dir.rstrip('/')
 
-        directories = [startdir]
+        directories_todo = [startdir]
 
         if opts.ignore_mask: 
             opts.ignore_mask = re.compile(opts.ignore_mask)
         if opts.file_mask: 
             opts.file_mask = re.compile(opts.file_mask)
 
-        while len(directories)>0:
-            directory = directories.pop()
+        while len(directories_todo) > 0:
+            src_dir = directories_todo.pop()
 
-            for name in os.listdir(directory):
+            src_dir_mode = os.stat(src_dir).st_mode
 
-                fullpath = os.path.join(directory,name)
+            dst_dir = os.path.join(opts.target_dir, src_dir[len(opts.base_dir):].lstrip('/'))
 
-                if os.path.islink(fullpath):
-                    continue
+            if not opts.dry_run:
+                if not os.path.isdir(dst_dir):
+                    os.makedirs(dst_dir, mode = 0755)
+                if opts.copy_permissions:
+                    os.chmod(dst_dir, src_dir_mode)
+                else:
+                    os.chmod(dst_dir, 0755)
 
-                if opts.ignore_mask and re.match(opts.ignore_mask, fullpath):
-                    continue
+            src_names = os.listdir(src_dir)
+            src_names.sort()
+            try:
+                dst_names = os.listdir(dst_dir)
+                dst_names.sort()
+            except OSError, e:
+                if e.errno == errno.ENOENT:
+                    sys.exit('\nSorry, cannot really continue in dry-run mode, because directory %r does not exist.\n'
+                             'You might want to create it:\n'
+                             '  mkdir %s' % (dst_dir, dst_dir))
 
-                if os.path.isfile(fullpath):
-                    if not opts.file_mask or re.match(opts.file_mask, name):
-                        #print fullpath
-                        if opts.base_dir:
-                            target = fullpath[len(opts.base_dir):]
+            for i in dst_names:
+                i_path = os.path.join(dst_dir, i)
+                # removal of obsolete files
+                if i.endswith(ML_EXTENSION):
+                    realname = i[:-len(ML_EXTENSION)]
+                    if (realname not in src_names) \
+                       or (opts.ignore_mask and re.match(opts.ignore_mask, i_path)):
+                        print 'Unlinking obsolete %r' % i_path
+                        if not opts.dry_run: 
+                            try:
+                                os.unlink(i_path)
+                            except:
+                                print 'unlinking failed:', i_path
+                # removal of obsolete directories
+                else:
+                    if i not in src_names:
+                        if os.path.isdir(i_path):
+                            print 'Recursively removing obsolete directory %r' % i_path
+                            if not opts.dry_run: 
+                                shutil.rmtree(i_path)
                         else:
-                            target = fullpath
-                        target = os.path.join(opts.target_dir, target.lstrip('/'))
-                        if opts.verbose:
-                            print 'target:', target
-                        make_hashes(fullpath, target, opts=opts)
+                            print 'Unlinking obsolete %r' % i_path
+                            if not opts.dry_run: 
+                                os.unlink(i_path)
 
-                elif os.path.isdir(fullpath):
-                    directories.append(fullpath)  # It's a directory, store it.
+            for src_name in src_names:
+
+                src = os.path.join(src_dir, src_name)
+
+                if opts.ignore_mask and re.match(opts.ignore_mask, src):
+                    continue
+
+                # stat only once
+                src_statinfo = os.lstat(src)
+                if stat.S_ISLNK(src_statinfo.st_mode):
+                    #print 'ignoring link', src
+                    continue
+
+                if stat.S_ISREG(src_statinfo.st_mode):
+                    if not opts.file_mask or re.match(opts.file_mask, src_name):
+
+                        dst_name = src[len(opts.base_dir):].lstrip('/')
+                        dst = os.path.join(opts.target_dir, dst_name)
+                        #if opts.verbose:
+                        #    print 'dst:', dst
+
+                        make_hashes(src, src_statinfo, dst + ML_EXTENSION, opts=opts)
+
+
+                elif stat.S_ISDIR(src_statinfo.st_mode):
+                    directories_todo.append(src)  # It's a directory, store it.
 
 
 if __name__ == '__main__':
