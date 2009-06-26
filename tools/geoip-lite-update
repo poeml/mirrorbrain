@@ -7,7 +7,10 @@
 
 set -e
 
-cd /usr/share/GeoIP/
+# GeoIP data used to be in /usr/share/GeoIP in the openSUSE package, and was moved later.
+# try the old location first - if it's present, it means that the user had his own
+# updated database there
+cd /usr/share/GeoIP/ 2>/dev/null || cd /var/lib/GeoIP
 
 ftp http://geolite.maxmind.com/download/geoip/database/GeoLiteCountry/GeoIP.dat.gz
 gunzip -c GeoIP.dat.gz > GeoIP.dat.updated.new
