@@ -164,6 +164,9 @@ After installation of mod_mirrorbrain, you'll need to:
   mailto = your_mail@example.com, another_mail@example.com
 
 
+- Note: the "mb" tool referenced below is (for convenience) a symlink to the
+  mirrordoctor.py script.
+
 - now you should be able to type 'mb list' without getting an error.
   It'll produce no output, but exit with 0. If it gives an error, something is
   wrong.
