@@ -69,6 +69,7 @@ def make_hashes(src, src_statinfo, dst, opts):
         print 'Would run: ', ' '.join(cmd)
         return
 
+    sys.stdout.flush()
     o = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                     close_fds=True).stdout
     lines = []
