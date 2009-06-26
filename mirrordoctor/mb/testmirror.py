@@ -212,7 +212,13 @@ def probes_run(probelist):
 
 
     if mp_mod in ['processing', 'multiprocessing']:
-        p = Pool(24)
+        # FIXME make the pool size configurable
+        # we don't need to spawn more processes then we have jobs to do
+        if len(probelist) < 24:
+            pool_size = len(probelist)
+        else:
+            pool_size = 24
+        p = Pool(pool_size)
         result = p.map_async(probe_report, probelist)
         #print result.get(timeout=20)
         return result.get()
