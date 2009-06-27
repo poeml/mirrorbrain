@@ -30,6 +30,12 @@ Improvements:
   likewise for sha1 files.  But it would still be worthwhile and it wouldn't
   matter I guess.
 
+* ?mirrorlist mirror lists: set Vary header on X-AS?
+  make it more cacheable?
+  Cf. http://redbot.org/?uri=http%3A%2F%2Fdownload.opensuse.org%2Frepositories%2FApache%2FFedora_10%2FApache.repo%3Fmirrorlist
+  Metalinks:
+  make less cacheable?
+
 
 Further ideas:
 

@@ -11,16 +11,22 @@ These instructions show how to install:
 >> which gives directions suitable for copy & paste.
 
 
-Install Apache 2.2.6 or later. For openSUSE/SLE, you'll find it here:
-http://download.opensuse.org/repositories/Apache/
+Install Apache 2.2.6 or later. 
+
+openSUSE/SLE: you'll find it here: 
+              http://download.opensuse.org/repositories/Apache/
+Gentoo: has new enough Apache.
+CentOS 5/RHEL: very old Apache. It *might* work, but not, you'll need to get a newer one.
+Debian: the Apache in etch is too old, otherwise it should be okay.
 
 
-RPM packages are here:
-For openSUSE/SLE:
-http://download.opensuse.org/repositories/Apache:/MirrorBrain/
-Lance Albertson is working on a Gento ebuild. (5/2009)
-A Mandriva package, which is outdated though (note the previous name), is here:
-http://club.mandriva.com/xwiki/bin/view/rpms/Application/apache-mod_zrkadlo
+Get MirrorBrain binary packages, if possible. See
+http://mirrorbrain.org/download for where to find them. The page also links
+sources to downloads. 
+
+
+
+Building from sources
 
 The main Apache module can be built with the following steps:
 # unpack the tarball
@@ -46,7 +52,7 @@ After installation of mod_mirrorbrain, you'll need to:
 - configure mod_geoip:
     GeoIPEnable On
     GeoIPOutput Env
-    GeoIPDBFile /usr/share/GeoIP/GeoIP.dat MMapCache
+    GeoIPDBFile /var/lib/GeoIP/GeoIP.dat MMapCache
   (You would typically put this into the server-wide context of a virtual host.)
 
   Note that a caching mode like MMapCache needs to be used, when Apache runs with the worker MPM.
@@ -289,7 +295,7 @@ After installation of mod_mirrorbrain, you'll need to:
     
   - mirror surveillance:
     put this into /etc/crontab:
-      -* * * * *     root       /usr/bin/mirrorprobe -t 20 &>/dev/null
+      -* * * * *                mirrorbrain   mirrorprobe -t 20 &>/dev/null
     likewise, configure scanning:
       44 0,4,8,12,16,20 * * *   mirrorbrain   mb scan -j 3 -a
 
