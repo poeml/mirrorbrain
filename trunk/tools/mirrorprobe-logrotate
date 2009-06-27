@@ -1,0 +1,10 @@
+/var/log/mirrorprobe.log {
+    compress
+    dateext
+    rotate 99
+    size=+16M
+    notifempty
+    missingok
+    create 660 root mirrorbrain
+}
+
