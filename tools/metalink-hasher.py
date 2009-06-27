@@ -161,6 +161,8 @@ class Metalinks(cmdln.Cmdln):
         if opts.file_mask: 
             opts.file_mask = re.compile(opts.file_mask)
 
+        unlinked_files = unlinked_dirs = 0
+
         while len(directories_todo) > 0:
             src_dir = directories_todo.pop()
 
@@ -176,8 +178,7 @@ class Metalinks(cmdln.Cmdln):
                 else:
                     os.chmod(dst_dir, 0755)
 
-            src_names = os.listdir(src_dir)
-            src_names.sort()
+            src_names = set(os.listdir(src_dir))
             try:
                 dst_names = os.listdir(dst_dir)
                 dst_names.sort()
@@ -198,19 +199,22 @@ class Metalinks(cmdln.Cmdln):
                         if not opts.dry_run: 
                             try:
                                 os.unlink(i_path)
-                            except:
-                                print 'unlinking failed:', i_path
+                            except OSError, e:
+                                print 'Unlink failed for %r: %s' % (i_path, e.errno)
+                        unlinked_files += 1
                 # removal of obsolete directories
                 else:
-                    if i not in src_names:
+                    if i not in sorted(src_names):
                         if os.path.isdir(i_path):
                             print 'Recursively removing obsolete directory %r' % i_path
                             if not opts.dry_run: 
                                 shutil.rmtree(i_path)
+                            unlinked_dirs += 1
                         else:
                             print 'Unlinking obsolete %r' % i_path
                             if not opts.dry_run: 
                                 os.unlink(i_path)
+                            unlinked_files += 1
 
             for src_name in src_names:
 
@@ -238,6 +242,11 @@ class Metalinks(cmdln.Cmdln):
 
                 elif stat.S_ISDIR(src_statinfo.st_mode):
                     directories_todo.append(src)  # It's a directory, store it.
+
+
+        if  unlinked_files or unlinked_dirs:
+            print 'Unlinked %s files, %d directories.' % (unlinked_files, unlinked_dirs)
+
 
 
 if __name__ == '__main__':
