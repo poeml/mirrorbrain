@@ -204,7 +204,7 @@ class Metalinks(cmdln.Cmdln):
                         unlinked_files += 1
                 # removal of obsolete directories
                 else:
-                    if i not in sorted(src_names):
+                    if i not in src_names:
                         if os.path.isdir(i_path):
                             print 'Recursively removing obsolete directory %r' % i_path
                             if not opts.dry_run: 
@@ -216,7 +216,7 @@ class Metalinks(cmdln.Cmdln):
                                 os.unlink(i_path)
                             unlinked_files += 1
 
-            for src_name in src_names:
+            for src_name in sorted(src_names):
 
                 src = os.path.join(src_dir, src_name)
 
