@@ -853,6 +853,10 @@ class MirrorDoctor(cmdln.Cmdln):
 
             try:
                 for row in rows:
+                    if not row['identifier']:
+                        # this is a stale entry, which will be vacuumed out
+                        # next time the vacuumizer runs.
+                        continue
                     print '%s %s %4d %s %s %-30s ' % \
                             (row['region'].lower(), row['country'].lower(),
                              row['score'], 
