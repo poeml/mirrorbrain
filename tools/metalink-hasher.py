@@ -164,7 +164,7 @@ class Metalinks(cmdln.Cmdln):
         unlinked_files = unlinked_dirs = 0
 
         while len(directories_todo) > 0:
-            src_dir = directories_todo.pop()
+            src_dir = directories_todo.pop(0)
 
             src_dir_mode = os.stat(src_dir).st_mode
 
