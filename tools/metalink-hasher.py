@@ -24,7 +24,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 
 
-__version__ = '1.1'
+__version__ = '1.2'
 __author__ = 'Peter Poeml <poeml@suse.de>'
 __copyright__ = 'Peter poeml <poeml@suse.de>'
 __license__ = 'GPLv2'
@@ -208,7 +208,10 @@ class Metalinks(cmdln.Cmdln):
                         if os.path.isdir(i_path):
                             print 'Recursively removing obsolete directory %r' % i_path
                             if not opts.dry_run: 
-                                shutil.rmtree(i_path)
+                                try:
+                                    shutil.rmtree(i_path)
+                                except OSError, e:
+                                    print 'Recursive unlinking failed for %r: %s' % (i_path, e.errno)
                             unlinked_dirs += 1
                         else:
                             print 'Unlinking obsolete %r' % i_path
