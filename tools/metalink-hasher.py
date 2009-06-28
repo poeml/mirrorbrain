@@ -166,7 +166,12 @@ class Metalinks(cmdln.Cmdln):
         while len(directories_todo) > 0:
             src_dir = directories_todo.pop(0)
 
-            src_dir_mode = os.stat(src_dir).st_mode
+            try:
+                src_dir_mode = os.stat(src_dir).st_mode
+            except OSError, e:
+                if e.errno == errno.ENOENT:
+                    sys.stderr.write('Directory vanished: %r' % src)
+                    continue
 
             dst_dir = os.path.join(opts.target_dir, src_dir[len(opts.base_dir):].lstrip('/'))
 
