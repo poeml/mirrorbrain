@@ -227,7 +227,13 @@ class Metalinks(cmdln.Cmdln):
                     continue
 
                 # stat only once
-                src_statinfo = os.lstat(src)
+                try:
+                    src_statinfo = os.lstat(src)
+                except OSError, e:
+                    if e.errno == errno.ENOENT:
+                        sys.stderr.write('File vanished: %r' % src)
+                        continue
+
                 if stat.S_ISLNK(src_statinfo.st_mode):
                     #print 'ignoring link', src
                     continue
