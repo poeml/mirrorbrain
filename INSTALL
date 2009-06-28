@@ -322,11 +322,11 @@ After installation of mod_mirrorbrain, you'll need to:
  
      - prepare the metalink hashes. First, add some configuration:
          MirrorBrainMetalinkPublisher "openSUSE" http://download.opensuse.org
-         MirrorBrainMetalinkHashesPathPrefix /var/lib/apache2/metalink-hashes/ppc
+         MirrorBrainMetalinkHashesPathPrefix /srv/metalink-hashes/ppc
        install the "metalink" tool from http://metamirrors.nl/metalinks_project
        (openSUSE package called metalink, http://download.opensuse.org/repositories/network:/utilities/)
        create the actual hashes:
-         metalink-hasher update -t /var/lib/apache2/metalink-hashes/ppc/srv/ftp/pub/opensuse/ppc -b /srv/ftp/pub/opensuse/ppc /srv/ftp/pub/opensuse/ppc
+         metalink-hasher update -t /srv/metalink-hashes/ppc/srv/ftp/pub/opensuse/ppc /srv/ftp/pub/opensuse/ppc
        add the hashing command to /etc/crontab to be run every few hours.
 
 
@@ -334,15 +334,6 @@ After installation of mod_mirrorbrain, you'll need to:
 That's how far the instructions go. I hope they are useful. Please subscribe to
 the mirrorbrain mailing list, see http://mirrorbrain.org/communication .
 Questions can be answered there, feedback is appreciated.
-
-
-TODO:
-
-- add wrapper script to run mirrorprobe / scanner as unprivileged user
-  and describe how to set it up
-
-    su - mirror -s /bin/bash -c "/usr/bin/scanner.mine -f ftp.isr.ist.utl.pt"
-    -*/3 * * * *     root  /usr/bin/mirrorprobe &>/dev/null
 
 
 
