@@ -8,3 +8,13 @@
     create 660 root mirrorbrain
 }
 
+/var/log/mirrorbrain/mirrorprobe.log {
+    compress
+    dateext
+    rotate 99
+    size=+16M
+    notifempty
+    missingok
+    create 640 mirrorbrain mirrorbrain
+}
+
