@@ -100,7 +100,7 @@ def make_hashes(src, src_statinfo, dst, opts):
 class Metalinks(cmdln.Cmdln):
 
     @cmdln.option('-n', '--dry-run', action='store_true',
-                        help='don\'t actually do anything')
+                        help='don\'t actually do anything, just show what would be done')
     @cmdln.option('--copy-permissions', action='store_true',
                         help='copy the permissions of directories and files '
                              'to the hashes files. Normally, this should not '
@@ -109,7 +109,10 @@ class Metalinks(cmdln.Cmdln):
     @cmdln.option('-f', '--file-mask', metavar='REGEX',
                         help='regular expression to select files to create hashes for')
     @cmdln.option('-i', '--ignore-mask', metavar='REGEX',
-                        help='regular expression to ignore certain files, and don\'t create hashes for them')
+                        help='regular expression to ignore certain files or directories. '
+                             'If matching a file, no hashes are created for it. '
+                             'If matching a directory, the directory is ignored and '
+                             'deleted in the target tree.')
     @cmdln.option('-b', '--base-dir', metavar='PATH',
                         help='set the base directory (so that you can work on a subdirectory)')
     @cmdln.option('-t', '--target-dir', metavar='PATH',
@@ -170,7 +173,7 @@ class Metalinks(cmdln.Cmdln):
                 src_dir_mode = os.stat(src_dir).st_mode
             except OSError, e:
                 if e.errno == errno.ENOENT:
-                    sys.stderr.write('Directory vanished: %r' % src)
+                    sys.stderr.write('Directory vanished: %r\n' % src)
                     continue
 
             dst_dir = os.path.join(opts.target_dir, src_dir[len(opts.base_dir):].lstrip('/'))
@@ -184,6 +187,7 @@ class Metalinks(cmdln.Cmdln):
                     os.chmod(dst_dir, 0755)
 
             src_names = set(os.listdir(src_dir))
+            #print 'doing', src_dir
             try:
                 dst_names = os.listdir(dst_dir)
                 dst_names.sort()
@@ -205,18 +209,24 @@ class Metalinks(cmdln.Cmdln):
                             try:
                                 os.unlink(i_path)
                             except OSError, e:
-                                print 'Unlink failed for %r: %s' % (i_path, e.errno)
+                                sys.stderr.write('Unlink failed for %r: %s\n' \
+                                                    % (i_path, os.strerror(e.errno)))
                         unlinked_files += 1
                 # removal of obsolete directories
                 else:
-                    if i not in src_names:
+                    if i not in src_names or (opts.ignore_mask and re.match(opts.ignore_mask, i_path)):
                         if os.path.isdir(i_path):
                             print 'Recursively removing obsolete directory %r' % i_path
                             if not opts.dry_run: 
                                 try:
                                     shutil.rmtree(i_path)
                                 except OSError, e:
-                                    print 'Recursive unlinking failed for %r: %s' % (i_path, e.errno)
+                                    if e.errno == errno.EACCES:
+                                        sys.stderr.write('Recursive removing failed for %r (%s). Ignoring.\n' \
+                                                            % (i_path, os.strerror(e.errno)))
+                                    else:
+                                        sys.exit('Recursive removing failed for %r: %s\n' \
+                                                            % (i_path, os.strerror(e.errno)))
                             unlinked_dirs += 1
                         else:
                             print 'Unlinking obsolete %r' % i_path
@@ -236,7 +246,7 @@ class Metalinks(cmdln.Cmdln):
                     src_statinfo = os.lstat(src)
                 except OSError, e:
                     if e.errno == errno.ENOENT:
-                        sys.stderr.write('File vanished: %r' % src)
+                        sys.stderr.write('File vanished: %r\n' % src)
                         continue
 
                 if stat.S_ISLNK(src_statinfo.st_mode):
