@@ -121,7 +121,7 @@ def main():
 
 
     LOGLEVEL = config.mirrorprobe.get('loglevel', 'INFO')
-    LOGFILE = config.mirrorprobe.get('logfile', '/var/log/mirrorprobe.log')
+    LOGFILE = config.mirrorprobe.get('logfile', '/var/log/mirrorbrain/mirrorprobe.log')
     MAILTO = config.mirrorprobe.get('mailto', 'root@localhost')
 
     #

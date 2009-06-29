@@ -165,8 +165,6 @@ After installation of mod_mirrorbrain, you'll need to:
   dbname = mb_samba
   
   [mirrorprobe]
-  logfile = /var/log/mirrorprobe.log
-  loglevel = INFO
   mailto = your_mail@example.com, another_mail@example.com
 
 
