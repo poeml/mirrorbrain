@@ -145,9 +145,11 @@ After installation of mod_mirrorbrain, you'll need to:
 
        
 
-- create a group and user to run the mirrorbrain tools under:
-    groupadd mirrorbrain
-    useradd mirrorbrain -g mirrorbrain
+- the openSUSE and Gento packages/ebuilds automatically create a group and user
+  to run the mirrorbrain tools as. If you install from source, you would do the
+  following:
+    groupadd -r mirrorbrain
+    useradd -r -o -g mirrorbrain -s /bin/bash -c "MirrorBrain user" -d /home/mirrorbrain mirrorbrain
 
 - create /etc/mirrorbrain.conf with the content below. File permissions should
   be 0640, ownership root:mirrorbrain
