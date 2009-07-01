@@ -75,15 +75,16 @@ def make_hashes(src, src_statinfo, dst, opts):
     lines = []
     for line in o.readlines():
         if re.match(line_mask, line):
+            line = line.replace('\t\t', ' ' * 6)
             lines.append(line)
 
 
     # if present, add PGP signature into the <verification> block
     if os.path.exists(src + '.asc'):
         sig = open(src + '.asc').read()
-        sig = '\t\t\t<signature type="pgp" file="%s.asc">\n\n' % os.path.basename(src) + \
+        sig = '        <signature type="pgp" file="%s.asc">\n' % os.path.basename(src) + \
               sig + \
-              '\n\t\t\t</signature>\n'
+              '\n        </signature>\n'
 
         lines.insert(1, sig)
 
