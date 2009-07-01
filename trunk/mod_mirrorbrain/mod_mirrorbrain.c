@@ -1531,7 +1531,7 @@ static int mb_handler(request_rec *r)
          * We use r->uri, not r->unparsed_uri, so we don't need to escape query strings for xml.
          */
         ap_rprintf(r, "  origin=\"http://%s%s.metalink\"\n", r->hostname, r->uri);
-        ap_rputs(     "  generator=\"MirrorBrain - http://mirrorbrain.org/\"\n", r);
+        ap_rputs(     "  generator=\"MirrorBrain "MOD_MIRRORBRAIN_VER" (see http://mirrorbrain.org/)\"\n", r);
         ap_rputs(     "  type=\"dynamic\"", r);
         ap_rprintf(r, "  pubdate=\"%s\"", time_str);
         ap_rprintf(r, "  refreshdate=\"%s\">\n\n", time_str);
