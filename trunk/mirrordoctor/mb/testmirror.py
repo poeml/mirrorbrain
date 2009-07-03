@@ -75,7 +75,13 @@ def probe(S, http_method='GET'):
                 print 'unhandled HTTP response code %r for URL %r' % (S.http_code, S.probeurl)
         elif S.scheme == 'ftp':
             # this works for directories. Not tested for files yet
-            out = response.readline()
+            try:
+                out = response.readline()
+            except socket.timeout:
+                # on an FTP URL with large directory, the listing may take longer than our socket TIMEOUT
+                sys.stderr.write("\n%s timed out (%s)\n" % (S.identifier, S.probeurl))
+                out = ''
+
             if len(out):
                 has_file = True
             else:
