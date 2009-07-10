@@ -183,6 +183,9 @@ class MirrorDoctor(cmdln.Cmdln):
             print s
 
 
+    @cmdln.option('--other-countries', action='store_true',
+                        help='also display other countries that '
+                             'a mirror is configured to handle')
     @cmdln.option('--country', action='store_true',
                         help='also display the country')
     @cmdln.option('--region', action='store_true',
@@ -228,6 +231,8 @@ class MirrorDoctor(cmdln.Cmdln):
                 s.append('%2s' % mirror.region)
             if opts.country:
                 s.append('%2s' % mirror.country)
+            if opts.other_countries:
+                s.append('%2s' % mirror.otherCountries)
             if opts.asn:
                 s.append('%5s' % mirror.asn)
             if opts.prefix:
