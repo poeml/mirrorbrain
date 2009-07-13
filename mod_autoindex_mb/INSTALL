@@ -1,1 +1,21 @@
+mod_autoindex_mb is a patched mod_autoindex. It adds a little further
+capability as index option.
+
+The provided mod_autoindex.c.patch shows the differences to the original module.
+This patch is *not* meant to be applied to mod_autoindex in the httpd source tree.
+It merely serves to illustrate in which way mod_autoindex_mb differs from
+mod_autoindex.
+
+Only one module can be loaded at a time - either mod_autoindex or mod_autoindex_mb.
+The two modules can not usefully run side by side, because they share the same 
+configuration directives.
+The module name differs, so that it can be explicit which module is loaded.
+
+
+The module can be compiled like this:
 apxs2 -c '-Wc,-Wall -g -D_GNU_SOURCE' mod_autoindex_mb.c
+
+(I can't remember why I needed the _GNU_SOURCE. It was on Linux and was probably
+related to filesystem access. The module should work on any platform, of course.)
+
+poeml, Tue Jul 14 01:02:15 CEST 2009

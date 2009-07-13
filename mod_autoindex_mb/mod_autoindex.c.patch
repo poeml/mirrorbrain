@@ -1,7 +1,13 @@
 This patch is not meant to be applied to mod_autoindex in the httpd source tree.
 It is meant to illustrate in what way mod_autoindex_mb differs from mod_autoindex.
-The two modules can run side by side.
-Hence the differing module name.
+
+Only one module can be loaded at a time - either mod_autoindex or mod_autoindex_mb.
+The two modules can not usefully run side by side, because they share the same 
+configuration directives.
+The module name differs, so that it can be explicit which module is loaded.
+
+(It would not be straightforward to change mod_autoindex_mb as much as to allow
+installing it side-by-side).
 
 --- mod_autoindex.c	2008-11-29 22:47:13.000000000 +0100
 +++ mod_autoindex_mb.c	2009-03-10 00:41:41.651357000 +0100
@@ -13,7 +19,7 @@ Hence the differing module name.
 + *
 + * For use with transparent metalink generators, like mod_mirrorbrain 
 + * (http://mirrorbrain.org)
-+ * Based on mod_autoindex from httpd 2.2.8
++ * Based on mod_autoindex from httpd 2.2.11
 + * 
 + * Peter Poeml
 + * 2008-04-19
