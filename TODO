@@ -1,9 +1,5 @@
 Missing features:
 
-* mb probefile: follow redirects. Testcase:
-  http://distro.ibiblio.org/pub/linux/distributions/opensuse/factory/iso/openSUSE-NET-i586-Build0138-Media.iso
-  which "blindly" redirects to an FTP server (by URL rewriting), but the file isn't there.
-
 * mirrorprobe: does it deal with FTP urls entered as baseurl (which is meant for HTTP)?
 
 * make ZrkadloExcludeNetwork work by prefix match, instead of simple string
@@ -29,12 +25,6 @@ Improvements:
   metalink-hashes-dir by appending .md5, would shadow existing .md5 files;
   likewise for sha1 files.  But it would still be worthwhile and it wouldn't
   matter I guess.
-
-* ?mirrorlist mirror lists: set Vary header on X-AS?
-  make it more cacheable?
-  Cf. http://redbot.org/?uri=http%3A%2F%2Fdownload.opensuse.org%2Frepositories%2FApache%2FFedora_10%2FApache.repo%3Fmirrorlist
-  Metalinks:
-  make less cacheable?
 
 
 Further ideas:

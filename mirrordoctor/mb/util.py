@@ -1,7 +1,4 @@
 import sys, os
-import time
-
-t_start = 0
 
 
 class Afile:
@@ -24,47 +21,6 @@ class IpAddress:
         self.prefix = None
     def __str__(self):
         return '%s (%s AS%s)' % (self.ip, self.prefix, self.asn)
-
-
-class Sample:
-    """used for probe results."""
-    def __init__(self, identifier, probebaseurl, filename, 
-                 get_digest=False, get_content=False):
-        self.identifier = identifier
-        self.probebaseurl = probebaseurl
-        self.filename = filename
-        self.has_file = False
-        self.http_code = None
-        self.get_digest = get_digest
-        self.digest = None
-        self.get_content = get_content
-        self.content = None
-
-        if self.probebaseurl.startswith('http://'):
-            self.scheme = 'http'
-        elif self.probebaseurl.startswith('ftp://'): 
-            self.scheme = 'ftp'
-        elif self.probebaseurl.startswith('rsync://') \
-                or ('://' not in self.probebaseurl and '::' in self.probebaseurl):
-            self.scheme = 'rsync'
-        else:
-            raise 'unknown url type: %s' % self.probebaseurl
-
-        self.probeurl = self.probebaseurl.rstrip('/') + '/' + self.filename.lstrip('/')
-
-        # checksumming content implies downloading it
-        if self.get_digest:
-            self.get_content = True
-
-
-    def __str__(self):
-        s = 'M: %s %s, has_file=%s' \
-                % (self.identifier, self.probeurl, self.has_file)
-        if self.http_code:
-            s += ', http_code=%s' % self.http_code
-        if self.digest:
-            s += ', digest=%s' % self.digest
-        return s
 
 
 def data_url(basedir, path):
@@ -149,22 +105,3 @@ def edit_file(data, boilerplate = None):
                 return
             else:
                 pass
-
-
-def timer_start():
-    global t_start
-    t_start = time.time()
-
-
-def timer_elapsed():
-    global t_start
-
-    t_end = time.time()
-    t_delta = t_end - t_start
-    if t_delta > 60 * 60: 
-        return '%s hours' % round((t_delta / 60 / 60), 1)
-    elif t_delta > 60:
-        return '%s minutes' % round((t_delta / 60), 1)
-    else:
-        return '%s seconds' % int(t_delta)
-
