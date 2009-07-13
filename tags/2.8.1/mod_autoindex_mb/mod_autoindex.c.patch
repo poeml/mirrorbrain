@@ -1,0 +1,142 @@
+This patch is not meant to be applied to mod_autoindex in the httpd source tree.
+It is meant to illustrate in what way mod_autoindex_mb differs from mod_autoindex.
+The two modules can run side by side.
+Hence the differing module name.
+
+--- mod_autoindex.c	2008-11-29 22:47:13.000000000 +0100
++++ mod_autoindex_mb.c	2009-03-10 00:41:41.651357000 +0100
+@@ -25,6 +25,16 @@
+  * Version sort added by Martin Pool <mbp@humbug.org.au>.
+  */
+ 
++/* mod_autoindex_mb.c: Optionally adds metalinks and mirrorlists to the HTML
++ *
++ * For use with transparent metalink generators, like mod_mirrorbrain 
++ * (http://mirrorbrain.org)
++ * Based on mod_autoindex from httpd 2.2.8
++ * 
++ * Peter Poeml
++ * 2008-04-19
++ */
++
+ #include "apr_strings.h"
+ #include "apr_fnmatch.h"
+ #include "apr_strings.h"
+@@ -45,7 +55,7 @@
+ 
+ #include "mod_core.h"
+ 
+-module AP_MODULE_DECLARE_DATA autoindex_module;
++module AP_MODULE_DECLARE_DATA autoindex_mb_module;
+ 
+ /****************************************************************
+  *
+@@ -71,6 +81,8 @@ module AP_MODULE_DECLARE_DATA autoindex_
+ #define IGNORE_CASE         (1 << 16)
+ #define EMIT_XHTML          (1 << 17)
+ #define SHOW_FORBIDDEN      (1 << 18)
++#define METALINK            (1 << 28)
++#define MIRRORLIST          (1 << 29)
+ 
+ #define K_NOADJUST 0
+ #define K_ADJUST 1
+@@ -159,7 +171,7 @@ static void emit_preamble(request_rec *r
+     autoindex_config_rec *d;
+ 
+     d = (autoindex_config_rec *) ap_get_module_config(r->per_dir_config,
+-                                                      &autoindex_module);
++                                                      &autoindex_mb_module);
+ 
+     if (xhtml) {
+         ap_rvputs(r, DOCTYPE_XHTML_1_0T,
+@@ -405,6 +417,12 @@ static const char *add_opts(cmd_parms *c
+         else if (!strcasecmp(w, "ShowForbidden")) {
+             option = SHOW_FORBIDDEN;
+         }
++        else if (!strcasecmp(w, "Mirrorlist")) {
++            option = MIRRORLIST;
++        }
++        else if (!strcasecmp(w, "Metalink")) {
++            option = METALINK;
++        }
+         else if (!strcasecmp(w, "None")) {
+             if (action != '\0') {
+                 return "Cannot combine '+' or '-' with 'None' keyword";
+@@ -1125,7 +1143,8 @@ static void emit_head(request_rec *r, ch
+  * instead of a text document, meaning nothing will be displayed, but
+  * oh well.
+  */
+-static void emit_tail(request_rec *r, char *readme_fname, int suppress_amble)
++static void emit_tail(request_rec *r, char *readme_fname, int suppress_amble,
++                      int show_mb_sig)
+ {
+     apr_file_t *f = NULL;
+     request_rec *rr = NULL;
+@@ -1179,6 +1198,9 @@ static void emit_tail(request_rec *r, ch
+     if (!suppress_sig) {
+         ap_rputs(ap_psignature("", r), r);
+     }
++    if (!suppress_sig && show_mb_sig) {
++        ap_rputs("<br><address><a href=\"http://mirrorbrain.org/\">MirrorBrain</a> powered by <a href=\"http://httpd.apache.org/\">Apache</a></address>\n", r);
++    }
+     if (!suppress_post) {
+         ap_rputs("</body></html>\n", r);
+     }
+@@ -1844,6 +1866,23 @@ static void output_directories(struct en
+                                                    autoindex_opts,
+                                                    desc_width), r);
+                 }
++                else if ((autoindex_opts & METALINK) || (autoindex_opts & MIRRORLIST)) {
++                    char *desc_scratch;
++                    desc_scratch = apr_palloc(r->pool, desc_width + 1);
++                    memset(desc_scratch, ' ', desc_width);
++                    desc_scratch[desc_width] = '\0';
++                    ap_rputs(desc_scratch, r);
++                }
++            }
++            if (anchor[strlen(anchor)-1] != '/') { /* not for directories */
++                    if (autoindex_opts & MIRRORLIST) {
++                            ap_rvputs(r, " <a href=\"", anchor, 
++                                      "?mirrorlist\">Mirrors</a>", NULL);
++                    }
++                    if (autoindex_opts & METALINK) {
++                            ap_rvputs(r, " <a href=\"", anchor, 
++                                      ".metalink\">Metalink</a>", NULL);
++                    }
+             }
+             ap_rputc('\n', r);
+         }
+@@ -2243,7 +2282,8 @@ static int index_directory(request_rec *
+     apr_dir_close(thedir);
+ 
+     emit_tail(r, find_readme(autoindex_conf, r),
+-              autoindex_opts & SUPPRESS_PREAMBLE);
++              autoindex_opts & SUPPRESS_PREAMBLE,
++              autoindex_opts & (MIRRORLIST | METALINK));
+ 
+     return 0;
+ }
+@@ -2262,7 +2302,7 @@ static int handle_autoindex(request_rec
+     allow_opts = ap_allow_options(r);
+ 
+     d = (autoindex_config_rec *) ap_get_module_config(r->per_dir_config,
+-                                                      &autoindex_module);
++                                                      &autoindex_mb_module);
+ 
+     r->allowed |= (AP_METHOD_BIT << M_GET);
+     if (r->method_number != M_GET) {
+@@ -2301,7 +2341,7 @@ static void register_hooks(apr_pool_t *p
+     ap_hook_handler(handle_autoindex,NULL,NULL,APR_HOOK_MIDDLE);
+ }
+ 
+-module AP_MODULE_DECLARE_DATA autoindex_module =
++module AP_MODULE_DECLARE_DATA autoindex_mb_module =
+ {
+     STANDARD20_MODULE_STUFF,
+     create_autoindex_config,    /* dir config creater */
+@@ -2311,3 +2351,5 @@ module AP_MODULE_DECLARE_DATA autoindex_
+     autoindex_cmds,             /* command apr_table_t */
+     register_hooks              /* register hooks */
+ };
++
++/* vim: set ts=4 sw=4 expandtab smarttab: */

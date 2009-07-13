@@ -1,0 +1,1 @@
+apxs2 -c '-Wc,-Wall -g -D_GNU_SOURCE' mod_autoindex_mb.c
