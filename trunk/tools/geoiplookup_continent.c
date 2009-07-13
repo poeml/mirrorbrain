@@ -25,7 +25,7 @@
 #include <GeoIP.h>
 #include <GeoIPCity.h>
 
-#define DEFAULT_GEOIPFILE "/usr/share/GeoIP/GeoIP.dat"
+#define DEFAULT_GEOIPFILE "/var/lib/GeoIP/GeoIP.dat"
 
 int main(int argc, char **argv) {
 	const char *geoipfilename = DEFAULT_GEOIPFILE;
