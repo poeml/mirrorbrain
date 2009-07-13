@@ -409,7 +409,10 @@ scanner [options] [mirror_ids ...]
   -e        Enable mirror, after it was scanned. Useful with -f.
   -f        Force. Scan listed mirror_ids even if they are not enabled.
   -d dir    Scan only in dir under mirror's baseurl. 
-            Default: start at baseurl.
+            Default: start at baseurl. Consider using -x and or -k with -d .
+  -x        Extra-Schedule run. Do not update 'server.last_scan' tstamp.
+            Default: 'server.last_scan' is updated after each run.
+  -k        Keep dead files. Default: Entries not found again are removed.
 
   -j N      Run up to N scanner queries in parallel.
 
@@ -1088,10 +1091,8 @@ sub rsync_get_filelist
     die("$identifier: $buf\n") if $buf =~ /^\@ERROR/s;
     if($buf =~ /^\@RSYNCD: AUTHREQD /) {
       die("$identifier: '$module' needs authentification, but Digest::MD4 is not installed\n") unless $peer->{have_md4};
-      my ($user,$password)='';
-      # my $user = "nobody"; is not needed IMO
-      $user = $peer->{user} if defined $peer->{user};
-      $password = $peer->{pass} if defined $peer->{pass};
+      my $user = "nobody" if !defined($peer->{user}) || $peer->{user} eq '';
+      my $password = '' unless defined $peer->{password};
       my $digest = "$user ".Digest::MD4::md4_base64("\0\0\0\0$password".substr($buf, 18))."\n";
       swrite(*S, $digest);
       next;

@@ -24,67 +24,75 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 
 
-__version__ = '1.2'
+__version__ = '1.1'
 __author__ = 'Peter Poeml <poeml@suse.de>'
 __copyright__ = 'Peter poeml <poeml@suse.de>'
 __license__ = 'GPLv2'
 __url__ = 'http://mirrorbrain.org'
 
 
-import os
-import os.path
-import stat
-import shutil
+import os, os.path
 import cmdln
 import re
 import subprocess
-import errno
 
 ML_EXTENSION = '.metalink-hashes'
 line_mask = re.compile('.*</*(verification|hash|pieces).*>.*')
 
-def make_hashes(src, src_statinfo, dst, opts):
+def make_hashes(src, dst, opts):
+    src_dir = os.path.dirname(src)
+    src_dir_mode = os.stat(src_dir).st_mode
+    dst_dir = os.path.dirname(dst)
 
+    dst = dst + ML_EXTENSION
+
+    if not opts.dry_run:
+        if not os.path.isdir(dst_dir):
+            os.makedirs(dst_dir, mode = 0755)
+        if opts.copy_permissions:
+            os.chmod(dst_dir, src_dir_mode)
+        else:
+            os.chmod(dst_dir, 0755)
+
+    src_mtime = os.path.getmtime(src)
     try:
-        dst_statinfo = os.stat(dst)
-        dst_mtime = dst_statinfo.st_mtime
-        dst_size = dst_statinfo.st_size
+        dst_mtime = os.path.getmtime(dst)
+        dst_size = os.path.getsize(dst)
     except OSError:
         dst_mtime = dst_size = 0 # file missing
 
-    if dst_mtime >= src_statinfo.st_mtime and dst_size != 0:
+    if dst_mtime >= src_mtime and dst_size != 0:
         if opts.verbose:
-            print 'Up to date: %r' % dst
+            print 'up to date:', src
         return 
 
     cmd = [ 'metalink',
             '--nomirrors', 
             '-d', 'md5', 
             '-d', 'sha1', 
-            '-d', 'sha256', 
             '-d', 'sha1pieces',
             src ]
 
+    if opts.verbose or opts.dry_run:
+        print ' '.join(cmd)
+
     if opts.dry_run: 
-        print 'Would run: ', ' '.join(cmd)
         return
 
-    sys.stdout.flush()
     o = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                     close_fds=True).stdout
     lines = []
     for line in o.readlines():
         if re.match(line_mask, line):
-            line = line.replace('\t\t', ' ' * 6)
             lines.append(line)
 
 
     # if present, add PGP signature into the <verification> block
     if os.path.exists(src + '.asc'):
         sig = open(src + '.asc').read()
-        sig = '        <signature type="pgp" file="%s.asc">\n' % os.path.basename(src) + \
+        sig = '\t\t\t<signature type="pgp" file="%s.asc">\n\n' % os.path.basename(src) + \
               sig + \
-              '\n        </signature>\n'
+              '\n\t\t\t</signature>\n'
 
         lines.insert(1, sig)
 
@@ -93,7 +101,7 @@ def make_hashes(src, src_statinfo, dst, opts):
     d.close()
 
     if opts.copy_permissions:
-        os.chmod(dst, src_statinfo.st_mode)
+        os.chmod(dst, os.stat(src).st_mode)
     else:
         os.chmod(dst, 0644)
 
@@ -101,7 +109,7 @@ def make_hashes(src, src_statinfo, dst, opts):
 class Metalinks(cmdln.Cmdln):
 
     @cmdln.option('-n', '--dry-run', action='store_true',
-                        help='don\'t actually do anything, just show what would be done')
+                        help='don\'t actually do anything')
     @cmdln.option('--copy-permissions', action='store_true',
                         help='copy the permissions of directories and files '
                              'to the hashes files. Normally, this should not '
@@ -110,10 +118,7 @@ class Metalinks(cmdln.Cmdln):
     @cmdln.option('-f', '--file-mask', metavar='REGEX',
                         help='regular expression to select files to create hashes for')
     @cmdln.option('-i', '--ignore-mask', metavar='REGEX',
-                        help='regular expression to ignore certain files or directories. '
-                             'If matching a file, no hashes are created for it. '
-                             'If matching a directory, the directory is ignored and '
-                             'deleted in the target tree.')
+                        help='regular expression to ignore certain files, and don\'t create hashes for them')
     @cmdln.option('-b', '--base-dir', metavar='PATH',
                         help='set the base directory (so that you can work on a subdirectory)')
     @cmdln.option('-t', '--target-dir', metavar='PATH',
@@ -123,21 +128,14 @@ class Metalinks(cmdln.Cmdln):
     def do_update(self, subcmd, opts, startdir):
         """${cmd_name}: Update the hash pieces that are included in metalinks
 
-        Examples:
-
-        metalink-hasher update /srv/mirrors/mozilla -t /srv/metalink-hashes/srv/mirrors/mozilla
+        Example:
 
         metalink-hasher update \\
-            -t /srv/metalink-hashes/srv/ftp/pub/opensuse/repositories/home:/poeml \\
-            /srv/ftp-stage/pub/opensuse/repositories/home:/poeml \\
-            -i '^.*/repoview/.*$'
-
-        metalink-hasher update \\
-            -f '.*.(torrent|iso)$' \\
-            -t /var/lib/apache2/metalink-hashes/srv/ftp/pub/opensuse/distribution/11.0/iso \\
-            -b /srv/ftp-stage/pub/opensuse/distribution/11.0/iso \\
-            /srv/ftp-stage/pub/opensuse/distribution/11.0/iso \\
-            -n
+           -f '.*.(torrent|iso)$' \\
+          -t /var/lib/apache2/metalink-hashes/srv/ftp/pub/opensuse/distribution/11.0/iso \\
+          -b /srv/ftp-stage/pub/opensuse/distribution/11.0/iso \\
+          /srv/ftp-stage/pub/opensuse/distribution/11.0/iso \\
+          -n
 
         ${cmd_usage}
         ${cmd_option_list}
@@ -146,8 +144,7 @@ class Metalinks(cmdln.Cmdln):
         if not opts.target_dir:
             sys.exit('You must specify the target directory (-t)')
         if not opts.base_dir:
-            opts.base_dir = startdir
-            #sys.exit('You must specify the base directory (-b)')
+            sys.exit('You must specify the base directory (-b)')
 
         if not opts.target_dir.startswith('/'):
             sys.exit('The target directory must be an absolut path')
@@ -158,120 +155,40 @@ class Metalinks(cmdln.Cmdln):
         opts.target_dir = opts.target_dir.rstrip('/')
         opts.base_dir = opts.base_dir.rstrip('/')
 
-        directories_todo = [startdir]
+        directories = [startdir]
 
         if opts.ignore_mask: 
             opts.ignore_mask = re.compile(opts.ignore_mask)
         if opts.file_mask: 
             opts.file_mask = re.compile(opts.file_mask)
 
-        unlinked_files = unlinked_dirs = 0
+        while len(directories)>0:
+            directory = directories.pop()
 
-        while len(directories_todo) > 0:
-            src_dir = directories_todo.pop(0)
+            for name in os.listdir(directory):
 
-            try:
-                src_dir_mode = os.stat(src_dir).st_mode
-            except OSError, e:
-                if e.errno == errno.ENOENT:
-                    sys.stderr.write('Directory vanished: %r\n' % src)
+                fullpath = os.path.join(directory,name)
+
+                if os.path.islink(fullpath):
                     continue
 
-            dst_dir = os.path.join(opts.target_dir, src_dir[len(opts.base_dir):].lstrip('/'))
+                if opts.ignore_mask and re.match(opts.ignore_mask, fullpath):
+                    continue
 
-            if not opts.dry_run:
-                if not os.path.isdir(dst_dir):
-                    os.makedirs(dst_dir, mode = 0755)
-                if opts.copy_permissions:
-                    os.chmod(dst_dir, src_dir_mode)
-                else:
-                    os.chmod(dst_dir, 0755)
-
-            src_names = set(os.listdir(src_dir))
-            #print 'doing', src_dir
-            try:
-                dst_names = os.listdir(dst_dir)
-                dst_names.sort()
-            except OSError, e:
-                if e.errno == errno.ENOENT:
-                    sys.exit('\nSorry, cannot really continue in dry-run mode, because directory %r does not exist.\n'
-                             'You might want to create it:\n'
-                             '  mkdir %s' % (dst_dir, dst_dir))
-
-            for i in dst_names:
-                i_path = os.path.join(dst_dir, i)
-                # removal of obsolete files
-                if i.endswith(ML_EXTENSION):
-                    realname = i[:-len(ML_EXTENSION)]
-                    if (realname not in src_names) \
-                       or (opts.ignore_mask and re.match(opts.ignore_mask, i_path)):
-                        print 'Unlinking obsolete %r' % i_path
-                        if not opts.dry_run: 
-                            try:
-                                os.unlink(i_path)
-                            except OSError, e:
-                                sys.stderr.write('Unlink failed for %r: %s\n' \
-                                                    % (i_path, os.strerror(e.errno)))
-                        unlinked_files += 1
-                # removal of obsolete directories
-                else:
-                    if i not in src_names or (opts.ignore_mask and re.match(opts.ignore_mask, i_path)):
-                        if os.path.isdir(i_path):
-                            print 'Recursively removing obsolete directory %r' % i_path
-                            if not opts.dry_run: 
-                                try:
-                                    shutil.rmtree(i_path)
-                                except OSError, e:
-                                    if e.errno == errno.EACCES:
-                                        sys.stderr.write('Recursive removing failed for %r (%s). Ignoring.\n' \
-                                                            % (i_path, os.strerror(e.errno)))
-                                    else:
-                                        sys.exit('Recursive removing failed for %r: %s\n' \
-                                                            % (i_path, os.strerror(e.errno)))
-                            unlinked_dirs += 1
+                if os.path.isfile(fullpath):
+                    if not opts.file_mask or re.match(opts.file_mask, name):
+                        #print fullpath
+                        if opts.base_dir:
+                            target = fullpath[len(opts.base_dir):]
                         else:
-                            print 'Unlinking obsolete %r' % i_path
-                            if not opts.dry_run: 
-                                os.unlink(i_path)
-                            unlinked_files += 1
+                            target = fullpath
+                        target = os.path.join(opts.target_dir, target.lstrip('/'))
+                        if opts.verbose:
+                            print 'target:', target
+                        make_hashes(fullpath, target, opts=opts)
 
-            for src_name in sorted(src_names):
-
-                src = os.path.join(src_dir, src_name)
-
-                if opts.ignore_mask and re.match(opts.ignore_mask, src):
-                    continue
-
-                # stat only once
-                try:
-                    src_statinfo = os.lstat(src)
-                except OSError, e:
-                    if e.errno == errno.ENOENT:
-                        sys.stderr.write('File vanished: %r\n' % src)
-                        continue
-
-                if stat.S_ISLNK(src_statinfo.st_mode):
-                    #print 'ignoring link', src
-                    continue
-
-                if stat.S_ISREG(src_statinfo.st_mode):
-                    if not opts.file_mask or re.match(opts.file_mask, src_name):
-
-                        dst_name = src[len(opts.base_dir):].lstrip('/')
-                        dst = os.path.join(opts.target_dir, dst_name)
-                        #if opts.verbose:
-                        #    print 'dst:', dst
-
-                        make_hashes(src, src_statinfo, dst + ML_EXTENSION, opts=opts)
-
-
-                elif stat.S_ISDIR(src_statinfo.st_mode):
-                    directories_todo.append(src)  # It's a directory, store it.
-
-
-        if  unlinked_files or unlinked_dirs:
-            print 'Unlinked %s files, %d directories.' % (unlinked_files, unlinked_dirs)
-
+                elif os.path.isdir(fullpath):
+                    directories.append(fullpath)  # It's a directory, store it.
 
 
 if __name__ == '__main__':
