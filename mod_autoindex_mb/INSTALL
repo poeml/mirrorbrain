@@ -1,6 +1,19 @@
 mod_autoindex_mb is a patched mod_autoindex. It adds a little further
 capability as index option.
 
+It adds these two options:
+
+        <IfModule mod_autoindex_mb.c>
+            IndexOptions Metalink
+            IndexOptions Mirrorlist
+        </IfModule>
+The Metalink option adds a link named "Metalink" to the index, which links to
+the same file but with ".metalink" appended.
+
+The MirrorList option adds a link named "Mirrors" to the index, which links to
+the same resources but with "?mirrorlist" appended.
+
+
 The provided mod_autoindex.c.patch shows the differences to the original module.
 This patch is *not* meant to be applied to mod_autoindex in the httpd source tree.
 It merely serves to illustrate in which way mod_autoindex_mb differs from
