@@ -75,8 +75,9 @@ don't need mirror selection based on network prefix or autonomous system, you
 don't need to install mod_asn.
 
 .. note::
-   There is a bug in the :program:`mb` tool that it depends on the existance on
-   the database table ``pfx2asn`` which is created when mod_asn is installed.
+   There was a bug in the :program:`mb` tool that it depends on the existance on
+   the database table ``pfx2asn`` which is created when mod_asn is installed. The
+   bug is going to be fixed in the 2.8.2 release.
 
 To install mod_asn, refer to the `its documentation`__.
 
