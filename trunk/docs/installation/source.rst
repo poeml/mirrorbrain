@@ -51,8 +51,9 @@ After installation of mod_mirrorbrain, you'll need to:
 - for the scanner, which is written in Perl, a few Perl modules are required:
   * perl-Config-IniFiles
   * perl-libwww-perl
-  * perl-Digest-MD4 (it is not *really* needed, but prevents an ugly error message)
   * perl-DBD-Pg
+  * perl-TimeDate
+  * perl-Digest-MD4 (it is not *really* needed, but prevents an ugly error message)
 
 - configure the database to use with MirrorBrain, and continue with the respective
   description below:
