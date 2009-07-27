@@ -144,12 +144,17 @@ class Conn:
                 defaultOrder = 'code'
         self.Region = Region
 
-        class Pfx2asn(SQLObject):
-            """the pfx2asn table"""
-            class sqlmeta:
-                fromDatabase = True
-                defaultOrder = 'asn'
-        self.Pfx2asn = Pfx2asn
+        try:
+            class Pfx2asn(SQLObject):
+                """the pfx2asn table"""
+                class sqlmeta:
+                    fromDatabase = True
+                    defaultOrder = 'asn'
+            self.Pfx2asn = Pfx2asn
+        except psycopg2.ProgrammingError:
+            # this is the error which we get if mod_asn doesn't happen
+            # to be installed as well
+            pass
 
         if debug:
             self.Server._connection.debug = True

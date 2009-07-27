@@ -32,7 +32,12 @@ def iplookup(conn, s):
                    ORDER BY ip4r_size(pfx) \
                    LIMIT 1""" % a.ip
 
-    res = conn.Pfx2asn._connection.queryAll(query)
+    try:
+        res = conn.Pfx2asn._connection.queryAll(query)
+    except AttributeError:
+        # we get this error if mod_asn isn't installed as well
+        return a
+
     if len(res) != 1:
         return a
     (a.prefix, a.asn) = res[0]
