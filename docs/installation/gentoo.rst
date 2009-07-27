@@ -64,6 +64,10 @@ Due to lack of a dependency in dev-python/cmdln, you need to do::
 
   emerge unzip
 
+Due to another little lack of a dependency, you also need to do::
+
+  emerge DateTime
+
 
 Now, you can build mirrorbrain (and its components)::
 
