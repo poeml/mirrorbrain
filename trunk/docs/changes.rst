@@ -2,7 +2,7 @@
 Release Notes/Change History
 ============================
 
-Release 2.9.0 (Jul 27, 2009)
+Release 2.9.0 (Jul 28, 2009)
 ----------------------------
 
 * A very hindering restriction in the :program:`mb` tool which made it require
