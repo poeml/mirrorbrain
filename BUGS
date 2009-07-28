@@ -40,7 +40,7 @@ more important bugs at the top!
 
 * check if the Vary header on Accept is added on all requests!
 
-* mod_geoip should be required as mod_form - and Apache should check at
+* mod_geoip should be required hard, as mod_form is - and Apache should check at
   startup. On the other hand, it could be optional, because mod_mirrorbrain
   also works without mod_geoip (distributing requests world-wide, according to
   mirror priorities). So it could be a valid use case to run without mod_geoip.
