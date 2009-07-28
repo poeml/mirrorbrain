@@ -77,7 +77,7 @@
 #define VERSION_COMPONENT "mod_mirrorbrain/"MOD_MIRRORBRAIN_VER
 
 #ifdef NO_MOD_GEOIP
-#define DEFAULT_GEOIPFILE "/usr/share/GeoIP/GeoIP.dat"
+#define DEFAULT_GEOIPFILE "/var/lib/GeoIP/GeoIP.dat"
 #endif
 #ifdef WITH_MEMCACHE
 #define DEFAULT_MEMCACHED_LIFETIME 600
