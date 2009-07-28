@@ -49,9 +49,9 @@ Release 2.9.0 (Jul 27, 2009)
   
   * :program:`mb scan`
   
-      - Logging output was considerably improved, avoiding lots of ugly
-        messages which look like real errors (and tend to cover real ones)
-      - The time that a scan took is now shown. 
+    - Logging output was considerably improved, avoiding lots of ugly
+      messages which look like real errors (and tend to cover real ones)
+    - The time that a scan took is now shown. 
   
   * :program:`mb new` 
 
@@ -220,16 +220,16 @@ Release 2.5 (Feb 3, 2009)
 * working on the INSTALL documentation
 * scanner: 0.22
 
-   - more efficient SQL statement handling
-   - output much improved
-   - added SQL logging option for debugging
+  - more efficient SQL statement handling
+  - output much improved
+  - added SQL logging option for debugging
 
 * :program:`mb` (mirrorbrain tool): 
 
-   - bugfix in the :program:`mb file` command: make patterns work which have a
-     wildcard as first character.
-   - extend :program:`mb scan` to accept ``-v`` and ``--sql-debug`` and pass it
-     to the scanner
+  - bugfix in the :program:`mb file` command: make patterns work which have a
+    wildcard as first character.
+  - extend :program:`mb scan` to accept ``-v`` and ``--sql-debug`` and pass it
+    to the scanner
 
 
 Release 2.4 (Jan 23, 2009)
@@ -256,11 +256,11 @@ Release 2.3 (Dec 13, 2008)
   a certain subtree.)
 * improvements and few features in the toolchain:
 
-   - the mirrorprobe now does GET requests instead of HEAD requests.
-   - :program:`mb`, the mirrorbrain tool, has a powerful :program:`mb
-     probefile` command now that can check for existance of a file on all
-     mirrors, probing all URLs. This is especially useful for checking whether
-     the permission setup for staged content is correct on all mirrors.
+  - the mirrorprobe now does GET requests instead of HEAD requests.
+  - :program:`mb`, the mirrorbrain tool, has a powerful :program:`mb
+    probefile` command now that can check for existance of a file on all
+    mirrors, probing all URLs. This is especially useful for checking whether
+    the permission setup for staged content is correct on all mirrors.
 
 * new database fields: ``public_notes``, ``operator_name``, ``operator_url``
 * new database tables: ``country``, ``region``
@@ -296,14 +296,14 @@ Release 1.9 (Oct 26, 2008)
 * embed PGP signatures (.asc files) into metalinks
 * add configurable CSS stylesheet to mirror lists
 
-- :program:`mod_zrkadlo`:
+* :program:`mod_zrkadlo`:
 
- - implement the redirection exceptions (file too small, mime type not allowed
-   to be redirected etc) for transparently negotiated metalinks.
- - add ``Vary`` header on all transparently negotiated resources.
- - allow to use the apache module and all tools with multiple instances of the
-   mirrorbrain. Now, one machine / one Apache can host multiple separate
-   instances, each in a vhost.
+  - implement the redirection exceptions (file too small, mime type not allowed
+    to be redirected etc) for transparently negotiated metalinks.
+  - add ``Vary`` header on all transparently negotiated resources.
+  - allow to use the apache module and all tools with multiple instances of the
+    mirrorbrain. Now, one machine / one Apache can host multiple separate
+    instances, each in a vhost.
 
 * new, better implementation of rsyncusers tool
 * bugfixes in the scanner, mainly for scanning via HTML
