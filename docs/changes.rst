@@ -5,80 +5,93 @@ Release Notes/Change History
 Release 2.9.0 (Jul 27, 2009)
 ----------------------------
 
-* the Subversion repository was moved to 
-  http://svn.mirrorbrain.org/svn/mirrorbrain/trunk/
+* A very hindering restriction in the :program:`mb` tool which made it require
+  `mod_asn <http://mirrorbrain.org/mod_asn/>`_ to be installed alongside
+  MirrorBrain has been removed. MirrorBrain can now be installed without
+  installing mod_asn.
+
+* The Subversion repository was moved to 
+  http://svn.mirrorbrain.org/svn/mirrorbrain/trunk/.
 
 * rsync authentication was fixed. Credentials given in rsync URLs in the form of
-  `rsync://<username>:<password>@<host>/<module>` now work as expected. Patch
+  ``rsync://<username>:<password>@<host>/<module>`` now work as expected. Patch
   by Lars Vogdt.
 
-* the documentation has been moved into a docs subdirectory, and is rewritten in
-  reStructured Text format, from which HTML is be generated via Sphinx
-  (http://sphinx.pocoo.org/). Whenever the documentation is changed in subversion,
-  the changes automatically get online on http://mirrorbrain.org/docs/
+* The documentation has been moved into a `docs subdirectory
+  <http://svn.mirrorbrain.org/svn/mirrorbrain/trunk/docs/>`_, and is rewritten
+  in reStructured Text format, from which HTML is be generated via Sphinx
+  (http://sphinx.pocoo.org/). Whenever the documentation is changed in
+  subversion, the changes automatically get online on
+  http://mirrorbrain.org/docs/
 
-
-* Parallelized mirror probing.  Note: for this new feature, the Python module
-  `processing` or `multiprocessing` needs to be installed.  If none of them is
+* Parallelized mirror probing.  Note: for this new feature, the Python modules
+  :mod:`processing` or :mod:`multiprocessing` need to be installed.  If none of them is
   found, the fallback behaviour is to probe serially, like it was done before.
-  This new feature doesn't affeect the mirrorprobe, which runs threaded, but
-  the mb probefile and file commands. It also affects the scanner to speed up
-  the checks done when only a subdirectory is scanned.
+  This new feature affects the :program:`mb probefile` and :program:`mb file`
+  commands, and not actually the mirrorprobe, which has always ran threaded. It
+  also affects the scanner (:program:`mb scan`) to speed up the checks done
+  when only a subdirectory is scanned.
 
-* :program:`mb` tool:
+* Various new features were implemented in the :program:`mb` tool:
 
-  * :program:`mb probefile`:
+  * :program:`mb probefile`
   
     - Implemented downloading (and displaying) of content.
-    - An `--urls` switch was added, to select the kind of URLs to be probed.
+    - A ``--urls`` switch was added, to select the kind of URLs to be probed.
   
-      - `--urls=scan` probes the URLs that would be used in scanning.
-      - `--urls=http` probes the (HTTP) base URLs used in redirection.
-      - `--urls=all` probes all registered URLs.
+      - ``--urls=scan`` probes the URLs that would be used in scanning.
+      - ``--urls=http`` probes the (HTTP) base URLs used in redirection.
+      - ``--urls=all`` probes all registered URLs.
   
-    - Proxy envvars are unset before probing.
-    - report the mirror identifier for FTP socket timeouts
+    - The usual proxy environment variables are unset before probing
+      (:envvar:`http_proxy`, :envvar:`HTTP_PROXY`, :envvar:`ftp_proxy`, :envvar:`FTP_PROXY`)
+    - Report the mirror identifier for FTP socket timeouts
   
-  * :program:`mb scan`:
+  * :program:`mb scan`
   
-      - Considerably improved logging output, avoiding lots of ugly
+      - Logging output was considerably improved, avoiding lots of ugly
         messages which look like real errors (and tend to cover real ones)
-      - Now showing how long scanning took.
+      - The time that a scan took is now shown. 
   
-  * :program:`mb new`: 
-    - try different geoip database locations (GeoIP database was
-      moved around...).  
+  * :program:`mb new` 
+
+    - while looking up a mirror's location when a new mirror is added, try
+      different geoip database locations (GeoIP database was moved around on
+      openSUSE...).  
     - prefer the larger city lite database, if available, and prefer updated
-      copies that were fetched with the geoip-lite-update tool.
+      copies that were fetched with the :program:`geoip-lite-update` tool.
 
-  * :program:`mb list`: add `--other-countries` option to allow displaying the
-    countries that a mirror is configured to handle in addition to its own
-    country
+  * :program:`mb list` 
 
+    - add ``--other-countries`` option to allow displaying the
+      countries that a mirror is configured to handle in addition to its own
+      country
 
-* :program:`mod_mirrorbrain`: in the "generator" tag of metalinks, include
+* :program:`mod_mirrorbrain`: in the ``generator`` tag of metalinks, include
   mod_mirrorbrain's version string
 
-* :program:`metalink-hasher`:
+* The :program:`metalink-hasher` tool has been revised to implement a number of
+  lacking features:
 
-  - automatic removal of old hashes, which don't have a pendant in
-    the file tree anymore, was implemented.
+  - Automatic removal of old hashes, which don't have a pendant in
+    the file tree anymore, is implemented now.
+  - A summary of deletions is printed after a run.
   - A number of things were optimized to run more efficiently on
-    huge trees, mainly by eliminating all redundant `stat()` calls.
+    huge trees, mainly by eliminating all redundant :func:`stat` calls.
   - sha256 was added to the list of digests to generated.
-  - the need to specify the `-b` (`--base-dir`) option was eliminated,
+  - The need to specify the ``-b`` (``--base-dir``) option was eliminated,
     which makes the command easier to use.
-  - the order in which the tool works through the todo list of directories
+  - The order in which the tool works through the todo list of directories
     was changed to be alphabetical.
-  - using a "set" builtin type instead of a list can speed up finding
+  - Using a Python :func:`set` builtin type instead of a list can speed up finding
     obsolete files in the destination directory by 10 times, for huge
     directories.
-  - improvements in output and program help
-  - print a summary of deletions
-  - catch (and ignore) various errors, as vanishing directories and
+  - The program output and program help was improved generally. 
+  - Various errors are caught and/or ignored, like vanishing directories and
     exceptions encountered when recursively removing ignored directories.
-  - correct the indentation of verification containers
-  - version bumped (1.2)
+  - The indentation of verification containers was corrected, so it looks sane
+    in the metalink in the end.
+  - The version was bumped to 1.2.
 
 
 * :program:`geoip-lite-update`: This tool to fetch GeoIP databases has been
@@ -88,11 +101,12 @@ Release 2.9.0 (Jul 27, 2009)
   well, so to continue to work in a previous setup.
 
 
-* mirrorprobe:
-  - a logrotate snippet was added
-  - the mirrorprobe logfile was moved to the :file:`/var/log/mirrorbrain/` directory
+* :program:`mirrorprobe`
 
-* the openSUSE RPM package now creates a user and group named `mirrorbrain`
+  - A logrotate snippet was added.
+  - The mirrorprobe logfile was moved to the :file:`/var/log/mirrorbrain/` directory.
+
+* The openSUSE RPM package now creates a user and group named `mirrorbrain`
   upon installation. Also, it packages a runtime directory
   :file:`/var/run/mirrorbrain` (which is cleaned up upon booting) and a log directory
   :file:`/var/log/mirrorbrain`. Some additional Requires have been added, on the
@@ -100,224 +114,244 @@ Release 2.9.0 (Jul 27, 2009)
 
 
 
+Release 2.8.1 (Jun 5, 2009)
+---------------------------
+
+* Python 2.6 compatibility fixes:
+
+  - :program:`mb file ls` ``--md5`` now uses the :mod:`hashlib` module, if
+    available (this fixes a DepracationWarning given by Python 2.6 when
+    importing the :mod:`md5` module).
+  - :program:`mb list`: The ``--as`` option had to be renamed to ``--asn``,
+    because ``as`` is a reserved keyword in Python, and Python 2.6 is more strict
+    about noticing this also in cases where just used as an attribute.
+  - The ``b64_md5`` function was removed, which was no longer used since a while.
+
+* :program:`mb file ls`
+
+  - make the ``--md5`` option imply the ``--probe`` option
+
+* :program:`mb export`
+
+  - when exporting metadata for import into a VCS (version control system),
+    handle additions and deletions
+
+* The docs were updated to point to new RPM packages in the openSUSE build service (in
+  a repository named `Apache:MirrorBrain <http://download.opensuse.org/repositories/Apache:/MirrorBrain/>`_).
+  The formerly monolithic package has been split up into subpackages.
+
+* perl-Config-IniFiles was added to the list of perl packages required by the
+  scanner (:program:`mb scan`)
 
 
+Release 2.8 (Mar 31, 2009)
+--------------------------
 
-
-Fri Jun  5 14:09:40 CEST 2009
-- MirrorBrain 2.8.1
-  - Python 2.6 compatibility fixes:
-    - mb file ls --md5: use hashlib module, if available (this fixes a
-      DepracationWarning given by Python 2.6 when importing the md5 module)
-    - mb list: the --as option had to be renamed to --asn, because "as" is a
-      reserved keyword in Python, and Python 2.6 is more strict about noticing
-      this also in cases where just used as an attribute.
-    - remove the b64_md5 function, which is no longer used since a while
-  - mb file ls:
-    - make the --md5 imply the --probe option
-  - mb export: 
-    - when exporting metadata for import into a VCS, handle additions and deletions
-  - update docs to point to new RPM packages in the openSUSE build service (in
-    a repository named Apache:MirrorBrain). The formerly monolithic package has
-    been split up into subpackages.
-  - perl-Config-IniFiles added to the list of perl packages required by the
-    scanner
-
-
-Tue Mar 31 02:10:38 CEST 2009
-- MirrorBrain 2.8
-- Improvements in the scanner, mainly with regard to the definition of
+* Improvements in the scanner, mainly with regard to the definition of
   patterns for files (and directories) that are to be included from scanning.
   Old, hardcoded stuff from the scanner has been removed. Now, excludes can be
-  defined in /etc/mirrorbrain.conf by scan_exclude and scan_exclude_rsync
-  directive. 
+  defined in :file:`/etc/mirrorbrain.conf` by the ``scan_exclude`` and
+  ``scan_exclude_rsync`` directives. 
   The former takes regular expressions and is effective for FTP and HTTP scans,
   while the latter takes rsync patterns, which are passed directly to the
   remote rsync daemon.
   See http://mirrorbrain.org/archive/mirrorbrain-commits/0140.html for details.
   This can decrease the size of the database (>20% for openSUSE), and for many
   mirrors it considerably shortens the scan time.
-- Fixed a bug where the scanner aborted when encountering filenames in (valid
+* Fixed a bug where the scanner aborted when encountering filenames in (valid
   or invalid) UTF-8 encoding. See https://bugzilla.novell.com/show_bug.cgi?id=490009
-- Improved the implementation of exclusions as well as the top-level-inclusion
+* Improved the implementation of exclusions as well as the top-level-inclusion
   pattern, which were not correctly implemented to work in subdir scans. 
-- The documentation was enhanced in some places.
-- mod_autoindex_mb (which is based on mod_autoindex) was rebased on httpd-2.2.11.
-- mb dirs: new subcommand for showing directories that the database contains,
+* The documentation was enhanced in some places.
+* mod_autoindex_mb (which is based on mod_autoindex) was rebased on httpd-2.2.11.
+* :program:`mb dirs``: new subcommand for showing directories that the database contains,
   useful to tune scan exclude patterns.
-- mb export: implement a new output format, named "vcs". Can be used to commit
+* :program:`mb export``: implement a new output format, named ``vcs``. Can be used to commit
   changes to a subversion repository and get change notifications from it. See 
   http://mirrorbrain.org/archive/mirrorbrain-commits/0152.html
-- Partial deletions (for subdir scans) have been implemented.
-- mb list accept --country --region --prefix --as --prio options to influence
-  which details are output by it.
-- mb file: support for probing files, with optional md5 hash check of the
+* Partial deletions (for subdir scans) have been implemented.
+* :program:`mb list`` accept ``--country`` ``--region`` ``--prefix`` ``--as``
+  ``--prio`` options to influence which details are output by it.
+* :program:`mb file``: support for probing files, with optional md5 hash check of the
   downloaded content.
-- The latter three changes have already been described in more detail at
+* The latter three changes have already been described in more detail at
   http://mirrorbrain.org/news_items/2.7_mb_toolchain_work
 
 
-Wed Mar  4 16:40:06 CET 2009
-- MirrorBrain 2.7
-- Completely reworked the file database. It is 5x faster and one third the
+Release 2.7 (Mar 4, 2009)
+-------------------------
+
+* Completely reworked the file database. It is 5x faster and one third the
   size. Instead of a potentially huge relational table including timestamps (48
   bytes per row), files and associations are now in a single table, using
   smallint arrays for the mirror ids. This makes the table 5x faster and 1/3
   the size. In addition, we need only a single index on the path, which is a
   small and very fast b-tree.  This also gives us a good search, and the chance
   to do partial deletions (e.g. for a subtree).
-- With this change, MySQL is no longer supported. The core, mod_mirrorbrain,
+* With this change, MySQL is no longer supported. The core, mod_mirrorbrain,
   would still work fine, but the toolchain around is quite a bit specific to
   the PostgreSQL database scheme now. If there's interest, MySQL support in the
   toolchain can be maintained as well.
-- many little improvements in the toolchain were made.
-- Notably, the scanner has been improved to be more efficient and give better
+* many little improvements in the toolchain were made.
+* Notably, the scanner has been improved to be more efficient and give better
   output.
-- mirror choice can be influenced for testing with a query parameter (as=),
+* mirror choice can be influenced for testing with a query parameter (``as=``),
   specifying the autonomous system number.
 
 
-Fri Feb 13 08:18:42 CET 2009
-- MirrorBrain 2.6 
-- supports additional, finer mirror selection, based on network
+Release 2.6 (Feb 13, 2009)
+--------------------------
+
+* supports additional, finer mirror selection, based on network
   topological criteria, network prefix and autonomous system number, using
-  mod_asn and global routing data.
-  
-
-Fri Feb 13 02:39:45 CET 2009
-- updated database schemes and toolchain -- PostgreSQL support is solid now
-- work on installation documentation for both MySQL and PostgreSQL
+  `mod_asn <http://mirrorbrain.org/mod_asn/>`_ and global routing data.
+* updated database schemes and toolchain -- PostgreSQL support is solid now
+* work on installation documentation for both MySQL and PostgreSQL
   (the latter is recommended now, because it allows for nifty features in the
-  future. The mb tool has an export subcommand now, perfect to migrate the
-  database.)
-- toolchain work
+  future. The :program:`mb` tool has an :program:`mb export` subcommand now,
+  perfect to migrate the database.)
+* toolchain work
 
 
-Tue Feb  3 10:38:02 CET 2009
-- version 2.5
-- working on PostgreSQL support
-- working on the INSTALL documentation
-- scanner: 0.22
+Release 2.5 (Feb 3, 2009)
+-------------------------
+
+* working on PostgreSQL support
+* working on the INSTALL documentation
+* scanner: 0.22
+
    - more efficient SQL statement handling
    - output much improved
    - added SQL logging option for debugging
-- mb (mirrorbrain tool): 
-   - bugfix in the file command: make patterns work which have a wildcard as
-     first character.
-   - extend "mb scan" to accept -v and --sql-debug and pass it to the scanner
+
+* :program:`mb` (mirrorbrain tool): 
+
+   - bugfix in the :program:`mb file` command: make patterns work which have a
+     wildcard as first character.
+   - extend :program:`mb scan` to accept ``-v`` and ``--sql-debug`` and pass it
+     to the scanner
 
 
-Fri Jan 23 17:20:00 CET 2009
-- version 2.4
-- rename mod_zrkadlo to mod_mirrorbrain
-- use mod_geoip for GeoIP lookups, instead of doing it ourselves. We can now use
-  the GeoIP city database for instance 
-- handle satellite "country" called A2
-- auto-reenable dead mirrors
-- geoiplookup_city added, new tool to show details from GeoIP city databases
-- geoip-lite-update tool updated, with adjusted URL for GeoLite databases. It
+Release 2.4 (Jan 23, 2009)
+--------------------------
+
+* rename :program:`mod_zrkadlo` to :program:`mod_mirrorbrain`
+* use `mod_geoip <http://www.maxmind.com/app/mod_geoip>`_ for GeoIP lookups,
+  instead of doing it ourselves. We can now use the GeoIP city database for instance
+* handle satellite "country" called ``A2``
+* auto-reenable dead mirrors
+* :program:`geoiplookup_city` added, new tool to show details from GeoIP city databases
+* :program:`geoip-lite-update` tool updated, with adjusted URL for GeoLite databases. It
   also downloads the city database now.
-- deprecate "clientip" query parameter, which can no longer work
-  once we use mod_geoip. Implement 'country" parameter that can be used instead.
-- make memcache support optional at compile time
+* deprecate ``clientip`` query parameter, which can no longer work
+  once we use mod_geoip. Implement ``country`` parameter that can be used instead.
+* make memcache support optional at compile time
 
 
-Sat Dec 13 20:04:53 CET 2008
-- add commandline tool to edit marker files. (Marker files are used to generate
+Release 2.3 (Dec 13, 2008)
+--------------------------
+
+* add commandline tool to edit marker files. (Marker files are used to generate
   mirror lists. Each marker file is used to determine whether a mirror mirrors
   a certain subtree.)
+* improvements and few features in the toolchain:
 
-Sat Dec 13 13:51:33 CET 2008
-- improvements and few features in the toolchain:
    - the mirrorprobe now does GET requests instead of HEAD requests.
-   - mb, the mirrorbrain tool, has a powerful "probefile" command now that can
-     check for existance of a file on all mirrors, probing all URLs. This is
-     especially useful for checking whether the permission setup for staged 
-     content is correct on all mirrors.
-- new database fields: public_notes, operator_name, operator_url
-- new database tables: country & region
+   - :program:`mb`, the mirrorbrain tool, has a powerful :program:`mb
+     probefile` command now that can check for existance of a file on all
+     mirrors, probing all URLs. This is especially useful for checking whether
+     the permission setup for staged content is correct on all mirrors.
 
-Sat Dec  6 12:15:13 CET 2008
-- generate mirror lists
+* new database fields: ``public_notes``, ``operator_name``, ``operator_url``
+* new database tables: ``country``, ``region``
+* generate mirror lists
 
-Sat Nov 22 15:58:46 CET 2008
-- release MirrorBrain 2.2:
-  - simplified database layout, with additional space save.
 
-Sun Nov  9 15:20:03 CET 2008
-- release MirrorBrain 2.1
-  - simplified the Apache configuration: It is no longer needed to configure a
-    database query. At the same time it's less error-prone and avoids trouble
-    if one forgets to update the query, when the database schema changes. 
-  - specific mirrors can be now configured to get only requests for files < n bytes
+Release 2.2 (Nov 22, 2008)
+--------------------------
 
-Mon Nov  3 11:04:04 CET 2008
-- release MirrorBrain 2.0
-  - implement better fallback mirror selection
-  - add tool to list/add/rm files in the mirror database
+* simplified database layout, with additional space save.
 
-Sun Oct 26 18:07:52 CET 2008
-- mod_zrkadlo 1.9:
-  - add bittorrent links (to found .torrent files) into metalinks
-  - embed PGP signatures (.asc files) into metalinks
-  - add configurable CSS stylesheet to mirror lists
 
-Fri Sep 19 21:08:42 CET 2008
+Release 2.1 (Nov 9, 2008)
+-------------------------
+
+* simplified the Apache configuration: It is no longer needed to configure a
+  database query. At the same time it's less error-prone and avoids trouble
+  if one forgets to update the query, when the database schema changes. 
+* specific mirrors can be now configured to get only requests for files < n bytes
+
+
+Release 2.0 (Nov 3, 2008)
+-------------------------
+
+* implement better fallback mirror selection
+* add :program:`mb file` tool to list/add/rm files in the mirror database
+
+
+Release 1.9 (Oct 26, 2008)
+--------------------------
+
+* add bittorrent links (to all .torrent files that are found) into metalinks
+* embed PGP signatures (.asc files) into metalinks
+* add configurable CSS stylesheet to mirror lists
+
+- :program:`mod_zrkadlo`:
+
  - implement the redirection exceptions (file too small, mime type not allowed
    to be redirected etc) for transparently negotiated metalinks.
- - add Vary header on all transparently negotiated resources.
-- new, better implementation of rsyncusers tool
-- improved mirrordoctor tool
-- bugfixes in the scanner, mainly for scanning via HTML
-- installation instructions updated
+ - add ``Vary`` header on all transparently negotiated resources.
+ - allow to use the apache module and all tools with multiple instances of the
+   mirrorbrain. Now, one machine / one Apache can host multiple separate
+   instances, each in a vhost.
 
-Fri Aug 22 17:22:14 CEST 2008
-- allow to use the apache module and all tools with multiple instances of
-  the mirrorbrain. Now, one machine / one Apache can host multiple separate
-  instances, each in a vhost.
-- a number of small bugs in the tools were fixed and several improvements
+* new, better implementation of rsyncusers tool
+* bugfixes in the scanner, mainly for scanning via HTML
+* installation instructions updated
+
+* a number of small bugs in the tools were fixed and several improvements
   added.
 
-Wed Jun 11 01:20:12 CEST 2008
-- added "mirrordoctor", a commandline tool to maintain mirror entries in the
+* added "mirrordoctor", a commandline tool to maintain mirror entries in the
   database. Finally!
 
-Mon Jun  2 17:30:45 CEST 2008
-- mod_zrkadlo 1.8:
-  use mod_memcache for the configuration and initialization of memcache
-- metalink-hasher script added, to prepare hashes for injection into metalink files
-- rsyncusers analysis tool added
-- scanner bugfix regarding following redirects for large file checks
 
-Fri May  2 18:54:09 CEST 2008
-- failover testbed for text mirrorlists implemented
-- rsyncinfo tool added
+Release 1.8 (Jun 2, 2008)
+-------------------------
 
-Wed Apr 30 19:34:31 CEST 2008
-- metalinks: switch back to RFC822 format
-- new ZrkadloMetalinkPublisher directive 
-- fix issue with <size> element
-
-Sun Apr 27 23:02:42 CEST 2008
-- now there is another (more natural) way to request a metalink: by appending
-  ".metalink" to the filename.
-
-Sun Apr 27 12:06:47 CEST 2008
-- change metalink negotiation to look for application/metalink+xml in the
-  Accept header (keep Accept-Features for now, but it is going to be removed
+* mod_zrkadlo now uses `mod_memcache <http://code.google.com/p/modmemcache/>`_ for
+  the configuration and initialization of memcache
+* :program:`metalink-hasher` script added, to prepare hashes for injection into
+  metalink files
+* :program:`rsyncusers` analysis tool added
+* :program:`rsyncinfo` tool added
+* scanner bugfix regarding following redirects for large file checks
+* failover testbed for text mirrorlists implemented
+* metalinks: switch back to RFC822 format
+* new ``ZrkadloMetalinkPublisher`` directive 
+* fix issue with ``<size>`` element
+* now there is another (more natural) way to request a metalink: by appending
+  ``.metalink`` to the filename.
+* change metalink negotiation to look for :mimetype:`application/metalink+xml` in the
+  ``Accept`` header (keep ``Accept-Features`` for now, but it is going to be removed
   probably)
 
-Mon Apr 21 17:35:27 CEST 2008
-- new terse text-based mirrorlist
-- allow clients to use RFC2295 Accept-Features header to select variants
+
+Release 1.7 (Apr 21, 2008)
+--------------------------
+
+* new terse text-based mirrorlist
+* allow clients to use :rfc:`2295` Accept-Features header to select variants
   (metalink or mirrorlist-txt)
+* metalink hash includes can now be out-of-tree
+* :program:`mod_autoindex_mb` added
+* adding a ``content-disposition`` header
 
 
-Mon Apr 21 01:35:31 CEST 2008
-metalink hash includes can now be out-of-tree
 
-Sat Apr 19 18:21:52 CEST 2008
-mod_autoindex_mb
+Older changes
+-------------
 
-Sat Apr 19 18:21:52 CEST 2008
-content-disposition header
+Please refer to the subversion changelog: http://svn.mirrorbrain.org/svn/mirrorbrain/trunk
+respectively http://svn.mirrorbrain.org/viewvc/mirrorbrain/trunk/
+
