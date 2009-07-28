@@ -18,6 +18,7 @@ Table of Contents
    mirrors
    known_problems
    developer
+   changes
 
 Indices and tables
 ==================
