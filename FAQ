@@ -1,8 +1,6 @@
-Q: What does "zrkadlo" mean?
-A: A word found when travelling in Slovakia in 2006. 'zrkadlo' is Slovakian 
-   for 'mirror'. It is one of about three words of Slovakian I know.
+The issues listed in this file should be moved into the main documentation.
+http://mirrorbrain.org/faq/ has answers to some more general questions.
 
-   Here is a picture: http://sk.wikiquote.org/wiki/Zrkadlo :-)
 
 
 Q: What is the effect of the score values?
@@ -81,3 +79,14 @@ A: Good question. For now, the "best" is to send a note that one is going to
 
    This could possibly solved to a satisfactory degree by more frequent 
    scanning, of random files, basically simulating a (very light) workload.
+
+
+
+Q: What does "zrkadlo" mean?
+A: mod_zrkadlo was the previous name of mod_mirrorbrain. "zrkadlo" is a word
+   found when travelling in Slovakia in 2006. 'zrkadlo' is Slovakian for 'mirror',
+   and comprises about 33% of my Slovakian vocabulary :)
+
+   Here is a nice illustration: http://sk.wikiquote.org/wiki/Zrkadlo
+
+
