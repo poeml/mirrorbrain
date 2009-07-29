@@ -249,6 +249,12 @@ static int mb_post_config(apr_pool_t *pconf, apr_pool_t *plog,
         /* make a label */
         cfg->query_prep = apr_psprintf(pconf, "mirrorbrain_dbd_%d", ++label_num);
         mb_dbd_prepare_fn(sp, cfg->query, cfg->query_prep);
+
+        ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, s,
+                     "[mod_mirrorbrain] prepared: server %s, label_num %d, query_prep %s", 
+                     s->server_hostname, 
+                     label_num,
+                     cfg->query_prep);
     }
 
     return OK;
@@ -995,8 +1001,31 @@ static int mb_handler(request_rec *r)
     debugLog(r, cfg, "Successfully acquired database connection.");
 
     statement = apr_hash_get(dbd->prepared, scfg->query_prep, APR_HASH_KEY_STRING);
+
     if (statement == NULL) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] Could not get prepared statement!");
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+                      "[mod_mirrorbrain] Could not get prepared statement labelled '%s'",
+                      scfg->query_prep);
+
+        /* log existing prepared statements. It might help with figuring out
+         * misconfigurations */
+        ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, 
+                      "[mod_mirrorbrain] dbd->prepared hash contains %d key/value pairs", 
+                      apr_hash_count(dbd->prepared));
+
+        apr_hash_index_t *hi;
+        const char *label, *query;
+        for (hi = apr_hash_first(r->pool, dbd->prepared); hi; hi = apr_hash_next(hi)) {
+            apr_hash_this(hi, (void*) &label, NULL, (void*) &query);
+            ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, 
+                          "[mod_mirrorbrain] dbd->prepared dump: key %s, value 0x%08lx", label, (long)query);
+        }
+
+        ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, 
+                      "[mod_mirrorbrain] Hint: connection strings defined with "
+                      "DBDParams must be unique. The same string cannot be used "
+                      "in two vhosts.");
+
         return DECLINED;
     }
 
