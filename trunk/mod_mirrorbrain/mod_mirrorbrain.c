@@ -162,7 +162,7 @@ typedef struct
     const char *metalink_broken_test_mirrors;
     const char *mirrorlist_stylesheet;
     const char *query;
-    const char *query_prep;
+    const char *query_label;
 } mb_server_conf;
 
 
@@ -247,14 +247,14 @@ static int mb_post_config(apr_pool_t *pconf, apr_pool_t *plog,
         mb_server_conf *cfg = ap_get_module_config(sp->module_config, 
                                                         &mirrorbrain_module);
         /* make a label */
-        cfg->query_prep = apr_psprintf(pconf, "mirrorbrain_dbd_%d", ++label_num);
-        mb_dbd_prepare_fn(sp, cfg->query, cfg->query_prep);
+        cfg->query_label = apr_psprintf(pconf, "mirrorbrain_dbd_%d", ++label_num);
+        mb_dbd_prepare_fn(sp, cfg->query, cfg->query_label);
 
         ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, s,
-                     "[mod_mirrorbrain] prepared: server %s, label_num %d, query_prep %s", 
+                     "[mod_mirrorbrain] prepared: server %s, label_num %d, query_label %s", 
                      s->server_hostname, 
                      label_num,
-                     cfg->query_prep);
+                     cfg->query_label);
     }
 
     return OK;
@@ -326,7 +326,7 @@ static void *create_mb_server_config(apr_pool_t *p, server_rec *s)
     new->metalink_broken_test_mirrors = NULL;
     new->mirrorlist_stylesheet = NULL;
     new->query = DEFAULT_QUERY;
-    new->query_prep = NULL;
+    new->query_label = NULL;
 
     return (void *) new;
 }
@@ -351,7 +351,7 @@ static void *merge_mb_server_config(apr_pool_t *p, void *basev, void *addv)
     cfgMergeString(metalink_broken_test_mirrors);
     cfgMergeString(mirrorlist_stylesheet);
     mrg->query = (add->query != (char *) DEFAULT_QUERY) ? add->query : base->query;
-    cfgMergeString(query_prep);
+    cfgMergeString(query_label);
 
     return (void *) mrg;
 }
@@ -987,7 +987,7 @@ static int mb_handler(request_rec *r)
 
     /* ask the database and pick the matching server according to region */
 
-    if (scfg->query_prep == NULL) {
+    if (scfg->query_label == NULL) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] No database query prepared!");
         return DECLINED;
     }
@@ -1000,12 +1000,12 @@ static int mb_handler(request_rec *r)
     }
     debugLog(r, cfg, "Successfully acquired database connection.");
 
-    statement = apr_hash_get(dbd->prepared, scfg->query_prep, APR_HASH_KEY_STRING);
+    statement = apr_hash_get(dbd->prepared, scfg->query_label, APR_HASH_KEY_STRING);
 
     if (statement == NULL) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
                       "[mod_mirrorbrain] Could not get prepared statement labelled '%s'",
-                      scfg->query_prep);
+                      scfg->query_label);
 
         /* log existing prepared statements. It might help with figuring out
          * misconfigurations */
