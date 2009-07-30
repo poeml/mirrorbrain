@@ -1,5 +1,5 @@
-Installation from source
-========================
+Installing from source
+======================
 
 
 Install Apache 2.2.6 or later. 
@@ -49,6 +49,7 @@ After installation of mod_mirrorbrain, you'll need to:
   * python-psycopg2
 
 - for the scanner, which is written in Perl, a few Perl modules are required:
+
   * perl-Config-IniFiles
   * perl-libwww-perl
   * perl-DBD-Pg
@@ -90,14 +91,14 @@ After installation of mod_mirrorbrain, you'll need to:
 
        # TYPE  DATABASE    USER        CIDR-ADDRESS          METHOD
        # "local" is for Unix domain socket connections only
-       #local   all         all                               ident sameuser
+       #local   all         all                               ident
        local   all         all                               password
        # IPv4 local connections:
        host    all         all         127.0.0.1/32          password
        # IPv6 local connections:
        host    all         all         ::1/128               password
        # remote connections:
-       host    mb_samba    mb          10.10.2.3/32          password
+       host    mb_samba    mb          10.10.2.3/32          md5
 
        
       
@@ -178,7 +179,7 @@ After installation of mod_mirrorbrain, you'll need to:
 
     mb edit <identifier>
 
-  To simply display a mirror dataset, you'd use 'mb show kddilabs', for instance.
+  To simply display a mirror, you could use 'mb show kddi', for instance.
 
   Finally, each mirror needs to be scanned and enabled::
 
@@ -193,6 +194,7 @@ After installation of mod_mirrorbrain, you'll need to:
   * load the Apache modules::
 
      a2enmod form
+     a2enmod geoip
      a2enmod dbd
      a2enmod mirrorbrain
 
@@ -220,6 +222,13 @@ After installation of mod_mirrorbrain, you'll need to:
       DBDParams "host=localhost user=mb password=12345 dbname=mb_samba connect_timeout=15"
 
 
+    .. note:: The database connection string must be unique per virtual host.
+              This matters if several MirrorBrain instances are set up in one
+              Apache. If the database connection string is identical in
+              different virtual hosts, mod_dbd may fail to associate the
+              connection string with the correct virtual host.
+
+
   * configure mod_mirrorbrain.
     You probably want to reate a vhost (e.g.
     /etc/apache2/vhosts.d/samba.mirrorbrain.org.conf) and add the MirrorBrain
@@ -232,8 +241,8 @@ After installation of mod_mirrorbrain, you'll need to:
       
           DocumentRoot /srv/samba/pub/projects
       
-          ErrorLog     /var/log/apache2/samba.mirrorbrain.org/logs/error_log
-          CustomLog    /var/log/apache2/samba.mirrorbrain.org/logs/access_log combined
+          ErrorLog     /var/log/apache/samba.mirrorbrain.org/logs/error_log
+          CustomLog    /var/log/apache/samba.mirrorbrain.org/logs/access_log combined
 
           <Directory /srv/samba/pub/projects>
               MirrorBrainEngine On
@@ -254,10 +263,10 @@ After installation of mod_mirrorbrain, you'll need to:
       
       </VirtualHost>
 
-  * restart Apache, while watching the error log::
+  * restart Apache, best while watching the error log::
 
-      tail -F /var/log/apache2/*_log &
-      rcapache2 restart
+      tail -F /var/log/apache/*_log &
+      apachectl restart
 
     
   * mirror surveillance needs to be configured. Put this into /etc/crontab::
@@ -303,11 +312,12 @@ TODO: describe decent logging setup
 
     * install the "metalink" tool from http://metamirrors.nl/metalinks_project
       (openSUSE package called metalink, http://download.opensuse.org/repositories/network:/utilities/)
-      and create the actual hashes::
+      and create the hashes::
 
         metalink-hasher update -t /srv/metalink-hashes/ppc/srv/ftp/pub/opensuse/ppc /srv/ftp/pub/opensuse/ppc
 
-    * add the hashing command to /etc/crontab to be run every few hours.
+    * add the hashing command to /etc/crontab to be run every few hours. Alternatively, run
+      it after changes in the file tree happen.
 
 
 .. note:: That's how far the instructions go. I hope they are useful. Please
@@ -321,21 +331,29 @@ TODO: describe decent logging setup
 Memcache support
 ================
 
-Memcache support is optional. You should not need it normally, so it is
-suggested that you just ignore this. When compiling with memcache support,
--DWITH_MEMCACHE needs to be among the compile flags.
-apxs2 -c -Wc,"-DWITH_MEMCACHE -Wall -g" mod_mirrorbrain.c
+Memcache support can be compiled into mod_mirrorbrain to implement "mirror
+stickiness". 
+
+This is an optional feature, which you should not need normally. 
+
+When compiling with memcache support, ``-DWITH_MEMCACHE`` needs to be among the
+compile flags::
+
+    apxs2 -c -Wc,"-DWITH_MEMCACHE -Wall -g" mod_mirrorbrain.c
+
 If you use an apr-util version prior to 1.3, the memcache client support isn't included. Then you'll
-need to get and build libapr_memcache, and then you'll probably build mod_mirrorbrain like this:
-apxs2 -c -I/usr/include/apr_memcache-0 -lapr_memcache '-Wc,-Wall -DWITH_MEMCACHE -g -D_GNU_SOURCE' mod_mirrorbrain.c
+need to get and build libapr_memcache, and then you'll probably build mod_mirrorbrain like this::
+
+    apxs2 -c -I/usr/include/apr_memcache-0 -lapr_memcache '-Wc,-Wall -DWITH_MEMCACHE -g -D_GNU_SOURCE' mod_mirrorbrain.c
+
 
 Further steps required for memcache support would be:
 
-- install memcached
-- make sure it listens on localhost only (/etc/sysconfig/memcached)
-- start it ("/etc/init.d/memcached start")
-- configure it to start at boot ("chkconfig -a memcached")
-- install mod_memcache from http://code.google.com/p/modmemcache/
+* install memcached
+* make sure it listens on localhost only (/etc/sysconfig/memcached)
+* start it ("/etc/init.d/memcached start")
+* configure it to start at boot ("chkconfig -a memcached")
+* install mod_memcache from http://code.google.com/p/modmemcache/
   (openSUSE package apache2-mod_memcache); a2enmod memcache
 
 Configuration example::
