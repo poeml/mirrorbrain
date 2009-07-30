@@ -50,7 +50,8 @@ Debian
 Frontend (mod_mirrorbrain, the redirector)
 ------------------------------------------
 
-* `mod_geoip`_ and `libGeoIP`_
+* if geographical mirror selection is going to be used, `mod_geoip`_ and `libGeoIP`_ 
+  are required.
 
 * `mod_form`_
 
@@ -102,4 +103,6 @@ The mirror scanner needs Perl and the following modules:
 * :mod:`Digest::MD4`
 * :mod:`Date::Parse`
 
+
+The following sections will guide you through installing the various components.
 
