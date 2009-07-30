@@ -34,6 +34,8 @@ Check out a working copy of the source with this command::
 
     svn checkout http://svn.mirrorbrain.org/viewvc/mirrorbrain/trunk/ mirrorbrain
 
+The `reStructuredText Primer`_ is a helpful resource.
+
 
 Submitting changes
 ^^^^^^^^^^^^^^^^^^
@@ -52,7 +54,7 @@ Testing documentation locally before committing
 
 It is useful to test changes by generating HTML locally before committing. To
 be able to do this, you need to install the `Sphinx Python Documentation
-Generator`_. It is available readily packaged on most platforms, named named
+Generator`_. It is available readily packaged on most platforms, named
 ``python-sphinx``, ``py25-sphinx`` or similarly.
 
 Generating the documentation is as easy as::
@@ -68,4 +70,5 @@ warnings, and reload your browser window.
 .. _`docs subdirectory`: http://svn.mirrorbrain.org/viewvc/mirrorbrain/trunk/docs/
 .. _`reStructuredText`: http://docutils.sf.net/rst.html
 .. _`Sphinx Python Documentation Generator`: http://sphinx.pocoo.org/
+.. _`reStructuredText Primer`: http://sphinx.pocoo.org/rest.html
 
