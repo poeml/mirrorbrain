@@ -2,6 +2,33 @@
 Release Notes/Change History
 ============================
 
+
+Release 2.9.1 (Jul 30, 2009)
+----------------------------
+
+* :program:`mb new`
+  - Now an understandable error message is printed when the
+    geoiplookup_continent couldn't be executed. Thanks to Daniel Dawidow for
+    providing helpful information to track this down.
+
+* :program:`mod_mirrorbrain`
+
+  - Under unusual circumstances it may happen that mod_mirrorbrain can't
+    retrieve a prepared SQL statement. This occurs when an identical database
+    connection string is being used in different virtual hosts. To ease
+    tracking down this special case, the module now logs additional information
+    that could be useful for debugging. Also, it logs a hint noting that
+    connection strings defined with DBDParams must be unique, and identical
+    strings cannot be used in two virtual hosts.
+
+* The :program:`mod_mirrorbrain` example configuration files were updated to
+  reflect several recent (or not so recent) changes:
+
+  - the switch to PostgreSQL
+  - the now disabled memcache support
+  - the updated GeoIP database path (/var/lib/GeoIP instead of /usr/share/GeoIP)
+
+
 Release 2.9.0 (Jul 28, 2009)
 ----------------------------
 
