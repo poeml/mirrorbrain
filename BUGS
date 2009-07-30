@@ -1,5 +1,6 @@
 more important bugs at the top!
 
+
 * metalinks will likely use RFC3339 timestamps instead of RFC822 timestamps in
   the future (IETF draft w.i.p.). No client makes use of the data yet. Cf.
   http://groups.google.com/group/metalink-discussion/browse_thread/thread/44489ba99916aced
@@ -8,13 +9,33 @@ more important bugs at the top!
   might be useful instead of apr_time_now(), because it's already filled out
   and can save the syscall to time().
 
-* mod_asn fails sometimes and puts garbage into the env:
+
+* mod_asn lookup data is sometimes garbled (subprocess env table):
 
   87.79.141.235 - - [16/Feb/2009:14:41:38 +0100] "GET /factory/repo/oss/suse/setup/descr/packages.gz HTTP/1.1" 200 2416300 "-" "ZYpp 5.25.0 (curl 7.19.0)" - r:- 145 2416594 -:- ASN:8422 P:87.78.0.0/15 size:- - - "-"
   87.79.141.235 - - [16/Feb/2009:14:41:38 +0100] "GET /factory/repo/oss/suse/setup/descr/patterns HTTP/1.1" 200 164 "-" "ZYpp 5.25.0 (curl 7.19.0)" - r:- 142 431 -:- ASN:{&\x80\x02 P: size:- - - "-"
   87.79.141.235 - - [16/Feb/2009:14:41:39 +0100] "GET /factory/repo/oss/license.tar.gz HTTP/1.1" 200 24492 "-" "ZYpp 5.25.0 (curl 7.19.0)" - r:- 131 24782 -:- ASN:8422 P:87.78.0.0/15 size:- - - "-"
 
-  Further, I noticed that for 404s the lookup is correctly done (can be seen in
+  As a further data point, I have been seeing this:
+  90.182.x.x - - [20/Jul/2009:12:16:19 +0200] "GET /distribution/10.3/repo/oss/content HTTP/1.1" 302 348 "-" "Novell ZYPP Installer" ftp.linux.cz r:country 170 901 EU:CZ ASN:z,ne,ng,re,rw,sc,sd,sh,sl,sn,so,st,td,tf,tg,tn,tz,ug,yt,za,zm,zw a2 ge,kz,ru P:90.180.0.0/14 size:44325 - - "-"
+
+  This further points to a memory corruption, happening while or after
+  mod_mirrorbrain is running. It seems very hard to trigger though, I'd estimate
+  20 requests out of 10.000.000.
+
+  This command
+  # zcat /var/log/apache2/download.opensuse.org/2009/07/download.opensuse.org-20090720-access_log.gz| grep 'xaa'
+  yields some log lines for examination.
+
+  Something might be corrupting data in the env table. It doesn't seem to
+  affect other env variables though, only the two that are set by mod_asn.
+
+  All places where the subprocess env table is manipulated in mod_asn and
+  mod_mirrorbrain seem safe.
+
+
+
+* it was noticed that for 404s the lookup is correctly done (can be seen in
   the response headers), but ASN:- P:- is being logged.
 
   Empty logging also happens for 200s, when e.g. requesting something from /icons, 
@@ -25,8 +46,10 @@ more important bugs at the top!
   But what about redirections exceptions, like size?
   78.34.103.82 - - [16/Feb/2009:16:05:54 +0100] "GET /distribution/11.1/repo/oss/suse/setup/descr/patterns HTTP/1.1" 200 170 "-" "ZYpp 5.24.5 (curl 7.19.0)" - r:- 152 448 -:- ASN:8422 P:78.34.0.0/15 size:- - - "-"
 
+
 * when the AS is overridden with a query parameter, the one being logged/put
   into the headers is not the overriding one
+
 
 * scanner: when scanning via rsync, it reports symlinks (which are mode 0777)
   as world-writable directories:
@@ -38,7 +61,9 @@ more important bugs at the top!
   That doesn't harm, because the symlinks are (intentionally) ignored anyway,
   but it clutters the output and of course is confusing.
 
+
 * check if the Vary header on Accept is added on all requests!
+
 
 * mod_geoip should be required hard, as mod_form is - and Apache should check at
   startup. On the other hand, it could be optional, because mod_mirrorbrain
@@ -48,6 +73,9 @@ more important bugs at the top!
   mod_geoip was simply forgotten. On the other hand, we could have a check that
   prevents starting, unless geoip usage is explicitely disabled (e.g.
   MirrorBrainRequireGeoIP off)
+  Update: explicitely disabling GeoIP would somehow conflict with the "no GeoIP" use case
+  (see http://mirrorbrain.org/docs/configuration/#using-mod-mirrorbrain-without-geoip)
+
 
 * since "override countries" (overridden via query paramter)  are not resolved into region,
   a wrong region is given in generated mirror lists:
@@ -55,6 +83,7 @@ more important bugs at the top!
      http://download.opensuse.org/distribution/11.1/repo/oss/suse/noarch/rubygem-rails-2.1.1-1.14.noarch.rpm?mirrorlist&country=ZA
      Found 2 mirrors which handle this country (ZA): <- ok
      Found 61 mirrors in other countries, but same continent (EU): <- wrong
+
 
 * mirrorlist give inaccurate readings for "number of mirrors", if some mirrors
   where not considered, because they are configured country-only or region-only 
