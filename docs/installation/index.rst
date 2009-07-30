@@ -8,4 +8,5 @@ Installation
     opensuse
     gentoo
     source
+    memcache
 
