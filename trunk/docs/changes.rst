@@ -7,6 +7,7 @@ Release 2.9.1 (Jul 30, 2009)
 ----------------------------
 
 * :program:`mb new`
+
   - Now an understandable error message is printed when the
     geoiplookup_continent couldn't be executed. Thanks to Daniel Dawidow for
     providing helpful information to track this down.
