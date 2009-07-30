@@ -39,7 +39,8 @@ ways:
    server.
 
 2) Let's assume that a simple round-robin distribution of requests is
-   sufficient. This would be the case if the clients are all located in the same network or country. 
+   sufficient. This would be the case if the clients are all located in the
+   same network or country. There is nothing to configure for this.
 
    In such a scenario, mod_mirrorbrain will farm out the requests to all the
    available mirrors by random. It will still do this according to the
