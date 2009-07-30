@@ -1,3 +1,4 @@
+.. _release_notes:
 
 Release Notes/Change History
 ============================
