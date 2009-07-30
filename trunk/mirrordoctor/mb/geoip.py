@@ -1,5 +1,7 @@
+import sys
 import os
 from subprocess import Popen, PIPE
+import errno
 
 # try different databases and different locations
 databases = ['/var/lib/GeoIP/GeoLiteCity.dat.updated', 
@@ -24,7 +26,12 @@ def lookup_country_code(addr):
 
 
 def lookup_region_code(addr):
-    out = Popen(['geoiplookup_continent', '-f', database, addr], stdout=PIPE).communicate()[0]
+    try:
+        out = Popen(['geoiplookup_continent', '-f', database, addr], stdout=PIPE).communicate()[0]
+    except OSError, e:
+        if e.errno == errno.ENOENT:
+            sys.exit('Error: The geoiplookup_continent binary could not be found.\n'
+                     'Make sure to install the geoiplookup_continent into a directory contained in $PATH.')
 
     return out.strip().lower()
 
