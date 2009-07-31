@@ -86,8 +86,8 @@ Database
 .. _`its prerequirements`: http://mirrorbrain.org/mod_asn/docs/installation/#prerequirements
 
 
-For the admin tools
--------------------
+Python and Perl modules
+-----------------------
 
 The toolset for database maintenance needs Python (an old 2.4.x is sufficient) and the following Python modules: 
 
