@@ -36,6 +36,7 @@ Improvements:
   Metalinks:
   make less cacheable?
 
+* check if the Vary header on Accept is added on all requests!
 
 Further ideas:
 
