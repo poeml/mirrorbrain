@@ -4,8 +4,8 @@ Configuring MirrorBrain
 
 To be written.
 
-
-
+For now, please refer to the installation section, which contains most of the
+information.
 
 
 
