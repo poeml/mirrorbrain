@@ -9,6 +9,8 @@ The detailed history of changes in the documentation itself could be looked at
 `here <http://svn.mirrorbrain.org/viewvc/mirrorbrain/trunk/docs/>`_.
 
 
+.. _hacking_the_docs:
+
 How to improve this documentation
 ---------------------------------
 
