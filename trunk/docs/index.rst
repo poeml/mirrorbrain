@@ -17,7 +17,7 @@ Table of Contents
    configuration_reference
    mirrors
    known_problems
-   developer
+   devel/index
    changes
 
 Indices and tables
