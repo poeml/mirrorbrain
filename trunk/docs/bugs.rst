@@ -148,3 +148,34 @@ As further effect of this bug, it was noticed that a mirror is missing from the
 
 ftp5 disappears from the list, when configured as fallback for Taiwan. It is
 correctly used though and appears on the list *when* actually used as fallback.
+
+
+``mb file ls`` crashes if probing for files that don't exist in the database
+----------------------------------------------------------------------------
+
+If globbing in the database for a file that doesn't exist, with the ``--probe``
+option, probing shouldn't actually be attempted. The tool tries nevertheless
+and crashes::
+
+     % mb file ls '*libqt4-debuginfo-4.5.2-51.1.x86_64.rpm' -u --md5     
+    Traceback (most recent call last):
+      File "/suse/poeml/bin/mb", line 1123, in <module>
+        sys.exit( mirrordoctor.main() )
+      File "/usr/lib64/python2.5/site-packages/cmdln.py", line 257, in main
+        return self.cmd(args)
+      File "/usr/lib64/python2.5/site-packages/cmdln.py", line 280, in cmd
+        retval = self.onecmd(argv)
+      File "/usr/lib64/python2.5/site-packages/cmdln.py", line 412, in onecmd
+        return self._dispatch_cmd(handler, argv)
+      File "/usr/lib64/python2.5/site-packages/cmdln.py", line 1100, in _dispatch_cmd
+        return handler(argv[0], opts, *args)
+      File "/suse/poeml/bin/mb", line 854, in do_file
+        samples = mb.testmirror.lookups_probe(rows, get_digest=opts.md5, get_content=False)
+      File "/suse/poeml/mirrorbrain/mirrordoctor/mb/testmirror.py", line 201, in lookups_probe
+        return probes_run(probelist)
+      File "/suse/poeml/mirrorbrain/mirrordoctor/mb/testmirror.py", line 228, in probes_run
+        result = p.map_async(probe_report, probelist)
+      File "/usr/lib64/python2.5/site-packages/processing/pool.py", line 186, in mapAsync
+        chunksize, extra = divmod(len(iterable), len(self._pool) * 4)
+    ZeroDivisionError: integer division or modulo by zero
+
