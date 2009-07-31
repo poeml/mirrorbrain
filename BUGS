@@ -33,6 +33,14 @@ more important bugs at the top!
   All places where the subprocess env table is manipulated in mod_asn and
   mod_mirrorbrain seem safe.
 
+  A "soft" way of debugging would be to add a detailed debugging logging
+  coupled to a trigger which pulls when non-numeric data is seen in ASN or PFX.
+  When actually adding several such triggers at different stages of request
+  processing, it should be possible to pinpoint the corruption. In addition,
+  a core dump of the process could be saved to disk while running.
+
+  The bug doesn't seem to have noticeable negative consequences except the
+  messed up logging of the two values.
 
 
 * it was noticed that for 404s the lookup is correctly done (can be seen in
