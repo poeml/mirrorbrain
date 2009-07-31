@@ -28,6 +28,8 @@ mb list
 Displaying details about a mirror
 ---------------------------------
 
+mb show
+
 Changing a mirror
 ---------------------
 
