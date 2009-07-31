@@ -1,7 +1,20 @@
-Bugs
-====
+Known problems
+==============
 
-More important bugs at the top.
+Database reconnections issues
+-----------------------------
+
+If the database goes away (or is restarted), it is not clear at the moment if
+the pgsql database adapter used by Apache's DBD library reconnects cleanly.
+Sometimes it seems that it doesn't reconnect, or that at least some of the
+Apache children don't do it, and a graceful restart of Apache is needed. This
+needs further inspection.
+
+
+Passwords containing spaces
+-----------------------------
+
+Passwords containing spaces in :file:`/etc/mirrorbrain.conf` are known not to work.
 
 
 Metalink timestamps

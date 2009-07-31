@@ -5,5 +5,4 @@ Documentation for Developers
     :glob:
 
     developer
-    bugs
 
