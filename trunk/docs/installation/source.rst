@@ -284,7 +284,7 @@ TODO: describe how to test that the install was successful
     confuse you.)
 
 
-TODO: describe decent logging setup
+TODO: describe a decent logging setup
 
 
 * further things that you might want to configure:
@@ -319,13 +319,5 @@ TODO: describe decent logging setup
 
     * add the hashing command to /etc/crontab to be run every few hours. Alternatively, run
       it after changes in the file tree happen.
-
-
-.. note:: That's how far the instructions go. I hope they are useful. Please
-          subscribe to the mirrorbrain mailing list, see
-          http://mirrorbrain.org/communication .  Questions can be answered there,
-          feedback is appreciated.
-
-
 
 
