@@ -11,14 +11,14 @@ Table of Contents
 .. toctree::
 
    intro
-   
    installation/index
    configuration
-   configuration_reference
    mirrors
    developer
    bugs
    changes
+
+.. configuration_reference
 
 Indices and tables
 ==================
