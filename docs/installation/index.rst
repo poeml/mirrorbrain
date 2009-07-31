@@ -5,8 +5,8 @@ Installation
     :glob:
 
     prerequirements
+    source
     opensuse
     gentoo
-    source
     memcache
 
