@@ -16,7 +16,7 @@ Table of Contents
    configuration
    configuration_reference
    mirrors
-   devel/index
+   developer
    bugs
    changes
 
