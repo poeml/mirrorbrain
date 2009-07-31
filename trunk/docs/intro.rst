@@ -22,9 +22,9 @@ The documentation sources are maintained in the `docs subdirectory`_ of the
 MirrorBrain Subversion repository. The source is formatted in
 `reStructuredText`_. reStructuredText is simple to learn, and resembling Wiki
 markup which is quick to edit. Every page of the online documentation has a
-link named "Source" which displays the corresponding source file in the
-subversion repository. You can use this to look at the source and get a feeling
-for the way the format works.
+link named "Source" on top of the page which displays the corresponding source
+file in the subversion repository. You can use this to look at the source and
+get a feeling for the way the format works.
 
 HTML is generated using the `Sphinx Python Documentation Generator`_. Every
 change in the svn repository directly becomes visible at
