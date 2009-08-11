@@ -1199,7 +1199,7 @@ static void emit_tail(request_rec *r, char *readme_fname, int suppress_amble,
         ap_rputs(ap_psignature("", r), r);
     }
     if (!suppress_sig && show_mb_sig) {
-        ap_rputs("<br><address><a href=\"http://mirrorbrain.org/\">MirrorBrain</a> powered by <a href=\"http://httpd.apache.org/\">Apache</a></address>\n", r);
+        ap_rputs("<br/><address><a href=\"http://mirrorbrain.org/\">MirrorBrain</a> powered by <a href=\"http://httpd.apache.org/\">Apache</a></address>\n", r);
     }
     if (!suppress_post) {
         ap_rputs("</body></html>\n", r);
