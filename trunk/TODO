@@ -42,8 +42,6 @@ Improvements:
 
 Further ideas:
 
-* automatically create a mirmon configuration file from the database
-
 * evaluate if it makes sense to memcache database query results, which may not be
   practicable for all objects, but for some particular objects, like those with
   mime type application/x-cd-image. They should not be cached for a significant
