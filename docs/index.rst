@@ -14,6 +14,7 @@ Table of Contents
    installation/index
    configuration
    mirrors
+   upgrading
    developer
    bugs
    changes
