@@ -1616,6 +1616,14 @@ static void output_directories(struct ent **ar, int n,
                       colargs, static_columns);
             ++cols;
         }
+        if (autoindex_opts & MIRRORLIST) {
+            ap_rputs("</th><th>Mirrors", r);
+            ++cols;
+        }
+        if (autoindex_opts & METALINK) {
+            ap_rputs("</th><th>Metalinks", r);
+            ++cols;
+        }
         if (!(autoindex_opts & SUPPRESS_RULES)) {
             breakrow = apr_psprintf(r->pool,
                                     "<tr><th colspan=\"%d\">"
@@ -1784,9 +1792,27 @@ static void output_directories(struct ent **ar, int n,
                                                         desc_width), NULL);
                     }
                 }
+                else {
+                    ap_rputs("</td><td>&nbsp;", r);
+                }
             }
-            else {
-                ap_rputs("</td><td>&nbsp;", r);
+            if (autoindex_opts & MIRRORLIST) {
+                if (anchor[strlen(anchor)-1] != '/') { /* not for directories */
+                        ap_rvputs(r, " </td><td><a href=\"", anchor, 
+                                  "?mirrorlist\">Mirrors</a>", NULL);
+                }
+                else {
+                    ap_rputs("</td><td>&nbsp;", r);
+                }
+            }
+            if (autoindex_opts & METALINK) {
+                if (anchor[strlen(anchor)-1] != '/') { /* not for directories */
+                        ap_rvputs(r, " </td><td><a href=\"", anchor, 
+                                  ".metalink\">Metalink</a>", NULL);
+                }
+                else {
+                        ap_rputs("</td><td>&nbsp;", r);
+                }
             }
             ap_rputs("</td></tr>\n", r);
         }
