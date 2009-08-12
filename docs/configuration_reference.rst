@@ -1,4 +1,3 @@
 
-.. TODO
-   Configuration Reference
-   =======================
+Configuration Reference
+=======================
