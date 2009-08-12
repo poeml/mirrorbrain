@@ -1015,7 +1015,7 @@ class MirrorDoctor(cmdln.Cmdln):
     @cmdln.option('--target-dir', metavar='PATH',
                   help='For the "vcs" output format, specify a target directory to place files into')
     @cmdln.option('--format', metavar='FORMAT',
-            help='Specify the output format: [django|postgresql|vcs]')
+            help='Specify the output format: [django|postgresql|mirmon|vcs]')
     def do_export(self, subcmd, opts, *args):
         """${cmd_name}: export the mirror list as text file
 
@@ -1025,6 +1025,9 @@ class MirrorDoctor(cmdln.Cmdln):
 
         Format "postgresql" is suitable to be imported into a PostgreSQL
         database.
+
+        Format "mirmon" creates a list of mirrors to be included in a mirmon
+        configuration.
 
         Format "vcs" generates a file tree which can be imported/committed into
         a version control system (VCS). This can be used to periodically dump
@@ -1062,6 +1065,9 @@ class MirrorDoctor(cmdln.Cmdln):
         elif opts.format == 'postgresql':
             print mb.exports.postgresql_header
 
+        elif opts.format == 'mirmon':
+            pass
+
         elif opts.format == 'vcs':
             import os, os.path
             if not os.path.exists(opts.target_dir):
@@ -1097,6 +1103,17 @@ class MirrorDoctor(cmdln.Cmdln):
 
             elif opts.format == 'postgresql':
                 print mb.exports.postgresql_template % d
+
+            elif opts.format == 'mirmon':
+                for proto, urlname in [('http', 'baseurl'), 
+                                       ('ftp', 'baseurlFtp'),
+                                       ('rsync', 'baseurlRsync')]:
+                    if d[urlname]:
+                        print mb.exports.mirmon_template \
+                                % dict(proto=proto, 
+                                       url=d[urlname], 
+                                       adminEmail=d['adminEmail'],
+                                       region=d['region'])
 
             elif opts.format == 'vcs':
                 s = mb.conn.server_show_template % mb.conn.server2dict(m)
