@@ -1113,7 +1113,7 @@ class MirrorDoctor(cmdln.Cmdln):
                                 % dict(proto=proto, 
                                        url=d[urlname], 
                                        adminEmail=d['adminEmail'],
-                                       region=d['region'])
+                                       country=d['country'])
 
             elif opts.format == 'vcs':
                 s = mb.conn.server_show_template % mb.conn.server2dict(m)

@@ -58,4 +58,4 @@ if c:
 
 """
 
-mirmon_template = """%(proto)s\t%(region)s\t%(url)s\t%(adminEmail)s"""
+mirmon_template = """%(proto)s\t%(country)s\t%(url)s\t%(adminEmail)s"""
