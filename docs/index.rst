@@ -12,6 +12,7 @@ Table of Contents
 
    intro
    installation/index
+   tuning
    configuration
    mirrors
    upgrading
