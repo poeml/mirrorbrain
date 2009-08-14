@@ -6,6 +6,9 @@ Upgrading
 Upgrading PostgreSQL
 --------------------
 
+General notes
+^^^^^^^^^^^^^
+
 When upgrading PostgreSQL, it is important to look at the version number difference. 
 If the third digit changes, no special procedure is needed (except when the
 release notes explicitely hint about it).
@@ -40,43 +43,57 @@ upgrading, and load that after upgrading.
 
 
 
-.. 
-   Notes for upgrade walkthrough
-   
+Offline upgrade
+^^^^^^^^^^^^^^^
+
+The following console transcripts should give an idea about upgrading an
+PostgreSQL installation. It was done on an openSUSE system, but a similar
+procedure should work on other platforms.
+
+The upgrade in this example is done while the database is taken offline, i.e.
+you need to plan for a downtime of the server. The cron daemon is stopped so
+that there are no attempted writes to the database. :program:`pg_dumpall` is
+used to save the complete database to a file::
+
    root@doozer ~ # rccron stop
    Shutting down CRON daemon                                             done
    root@doozer ~ # su - postgres
    postgres@doozer:~> pg_dumpall > SAVE
-   postgres@doozer:~> 
-   
-   
+   postgres@doozer:~> exit
    root@doozer ~ # rcpostgresql stop
-   Shutting down PostgreSQLserver stopped                                done
+   Shutting down PostgreSQL server stopped                               done
    
    
-     >>>> Run the update here <<<<
-   
-   
+At this point, you would upgrade the PostgreSQL software.
+
+Next, the :file:`data` directory is moved away, a new one created, and the dump
+loaded into it::
+
    root@doozer ~ # old /var/lib/pgsql/data 
    moving /var/lib/pgsql/data to /var/lib/pgsql/data-20090728
    root@doozer ~ # rcpostgresql start
    Initializing the PostgreSQL database at location /var/lib/pgsql/data  done
    Starting PostgreSQL                                                   done
    root@doozer ~ # 
-   
-   
+
+   root@doozer ~ # su - postgres
    postgres@doozer:~> psql template1 -f SAVE
    [...]
    
+Now, the authentication setup and the configuration need to be migrated from
+the old install to the new one::
+
    postgres@doozer:~> cp data/pg_hba.conf data/pg_hba.conf.orig
    postgres@doozer:~> cp data/postgresql.conf data/postgresql.conf.orig
    postgres@doozer:~> vi -d data-20090728/pg_hba.conf data/pg_hba.conf 
    postgres@doozer:~> vi -d data-20090728/postgresql.conf data/postgresql.conf
    
    
+Finally, restart PostgreSQL, Apache and cron::   
    
-   
-   
+   root@doozer ~ # rcpostgresql restart
+   Shutting down PostgreSQL server stopped                               done
+   Starting PostgreSQL                                                   done
    root@doozer ~ # rcapache2 reload
    Reload httpd2 (graceful restart)                                      done
    root@doozer ~ # rccron start
@@ -84,41 +101,20 @@ upgrading, and load that after upgrading.
    
    
    
+Online upgrade
+^^^^^^^^^^^^^^
+
+Using a second PostgreSQL daemon, started temporarily, an online
+upgrade can be performed as follows.
+
+First, create space for the temporary database::
    
-   
-   mirrordb:
-   cron stop on batavia510
-   cron stop on mirrordb
-   repopusher stop
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   using a temporary PostgreSQL daemon:
-   
- ..
-    # mkdir /space/pgsql-tmp
-    # chown postgres:postgres /space/pgsql-tmp
-    # su - postgres   
- ..
-   postgres@mirrordb:~> 
-   
-   
+   root@mirrordb ~ # mkdir /space/pgsql-tmp
+   root@mirrordb ~ # chown postgres:postgres /space/pgsql-tmp
+
+Create the new (temporary) database::
+
+   root@mirrordb ~ # su - postgres   
    postgres@mirrordb:~> initdb /space/pgsql-tmp/data
    The files belonging to this database system will be owned by user "postgres".
    This user must also own the server process.
@@ -157,3 +153,53 @@ upgrading, and load that after upgrading.
    
    postgres@mirrordb:~> 
 
+
+Copy the configuration and the authentification setup to the temporary database::
+
+   postgres@mirrordb:~> cp /space/pgsql/data/postgresql.conf /space/pgsql-tmp/data/
+   postgres@mirrordb:~> cp /space/pgsql/data/pg_hba.conf /space/pgsql-tmp/data/
+
+.. note::
+   The second database server will need RAM — maybe it will be necessary to
+   adjust the ``shared_buffers`` setting in :file:`postgresql.conf` for both
+   daemons, so they don't try allocate more memory than physically available.
+
+Next, change the port in the temporary :file:`postgresql.conf` from 5432 to
+5433 and start the second PostgreSQL server::
+
+   postgres@mirrordb:~> vi /space/pgsql-tmp/data/postgresql.conf
+   postgres@mirrordb:~> postgres -D /space/pgsql-tmp/data
+
+.. note::
+   This assumes that Apache is configured to use a TCP connection to access the
+   database server, not a UNIX domain socket.
+
+Load the dumped data (not forgetting to use the differing port number)::
+
+   postgres@doozer:~> psql -p 5433 template1 -f SAVE
+   [...]
+
+Now the Apache server, and possibly other services
+(:file:`/etc/mirrorbrain.conf`) need to be changed to the temporary port, and
+(gracefully) restarted.
+
+.. note::
+   Verify that everything works as expected with the temporary database. If it
+   does, stop the primary PostgreSQL server (and verify again that everything
+   still works).
+
+From here on, the next steps are probably obvious. You would proceed as
+described in the previous section. After upgrading the PostgreSQL install,
+loading the data, copying/merging :file:`postgresql.conf` and
+:file:`pg_hba.conf`, you would revert the Apache configuration to use port 5432
+and reload it.
+
+If everything works, you can stop and remove the temporary database installation.
+
+
+..   
+   additional steps on mirrordb:
+   cron stop on batavia510
+   cron stop on mirrordb
+   repopusher stop
+   
