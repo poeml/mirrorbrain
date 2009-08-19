@@ -109,6 +109,7 @@ my @exclude_list_rsync;
 # default excludes:
 push @exclude_list, '/.~tmp~/';
 push @exclude_list_rsync, '*/.~tmp~/';
+push @exclude_list_rsync, '/.~tmp~/';
 
 exit usage() unless @ARGV;
 while (defined (my $arg = shift)) {
