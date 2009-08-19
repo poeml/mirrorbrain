@@ -15,11 +15,11 @@ Tuning Apache
 MPM
 ^^^
 
-In general, it makes sense to use a threaded MPM for Apache. Prefork is less
+In general, it makes sense to use a threaded `MPM`_ for Apache. Prefork is less
 suitable, because the database connection pool would not be shared across the
 worker children. With prefork, each process would open its own connection to
 the database. For small installations, this might not matter. However, for a
-busy download server, the threaded event MPM or worker MPM are better choices.
+busy download server, the threaded `event MPM`_ or `worker MPM`_ are better choices.
 
 The following would be a configuration for the event MPM which serves up to 960
 connections in parallel, using 64 threads per process. (Values for threads per
@@ -42,6 +42,14 @@ process that scale best on Linux are 32 or 64.)::
         # at 200 r/s, 20000 r results in a process lifetime of 2 minutes
         MaxRequestsPerChild 20000
     </IfModule>
+
+Refer to the `Apache MPM documentation`_ for details.
+
+
+.. _`MPM`: http://httpd.apache.org/docs/2.2/mpm.html
+.. _`Apache MPM documentation`: http://httpd.apache.org/docs/2.2/mpm.html
+.. _`event MPM`: http://httpd.apache.org/docs/2.2/mod/event.html
+.. _`worker MPM`: http://httpd.apache.org/docs/2.2/mod/worker.html
 
 
 DBD connection pool
