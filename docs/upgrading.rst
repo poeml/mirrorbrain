@@ -66,8 +66,7 @@ used to save the complete database to a file::
    
 At this point, you would upgrade the PostgreSQL software.
 
-Next, the :file:`data` directory is moved away, a new one created, and the dump
-loaded into it::
+Next, the :file:`data` directory is moved away, a new one created::
 
    root@doozer ~ # old /var/lib/pgsql/data 
    moving /var/lib/pgsql/data to /var/lib/pgsql/data-20090728
@@ -76,18 +75,19 @@ loaded into it::
    Starting PostgreSQL                                                   done
    root@doozer ~ # 
 
-   root@doozer ~ # su - postgres
-   postgres@doozer:~> psql template1 -f SAVE
-   [...]
-   
 Now, the authentication setup and the configuration need to be migrated from
 the old install to the new one::
 
+   root@doozer ~ # su - postgres
    postgres@doozer:~> cp data/pg_hba.conf data/pg_hba.conf.orig
    postgres@doozer:~> cp data/postgresql.conf data/postgresql.conf.orig
    postgres@doozer:~> vi -d data-20090728/pg_hba.conf data/pg_hba.conf 
    postgres@doozer:~> vi -d data-20090728/postgresql.conf data/postgresql.conf
    
+Then, load the dump into the new database::
+
+   postgres@doozer:~> psql template1 -f SAVE
+   [...]
    
 Finally, restart PostgreSQL, Apache and cron::   
    
