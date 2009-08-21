@@ -14,6 +14,7 @@ Release 2.9.2 (Aug 21, 2009)
   - some tuning hints,
   - a quite complete walkthrough through the usage of the :program:`mb`
     commandline tool to maintain the mirror database,
+  - instructions how to set up change notifications (:ref:`export_subversion`)
   - list of known problems, and these release notes.
 
   The documentation is in the :file:`docs` subdirectory, as well as online at
