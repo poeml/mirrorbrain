@@ -421,3 +421,96 @@ To be usable with lots of mirrors, the probing is done in parallel.
 The :program:`mb file` command can also be used as :program:`mb file add` and
 :program:`mb file rm` to manipulate the database. See the help output of the
 command for details.
+
+
+
+Exporting mirror lists
+----------------------
+
+The :program:`mb export` command can export data from the mirror database in
+several different formats, for different purposes.
+
+
+.. _export_mirmon:
+
+Exporting in mirmon format
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+`mirmon`_ is a program written by Henk P. Penning which monitors the status of mirrors.
+The format "mirmon" exports a list of mirrors in a text format that can be read
+by mirmon.  
+
+.. _`mirmon`: http://people.cs.uu.nl/henkp/mirmon/
+
+With this, it is straighforward to deploy mirmon and automate it to use the
+mirrors from the database. Thus, no separate list of mirrors needs to be
+maintained for it.
+
+The command ``mb export --format=mirmon`` generates the list, which can be
+directly included in the mirmon configuration::
+
+     % mb export --format=mirmon | head
+    http    de      http://ftp-stud.fht-esslingen.de/pub/Mirrors/ftp.opensuse.org/  <...@...>
+    ftp     de      ftp://ftp-stud.fht-esslingen.de/pub/Mirrors/ftp.opensuse.org/   <...@...>
+    rsync   de      rsync://ftp-stud.fht-esslingen.de/opensuse/     <...@...>
+    http    us      http://mirror.anl.gov/pub/opensuse/opensuse/    <...@...>
+    ftp     us      ftp://mirror.anl.gov/pub/opensuse/opensuse/     <...@...>
+    rsync   us      rsync://mirror.anl.gov/opensuse/opensuse/       <...@...>
+    ...
+
+
+To give a full example, here's how the actual mirmon config file would look
+like. Note the ``mirror_list`` line which pulls the generated list in::
+
+    project_name example.org
+    project_url http://www.example.org/mirrors/
+    mirror_list /home/mirrorbrain/mirmon/mirrorlist-export
+    web_page /var/www/example.org/mirmon/index.html
+    icons icons
+    probe /usr/bin/wget -q -O - -T %TIMEOUT% -t 1 %URL%timestamp.txt
+    state /home/mirrorbrain/mirmon/state
+    countries /usr/local/mirmon-1.38/countries.list
+    project_logo http://www.example.org/images/logo.gif
+    list_style apache
+    timeout 20
+
+
+The cron job to create the list and run mirmon would look like this::
+
+    30 * * * *   mirrorbrain    mb export --format=mirmon > /home/mirrorbrain/mirmon/mirrorlist-export; \
+                                perl /usr/local/mirmon-1.38/mirmon -q -get update -c /etc/mirmon.conf
+
+Note: when mirmon is run for the first time, the state file needs to be
+touched, or the script will not run.
+
+The icons which are included in the resulting HTML page need to made available by Apache::
+
+    Alias /mirmon/icons /usr/local/mirmon-1.38/icons
+    <Directory /usr/local/mirmon-1.38/icons>
+        Options None
+        AllowOverride None
+        Order allow,deny
+        Allow from all
+    </Directory>
+
+
+
+
+Exporting in PostgreSQL format
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The format "postgresql" creates SQL INSERT statements that can be run on a
+PostgreSQL database. This can e.g. be used to migrate the data into another
+database.
+
+
+Exporting in Django format
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This is expiremental stuff — for hacking on the `Django`_ web framework. Data
+is exported in the form of Django ORM objects, and the export routine will very
+likely need modification for particular purposes. The existing code has been
+used to expirement with. Get in contact if you are interested in hacking on
+this!
+
+.. _`Django`: http://www.djangoproject.com/
