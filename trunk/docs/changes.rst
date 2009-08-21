@@ -4,6 +4,41 @@ Release Notes/Change History
 ============================
 
 
+Release 2.9.2 (Aug 21, 2009)
+----------------------------
+
+* Most work happened on the documentation, which includes 
+
+  - more installation instructions, 
+  - directions for upgrading, 
+  - some tuning hints,
+  - a quite complete walkthrough through the usage of the :program:`mb`
+    commandline tool to maintain the mirror database,
+  - list of known problems, and these release notes.
+
+  The documentation is in the :file:`docs` subdirectory, as well as online at
+  http://mirrorbrain.org/docs/.
+
+  Notably, there is a new section :ref:`hacking_the_docs`, which explains *how*
+  to work on the docs.
+
+* New features:
+
+  - :program:`mb export` can now generate a `mirmon
+    <http://people.cs.uu.nl/henkp/mirmon/>`_ mirror list. Thus, it is easy to
+    deploy mirmon, automatically scanning the mirrors that are in the database.
+  - In :program:`mod_autoindex_mb`, displaying the "Mirrors" and "Metalink"
+    links was implemented for configurations with Apache's ``IndexOptions
+    HTMLTable`` configured.
+
+* Two minor bugs were fixed:
+
+  - Missing slash added in :program:`mod_autoindex_mb` to terminate the XHTML
+    ``br`` element in the footer.
+  - The scanner now ignores rsync temp directories (:file:`.~tmp~`) also when
+    they occur at the top level of the tree, and not below.
+
+
 Release 2.9.1 (Jul 30, 2009)
 ----------------------------
 
