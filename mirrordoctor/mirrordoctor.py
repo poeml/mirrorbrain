@@ -1009,7 +1009,7 @@ class MirrorDoctor(cmdln.Cmdln):
 
 
     @cmdln.option('--project', metavar='PROJECT',
-                  help='Specify a project name (previously corresponding to a MirrorBrain instance).')
+                  help='(only for django format) Specify a project name (previously corresponding to a MirrorBrain instance).')
     @cmdln.option('--commit', metavar='VCS',
                   help='run "VCS commit" on the directory specified via --target-dir')
     @cmdln.option('--target-dir', metavar='PATH',
@@ -1105,6 +1105,8 @@ class MirrorDoctor(cmdln.Cmdln):
                 print mb.exports.postgresql_template % d
 
             elif opts.format == 'mirmon':
+                if not m.enabled:
+                    continue
                 for proto, urlname in [('http', 'baseurl'), 
                                        ('ftp', 'baseurlFtp'),
                                        ('rsync', 'baseurlRsync')]:
