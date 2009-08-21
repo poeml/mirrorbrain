@@ -494,6 +494,84 @@ The icons which are included in the resulting HTML page need to made available b
     </Directory>
 
 
+Exporting for a Version Control System (VCS)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Exporting data in text format is a dead easy way to keep a history of changes
+that happen in the mirror database — and mail them around, so everybody
+involved is kept updated. At the same time, it serves archival purposes.
+
+The idea is to export snapshots of the data in text format. The resulting files
+are put into a standard version control system, and standard post-commit hook
+scripts can be used to trigger certain actions (e.g. email). 
+
+The resulting archive of changes is all human-readable (much more useful than
+raw database backups). The changes can actually be mailed around in the form of
+a diff, showing some context.
+
+A different way to implement a notification system for mirror changes would be
+to notify about each and every change done to the database — however, often
+changes have to be done incrementally and this would be a noisy method when
+working on a mirror's configuration. 
+
+Instead, an hourly snapshot is normally sufficient to keep others informed, and
+shouldn't be too noisy.
+
+`Subversion`_ is the only version control system supported at the moment, but
+should hopefully be ubiquitous enough.
+
+.. _`Subversion`: http://subversion.tigris.org/
+
+To set this up, first a repository needs to be created::
+
+    doozer:~ # su - mirrorbrain
+    mirrorbrain@doozer:~> svnadmin create mirrors-svn-repos
+    mirrorbrain@doozer:~> svn co file://$PWD/mirrors-svn-repos mirrors-svn
+    Checked out revision 0.
+    mirrorbrain@doozer:~> 
+
+
+Then, set up a cron job to run every hour, calling :program:`mb export` with
+the ``--format=vcs`` and the ``--commit=svn`` options. The latter automatically
+runs ``svn commit`` after the export (taking into account files that have been
+deleted, or occur for the first time)::
+
+     # export mirrordb contents to SVN and send commit mails
+    7 * * * *      mirrorbrain   mb export --format vcs --target-dir ~/mirrors-svn --commit=svn
+
+Finally, the post-commit hook script is missing, which takes care of
+sending mails. Create and edit it as follows::
+
+    mirrorbrain@doozer:~> touch mirrors-svn-repos/hooks/post-commit
+    mirrorbrain@doozer:~> chmod +x mirrors-svn-repos/hooks/post-commit
+    mirrorbrain@doozer:~> vi mirrors-svn-repos/hooks/post-commit
+
+    #!/bin/sh
+    REPOS="$1"
+    REV="$2"
+    /usr/share/subversion/tools/hook-scripts/mailer/mailer.py commit "$REPOS" "$REV" /etc/mailer.conf
+
+
+The path to the :program:`mailer.py` script likely needs adjustment. The
+configuration (:file:`/etc/mailer.conf`) could look like this::
+
+
+    [general]
+    mail_command = /usr/sbin/sendmail
+
+    [defaults]
+    diff = /usr/bin/diff -u -L %(label_from)s -L %(label_to)s %(from)s %(to)s
+    generate_diffs = add copy modify
+    show_nonmatching_paths = yes
+    
+    [mirrordb]
+    for_repos = /home/mirrorbrain/mirrors-svn-repos
+    from_addr = mirrorbrain@...
+    to_addr = admin@foo bar@...
+    commit_subject_prefix = [mirrordb]
+    propchange_subject_prefix = [mirrordb]
+
+
 
 
 Exporting in PostgreSQL format
