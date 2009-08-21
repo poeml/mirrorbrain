@@ -494,8 +494,11 @@ The icons which are included in the resulting HTML page need to made available b
     </Directory>
 
 
-Exporting for a Version Control System (VCS)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. _export_subversion:
+
+Exporting to a Version Control System (VCS)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Exporting data in text format is a dead easy way to keep a history of changes
 that happen in the mirror database — and mail them around, so everybody
@@ -551,10 +554,8 @@ sending mails. Create and edit it as follows::
     REV="$2"
     /usr/share/subversion/tools/hook-scripts/mailer/mailer.py commit "$REPOS" "$REV" /etc/mailer.conf
 
-
 The path to the :program:`mailer.py` script likely needs adjustment. The
 configuration (:file:`/etc/mailer.conf`) could look like this::
-
 
     [general]
     mail_command = /usr/sbin/sendmail
@@ -570,7 +571,6 @@ configuration (:file:`/etc/mailer.conf`) could look like this::
     to_addr = admin@foo bar@...
     commit_subject_prefix = [mirrordb]
     propchange_subject_prefix = [mirrordb]
-
 
 
 
