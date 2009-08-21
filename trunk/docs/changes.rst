@@ -27,6 +27,7 @@ Release 2.9.2 (Aug 21, 2009)
   - :program:`mb export` can now generate a `mirmon
     <http://people.cs.uu.nl/henkp/mirmon/>`_ mirror list. Thus, it is easy to
     deploy mirmon, automatically scanning the mirrors that are in the database.
+    See :ref:`export_mirmon` for usage info.
   - In :program:`mod_autoindex_mb`, displaying the "Mirrors" and "Metalink"
     links was implemented for configurations with Apache's ``IndexOptions
     HTMLTable`` configured.
