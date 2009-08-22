@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2007 Peter Poeml <poeml@suse.de> / Novell Inc.
+ * Copyright (c) 2009 Peter Poeml <poeml@suse.de> / Novell Inc.
  * All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,8 +18,8 @@
  *
  * mod_stats
  *
- * collect statistics on OpenSUSE build service downloads and push them 
- * into an sql database
+ * collect download statistics and log them to a database
+ * see http://mirrorbrain.org/download-statistics/
  *
  */
 
@@ -43,7 +43,7 @@
 #define UNSET (-1)
 #endif
 
-#define MOD_STATS_VER "1.1"
+#define MOD_STATS_VER "1.2"
 #define VERSION_COMPONENT "mod_stats/"MOD_STATS_VER
 
 /* from ssl/ssl_engine_config.c */
