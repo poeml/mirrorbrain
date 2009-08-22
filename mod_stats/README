@@ -1,3 +1,7 @@
+See http://mirrorbrain.org/download-statistics/ for background information on
+this module (and possible further plans).
+
+
 # packages:
 
 http://download.opensuse.org/repositories/Apache:/Modules/
@@ -16,11 +20,11 @@ copy mod_dbd.conf to /etc/apache2 and include it server-wide (via
 copy contents of mod_stats.conf into your virtual host configuration.
 
 
-Q: use delayed inserts?
+Q: use (MySQL's) delayed inserts?
 A: no, insert are not done really often by this module.
 
 Q: use delayed updates (updates are frequent)?
-A: there _are_ no "delayed updates", only "low-priority" updates with mysql,
+A: there _are_ no "delayed updates" in MySQL, only "low-priority" updates,
 but they couuld be postponed forever and never happen. And the updates don't
-really happen often, they don't (with msyql) lock the table if the InnoDB
+really happen often, they don't (with MySQL) lock the table if the InnoDB
 engine is used and the table is maybe not even read more than once a day.
