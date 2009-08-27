@@ -212,9 +212,10 @@ def probes_run(probelist):
         from processing import Pool
         mp_mod = 'processing'
     except:
-        if len(probelist) > 8:
-            print '>>> No multiprocessing module was found installed. For parallelizing'
-            print '>>> probing, install the "processing" or "multiprocessing" Python module.'
+        pass
+    if len(probelist) > 8 and not mp_mod:
+        print '>>> No multiprocessing module was found installed. For parallelizing'
+        print '>>> probing, install the "processing" or "multiprocessing" Python module.'
 
 
     if mp_mod in ['processing', 'multiprocessing']:
