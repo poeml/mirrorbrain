@@ -183,6 +183,14 @@ class MirrorDoctor(cmdln.Cmdln):
             print s
 
 
+    @cmdln.option('--prefix-only', action='store_true',
+                        help='display whether the mirror is configured to handle only its network prefix')
+    @cmdln.option('--as-only', action='store_true',
+                        help='display whether the mirror is configured to handle only its autnomous system')
+    @cmdln.option('--country-only', action='store_true',
+                        help='display whether the mirror is configured to handle only its country')
+    @cmdln.option('--region-only', action='store_true',
+                        help='display whether the mirror is configured to handle only its region')
     @cmdln.option('--other-countries', action='store_true',
                         help='also display other countries that '
                              'a mirror is configured to handle')
@@ -237,6 +245,15 @@ class MirrorDoctor(cmdln.Cmdln):
                 s.append('%5s' % mirror.asn)
             if opts.prefix:
                 s.append('%-19s' % mirror.prefix)
+            # boolean flags
+            if opts.region_only:
+                s.append('region_only=%s' % mirror.regionOnly)
+            if opts.country_only:
+                s.append('country_only=%s' % mirror.countryOnly)
+            if opts.as_only:
+                s.append('as_only=%s' % mirror.asOnly)
+            if opts.prefix_only:
+                s.append('prefix_only=%s' % mirror.prefixOnly)
             s = ' '.join(s)
 
             if opts.show_disabled:
