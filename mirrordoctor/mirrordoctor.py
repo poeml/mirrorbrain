@@ -697,7 +697,7 @@ class MirrorDoctor(cmdln.Cmdln):
             cmd.append('-d %s' % opts.directory)
         if opts.jobs:
             cmd += [ '-j', opts.jobs ]
-        else:
+        if opts.enable or args:
             cmd.append('-f')
 
         cmd += [ '-I %s' % i for i in 
