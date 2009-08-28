@@ -94,16 +94,30 @@ class MirrorDoctor(cmdln.Cmdln):
             print i
 
 
+    @cmdln.option('--prefix-only', action='store_true',
+                        help='set the mirror to handle only its network prefix')
+    @cmdln.option('--as-only', action='store_true',
+                        help='set the mirror to handle only its autonomous system')
+    @cmdln.option('--country-only', action='store_true',
+                        help='set the mirror to handle only its country')
+    @cmdln.option('--region-only', action='store_true',
+                        help='set the mirror to handle only its region')
     @cmdln.option('-C', '--comment', metavar='ARG',
                         help='comment string')
 
+    @cmdln.option('--operator-name', metavar='ARG',
+                        help='name of the organization operating the mirror')
+    @cmdln.option('--operator-url', metavar='ARG',
+                        help='URL of the organization operating the mirror')
     @cmdln.option('-a', '--admin', metavar='ARG',
                         help='admins\'s name')
     @cmdln.option('-e', '--admin-email', metavar='ARG',
                         help='admins\'s email address')
 
     @cmdln.option('-s', '--score', default=100, metavar='ARG',
-                        help='"power index" of this mirror, defaults to 100')
+                        help='priority of this mirror, defaults to 100 (depreciated. Use --prio)')
+    @cmdln.option('-p', '--prio', default=100, metavar='ARG',
+                        help='priority of this mirror, defaults to 100')
 
     @cmdln.option('-F', '--ftp', metavar='URL',
                         help='FTP base URL')
@@ -168,17 +182,17 @@ class MirrorDoctor(cmdln.Cmdln):
                              statusBaseurl = 0,
                              admin        = opts.admin or '',
                              adminEmail   = opts.admin_email or '',
-                             operatorName = '',
-                             operatorUrl  = '',
+                             operatorName = opts.operator_name or '',
+                             operatorUrl  = opts.operator_url or '',
                              otherCountries = '',
                              publicNotes  = '',
                              comment      = opts.comment \
                                or 'Added - %s' % time.ctime(),
                              scanFpm      = 0,
-                             countryOnly  = 0,
-                             regionOnly   = 0,
-                             asOnly       = 0,
-                             prefixOnly   = 0)
+                             countryOnly  = opts.country_only or 0,
+                             regionOnly   = opts.region_only or 0,
+                             asOnly       = opts.as_only or 0,
+                             prefixOnly   = opts.prefix_only or 0)
         if self.options.debug:
             print s
 
@@ -186,7 +200,7 @@ class MirrorDoctor(cmdln.Cmdln):
     @cmdln.option('--prefix-only', action='store_true',
                         help='display whether the mirror is configured to handle only its network prefix')
     @cmdln.option('--as-only', action='store_true',
-                        help='display whether the mirror is configured to handle only its autnomous system')
+                        help='display whether the mirror is configured to handle only its autonomous system')
     @cmdln.option('--country-only', action='store_true',
                         help='display whether the mirror is configured to handle only its country')
     @cmdln.option('--region-only', action='store_true',
