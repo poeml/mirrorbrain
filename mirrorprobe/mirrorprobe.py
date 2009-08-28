@@ -193,12 +193,12 @@ def main():
                         datefmt=DATEFORMAT,
                         filename=options.logfile,
                         filemode='a')
-    # to console
-    console = logging.StreamHandler()
-    console.setLevel(logging.getLevelName(options.loglevel))
-    formatter = logging.Formatter(LOGFORMAT, DATEFORMAT)
-    console.setFormatter(formatter)
-    logging.getLogger('').addHandler(console)
+    ## to console
+    #console = logging.StreamHandler()
+    #console.setLevel(logging.getLevelName(options.loglevel))
+    #formatter = logging.Formatter(LOGFORMAT, DATEFORMAT)
+    #console.setFormatter(formatter)
+    #logging.getLogger('').addHandler(console)
 
     # warnings will be mailed
     toaddrs = [ i.strip() for i in options.mailto.split(',') ]
