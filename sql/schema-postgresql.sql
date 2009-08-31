@@ -16,7 +16,7 @@ BEGIN;
 CREATE TABLE "filearr" (
         "id" serial NOT NULL PRIMARY KEY,
         "path" varchar(512) UNIQUE NOT NULL,
-	"mirrors" smallint[]
+        "mirrors" smallint[]
 );
 
 -- --------------------------------------------------------
@@ -74,9 +74,9 @@ CREATE TABLE "country" (
 );
 
 CREATE TABLE "region" (
-    "id" serial NOT NULL PRIMARY KEY,
-    "code" varchar(2) NOT NULL,
-    "name" varchar(64) NOT NULL
+        "id" serial NOT NULL PRIMARY KEY,
+        "code" varchar(2) NOT NULL,
+        "name" varchar(64) NOT NULL
 );
 
 
