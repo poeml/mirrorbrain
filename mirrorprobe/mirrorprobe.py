@@ -59,6 +59,7 @@ def probe_http(mirror):
 
     try:
         response = urllib2.urlopen(req)
+
         try:
             mirror.response_code = response.code
             # if the web server redirects to an ftp:// URL, our response won't have a code attribute
@@ -68,17 +69,24 @@ def probe_http(mirror):
                 # count as success
                 mirror.response_code = 200
             logging.debug('mirror %s redirects to ftp:// URL' % mirror.identifier)
+
         logging.debug('%s got response for %s: %s' % (threading.currentThread().getName(), mirror.identifier, getattr(response, 'code', None)))
 
-        try:
-            mirror.response = response.read()
-        except ValueError, e:
-            if str(e).startswith('invalid literal for int()'):
-                mirror.response = 'response not read due to http://bugs.python.org/issue1205'
-                logging.info('mirror %s sends broken chunked reply, see http://bugs.python.org/issue1205' % mirror.identifier)
-            else:
-                raise
+        mirror.response = response.read()
         mirror.status_baseurl_new = True
+
+
+    except ValueError, e:
+        if str(e).startswith('invalid literal for int()'):
+            mirror.response = 'response not read due to http://bugs.python.org/issue1205'
+            logging.info('mirror %s sends broken chunked reply, see http://bugs.python.org/issue1205' % mirror.identifier)
+
+    except socket.timeout, e:
+        mirror.response = 'socket timeout in reading response: %s' % e
+
+    except socket.error, e:
+        #errno, errstr = sys.exc_info()[:2]
+        mirror.response = "socket error: %s" % e
 
     except httplib.BadStatusLine:
         mirror.response_code = None
@@ -94,14 +102,16 @@ def probe_http(mirror):
 
     except IOError, e:
         # IOError: [Errno ftp error] (111, 'Connection refused')
-        print e.errno
         if e.errno == 'ftp error':
             mirror.response_code = 0
-            mirror.response = "%s" % e.errno
-            #logging.info('mirror %s gives an "ftp error"' % mirror.identifier)
+            mirror.response = "%s: %s" % (e.errno, e.strerror)
         else:
+            print mirror.identifier, mirror.baseurl, 'errno:', e.errno
             raise
 
+    except:
+        print mirror.identifier, mirror.baseurl
+        raise
 
     # not reached, if the timeout goes off
     mirror.timed_out = False
