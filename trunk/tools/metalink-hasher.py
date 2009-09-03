@@ -158,6 +158,9 @@ class Metalinks(cmdln.Cmdln):
         opts.target_dir = opts.target_dir.rstrip('/')
         opts.base_dir = opts.base_dir.rstrip('/')
 
+        if not os.path.exists(startdir):
+            sys.exit('STARTDIR %r does not exist' % startdir) 
+
         directories_todo = [startdir]
 
         if opts.ignore_mask: 
@@ -174,7 +177,7 @@ class Metalinks(cmdln.Cmdln):
                 src_dir_mode = os.stat(src_dir).st_mode
             except OSError, e:
                 if e.errno == errno.ENOENT:
-                    sys.stderr.write('Directory vanished: %r\n' % src)
+                    sys.stderr.write('Directory vanished: %r\n' % src_dir)
                     continue
 
             dst_dir = os.path.join(opts.target_dir, src_dir[len(opts.base_dir):].lstrip('/'))
