@@ -73,7 +73,7 @@
 #define UNSET (-1)
 #endif
 
-#define MOD_MIRRORBRAIN_VER "2.9.2"
+#define MOD_MIRRORBRAIN_VER "2.10.0"
 #define VERSION_COMPONENT "mod_mirrorbrain/"MOD_MIRRORBRAIN_VER
 
 #ifdef NO_MOD_GEOIP
@@ -810,7 +810,7 @@ static int mb_handler(request_rec *r)
             } 
         }
 
-        /* is the requested file too small? DECLINED */
+        /* is the requested file too small to be worth a redirect? */
         if (!mirrorlist && !metalink_forced && (r->finfo.size < cfg->min_size)) {
             debugLog(r, cfg, "File '%s' too small (%d bytes, less than %d)", 
                     r->filename, (int) r->finfo.size, (int) cfg->min_size);
@@ -1579,24 +1579,58 @@ static int mb_handler(request_rec *r)
 
         /* inject hashes, if they are prepared on-disk */
         apr_finfo_t sb;
-        const char *hashfilename;
-        hashfilename = apr_pstrcat(r->pool, 
+        const char *hashfilename;     /* the new hash filename contains the inode of the file */
+        const char *old_hashfilename; /* for a transition period - will be depreciated later */
+        hashfilename = apr_psprintf(r->pool, "%s%s.inode_%lu", 
+                                   scfg->metalink_hashes_prefix ? scfg->metalink_hashes_prefix : "", 
+                                   r->filename, 
+                                   r->finfo.inode);
+        old_hashfilename = apr_pstrcat(r->pool, 
                                    scfg->metalink_hashes_prefix ? scfg->metalink_hashes_prefix : "", 
                                    r->filename, 
                                    ".metalink-hashes", 
                                    NULL);
-        if (apr_stat(&sb, hashfilename, APR_FINFO_MIN, r->pool) == APR_SUCCESS
-            && (sb.filetype == APR_REG) && (sb.mtime >= r->finfo.mtime)) {
-            debugLog(r, cfg, "Found up-to-date hashfile '%s', injecting", hashfilename);
 
-            apr_file_t *fh;
-            rv = apr_file_open(&fh, hashfilename, APR_READ, APR_OS_DEFAULT, r->pool);
-            if (rv == APR_SUCCESS) {
-                ap_send_fd(fh, r, 0, sb.size, &len);
+        if (apr_stat(&sb, hashfilename, APR_FINFO_MIN, r->pool) == APR_SUCCESS && (sb.filetype == APR_REG)) {
+            debugLog(r, cfg, "hashfile '%s' exists", hashfilename);
 
-                apr_file_close(fh);
+            if (sb.mtime >= r->finfo.mtime) {
+                debugLog(r, cfg, "hashfile '%s' up to date, injecting", hashfilename);
+
+                apr_file_t *fh;
+                rv = apr_file_open(&fh, hashfilename, APR_READ, APR_OS_DEFAULT, r->pool);
+                if (rv == APR_SUCCESS) {
+                    ap_send_fd(fh, r, 0, sb.size, &len);
+                    apr_file_close(fh);
+                } else {
+                    ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+                                  "[mod_mirrorbrain] could not open hashfile '%s'.", hashfilename);
+                }
+            } else {
+                debugLog(r, cfg, "hashfile '%s' outdated, ignoring", hashfilename);
             }
-        }
+
+        } else if (apr_stat(&sb, old_hashfilename, APR_FINFO_MIN, r->pool) == APR_SUCCESS && (sb.filetype == APR_REG)) {
+            debugLog(r, cfg, "old_hashfile '%s' exists", old_hashfilename);
+
+            if (sb.mtime >= r->finfo.mtime) {
+                debugLog(r, cfg, "old_hashfile '%s' up to date, injecting", old_hashfilename);
+
+                apr_file_t *fh;
+                rv = apr_file_open(&fh, old_hashfilename, APR_READ, APR_OS_DEFAULT, r->pool);
+                if (rv == APR_SUCCESS) {
+                    ap_send_fd(fh, r, 0, sb.size, &len);
+                    apr_file_close(fh);
+                } else {
+                    ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+                                  "[mod_mirrorbrain] could not open old_hashfile '%s'.", old_hashfilename);
+                }
+            } else {
+                debugLog(r, cfg, "old_hashfile '%s' outdated, ignoring", old_hashfilename);
+            }
+        } else {
+            debugLog(r, cfg, "no hash file found (%s, %s)", hashfilename, old_hashfilename);
+        } 
 
         ap_rputs(     "      <resources>\n\n", r);
 

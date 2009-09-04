@@ -40,62 +40,98 @@ import re
 import subprocess
 import errno
 
-ML_EXTENSION = '.metalink-hashes'
 line_mask = re.compile('.*</*(verification|hash|pieces).*>.*')
 
-def make_hashes(src, src_statinfo, dst, opts):
+class Hasheable:
+    """represent a file and its metadata"""
+    def __init__(self, basename, src_dir=None, dst_dir=None):
+        self.basename = basename
+        if src_dir:
+            self.src_dir = src_dir
+        else:
+            self.src_dir = os.path.dirname(self.basename)
 
-    try:
-        dst_statinfo = os.stat(dst)
-        dst_mtime = dst_statinfo.st_mtime
-        dst_size = dst_statinfo.st_size
-    except OSError:
-        dst_mtime = dst_size = 0 # file missing
+        self.src = os.path.join(src_dir, self.basename)
 
-    if dst_mtime >= src_statinfo.st_mtime and dst_size != 0:
-        if opts.verbose:
-            print 'Up to date: %r' % dst
-        return 
+        self.finfo = os.lstat(self.src)
+        self.mtime = self.finfo.st_mtime
+        self.size  = self.finfo.st_size
+        self.inode = self.finfo.st_ino
+        self.mode  = self.finfo.st_mode
 
-    cmd = [ 'metalink',
-            '--nomirrors', 
-            '-d', 'md5', 
-            '-d', 'sha1', 
-            '-d', 'sha256', 
-            '-d', 'sha1pieces',
-            src ]
+        self.dst_dir = dst_dir
 
-    if opts.dry_run: 
-        print 'Would run: ', ' '.join(cmd)
-        return
+        self.dst_basename = '%s.inode_%s' % (self.basename, self.inode)
+        self.dst = os.path.join(self.dst_dir, self.dst_basename)
 
-    sys.stdout.flush()
-    o = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                    close_fds=True).stdout
-    lines = []
-    for line in o.readlines():
-        if re.match(line_mask, line):
-            line = line.replace('\t\t', ' ' * 6)
-            lines.append(line)
+    def islink(self):
+        return stat.S_ISLNK(self.mode)
+    def isreg(self):
+        return stat.S_ISREG(self.mode)
+    def isdir(self):
+        return stat.S_ISDIR(self.mode)
+
+    def do_hashes(self, verbose=False, dry_run=False, copy_permissions=True):
+        try:
+            dst_statinfo = os.stat(self.dst)
+            dst_mtime = dst_statinfo.st_mtime
+            dst_size = dst_statinfo.st_size
+        except OSError:
+            dst_mtime = dst_size = 0 # file missing
+
+        if dst_mtime >= self.mtime and dst_size != 0:
+            if verbose:
+                print 'Up to date: %r' % self.dst
+            return 
+
+        cmd = [ 'metalink',
+                '--nomirrors', 
+                '-d', 'md5', 
+                '-d', 'sha1', 
+                '-d', 'sha256', 
+                '-d', 'sha1pieces',
+                self.src ]
+
+        if dry_run: 
+            print 'Would run: ', ' '.join(cmd)
+            return
+
+        sys.stdout.flush()
+        o = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                        close_fds=True).stdout
+        lines = []
+        for line in o.readlines():
+            if re.match(line_mask, line):
+                line = line.replace('\t\t', ' ' * 6)
+                lines.append(line)
 
 
-    # if present, add PGP signature into the <verification> block
-    if os.path.exists(src + '.asc'):
-        sig = open(src + '.asc').read()
-        sig = '        <signature type="pgp" file="%s.asc">\n' % os.path.basename(src) + \
-              sig + \
-              '\n        </signature>\n'
+        # if present, add PGP signature into the <verification> block
+        if os.path.exists(self.src + '.asc'):
+            sig = open(self.src + '.asc').read()
+            sig = '        <signature type="pgp" file="%s.asc">\n' % self.basename + \
+                  sig + \
+                  '\n        </signature>\n'
 
-        lines.insert(1, sig)
+            lines.insert(1, sig)
 
-    d = open(dst, 'wb')
-    d.write(''.join(lines))
-    d.close()
+        d = open(self.dst, 'wb')
+        d.write(''.join(lines))
+        d.close()
 
-    if opts.copy_permissions:
-        os.chmod(dst, src_statinfo.st_mode)
-    else:
-        os.chmod(dst, 0644)
+        if copy_permissions:
+            os.chmod(self.dst, self.mode)
+        else:
+            os.chmod(self.dst, 0644)
+
+    #def __eq__(self, other):
+    #    return self.basename == other.basename
+    #def __eq__(self, basename):
+    #    return self.basename == basename
+        
+    def __str__(self):
+        return self.basename
+
 
 
 class Metalinks(cmdln.Cmdln):
@@ -190,8 +226,6 @@ class Metalinks(cmdln.Cmdln):
                 else:
                     os.chmod(dst_dir, 0755)
 
-            src_names = set(os.listdir(src_dir))
-            #print 'doing', src_dir
             try:
                 dst_names = os.listdir(dst_dir)
                 dst_names.sort()
@@ -201,75 +235,85 @@ class Metalinks(cmdln.Cmdln):
                              'You might want to create it:\n'
                              '  mkdir %s' % (dst_dir, dst_dir))
 
-            for i in dst_names:
-                i_path = os.path.join(dst_dir, i)
-                # removal of obsolete files
-                if i.endswith(ML_EXTENSION):
-                    realname = i[:-len(ML_EXTENSION)]
-                    if (realname not in src_names) \
-                       or (opts.ignore_mask and re.match(opts.ignore_mask, i_path)):
-                        print 'Unlinking obsolete %r' % i_path
-                        if not opts.dry_run: 
-                            try:
-                                os.unlink(i_path)
-                            except OSError, e:
-                                sys.stderr.write('Unlink failed for %r: %s\n' \
-                                                    % (i_path, os.strerror(e.errno)))
-                        unlinked_files += 1
-                # removal of obsolete directories
-                else:
-                    if i not in src_names or (opts.ignore_mask and re.match(opts.ignore_mask, i_path)):
-                        if os.path.isdir(i_path):
-                            print 'Recursively removing obsolete directory %r' % i_path
-                            if not opts.dry_run: 
-                                try:
-                                    shutil.rmtree(i_path)
-                                except OSError, e:
-                                    if e.errno == errno.EACCES:
-                                        sys.stderr.write('Recursive removing failed for %r (%s). Ignoring.\n' \
-                                                            % (i_path, os.strerror(e.errno)))
-                                    else:
-                                        sys.exit('Recursive removing failed for %r: %s\n' \
-                                                            % (i_path, os.strerror(e.errno)))
-                            unlinked_dirs += 1
-                        else:
-                            print 'Unlinking obsolete %r' % i_path
-                            if not opts.dry_run: 
-                                os.unlink(i_path)
-                            unlinked_files += 1
 
-            for src_name in sorted(src_names):
+            # a set offers the fastest access for "foo in ..." lookups
+            src_basenames = set(os.listdir(src_dir))
+            #print 'doing', src_dir
 
-                src = os.path.join(src_dir, src_name)
+            dst_keep = set()
+
+            for src_basename in sorted(src_basenames):
+                src = os.path.join(src_dir, src_basename)
 
                 if opts.ignore_mask and re.match(opts.ignore_mask, src):
                     continue
 
                 # stat only once
                 try:
-                    src_statinfo = os.lstat(src)
+                    hasheable = Hasheable(src_basename, src_dir=src_dir, dst_dir=dst_dir)
                 except OSError, e:
                     if e.errno == errno.ENOENT:
                         sys.stderr.write('File vanished: %r\n' % src)
                         continue
 
-                if stat.S_ISLNK(src_statinfo.st_mode):
-                    #print 'ignoring link', src
+                if hasheable.islink():
+                    print 'ignoring link', src
                     continue
 
-                if stat.S_ISREG(src_statinfo.st_mode):
-                    if not opts.file_mask or re.match(opts.file_mask, src_name):
-
-                        dst_name = src[len(opts.base_dir):].lstrip('/')
-                        dst = os.path.join(opts.target_dir, dst_name)
+                elif hasheable.isreg():
+                    if not opts.file_mask or re.match(opts.file_mask, src_basename):
                         #if opts.verbose:
                         #    print 'dst:', dst
+                        hasheable.do_hashes(verbose=opts.verbose, 
+                                            dry_run=opts.dry_run, 
+                                            copy_permissions=opts.copy_permissions)
+                        dst_keep.add(hasheable.dst_basename)
 
-                        make_hashes(src, src_statinfo, dst + ML_EXTENSION, opts=opts)
-
-
-                elif stat.S_ISDIR(src_statinfo.st_mode):
+                elif hasheable.isdir():
                     directories_todo.append(src)  # It's a directory, store it.
+                    dst_keep.add(hasheable.basename)
+
+
+            dst_remove = set(dst_names) - dst_keep
+
+            # print 'files to keep:'
+            # print dst_keep
+            # print
+            # print 'files to remove:'
+            # print dst_remove
+            # print
+
+            for i in sorted(dst_remove):
+                i_path = os.path.join(dst_dir, i)
+                #print i_path
+
+                if (opts.ignore_mask and re.match(opts.ignore_mask, i_path)):
+                    print 'ignoring, not removing %s', i_path
+                    continue
+
+                if os.path.isdir(i_path):
+                    print 'Recursively removing obsolete directory %r' % i_path
+                    if not opts.dry_run: 
+                        try:
+                            shutil.rmtree(i_path)
+                        except OSError, e:
+                            if e.errno == errno.EACCES:
+                                sys.stderr.write('Recursive removing failed for %r (%s). Ignoring.\n' \
+                                                    % (i_path, os.strerror(e.errno)))
+                            else:
+                                sys.exit('Recursive removing failed for %r: %s\n' \
+                                                    % (i_path, os.strerror(e.errno)))
+                    unlinked_dirs += 1
+                    
+                else:
+                    print 'Unlinking obsolete %r' % i_path
+                    if not opts.dry_run: 
+                        try:
+                            os.unlink(i_path)
+                        except OSError, e:
+                            sys.stderr.write('Unlink failed for %r: %s\n' \
+                                                % (i_path, os.strerror(e.errno)))
+                    unlinked_files += 1
 
 
         if  unlinked_files or unlinked_dirs:
