@@ -17,14 +17,14 @@ Release 2.10.0 (Sep 4, 2009)
   To fix this, the cache now also uses the file inode as criterion.
 
   :program:`mod_mirrorbrain` was updated to use the new inode-wise metalink
-  hashes is used. At the same time, it knows how to use the previous scheme as
-  fallback. 
+  hashes. At the same time, it still knows how to use the previous scheme as
+  fallback. If the new-style hash isn't found, it looks for the old-style hash
+  file.
   
   Thus, the transition should be seamless, and no special steps should be
   required when upgrading. Note however that all hashes are regenerated, which
   could take a while for large file trees, and which could lead to cron jobs
   stacking up.
-
 
 * There were a number of enhancements, and small bug fixes, in the
   :program:`mb` tool (and accompanying Python module):
@@ -54,7 +54,7 @@ Release 2.10.0 (Sep 4, 2009)
       ``--region-only``, ``--country-only``, ``--as-only`` and
       ``--prefix-only``.
 
-  - :program:`mb scan` / :program:`mb file ls --probe`:
+  - :program:`mb scan` and :program:`mb file ls --probe`:
 
     - the lookup whether the :mod:`multiprocessing` or :mod:`processing` module
       exist was fixed: it could print a false warning that none of them was
