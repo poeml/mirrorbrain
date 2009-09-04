@@ -65,7 +65,7 @@ Release 2.10.0 (Sep 4, 2009)
   :file:`/dev/null` — which could mean swallowing important errors in the end.
 
   A scenario was documented where the mirrorprobe could fail on machines with
-  little memories and many mirrors to check. The fix is to properly set ulimit
+  little memory and many mirrors to check. The fix is to properly set ulimits
   to allow a large enough stack size.
 
   Error handling was cleaned up; more errors are handled (e.g. socket timeouts
