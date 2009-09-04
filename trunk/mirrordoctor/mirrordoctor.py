@@ -156,6 +156,8 @@ class MirrorDoctor(cmdln.Cmdln):
             sys.exit('An HTTP base URL needs to be specified')
 
         scheme, host, path, a, b, c = urlparse.urlparse(opts.http)
+        if ':' in host:
+            host, port = host.split(':')
         if not opts.region:
             opts.region = mb.geoip.lookup_region_code(host)
         if not opts.country:
