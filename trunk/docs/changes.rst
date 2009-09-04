@@ -4,6 +4,75 @@ Release Notes/Change History
 ============================
 
 
+Release 2.10.0 (Sep 4, 2009)
+----------------------------
+
+* The cache of metalink hashes, as created by the :program:`metalink-hasher`,
+  was changed to more reliably detect changes in the origin files. So far, the
+  file modification time was the criterion to invalidate cached hashes. When
+  files were replaced with *older* versions (version with smaller mtime), this
+  wasn't detected, and a cached hash would not be correctly invalidated.
+  https://bugzilla.novell.com/536495 reports this of being an issue.
+  
+  To fix this, the cache now also uses the file inode as criterion.
+
+  :program:`mod_mirrorbrain` was updated to use the new inode-wise metalink
+  hashes is used. At the same time, it knows how to use the previous scheme as
+  fallback. 
+  
+  Thus, the transition should be seamless, and no special steps should be
+  required when upgrading. Note however that all hashes are regenerated, which
+  could take a while for large file trees, and which could lead to cron jobs
+  stacking up.
+
+
+* There were a number of enhancements, and small bug fixes, in the
+  :program:`mb` tool (and accompanying Python module):
+
+  - :program:`mb new`:
+  
+    - When adding new mirrors, the hostname part in the HTTP base URL might
+      contain a port number. This is now recognized correctly, so the DNS
+      lookup, GeoIP lookup and ASN lookup for the hostname string can work.
+    - The commandline options ``--region-only``, ``--country-only``,
+      ``--as-only``, ``--prefix-only`` were added, each setting the respective
+      flag.
+    - The commandline options ``--operator-name`` and ``--operator-url`` were
+      added.
+    - The ``--score`` option is depreciated, since it has been renamed it to
+      ``--prio``.
+  
+  - :program:`mb scan`:
+  
+    - The passing of arguments to the scanner script was fixed in the case
+      where the ``-j`` (``--jobs``) option was used together with mirror
+      identifier specified on the commandline.
+
+  - :program:`mb list`:
+
+    - Command line options to display the boolean flags were added:
+      ``--region-only``, ``--country-only``, ``--as-only`` and
+      ``--prefix-only``.
+
+  - :program:`mb scan` / :program:`mb file ls --probe`:
+
+    - the lookup whether the :mod:`multiprocessing` or :mod:`processing` module
+      exist was fixed: it could print a false warning that none of them was
+      installed.
+
+* The :program:`mirrorprobe` program no longer logs to the console (stderr).
+  This allows for running the script without redirection its output to
+  :file:`/dev/null` — which could mean swallowing important errors in the end.
+
+  A scenario was documented where the mirrorprobe could fail on machines with
+  little memories and many mirrors to check. The fix is to properly set ulimit
+  to allow a large enough stack size.
+
+  Error handling was cleaned up; more errors are handled (e.g. socket timeouts
+  during response reading) and logged properly; and for exceptions yet
+  unhandled, info about the mirror that caused them is printed.
+
+
 Release 2.9.2 (Aug 21, 2009)
 ----------------------------
 
