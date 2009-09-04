@@ -257,7 +257,8 @@ class Metalinks(cmdln.Cmdln):
                         continue
 
                 if hasheable.islink():
-                    print 'ignoring link', src
+                    if opts.verbose:
+                        print 'ignoring link', src
                     continue
 
                 elif hasheable.isreg():
