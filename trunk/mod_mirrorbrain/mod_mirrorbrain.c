@@ -1579,9 +1579,14 @@ static int mb_handler(request_rec *r)
 
         /* inject hashes, if they are prepared on-disk */
         apr_finfo_t sb;
-        const char *hashfilename;     /* the new hash filename contains the inode of the file */
+        const char *hashfilename;     /* the even newer hash filename contains the size of the file */
+        const char *inode_hashfilename;     /* the new hash filename contains the inode of the file */
         const char *old_hashfilename; /* for a transition period - will be depreciated later */
-        hashfilename = apr_psprintf(r->pool, "%s%s.inode_%lu", 
+        hashfilename = apr_psprintf(r->pool, "%s%s.size_%lu", 
+                                   scfg->metalink_hashes_prefix ? scfg->metalink_hashes_prefix : "", 
+                                   r->filename, 
+                                   r->finfo.size);
+        inode_hashfilename = apr_psprintf(r->pool, "%s%s.inode_%lu", 
                                    scfg->metalink_hashes_prefix ? scfg->metalink_hashes_prefix : "", 
                                    r->filename, 
                                    r->finfo.inode);
@@ -1594,7 +1599,7 @@ static int mb_handler(request_rec *r)
         if (apr_stat(&sb, hashfilename, APR_FINFO_MIN, r->pool) == APR_SUCCESS && (sb.filetype == APR_REG)) {
             debugLog(r, cfg, "hashfile '%s' exists", hashfilename);
 
-            if (sb.mtime >= r->finfo.mtime) {
+            if (sb.mtime == r->finfo.mtime) {
                 debugLog(r, cfg, "hashfile '%s' up to date, injecting", hashfilename);
 
                 apr_file_t *fh;
@@ -1610,6 +1615,24 @@ static int mb_handler(request_rec *r)
                 debugLog(r, cfg, "hashfile '%s' outdated, ignoring", hashfilename);
             }
 
+        } else if (apr_stat(&sb, inode_hashfilename, APR_FINFO_MIN, r->pool) == APR_SUCCESS && (sb.filetype == APR_REG)) {
+            debugLog(r, cfg, "inode_hashfile '%s' exists", inode_hashfilename);
+
+            if (sb.mtime >= r->finfo.mtime) {
+                debugLog(r, cfg, "inode_hashfile '%s' up to date, injecting", inode_hashfilename);
+
+                apr_file_t *fh;
+                rv = apr_file_open(&fh, inode_hashfilename, APR_READ, APR_OS_DEFAULT, r->pool);
+                if (rv == APR_SUCCESS) {
+                    ap_send_fd(fh, r, 0, sb.size, &len);
+                    apr_file_close(fh);
+                } else {
+                    ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+                                  "[mod_mirrorbrain] could not open inode_hashfile '%s'.", inode_hashfilename);
+                }
+            } else {
+                debugLog(r, cfg, "inode_hashfile '%s' outdated, ignoring", inode_hashfilename);
+            }
         } else if (apr_stat(&sb, old_hashfilename, APR_FINFO_MIN, r->pool) == APR_SUCCESS && (sb.filetype == APR_REG)) {
             debugLog(r, cfg, "old_hashfile '%s' exists", old_hashfilename);
 
@@ -1629,7 +1652,7 @@ static int mb_handler(request_rec *r)
                 debugLog(r, cfg, "old_hashfile '%s' outdated, ignoring", old_hashfilename);
             }
         } else {
-            debugLog(r, cfg, "no hash file found (%s, %s)", hashfilename, old_hashfilename);
+            debugLog(r, cfg, "no hash file found (%s, %s, %s)", hashfilename, inode_hashfilename, old_hashfilename);
         } 
 
         ap_rputs(     "      <resources>\n\n", r);
