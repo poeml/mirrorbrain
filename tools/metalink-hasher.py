@@ -39,6 +39,7 @@ import cmdln
 import re
 import subprocess
 import errno
+import fcntl
 
 line_mask = re.compile('.*</*(verification|hash|pieces).*>.*')
 
@@ -253,9 +254,25 @@ class Metalinks(cmdln.Cmdln):
 
             # a set offers the fastest access for "foo in ..." lookups
             src_basenames = set(os.listdir(src_dir))
-            #print 'doing', src_dir
+
+            if opts.verbose:
+                print 'looking at', src_dir
 
             dst_keep = set()
+
+            lockfile = os.path.join(dst_dir, 'LOCK')
+            try:
+                if not opts.dry_run:
+                    lock = open(lockfile, 'w')
+                    fcntl.lockf(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                dst_keep.add('LOCK')
+                if opts.verbose:
+                    print 'locked %s' % lockfile
+            except IOError, e:
+                if e.errno == errno.EWOULDBLOCK:
+                    print 'Skipping %r, which is locked' % src_dir
+                    continue
+
 
             for src_basename in sorted(src_basenames):
                 src = os.path.join(src_dir, src_basename)
@@ -327,11 +344,15 @@ class Metalinks(cmdln.Cmdln):
                         try:
                             os.unlink(i_path)
                         except OSError, e:
-                            if e.errno != errno.ENOENT:
-                                sys.stderr.write('Unlink failed for %r: %s\n' \
-                                                    % (i_path, os.strerror(e.errno)))
+                            sys.stderr.write('Unlink failed for %r: %s\n' \
+                                                % (i_path, os.strerror(e.errno)))
                     unlinked_files += 1
 
+            if opts.verbose:
+                print 'unlocking', lockfile 
+            if not opts.dry_run:
+                lock.close()
+                os.unlink(lockfile)
 
         if  unlinked_files or unlinked_dirs:
             print 'Unlinked %s files, %d directories.' % (unlinked_files, unlinked_dirs)
