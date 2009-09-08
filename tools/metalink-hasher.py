@@ -54,6 +54,7 @@ class Hasheable:
         self.src = os.path.join(src_dir, self.basename)
 
         self.finfo = os.lstat(self.src)
+        self.atime = self.finfo.st_atime
         self.mtime = self.finfo.st_mtime
         self.size  = self.finfo.st_size
         self.inode = self.finfo.st_ino
@@ -61,8 +62,12 @@ class Hasheable:
 
         self.dst_dir = dst_dir
 
-        self.dst_basename = '%s.inode_%s' % (self.basename, self.inode)
+        self.dst_basename = '%s.size_%s' % (self.basename, self.size)
         self.dst = os.path.join(self.dst_dir, self.dst_basename)
+
+        # migration 2.10.0 -> 2.10.1
+        self.dst_old_basename = '%s.inode_%s' % (self.basename, self.inode)
+        self.dst_old = os.path.join(self.dst_dir, self.dst_old_basename)
 
     def islink(self):
         return stat.S_ISLNK(self.mode)
@@ -79,9 +84,17 @@ class Hasheable:
         except OSError:
             dst_mtime = dst_size = 0 # file missing
 
-        if dst_mtime >= self.mtime and dst_size != 0:
+        if dst_mtime == self.mtime and dst_size != 0:
             if verbose:
                 print 'Up to date: %r' % self.dst
+            return 
+
+        if os.path.exists(self.dst_old):
+            # upgrade mode 2.10.0 -> 2.10.1
+            print 'migrating %s -> %s' % (self.dst_old, self.dst)
+            if not dry_run: 
+                os.rename(self.dst_old, self.dst)
+                os.utime(self.dst, (self.atime, self.mtime))
             return 
 
         cmd = [ 'metalink',
@@ -118,6 +131,8 @@ class Hasheable:
         d = open(self.dst, 'wb')
         d.write(''.join(lines))
         d.close()
+
+        os.utime(self.dst, (self.atime, self.mtime))
 
         if copy_permissions:
             os.chmod(self.dst, self.mode)
@@ -312,8 +327,9 @@ class Metalinks(cmdln.Cmdln):
                         try:
                             os.unlink(i_path)
                         except OSError, e:
-                            sys.stderr.write('Unlink failed for %r: %s\n' \
-                                                % (i_path, os.strerror(e.errno)))
+                            if e.errno != errno.ENOENT:
+                                sys.stderr.write('Unlink failed for %r: %s\n' \
+                                                    % (i_path, os.strerror(e.errno)))
                     unlinked_files += 1
 
 
