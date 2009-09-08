@@ -344,8 +344,9 @@ class Metalinks(cmdln.Cmdln):
                         try:
                             os.unlink(i_path)
                         except OSError, e:
-                            sys.stderr.write('Unlink failed for %r: %s\n' \
-                                                % (i_path, os.strerror(e.errno)))
+                            if e.errno != errno.ENOENT:
+                                sys.stderr.write('Unlink failed for %r: %s\n' \
+                                                    % (i_path, os.strerror(e.errno)))
                     unlinked_files += 1
 
             if opts.verbose:
