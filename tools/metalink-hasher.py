@@ -259,19 +259,29 @@ class Metalinks(cmdln.Cmdln):
                 print 'looking at', src_dir
 
             dst_keep = set()
+            dst_keep.add('LOCK')
 
             lockfile = os.path.join(dst_dir, 'LOCK')
             try:
                 if not opts.dry_run:
                     lock = open(lockfile, 'w')
                     fcntl.lockf(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                dst_keep.add('LOCK')
+                    try:
+                        os.stat(lockfile)
+                    except OSError, e: 
+                        if e.errno == errno.ENOENT:
+                            if opts.verbose:
+                                print '====== skipping %s, which we were about to lock' % lockfile
+                            continue
+
                 if opts.verbose:
                     print 'locked %s' % lockfile
             except IOError, e:
-                if e.errno == errno.EWOULDBLOCK:
+                if e.errno in [ errno.EAGAIN, errno.EACCES, errno.EWOULDBLOCK ]:
                     print 'Skipping %r, which is locked' % src_dir
                     continue
+                else:
+                    raise
 
 
             for src_basename in sorted(src_basenames):
@@ -352,8 +362,8 @@ class Metalinks(cmdln.Cmdln):
             if opts.verbose:
                 print 'unlocking', lockfile 
             if not opts.dry_run:
-                lock.close()
                 os.unlink(lockfile)
+                lock.close()
 
         if  unlinked_files or unlinked_dirs:
             print 'Unlinked %s files, %d directories.' % (unlinked_files, unlinked_dirs)
