@@ -40,8 +40,20 @@ import re
 import subprocess
 import errno
 import fcntl
+import signal
 
 line_mask = re.compile('.*</*(verification|hash|pieces).*>.*')
+
+class SignalInterrupt(Exception):
+    """Exception raised on SIGTERM and SIGHUP."""
+
+def catchterm(*args):
+    raise SignalInterrupt
+
+for name in 'SIGBREAK', 'SIGHUP', 'SIGTERM':
+    num = getattr(signal, name, None)
+    if num: signal.signal(num, catchterm)
+
 
 class Hasheable:
     """represent a file and its metadata"""
@@ -372,5 +384,14 @@ class Metalinks(cmdln.Cmdln):
 
 if __name__ == '__main__':
     import sys
-    metalinks = Metalinks()
-    sys.exit( metalinks.main() )
+
+    try:
+        metalinks = Metalinks()
+        sys.exit( metalinks.main() )
+
+    except SignalInterrupt:
+        print >>sys.stderr, 'killed!'
+
+    except KeyboardInterrupt:
+        print >>sys.stderr, 'interrupted!'
+
