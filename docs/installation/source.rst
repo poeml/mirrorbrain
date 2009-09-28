@@ -168,6 +168,10 @@ After installation of mod_mirrorbrain, you'll need to:
     # optional: dbport = ...
     dbname = mirrorbrain
     
+    [mirrorprobe]
+    # logfile = /var/log/mirrorbrain/mirrorprobe.log
+    # loglevel = INFO
+    
 
 * Note: the "mb" tool referenced below is (for convenience) a symlink to the
   mirrordoctor.py script.

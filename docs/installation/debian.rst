@@ -168,6 +168,7 @@ Build and install helper programs
 
 Build and install :program:`geoiplookup`::
 
+  cd tools
   gcc -Wall -lGeoIP -o geoiplookup_continent geoiplookup_continent.c
   sudo cp geoiplookup_continent /usr/bin/geoiplookup_continent
 
@@ -251,6 +252,7 @@ Create a configuration file named :file:`mirrorbrain.conf`::
   sudo sh -c "cat > /etc/mirrorbrain.conf << EOF
   [general]
   instances = main
+  
   [main]
   dbuser = mirrorbrain
   dbpass = 12345
@@ -258,6 +260,11 @@ Create a configuration file named :file:`mirrorbrain.conf`::
   dbhost = 127.0.0.1
   # optional: dbport = ...
   dbname = mirrorbrain
+  
+  [mirrorprobe]
+  # logfile = /var/log/mirrorbrain/mirrorprobe.log
+  # loglevel = INFO
+
   EOF
   "
 
