@@ -111,9 +111,10 @@ Restart Apache::
 Configure mod_dbd
 ~~~~~~~~~~~~~~~~~
 
-Make sure that the PostgreSQL database adapter for mod_dbd is installed::
-
-  sudo apt-get install libaprutil1-dbd-pgsql
+With Ubuntu 9.04, the DBD (Apache Portable Runtime DBD Framework) database
+adapter for PostgreSQL is already installed, because the driver is statically
+linked into the libaprutil1 shared object. libaprutil1-dbd-pgsql is a virtual
+package which is just a pointer to the libaprutil1 package.
 
 Running the following snippet will create a configuration for mod_dbd::
 
