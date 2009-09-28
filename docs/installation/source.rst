@@ -169,9 +169,6 @@ After installation of mod_mirrorbrain, you'll need to:
     # optional: dbport = ...
     dbname = mb_samba
     
-    [mirrorprobe]
-    mailto = your_mail@example.com, another_mail@example.com
-
 
 * Note: the "mb" tool referenced below is (for convenience) a symlink to the
   mirrordoctor.py script.
