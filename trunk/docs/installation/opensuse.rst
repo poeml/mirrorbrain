@@ -18,7 +18,7 @@ You can do this via commandline (we are using openSUSE 11.1 in our example)::
 Here's a list of packages needed to have one host running the database and the redirector:
 
   apache2 apache2-mod_asn apache2-mod_geoip apache2-mod_mirrorbrain
-  apache2-webthings-collection apache2-worker GeoIP libapr-util1-dbd-pgsql
+  apache2-mod_form apache2-worker GeoIP libapr-util1-dbd-pgsql
   libGeoIP1 mirrorbrain mirrorbrain-scanner mirrorbrain-tools
   perl-Config-IniFiles perl-DBD-Pg perl-Digest-MD4 perl-libwww-perl perl-TimeDate 
   postgresql postgresql-ip4r postgresql-server python-cmdln python-psycopg2
