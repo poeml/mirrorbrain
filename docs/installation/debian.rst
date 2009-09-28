@@ -166,11 +166,11 @@ Restart Apache::
 Build and install helper programs
 ---------------------------------
 
-Build and install :program:`geoiplookup`::
+Build and install :program:`geoiplookup_continent`::
 
   cd tools
   gcc -Wall -lGeoIP -o geoiplookup_continent geoiplookup_continent.c
-  sudo cp geoiplookup_continent /usr/bin/geoiplookup_continent
+  sudo install -m 0755 geoiplookup_continent /usr/bin/geoiplookup_continent
 
 Install the :program:`scanner`::
 
