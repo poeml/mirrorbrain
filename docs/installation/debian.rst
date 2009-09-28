@@ -214,12 +214,10 @@ Exit user postgres::
 Edit host-based authentication 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Add line ``local mirrorbrain mirrorbrain trust`` to the end of
+Add line ``local mirrorbrain mirrorbrain 127.0.0.1/32 md5`` to the end of
 :file:`pg_hba.conf`, which is to be found here::
 
   sudo vim /etc/postgresql/8.3/main/pg_hba.conf
-
-FIXME: should not be trust on production machine
 
 Start the PostgreSQL server::
 
