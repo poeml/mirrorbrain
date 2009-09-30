@@ -11,5 +11,4 @@ Installation
     gentoo
     mod_asn
     troubleshooting
-    memcache
 
