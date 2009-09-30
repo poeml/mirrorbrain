@@ -313,6 +313,10 @@ The following snippet would create a new site as virtual host::
   "
 
 
+Make the download directory::
+
+  sudo mkdir /var/www/downloads
+
 Enable the site::
 
   sudo a2ensite mirrorbrain
