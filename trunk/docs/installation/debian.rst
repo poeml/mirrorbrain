@@ -43,7 +43,7 @@ Build, install, and configure Apache2 modules
 
 MirrorBrain requires several Apache modules, several of which must be built manually. Apache modules are built and installed using :program:`apxs2`. (APache eXtenSion tool)  Apxs2 is in the ``apache2-threaded-dev`` package::
 
-  sudo apt-get install apache2-threaded-dev
+  sudo apt-get install apache2-threaded-dev apache2-mpm-worker
 
 
 Install and configure mod_geoip
