@@ -67,7 +67,6 @@ mod_geoip must be configured to find the the GeoIP data set::
 Download GeoIP data set::
 
   wget http://geolite.maxmind.com/download/geoip/database/GeoLiteCountry/GeoIP.dat.gz
-  sudo apt-get install gzip
   gunzip GeoIP.dat.gz
   sudo mkdir /var/lib/GeoIP
   sudo cp GeoIP.dat /var/lib/GeoIP/GeoIP.dat
