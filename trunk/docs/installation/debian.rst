@@ -24,6 +24,7 @@ Install the following Python modules via :program:`apt-get`::
 The Python :mod:`cmdln` module is not prepackaged for Ubuntu so it must be installed manually::
 
   wget http://cmdln.googlecode.com/files/cmdln-1.1.2.zip
+  sudo apt-get install unzip
   unzip cmdln-1.1.2.zip
   cd cmdln-1.1.2
   sudo python setup.py install
