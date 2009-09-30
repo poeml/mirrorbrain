@@ -311,6 +311,7 @@ The following snippet would create a new site as virtual host::
   </VirtualHost>
   EOF
   "
+
 Make the log directory::
 
   sudo mkdir /var/log/apache2/mirrors.example.org/
