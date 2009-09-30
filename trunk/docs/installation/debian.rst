@@ -229,9 +229,10 @@ Import initial mirrorbrain data
 
 Import the table structure, and initial data::
 
+  su - mirrorbrain
   psql -U mirrorbrain -f sql/schema-postgresql.sql mirrorbrain
   psql -U mirrorbrain -f sql/initialdata-postgresql.sql mirrorbrain
-
+  exit
 
 Create needed users and groups
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
