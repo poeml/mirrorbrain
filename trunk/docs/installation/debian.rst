@@ -51,7 +51,7 @@ Install and configure mod_geoip
 
 mod_geoip is available as a prebuilt package::
 
-  sudo apt-get install libapache2-mod-geoip libgeoip-dev
+  sudo apt-get install libapache2-mod-geoip libgeoip-dev geoip-bin
 
 mod_geoip must be configured to find the the GeoIP data set::
 
