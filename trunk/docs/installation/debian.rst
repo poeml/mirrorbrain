@@ -3,56 +3,71 @@ Installation on Debian/Ubuntu Linux
 ===================================
 
 .. note:: 
-   The following recipe for installing MirrorBrain is based on Ubuntu 9.04.
+   The following recipe for installing MirrorBrain was tested on Ubuntu 9.04.
+   A similar procedure should work on Debian 5.0 as well.
 
 
 Install a standard Ubuntu LAMP server.
 
-Download the latest MirrorBrain tarball from
-http://mirrorbrain.org/files/releases/ and extract it::
 
-  wget http://mirrorbrain.org/files/releases/mirrorbrain-$VERSION.tar.gz
-  tar xzf mirrorbrain-$VERSION.tar.gz
+Add package repository
+----------------------
 
+To subscribe to the repository with packages for Ubuntu 9.04, add the following
+to :file:`/etc/apt/sources.list`::
 
-Install Python dependencies
----------------------------
-
-Install the following Python modules via :program:`apt-get`::
-
-  sudo apt-get install python-sqlobject python-psycopg2
-
-The Python :mod:`cmdln` module is not prepackaged for Ubuntu so it must be installed manually::
-
-  wget http://cmdln.googlecode.com/files/cmdln-1.1.2.zip
-  sudo apt-get install unzip
-  unzip cmdln-1.1.2.zip
-  cd cmdln-1.1.2
-  sudo python setup.py install
+   # sudo vim /etc/apt/sources.list
+  [...]
+  deb http://download.opensuse.org/repositories/Apache:/MirrorBrain/xUbuntu_9.04/ /
 
 
-Install Perl dependencies
--------------------------
-
-For the MirrorBrain scanner, which is written in Perl, install the following Perl modules that it requires::
-
-  sudo apt-get install libconfig-inifiles-perl libwww-perl libdbd-pg-perl libdatetime-perl libdigest-md4-perl
+There are more repositories at
+http://download.opensuse.org/repositories/Apache:/MirrorBrain/ for other Ubuntu
+and Debian releases.
 
 
-Build, install, and configure Apache2 modules
----------------------------------------------
+After adding the repository, update the local :program:`apt-get` package
+cache::
 
-MirrorBrain requires several Apache modules, several of which must be built manually. Apache modules are built and installed using :program:`apxs2`. (APache eXtenSion tool)  Apxs2 is in the ``apache2-threaded-dev`` package::
-
-  sudo apt-get install apache2-threaded-dev apache2-mpm-worker
+  sudo apt-get update
 
 
-Install and configure mod_geoip
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Install the MirrorBrain packages
+--------------------------------
 
-mod_geoip is available as a prebuilt package::
+The following commands will install all needed software via
+:program:`apt-get`::
 
-  sudo apt-get install libapache2-mod-geoip libgeoip-dev geoip-bin
+  sudo apt-get install mirrorbrain mirrorbrain-tools mirrorbrain-scanner
+  sudo apt-get install libapache2-mod-mirrorbrain libapache2-mod-autoindex-mb
+
+
+.. note:: 
+   The packages are unsigned, thus a corresponding warning needs to be
+   answered with 'y'.
+
+
+
+
+Install an Apache MPM
+---------------------
+
+The MirrorBrain packages have dependencies on the Apache common packages, but
+not on a MPM, since the choice of an MPM is one that the system admin must
+make, and the MPMs cannot be installed in parallel. Thus, an MPM needs to be
+installed (unless a LAMP package selection was installed initially). 
+
+To install the worker MPM, run::
+
+  sudo apt-get install apache2-mpm-worker
+
+*If* the LAMP server has been installed, the prefork MPM was probably
+preselected. It may make sense to switch to the worker MPM in such cases, which
+is a good choice for busy download servers.
+
+
+Configure mod_geoip
+~~~~~~~~~~~~~~~~~~~
 
 mod_geoip must be configured to find the the GeoIP data set::
 
@@ -81,24 +96,8 @@ Restart Apache::
   sudo /etc/init.d/apache2 restart
 
 
-Install and configure mod_form
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-mod_form must be build from scratch. Download the source from here::
-
-  wget http://apache.webthing.com/svn/apache/forms/mod_form.c
-  wget http://apache.webthing.com/svn/apache/forms/mod_form.h
-
-Build, install and activate mod_form (all done in one step, if ``-cia`` is used)::
-
-  sudo apxs2 -cia mod_form.c
-
-Create loader::
-
-  sudo sh -c "cat > /etc/apache2/mods-available/form.load << EOF
-  LoadModule form_module /usr/lib/apache2/modules/mod_form.so
-  EOF
-  "
+Configure mod_form
+~~~~~~~~~~~~~~~~~~
 
 Enable module::
 
@@ -139,20 +138,8 @@ Restart Apache::
   sudo /etc/init.d/apache2 restart
 
 
-Install and configure mod_mirrorbrain
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Build mod_mirrorbrain::
-
-  sudo apxs2 -cia mod_mirrorbrain.c
-
-Create module loader::
-
-  sudo sh -c "cat > /etc/apache2/mods-available/mirrorbrain.load << EOF
-  LoadModule mirrorbrain_module /usr/lib/apache2/modules/mod_mirrorbrain.so
-  EOF
-  "
-
+Configure mod_mirrorbrain
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Enable module::
 
@@ -161,20 +148,6 @@ Enable module::
 Restart Apache::
 
   sudo /etc/init.d/apache2 restart
-
-
-Build and install helper programs
----------------------------------
-
-Build and install :program:`geoiplookup_continent`::
-
-  cd tools
-  gcc -Wall -lGeoIP -o geoiplookup_continent geoiplookup_continent.c
-  sudo install -m 0755 geoiplookup_continent /usr/bin/geoiplookup_continent
-
-Install the :program:`scanner`::
-
-  sudo cp ../tools/scanner.pl /usr/bin/scanner
 
 
 Install PostgreSQL
@@ -279,7 +252,7 @@ Test mirrorbrain
 If the following command returns no error, but rather displays its usage info,
 the installation should be quite fine::
 
-  ./mirrordoctor.py
+  mb help
 
 
 Create a virtual host
