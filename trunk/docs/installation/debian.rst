@@ -215,6 +215,16 @@ Create user and group ``mirrorbrain``::
   sudo groupadd -r mirrorbrain
   sudo useradd -r -g mirrorbrain -s /bin/bash -c "MirrorBrain user" -d /home/mirrorbrain mirrorbrain
 
+Create needed directories
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Create the following directory for logs, and give ownership to the new
+mirrorbrain user::
+
+  sudo mkdir /var/log/mirrorbrain
+  sudo chown mirrorbrain:mirrorbrain /var/log/mirrorbrain
+  sudo chmod 0750 /var/log/mirrorbrain
+
 
 Create mirrorbrain.conf
 ~~~~~~~~~~~~~~~~~~~~~~~
