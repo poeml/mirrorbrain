@@ -191,15 +191,11 @@ Create user and group ``mirrorbrain``::
 Import initial mirrorbrain data
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Import the table structure, and initial data::
-
   wget http://mirrorbrain.org/files/releases/mirrorbrain-2.10.1.tar.gz
   tar -zxvf mirrorbrain-2.10.1.tar.gz
   cd mirrorbrain-2.10.1
-  sudo su mirrorbrain
   psql -U mirrorbrain -f sql/schema-postgresql.sql mirrorbrain
   psql -U mirrorbrain -f sql/initialdata-postgresql.sql mirrorbrain
-  exit
 
 Create needed directories
 ~~~~~~~~~~~~~~~~~~~~~~~~~
