@@ -186,9 +186,11 @@ Import initial mirrorbrain data
 
 Import the table structure, and initial data::
 
+  wget http://mirrorbrain.org/files/releases/mirrorbrain-2.10.1.tar.gz
+  unzip mirrorbrain-2.10.1.tar.gz
   su - mirrorbrain
-  psql -U mirrorbrain -f sql/schema-postgresql.sql mirrorbrain
-  psql -U mirrorbrain -f sql/initialdata-postgresql.sql mirrorbrain
+  psql -U mirrorbrain -f mirrorbrain/sql/schema-postgresql.sql mirrorbrain
+  psql -U mirrorbrain -f mirrorbrain/sql/initialdata-postgresql.sql mirrorbrain
   exit
 
 Create needed users and groups
