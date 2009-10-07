@@ -191,6 +191,8 @@ Create user and group ``mirrorbrain``::
 Import initial mirrorbrain data
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+Import structure and data::
+
   wget http://mirrorbrain.org/files/releases/mirrorbrain-2.10.1.tar.gz
   tar -zxvf mirrorbrain-2.10.1.tar.gz
   cd mirrorbrain-2.10.1
