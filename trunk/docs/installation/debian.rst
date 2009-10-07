@@ -119,12 +119,9 @@ Running the following snippet will create a configuration for mod_dbd::
   "
 
 
-Enable module::
+Enable module and restart Apache::
 
   sudo a2enmod dbd
-
-Restart Apache::
-
   sudo /etc/init.d/apache2 restart
 
 
