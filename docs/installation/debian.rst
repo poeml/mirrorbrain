@@ -16,7 +16,7 @@ Add package repository
 To subscribe to the repository with packages for Ubuntu 9.04, add the following
 to :file:`/etc/apt/sources.list`::
 
-   # sudo vim /etc/apt/sources.list
+   sudo vim /etc/apt/sources.list
   [...]
   deb http://download.opensuse.org/repositories/Apache:/MirrorBrain/xUbuntu_9.04/ /
 
