@@ -128,12 +128,9 @@ Enable module and restart Apache::
 Configure mod_mirrorbrain
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Enable module::
+Enable module and restart Apache::
 
   sudo a2enmod mirrorbrain
-
-Restart Apache::
-
   sudo /etc/init.d/apache2 restart
 
 
