@@ -94,12 +94,9 @@ Enable module and restart Apache::
 Configure mod_form
 ~~~~~~~~~~~~~~~~~~
 
-Enable module::
+Enable module and restart Apache::
 
   sudo a2enmod form
-
-Restart Apache::
-
   sudo /etc/init.d/apache2 restart
 
 
