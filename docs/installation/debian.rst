@@ -113,8 +113,6 @@ Running the following snippet will create a configuration for mod_dbd::
   sudo sh -c "cat > /etc/apache2/mods-available/dbd.conf << EOF
    <IfModule mod_dbd.c>
       DBDriver pgsql
-      # note that the connection string (which is passed straight through to
-      # PGconnectdb in this case) looks slightly different - pass vs. password
       DBDParams 'host=localhost user=mirrorbrain password=12345 dbname=mirrorbrain connect_timeout=15'
    </IfModule>
   EOF
