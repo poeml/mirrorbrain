@@ -38,8 +38,8 @@ Install the MirrorBrain packages
 The following commands will install all needed software via
 :program:`apt-get`::
 
-  sudo apt-get install mirrorbrain mirrorbrain-tools mirrorbrain-scanner
-  sudo apt-get install libapache2-mod-mirrorbrain libapache2-mod-autoindex-mb
+  sudo apt-get install mirrorbrain mirrorbrain-tools mirrorbrain-scanner \
+  libapache2-mod-mirrorbrain libapache2-mod-autoindex-mb
 
 
 .. note:: 
