@@ -180,6 +180,13 @@ Start the PostgreSQL server::
 
   sudo /etc/init.d/postgresql-8.3 restart
 
+Create needed users and groups
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Create user and group ``mirrorbrain``::
+
+  sudo groupadd -r mirrorbrain
+  sudo useradd -r -g mirrorbrain -s /bin/bash -c "MirrorBrain user" -d /home/mirrorbrain mirrorbrain
 
 Import initial mirrorbrain data
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -192,14 +199,6 @@ Import the table structure, and initial data::
   psql -U mirrorbrain -f mirrorbrain/sql/schema-postgresql.sql mirrorbrain
   psql -U mirrorbrain -f mirrorbrain/sql/initialdata-postgresql.sql mirrorbrain
   exit
-
-Create needed users and groups
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Create user and group ``mirrorbrain``::
-
-  sudo groupadd -r mirrorbrain
-  sudo useradd -r -g mirrorbrain -s /bin/bash -c "MirrorBrain user" -d /home/mirrorbrain mirrorbrain
 
 Create needed directories
 ~~~~~~~~~~~~~~~~~~~~~~~~~
