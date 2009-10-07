@@ -47,8 +47,6 @@ The following commands will install all needed software via
    answered with 'y'.
 
 
-
-
 Install an Apache MPM
 ---------------------
 
@@ -87,12 +85,9 @@ Download GeoIP data set::
   sudo mkdir /var/lib/GeoIP
   sudo cp GeoIP.dat /var/lib/GeoIP/GeoIP.dat
 
-Enable module::
+Enable module and restart Apache::
 
   sudo a2enmod geoip
-
-Restart Apache::
-
   sudo /etc/init.d/apache2 restart
 
 
