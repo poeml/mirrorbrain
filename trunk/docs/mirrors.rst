@@ -136,6 +136,40 @@ Because providing a lot of data on the commandline can be tiresome, and
 incremental changes are often needed to get the data right, there is a command to
 edit the data later: :program:`mb edit`.
 
+A new mirror created this way is disabled in the beginning, because it needs to
+be scanned first before it can be useful.
+
+
+Enabling mirror
+---------------
+
+Enabling a mirror, or more correctly *enabling redirections* to a mirror, can
+be done with the command :program:`mb enable`. 
+
+Before doing this for the first time, the mirror needs to be scanned to be
+useful; see below (:ref:`scanning_mirrors`).
+
+Another way to enable a mirror is to edit its database record directly (see
+below, where this is explained).
+
+
+Disabling a mirror
+------------------
+
+Using the :program:`mb disable` command, a mirror can be disabled, and
+MirrorBrain will immediately stop to send requests to it.
+
+Another way to disable a mirror is to use :program:`mb edit` to edit its
+database record, and changing the ``enabled`` field to ``False`` or ``0``. At
+the same time, a comment about the reason could be left in the ``comment``
+field.
+
+Disabled mirrors are not scanned. Thus, it is usually advisable to scan a
+mirror before reenabling it after inactivity for prolonged time, using
+:program:`mb scan -e`.
+
+A mirror will also effectively be disabled if the ``score`` is set to ``0``.
+
 
 Deleting a mirror
 -----------------
@@ -291,6 +325,8 @@ options are useful, because they add that data into the output. An example
 would be listing all mirrors with the command :program:`mb list --prio --as
 --prefix --country --region`.
 
+
+.. _scanning_mirrors:
 
 Scanning mirrors
 ----------------
