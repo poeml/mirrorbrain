@@ -235,7 +235,7 @@ Create a configuration file named :file:`mirrorbrain.conf`::
 Set permission and privileges on the file::
 
   sudo chmod 0604 /etc/mirrorbrain.conf 
-  sudo chown root:mirrorbrain /etc/mirrorbrain.conf
+  sudo chown mirrorbrain:mirrorbrain /etc/mirrorbrain.conf
 
 
 Test mirrorbrain
