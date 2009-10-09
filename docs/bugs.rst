@@ -17,23 +17,6 @@ Passwords containing spaces
 Passwords containing spaces in :file:`/etc/mirrorbrain.conf` are known not to work.
 
 
-Metalink timestamps
--------------------
-
-metalinks will likely use :rfc:`3339` timestamps instead of :rfc:`822` timestamps in
-the future (IETF draft w.i.p.). No client makes use of the data yet. Cf. to
-
-* http://groups.google.com/group/metalink-discussion/browse_thread/thread/44489ba99916aced 
-* http://groups.google.com/group/metalink-discussion/msg/2b80424f41173cd3
-
-``r->request_time``, which is attached to the request object, might be useful
-instead of :func:`apr_time_now`, because it's already filled out and can save the
-syscall to :func:`time`.
-
-See http://groups.google.com/group/metalink-discussion/web/internetdraft for
-more changes needed for the new format in spe.
-
-
 Sporadic corruption of ASN and PFX variables in the subprocess environment
 --------------------------------------------------------------------------
 
