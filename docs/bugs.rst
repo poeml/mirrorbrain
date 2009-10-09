@@ -30,6 +30,9 @@ the future (IETF draft w.i.p.). No client makes use of the data yet. Cf. to
 instead of :func:`apr_time_now`, because it's already filled out and can save the
 syscall to :func:`time`.
 
+See http://groups.google.com/group/metalink-discussion/web/internetdraft for
+more changes needed for the new format in spe.
+
 
 Sporadic corruption of ASN and PFX variables in the subprocess environment
 --------------------------------------------------------------------------
