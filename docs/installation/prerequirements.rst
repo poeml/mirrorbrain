@@ -62,6 +62,9 @@ Frontend (mod_mirrorbrain, the redirector)
 * if geographical mirror selection is going to be used, `mod_geoip`_ and `libGeoIP`_ 
   are required.
 
+* If `mod_geoip`_ is used, it needs to be version 1.2.0 or newer. See
+  http://mirrorbrain.org/issues/issue16
+
 * `mod_form`_
 
 * if you want to compile with the optional memcache support (there
