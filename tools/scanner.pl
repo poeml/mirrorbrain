@@ -277,7 +277,7 @@ for my $row (@scan_list) {
   if(length $start_dir) {
     $sql = "CREATE TEMPORARY TABLE temp1 AS 
             SELECT id FROM filearr 
-            WHERE path LIKE '$start_dir%' 
+            WHERE path LIKE '$start_dir/%' 
                   AND $row->{id} = ANY(mirrors)";
   } else {
     $sql = "CREATE TEMPORARY TABLE temp1 AS 
