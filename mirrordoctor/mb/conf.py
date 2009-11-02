@@ -46,8 +46,8 @@ class Config:
         #
         for i in self.instances:
             if not cp.has_section(i):
-                raise KeyError('The config does not have an instance [%s] defined' \
-                          % self.instance)
+                raise KeyError('The config does not have a section named [%s] '
+                               'for the instance %r' % (i, i))
             self.general[i] = dict(cp.items(i))
 
 
