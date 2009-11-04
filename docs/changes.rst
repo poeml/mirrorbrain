@@ -3,9 +3,49 @@
 Release Notes/Change History
 ============================
 
+Release 2.10.1 (r7798, Sep 9, 2009)
+-----------------------------------
 
-Release 2.10.0 (Sep 4, 2009)
-----------------------------
+* The implementation of the hash cache created by the
+  :program:`metalink-hasher` tool has been revised again. The reason is that
+  some filesystems (at least the VirtualBox Shared Folder) don't implement
+  stable inode numbers. Instead of the inode number, now the file size (plus
+  filename and modification time) is used to identify file hashes. (These are
+  the same criteria that rsync uses, by the way.)
+
+  Existing hashes are migrated, so that the files don't need to be hashed again
+  (which could potentially be time-consuming).
+  
+  The modification time of files is now copied to the hash file, so it is
+  available for comparison when checking if a hash file is up to date.
+
+  :program:`mod_mirrorbrain` has been adapted for the new cache scheme.
+  Also, it is now required that the modification time of the hash file matches
+  the modification time of the file. (For backwards compability, the module
+  still also checks for files matching the old scheme.)
+  
+  To ease the migration, and since it doesn't matter otherwise, non-existance
+  of files to be unlinked is ignored now. This occurs for instance in the above
+  mentioned migration scenario, where the hash files are renamed to a different
+  name.
+  
+
+* New features in the :program:`metalink-hasher` tool:
+
+  - Per-directory locking was implemented: directories where already a job is
+    running will be skipped. This allows for hassle-free parallel runs of more
+    than one job. 
+  
+    Note that simultaneous spawning of the script still needs to be controlled,
+    to avoid consuming too much I/O or CPU bandwidth for a machine. 
+
+  - Ctrl-C key presses and common interrupting signals are now handled
+    properly.
+
+
+
+Release 2.10.0 (r7789, Sep 4, 2009)
+-----------------------------------
 
 * The cache of metalink hashes, as created by the :program:`metalink-hasher`,
   was changed to more reliably detect changes in the origin files. So far, the
