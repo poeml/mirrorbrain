@@ -19,18 +19,18 @@ Some non-code changes that should be mentioned:
 
 In the code, the following bugs were fixed:
 
-  * The :program:`mirrorprobe` could crash when the sender domain of a
-    configured mail log handler wasn't resolvable (`issue #9`_). This has been
-    fixed.
+* The :program:`mirrorprobe` could crash when the sender domain of a
+  configured mail log handler wasn't resolvable (`issue #9`_). This has been
+  fixed.
 
-  * When scanning a subdirectory, the mirror scanner (:program:`mb scan`) could
-    accidentally delete files from the database outside of that directory. This
-    was caused by lack of terminatation (with a slash) of the path expression
-    that is used to grab the list of known files before the scan. Herewith
-    fixing `issue #19`_.
+* When scanning a subdirectory, the mirror scanner (:program:`mb scan`) could
+  accidentally delete files from the database outside of that directory. This
+  was caused by lack of terminatation (with a slash) of the path expression
+  that is used to grab the list of known files before the scan. Herewith
+  fixing `issue #19`_.
 
-  * A misleading error message in the :program:`mb` tool was improved, which
-    was issued when encountering config file with missing sections.
+* A misleading error message in the :program:`mb` tool was improved, which
+  was issued when encountering config file with missing sections.
 
 
 .. _`issue #9`: http://mirrorbrain.org/issues/issue9
