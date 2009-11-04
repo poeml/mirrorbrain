@@ -7,8 +7,8 @@ Installation
     prerequirements
     source
     opensuse
-    debian
     gentoo
     mod_asn
     troubleshooting
+    memcache
 

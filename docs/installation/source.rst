@@ -5,6 +5,7 @@ Installing from source
 
 Install Apache 2.2.6 or later. 
 
+
 The main Apache module can be built with the following steps::
 
   # unpack the tarball
@@ -42,36 +43,6 @@ After installation of mod_mirrorbrain, you'll need to:
   * http://apache.webthing.com/svn/apache/forms/mod_form.c
   * http://apache.webthing.com/svn/apache/forms/mod_form.h
 
-  It is useful to apply the following patch to mod_form.c::
-
-    Tue Mar 13 15:16:30 CET 2007 - poeml@cmdline.net
-    
-    preserve r->args (apr_strtok is destructive in this regard). Makes
-    mod_autoindex work again in conjunction with directories where FormGET is
-    enabled.
-    
-    --- mod_form.c.old      2007-03-13 15:05:13.872945000 +0100
-    +++ mod_form.c  2007-03-13 15:06:26.378367000 +0100
-    @@ -61,6 +61,7 @@
-       char* pair ;
-       char* last = NULL ;
-       char* eq ;
-    +  char* a ;
-       if ( ! ctx ) {
-         ctx = apr_pcalloc(r->pool, sizeof(form_ctx)) ;
-         ctx->delim = delim[0];
-    @@ -69,7 +70,8 @@
-       if ( ! ctx->vars ) {
-         ctx->vars = apr_table_make(r->pool, 10) ;
-       }
-    -  for ( pair = apr_strtok(args, delim, &last) ; pair ;
-    +  a = apr_pstrdup(r->pool, args);
-    +  for ( pair = apr_strtok(a, delim, &last) ; pair ;
-             pair = apr_strtok(NULL, delim, &last) ) {
-         for (eq = pair ; *eq ; ++eq)
-           if ( *eq == '+' )
-
-
 - install the following Python modules:
 
   * python-cmdln
@@ -102,7 +73,7 @@ After installation of mod_mirrorbrain, you'll need to:
        su - postgres
        
        root@powerpc:~ # su - postgres
-       postgres@powerpc:~> createuser -P mirrorbrain
+       postgres@powerpc:~> createuser -P mb
        Enter password for new role: 
        Enter it again: 
        Shall the new role be a superuser? (y/n) n
@@ -110,9 +81,9 @@ After installation of mod_mirrorbrain, you'll need to:
        Shall the new role be allowed to create more new roles? (y/n) n
        CREATE ROLE
        
-       postgres@powerpc:~> createdb -O mirrorbrain mirrorbrain
+       postgres@powerpc:~> createdb -O mb mb_samba
        CREATE DATABASE
-       postgres@powerpc:~> createlang plpgsql mirrorbrain
+       postgres@powerpc:~> createlang plpgsql mb_samba
        postgres@powerpc:~> 
 
 
@@ -128,7 +99,7 @@ After installation of mod_mirrorbrain, you'll need to:
        # IPv6 local connections:
        host    all         all         ::1/128               password
        # remote connections:
-       host    mirrorbrain mirrorbrain 10.10.2.3/32          md5
+       host    mb_samba    mb          10.10.2.3/32          md5
 
        
       
@@ -145,8 +116,8 @@ After installation of mod_mirrorbrain, you'll need to:
 
   * import table structure, and initial data::
 
-       psql -U mirrorbrain -f sql/schema-postgresql.sql mirrorbrain
-       psql -U mirrorbrain -f sql/initialdata-postgresql.sql mirrorbrain
+       psql -U mb -f sql/schema-postgresql.sql mb_samba
+       psql -U mb -f sql/initialdata-postgresql.sql mb_samba
 
 
 * Create a user and group::
@@ -158,20 +129,19 @@ After installation of mod_mirrorbrain, you'll need to:
   should be 0640, ownership root:mirrorbrain::
 
     [general]
-    instances = main
+    instances = samba
   
-    [main]
-    dbuser = mirrorbrain
+    [samba]
+    dbuser = mb
     dbpass = 12345
     dbdriver = postgresql
     dbhost = your_host.example.com
     # optional: dbport = ...
-    dbname = mirrorbrain
+    dbname = mb_samba
     
     [mirrorprobe]
-    # logfile = /var/log/mirrorbrain/mirrorprobe.log
-    # loglevel = INFO
-    
+    mailto = your_mail@example.com, another_mail@example.com
+
 
 * Note: the "mb" tool referenced below is (for convenience) a symlink to the
   mirrordoctor.py script.
@@ -250,7 +220,7 @@ After installation of mod_mirrorbrain, you'll need to:
       DBDriver pgsql
       # note that the connection string (which is passed straight through to
       # PGconnectdb in this case) looks slightly different - pass vs. password
-      DBDParams "host=localhost user=mirrorbrain password=12345 dbname=mirrorbrain connect_timeout=15"
+      DBDParams "host=localhost user=mb password=12345 dbname=mb_samba connect_timeout=15"
 
 
     .. note:: The database connection string must be unique per virtual host.
@@ -268,7 +238,7 @@ After installation of mod_mirrorbrain, you'll need to:
       <VirtualHost your.host.name:80>
           ServerName samba.mirrorbrain.org
       
-          ServerAdmin webmaster@example.org
+          ServerAdmin webmaster@mirrorbrain.org
       
           DocumentRoot /srv/samba/pub/projects
       

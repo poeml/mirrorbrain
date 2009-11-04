@@ -12,9 +12,9 @@ Table of Contents
 
    intro
    installation/index
-   mirrors
-   configuration
    tuning
+   configuration
+   mirrors
    upgrading
    developer
    bugs

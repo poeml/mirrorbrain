@@ -47,7 +47,7 @@ use Time::HiRes qw(gettimeofday);
 use Encode;
 
 my $version = '0.40';
-my $scanner_email = 'poeml@cmdline.net';
+my $scanner_email = 'poeml@suse.de';
 my $verbose = 1;
 my $sqlverbose = 0;
 
@@ -277,7 +277,7 @@ for my $row (@scan_list) {
   if(length $start_dir) {
     $sql = "CREATE TEMPORARY TABLE temp1 AS 
             SELECT id FROM filearr 
-            WHERE path LIKE '$start_dir/%' 
+            WHERE path LIKE '$start_dir%' 
                   AND $row->{id} = ANY(mirrors)";
   } else {
     $sql = "CREATE TEMPORARY TABLE temp1 AS 

@@ -211,13 +211,9 @@ def main():
     #logging.getLogger('').addHandler(console)
 
     # warnings will be mailed
-    try:
-        fromdomain = socket.gethostbyaddr(socket.gethostname())[0] 
-    except:
-        fromdomain = ''
     toaddrs = [ i.strip() for i in options.mailto.split(',') ]
     mail = logging.handlers.SMTPHandler('localhost', 
-                                        'root@' + fromdomain,
+                                        'root@' + socket.gethostbyaddr(socket.gethostname())[0], 
                                         toaddrs,
                                         'no_subject')
     mail.setLevel(logging.WARNING)

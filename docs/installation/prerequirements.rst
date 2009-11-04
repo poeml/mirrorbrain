@@ -18,7 +18,7 @@ Apache
 ------
 
 A recent enough version of the Apache HTTP server is required. **2.2.6** or
-later should be used. In addition, the apr-util library should be **1.3.0**
+later should be used. In addition, the apr-util library needs to be **1.3.0**
 or newer. This is because the `DBD database pool functionality`_ was developed
 mainly around 2006 and 2007, and reached production quality at the time. This
 will mean that you have to upgrade Apache when installing on an oldish
@@ -44,26 +44,14 @@ CentOS 5/RHEL
     newer one.
 
 Debian
-    the Apache in *Etch* is too old. In newer releases, it should be alright.
-    If APR-Util is older than 1.3 (1.2), it is necessary to apply a patch to
-    mod_mirrorbrain. See http://mirrorbrain.org/issues/issue7. The provided
-    Debian packages are compiled with this patch.
+    the Apache in *Etch* is too old. In other releases, it should be alright.
 
-Ubuntu
-    Apache in *9.04* is new enough and known to work.
-    APR-Util on 9.04 is still older than 1.3 (1.2.x), and thus it is necessary
-    to apply a patch to mod_mirrorbrain. See http://mirrorbrain.org/issues/issue7. 
-    The provided Ubuntu packages are compiled with this patch.
-    
 
 Frontend (mod_mirrorbrain, the redirector)
 ------------------------------------------
 
 * if geographical mirror selection is going to be used, `mod_geoip`_ and `libGeoIP`_ 
   are required.
-
-* If `mod_geoip`_ is used, it needs to be version 1.2.0 or newer. See
-  http://mirrorbrain.org/issues/issue16
 
 * `mod_form`_
 
