@@ -13,7 +13,7 @@ easy_install http://trentm.com/downloads/cmdln/1.1.1/cmdln-1.1.1.zip
 """
 
 __version__ = '1.0'
-__author__ = 'Peter Poeml <poeml@suse.de>'
+__author__ = 'Peter Poeml <poeml@cmdline.net>'
 __copyright__ = 'Novell / SUSE Linux Products GmbH'
 __license__ = 'GPL'
 __url__ = 'http://mirrorbrain.org'
