@@ -44,7 +44,7 @@ After installation of mod_mirrorbrain, you'll need to:
 
   It is useful to apply the following patch to mod_form.c::
 
-    Tue Mar 13 15:16:30 CET 2007 - poeml@suse.de
+    Tue Mar 13 15:16:30 CET 2007 - poeml@cmdline.net
     
     preserve r->args (apr_strtok is destructive in this regard). Makes
     mod_autoindex work again in conjunction with directories where FormGET is

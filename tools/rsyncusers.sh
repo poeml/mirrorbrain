@@ -2,7 +2,7 @@
 
 # analyze rsync logfile to list rsync users per rsync module
 
-# Copyright 2008,2009 Peter Poeml <poeml@suse.de>
+# Copyright 2008,2009 Peter Poeml <poeml@cmdline.net>
 # 
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License version 2
@@ -18,8 +18,8 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 
 __version__='1.0'
-__author__='Peter Poeml <poeml@suse.de>'
-__copyright__='Peter poeml <poeml@suse.de>'
+__author__='Peter Poeml <poeml@cmdline.net>'
+__copyright__='Peter poeml <poeml@cmdline.net>'
 __license__='GPLv2'
 __url__='http://mirrorbrain.org'
 

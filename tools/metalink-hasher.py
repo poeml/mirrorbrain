@@ -25,8 +25,8 @@
 
 
 __version__ = '1.2'
-__author__ = 'Peter Poeml <poeml@suse.de>'
-__copyright__ = 'Peter poeml <poeml@suse.de>'
+__author__ = 'Peter Poeml <poeml@cmdline.net>'
+__copyright__ = 'Peter poeml <poeml@cmdline.net>'
 __license__ = 'GPLv2'
 __url__ = 'http://mirrorbrain.org'
 
