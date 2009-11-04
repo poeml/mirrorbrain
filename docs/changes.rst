@@ -3,6 +3,39 @@
 Release Notes/Change History
 ============================
 
+Release 2.10.2 (r7853, Nov 9, 2009)
+-----------------------------------
+
+Some non-code changes that should be mentioned:
+
+* The documentation was updated in various places. Notably, there are now
+  instructions for :ref:`installation_ubuntu_debian`, which David Farning
+  deserves credits for.
+
+* Ubuntu (and Debian) packages have been created. The Ubuntu packages have been
+  tested successfully. (See download page.)
+
+* A bug tracking system has been set up: http://mirrorbrain.org/issues/
+
+In the code, the following bugs were fixed:
+
+  * The :program:`mirrorprobe` could crash when the sender domain of a
+    configured mail log handler wasn't resolvable (`issue #9`_). This has been
+    fixed.
+
+  * When scanning a subdirectory, the mirror scanner (:program:`mb scan`) could
+    accidentally delete files from the database outside of that directory. This
+    was caused by lack of terminatation (with a slash) of the path expression
+    that is used to grab the list of known files before the scan. Herewith
+    fixing `issue #19`_.
+
+  * A misleading error message in the :program:`mb` tool was improved, which
+    was issued when encountering config file with missing sections.
+
+
+.. _`issue #9`: http://mirrorbrain.org/issues/issue9
+.. _`issue #19`: http://mirrorbrain.org/issues/issue19
+
 Release 2.10.1 (r7798, Sep 9, 2009)
 -----------------------------------
 

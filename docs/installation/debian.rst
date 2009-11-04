@@ -1,4 +1,6 @@
 
+.. _installation_ubuntu_debian:
+
 Installation on Debian/Ubuntu Linux
 ===================================
 
