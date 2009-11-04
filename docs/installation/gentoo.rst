@@ -2,6 +2,12 @@ Installation on Gentoo Linux
 ================================================================================
 
 
+.. note::
+   See also
+   http://wiki.github.com/ramereth/ramereth-overlay/gentoo-mirrorbrain-howto
+   (which should be merged with this documentation)
+
+
 .. warning:: 
    When I (Peter) took the following notes, it was my first experience in
    setting up a Gentoo system.
