@@ -27,9 +27,27 @@ There are more repositories at
 http://download.opensuse.org/repositories/Apache:/MirrorBrain/ for other Ubuntu
 and Debian releases.
 
-
 After adding the repository, update the local :program:`apt-get` package
 cache::
+
+  sudo apt-get update
+
+
+That will produce a warning message saying that a GPG key isn't known for the
+new package repository. Take note of the key ID and import the key with `apt-key`::
+
+   # sudo apt-key adv --keyserver hkp://keys.gnupg.net --recv-keys 9584A164BD6D129A
+  Executing: gpg --ignore-time-conflict --no-options --no-default-keyring \
+    --secret-keyring /etc/apt/secring.gpg --trustdb-name /etc/apt/trustdb.gpg \
+    --keyring /etc/apt/trusted.gpg --keyserver hkp://keys.gnupg.net --recv-keys \
+    9584A164BD6D129A
+  gpg: requesting key BD6D129A from hkp server keys.gnupg.net
+  gpg: key BD6D129A: public key "Apache OBS Project <Apache@build.opensuse.org>" imported
+  gpg: no ultimately trusted keys found
+  gpg: Total number processed: 1
+  gpg:               imported: 1
+
+If you now run :program:`apt-get` again, the warning should be gone::
 
   sudo apt-get update
 
@@ -42,11 +60,6 @@ The following commands will install all needed software via
 
   sudo apt-get install mirrorbrain mirrorbrain-tools mirrorbrain-scanner \
   libapache2-mod-mirrorbrain libapache2-mod-autoindex-mb
-
-
-.. note:: 
-   The packages are unsigned, thus a corresponding warning needs to be
-   answered with 'y'.
 
 
 Install an Apache MPM
