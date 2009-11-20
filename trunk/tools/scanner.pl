@@ -77,7 +77,6 @@ my $all_servers = 0;
 my $start_dir = '/';
 my $parallel = 1;
 my $list_only = 0;
-my $keep_dead_files = 0;
 my $recursion_delay = 0;	# seconds delay per *_readdir recuursion
 my $force_scan = 0;
 my $enable_after_scan = 0;
@@ -332,29 +331,28 @@ for my $row (@scan_list) {
          . int($fpm/60) . "/s) in " 
          . int($duration) . "s\n" if $verbose;
 
-  unless ($keep_dead_files) {
-    $start = time();
-    print localtime(time) . " $row->{identifier}: purging old files\n" if $verbose > 1;
+  $start = time();
+  print localtime(time) . " $row->{identifier}: purging old files\n" if $verbose > 1;
 
 
-    #$sql = "SELECT COUNT(*) FROM temp1";
-    $sql = "SELECT COUNT(mirr_del_byid($row->{id}, id)) FROM temp1";
-    print "$sql\n" if $sqlverbose;
-    $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
-    my $purge_file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
-    print localtime(time) . " $row->{identifier}: files to be purged: $purge_file_count\n";
+  #$sql = "SELECT COUNT(*) FROM temp1";
+  $sql = "SELECT COUNT(mirr_del_byid($row->{id}, id)) FROM temp1";
+  print "$sql\n" if $sqlverbose;
+  $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
+  my $purge_file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
+  print localtime(time) . " $row->{identifier}: files to be purged: $purge_file_count\n";
 
 
-    $sql = "SELECT COUNT(*) FROM filearr WHERE $row->{id} = ANY(mirrors);";
-    print "$sql\n" if $sqlverbose;
-    my $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
-    $file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
-    print localtime(time) . " $row->{identifier}: total files after scan: $file_count\n";
+  $sql = "SELECT COUNT(*) FROM filearr WHERE $row->{id} = ANY(mirrors);";
+  print "$sql\n" if $sqlverbose;
+  my $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
+  $file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
+  print localtime(time) . " $row->{identifier}: total files after scan: $file_count\n";
 
 
-    $duration = time() - $start;
-    print localtime(time) . " $row->{identifier}: purged old files in " . $duration . "s.\n" if $verbose > 0;
-  }
+  $duration = time() - $start;
+  print localtime(time) . " $row->{identifier}: purged old files in " . $duration . "s.\n" if $verbose > 0;
+
 
   # update the last_scan timestamp; but only if we did a complete scan.
   unless ($start_dir) {
@@ -802,11 +800,10 @@ sub save_file
     #print "fileid: $fileid\n";
     #}
   $sth_mirr_addbypath->finish;
-    if (!$keep_dead_files) {
-    $sql = "DELETE FROM temp1 WHERE id = $fileid";
-    print "$sql\n" if $sqlverbose;
-    $dbh->do($sql) or die "$sql: ".$DBI::errstr;
-  }
+
+  $sql = "DELETE FROM temp1 WHERE id = $fileid";
+  print "$sql\n" if $sqlverbose;
+  $dbh->do($sql) or die "$sql: ".$DBI::errstr;
 
   return $path;
 }
