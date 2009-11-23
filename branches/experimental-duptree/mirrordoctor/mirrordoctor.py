@@ -667,6 +667,9 @@ class MirrorDoctor(cmdln.Cmdln):
     @cmdln.option('-d', '--directory', metavar='DIR',
                   help='Scan only in dir under mirror\'s baseurl. '
                        'Default: start at baseurl. Does not delete files, only add.')
+    @cmdln.option('-D', '--duplicate-tree', metavar='DIR',
+                  help='Create a local file tree, duplicating the file tree '
+                       'of the scanned mirror with (sparse) pseudo files.')
     def do_scan(self, subcmd, opts, *args):
         """${cmd_name}: scan mirrors
 
@@ -697,6 +700,8 @@ class MirrorDoctor(cmdln.Cmdln):
             cmd.append('-e')
         if opts.directory:
             cmd.append('-d %s' % opts.directory)
+        if opts.duplicate_tree:
+            cmd.append('-D %s' % opts.duplicate_tree)
         if opts.jobs:
             cmd += [ '-j', opts.jobs ]
         if opts.enable or args:
@@ -708,6 +713,12 @@ class MirrorDoctor(cmdln.Cmdln):
                  self.config.dbconfig.get('scan_exclude', '').split() ]
         cmd += [ '--exclude-rsync %s' % i for i in 
                  self.config.dbconfig.get('scan_exclude_rsync', '').split() ]
+
+        i = self.config.dbconfig.get('dup_tree_from', None)
+        j = self.config.dbconfig.get('dup_tree_dest', None)
+        if i and j:
+            cmd.append('--dup-tree-from %s' % i)
+            cmd.append('--dup-tree-dest %s' % j)
 
         if not opts.all and not args:
             sys.exit('No mirrors specified for scanning. Either give identifiers, or use -a [-j N].')

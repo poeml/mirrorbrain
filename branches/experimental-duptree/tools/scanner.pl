@@ -75,6 +75,8 @@ $ua->agent("MirrorBrain Scanner/$version (See http://mirrorbrain.org/scanner_inf
 my $rsync_muxbuf = '';
 my $all_servers = 0;
 my $start_dir = '/';
+my $dup_tree_from = '';
+my $dup_tree_dest = '';
 my $parallel = 1;
 my $list_only = 0;
 my $recursion_delay = 0;	# seconds delay per *_readdir recuursion
@@ -125,6 +127,8 @@ while (defined (my $arg = shift)) {
 	elsif ($arg =~ m{^-e})                 { $enable_after_scan++; }
 	elsif ($arg =~ m{^-f})                 { $force_scan++; }
 	elsif ($arg =~ m{^-d})                 { $start_dir = shift; }
+	elsif ($arg =~ m{^--dup-tree-from$})   { $dup_tree_from = shift; }
+	elsif ($arg =~ m{^--dup-tree-dest$})   { $dup_tree_dest = shift; }
 	elsif ($arg =~ m{^-b})                 { $brain_instance = shift; }
 	elsif ($arg =~ m{^-l})                 { $list_only++; 
 						 $list_only++ if $arg =~ m{ll}; 
@@ -243,6 +247,8 @@ if ($parallel > 1) {
   push @cmd, '-f' if $force_scan;
   push @cmd, '-e' if $enable_after_scan;
   push @cmd, '-d', $start_dir if length $start_dir;
+  push @cmd, '--dup-tree-from', $dup_tree_from if length $dup_tree_from;
+  push @cmd, '--dup-tree-dest', $dup_tree_dest if length $dup_tree_dest;
   # We must not propagate -j here.
   # All other options we should propagate.
 
@@ -267,6 +273,12 @@ if($do_transaction) {
 
 for my $row (@scan_list) {
   print localtime(time) . " $row->{identifier}: starting\n" if $verbose;
+
+  my $dup_tree_dest_this = '';
+  if ($dup_tree_dest and ($row->{identifier} eq $dup_tree_from)) { 
+    print localtime(time) . " $row->{identifier}: duplicating local tree from this mirror\n";
+    $dup_tree_dest_this = $dup_tree_dest;
+  }
 
   # already in a transaction? why??
   #if($do_transaction) {
@@ -308,14 +320,14 @@ for my $row (@scan_list) {
 
 
   my $start = int(gettimeofday * 1000);
-  my $file_count = rsync_readdir($row->{identifier}, $row->{id}, $row->{baseurl_rsync}, $start_dir);
+  my $file_count = rsync_readdir($row->{identifier}, $row->{id}, $row->{baseurl_rsync}, $start_dir, $dup_tree_dest_this);
   if(!$file_count and $row->{baseurl_ftp}) {
     print localtime(time) . " $row->{identifier}: no rsync, trying ftp\n" if $verbose;
-    $file_count = scalar ftp_readdir($row->{identifier}, $row->{id}, $row->{baseurl_ftp}, time, $start_dir);
+    $file_count = scalar ftp_readdir($row->{identifier}, $row->{id}, $row->{baseurl_ftp}, time, $start_dir, $dup_tree_dest_this);
   }
   if(!$file_count and $row->{baseurl}) {
     print localtime(time) . " $row->{identifier}: no rsync, no ftp, trying http\n" if $verbose;
-    $file_count = scalar http_readdir($row->{identifier}, $row->{id}, $row->{baseurl}, $start_dir);
+    $file_count = scalar http_readdir($row->{identifier}, $row->{id}, $row->{baseurl}, $start_dir, $dup_tree_dest_this);
   }
 
   if($do_transaction) {
@@ -515,7 +527,7 @@ sub fork_child
 # http://ftp1.opensuse.org/repositories/#@^@repositories/@@
 sub http_readdir
 {
-  my ($identifier, $id, $url, $name) = @_;
+  my ($identifier, $id, $url, $name, $dup_tree_dest) = @_;
 
   my $item;
 
@@ -582,7 +594,7 @@ sub http_readdir
           ## we must be really sure it is a directory, when we come here.
           ## otherwise, we'll retrieve the contents of a file!
           sleep($recursion_delay) if $recursion_delay;
-          push @r, http_readdir($identifier, $id, $urlraw, $t, 0);
+          push @r, http_readdir($identifier, $id, $urlraw, $t, $dup_tree_dest, 0);
         }
         else {
           ## it is a file.
@@ -597,7 +609,7 @@ sub http_readdir
           }
           elsif(largefile_check($identifier, $id, $t, $len)) {
             #save timestamp and file in database
-            if(save_file($t, $identifier, $id, $time, $re)) {
+            if(save_file($t, $identifier, $id, $time, $len, $re, $dup_tree_dest)) {
               push @r, [ $t , $time ];
             }
           }
@@ -633,11 +645,11 @@ sub byte_size
 
 
 
-# $file_count = scalar ftp_readdir($row->{identifier}, $row->{id}, $row->{baseurl_ftp}, $ftp_timer, $start_dir);
+# $file_count = scalar ftp_readdir($row->{identifier}, $row->{id}, $row->{baseurl_ftp}, $ftp_timer, $start_dir, $dup_tree_dest);
 # first call: $ftp undefined
 sub ftp_readdir
 {
-  my ($identifier, $id, $url, $ftp_timer, $name, $ftp) = @_;
+  my ($identifier, $id, $url, $ftp_timer, $name, $ftp, $dup_tree_dest) = @_;
 
   my $ftp_age = (time() - $ftp_timer);
   print "$identifier: last command issued $ftp_age"."s ago\n" if $verbose > 2;
@@ -730,7 +742,7 @@ sub ftp_readdir
           next;
         }
         sleep($recursion_delay) if $recursion_delay;
-        push @r, ftp_readdir($identifier, $id, $urlraw, $ftp_timer, $t, $ftp);
+        push @r, ftp_readdir($identifier, $id, $urlraw, $ftp_timer, $t, $ftp, $dup_tree_dest);
       }
 
       if($type eq 'l') {
@@ -742,7 +754,7 @@ sub ftp_readdir
         }
         #save timestamp and file in database
         if(largefile_check($identifier, $id, $t, $size)) {
-          if(save_file($t, $identifier, $id, $time, $re)) {
+          if(save_file($t, $identifier, $id, $time, $size, $re, $dup_tree_dest)) {
             push @r, [ $t , $time ];
           }
         }
@@ -762,7 +774,7 @@ sub ftp_readdir
 
 sub save_file
 {
-  my ($path, $identifier, $serverid, $mod_re, $ign_re) = @_;
+  my ($path, $identifier, $serverid, $mod_re, $size, $ign_re, $dup_tree_dest) = @_;
 
   #
   # optional patch the file names by adding or removing components.
@@ -770,6 +782,15 @@ sub save_file
   #
 
   return undef if $ign_re and $path =~ m{$ign_re};
+
+
+  if ($dup_tree_dest) {
+    my $save_local = "$dup_tree_dest/$path";
+    printf "Duplicating locally: $save_local (size: $size; mtime: $mod_re)\n" 
+      if $verbose > 2;;
+    system("/tmp/create_sparse.py $dup_tree_dest $path $size $mod_re");
+  }
+
 
   if ($mod_re and $mod_re =~ m{@([^@]*)@([^@]*)}) {
     print "$identifier: save_file: $path + #$mod_re -> " if $verbose > 2;
@@ -914,7 +935,7 @@ sub rsync_cb
         printf "$priv->{identifier}: warning: $name cannot be delivererd via HTTP! Skipping\n" if $verbose > 0;
       }
       else {
-        $name = save_file($name, $priv->{identifier}, $priv->{serverid}, $mtime, $priv->{re});
+        $name = save_file($name, $priv->{identifier}, $priv->{serverid}, $mtime, $len, $priv->{re}, $priv->{dup_tree_dest});
         $priv->{counter}++;
         if (($priv->{counter} % 50) == 0) {
           print "$priv->{identifier}: commit after 50 files\n" if $verbose > 2;
@@ -947,7 +968,7 @@ sub rsync_cb
 #  d: base directory (can be 'undef'): parameter to the '-d' switch
 sub rsync_readdir
 {
-  my ($identifier, $serverid, $url, $d) = @_;
+  my ($identifier, $serverid, $url, $d, $dup_tree_dest) = @_;
   return 0 unless $url;
 
   $url =~ s{^rsync://}{}s; # trailing s: treat as single line, strip off protocol id
@@ -964,6 +985,7 @@ sub rsync_readdir
   $peer->{user} = $cred if $cred;
   $peer->{subdir} = $d if length $d;
   $peer->{counter} = 0;
+  $peer->{dup_tree_dest} = $dup_tree_dest;
   $path .= "/". $d if length $d;
   rsync_get_filelist($identifier, $peer, $path, 0, \&rsync_cb, $peer);
   return $peer->{counter};
