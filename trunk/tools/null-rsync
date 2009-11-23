@@ -87,12 +87,12 @@ rsync_src = sys.argv[1]
 rsync_dst = sys.argv[2]
 
 cmd = [ 'rsync',
-	    '--no-motd', 
+        '--no-motd', 
         # not -a because we don't want --devices --specials --owner --group
-	    '-rlpt', 
+        '-rlpt', 
         # upstream may have world-writable files/directories, but that doesn't mean
         # that we want that locally
-	    '--chmod=o-w',
+        '--chmod=o-w',
         '--out-format=%o %B %i %M %l %n%L',
         '--delete',
         '-n',
