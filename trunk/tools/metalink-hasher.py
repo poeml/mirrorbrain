@@ -1,6 +1,9 @@
 #!/usr/bin/python
 
 # metalink-hasher -- create metalink hashes
+#
+# The "essence" of what this script does is the following:
+# metalink --nomirrors -d md5 -d sha1 -d sha1pieces "$1" | grep '<.*\(verification\|hash\)>'
 # 
 # This script requires the cmdln module, which you can obtain here:
 # http://trentm.com/projects/cmdln/
