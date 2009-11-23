@@ -55,7 +55,6 @@ import subprocess
 import time
 import stat
 
-verbose = True
 
 def perms_to_mode(p):
 
@@ -72,9 +71,10 @@ def perms_to_mode(p):
     elif p[5] == 's': m |= stat.S_ISGID | stat.S_IXGRP
 
     if p[6] == 'r': m |= stat.S_IROTH
+    # we never receive the following bit, because we run rsync with --chmod=o-w
+    # so that it always considers the bit off in the source permissions
     if p[7] == 'w': m |= stat.S_IWOTH
     if p[8] == 'x': m |= stat.S_IXOTH
-
 
     # for security reasons, we probably don't want these:
     # stat.S_ISUID
@@ -85,6 +85,7 @@ def perms_to_mode(p):
 
 rsync_src = sys.argv[1]
 rsync_dst = sys.argv[2]
+verbose = True
 
 cmd = [ 'rsync',
         '--no-motd', 
