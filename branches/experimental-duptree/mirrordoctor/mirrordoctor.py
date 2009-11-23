@@ -667,9 +667,6 @@ class MirrorDoctor(cmdln.Cmdln):
     @cmdln.option('-d', '--directory', metavar='DIR',
                   help='Scan only in dir under mirror\'s baseurl. '
                        'Default: start at baseurl. Does not delete files, only add.')
-    @cmdln.option('-D', '--duplicate-tree', metavar='DIR',
-                  help='Create a local file tree, duplicating the file tree '
-                       'of the scanned mirror with (sparse) pseudo files.')
     def do_scan(self, subcmd, opts, *args):
         """${cmd_name}: scan mirrors
 
@@ -700,8 +697,6 @@ class MirrorDoctor(cmdln.Cmdln):
             cmd.append('-e')
         if opts.directory:
             cmd.append('-d %s' % opts.directory)
-        if opts.duplicate_tree:
-            cmd.append('-D %s' % opts.duplicate_tree)
         if opts.jobs:
             cmd += [ '-j', opts.jobs ]
         if opts.enable or args:
