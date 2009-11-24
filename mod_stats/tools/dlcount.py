@@ -187,7 +187,8 @@ def main():
         # extended/3.1.1rc2/OOo_3.1.1rc2_20090820_Win32Intel_langpack_en-ZA.exe      -
         # extended/3.1.1rc2/OOo_3.1.1rc2_20090820_Win32Intel_langpack_en-ZA.exe      -
         # extended/3.1.1rc2/OOo_3.1.1rc2_20090820_Win32Intel_langpack_en-ZA.exe      -
-        ( r'^(?:stable|extended)/([^/]+)/(OOo|OOo-SDK)_(?P<realversion>[^_]+(?:_[0-9]+)?)_(.+)_(?P<lang>([a-zA-Z]{2}(-[a-zA-Z]{2})?|binfilter|core|l10n|extensions|system|testautomation))(_deb|_rpm)?\.(exe|dmg|sh|tar\.gz|tar\.bz2)$', r'prod: \2  os: \4  version: \1  realversion: \g<realversion>  lang: \g<lang>'),
+        # extended/3.1.1rc2/OOo_3.1.1rc2_20090820_LinuxIntel_langpack_brx_deb.tar.gz
+        ( r'^(?:stable|extended)/([^/]+)/(OOo|OOo-SDK)_(?P<realversion>[^_]+(?:_[0-9]+)?)_(.+)_(?P<lang>([a-zA-Z]{2}(-[a-zA-Z]{2})?|binfilter|core|l10n|extensions|system|testautomation|brx|dgo|kok|mai|mni|sat))(_deb|_rpm)?\.(exe|dmg|sh|tar\.gz|tar\.bz2)$', r'prod: \2  os: \4  version: \1  realversion: \g<realversion>  lang: \g<lang>'),
 
 
         # extended/3.1.1rc2/OOo_3.1.1rc2_20090820_LinuxX86-64_langpack_zh-CN.tar.gz
