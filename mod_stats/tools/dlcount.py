@@ -1,31 +1,61 @@
 #!/usr/bin/python
 
-# Analyze Apache logfiles without hogging memory
-# 
-# This script uses Python generators, which means that it doesn't allocate memory
-# It rather works like a Unix pipe.
-# 
-# It transparently opens uncompressed, gzip or bzip2 compressed files.
-# 
-# The implementation is based on David Beazley's PyCon UK 08 great talk about
-# generator tricks for systems programmers.
-#
-#
-#
 # Copyright 2008,2009 Peter Poeml
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License version 2
-# as published by the Free Software Foundation;
+#     This program is free software; you can redistribute it and/or
+#     modify it under the terms of the GNU General Public License version 2
+#     as published by the Free Software Foundation;
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+#     This program is distributed in the hope that it will be useful,
+#     but WITHOUT ANY WARRANTY; without even the implied warranty of
+#     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#     GNU General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+#     You should have received a copy of the GNU General Public License
+#     along with this program; if not, write to the Free Software
+#     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+#
+#
+#
+# Analyze Apache logfiles in order to count downloads
+#
+#
+# This script parses a MirrorBrain-enhanced access_log and does the following:
+#   - a little ring buffer filters requests recurring within a sliding time window (keyed by ip+url+referer+user-agent)
+#   - strip trailing http://... cruft
+#   - remove duplicated slashes
+#   - remove accidental query strings
+#   - remove a possible .metalink suffix
+#   - remove the /files/ prefix
+# 
+# It applies filtering by
+#   - status code being 200 or 302
+#   - requests must be GET
+#   - bouncer's IP which keeps coming back to download all files (from OOo)
+# 
+# It also captures the country where the client requests originate from.
+#
+# This script uses Python generators, which means that it doesn't allocate
+# memory according to the log size. It rather works like a Unix pipe.
+# (The implementation of the generator pipeline is based on David Beazley's
+# PyCon UK 08 great talk about generator tricks for systems programmers.)
+#
+# 
+# I baked a first regexp which is able to parse most (OpenOffice.org) requests
+# from /stable and /extended. There are some exceptions (language code with 3
+# letters) and I didn't take care of /localized yet.
+# 
+# The script should serve as model implementation for the Apache module which
+# does the same in realtime.
+#
+#
+# Usage: 
+# ./dlcount.py /var/log/apache2/download.services.openoffice.org/2009/11/download.services.openoffice.org-20091123-access_log.bz2 | sort -u
+#
+# Uncompressed, gzip or bzip2 compressed files are transparently opened.
+# 
+#
+# 
 
 
 __version__='0.9'
