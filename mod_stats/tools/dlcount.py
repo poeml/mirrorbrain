@@ -231,9 +231,8 @@ def main():
         sys.exit('Usage: dlcount CONFIGFILE LOGFILE [LOGFILE ...]')
 
     conf = readconf(sys.argv[1])
-    print; print
-    import pprint
-    pprint.pprint(conf)
+    #import pprint
+    #pprint.pprint(conf)
 
 
     known = RingBuffer(conf['statsdupwindow'])
@@ -279,7 +278,7 @@ def main():
         print '%-80s ' % url, 
 
         matched = False
-        for m, s, mreg in []: # conf['statscount']:
+        for m, s, mreg in conf['statscount']:
             if matched:
                 sys.exit('warning: %r matches\n   %r\nbut already matched a pevious regexp:\n   %r' % (url, mreg, matched))
             if m.match(url):
