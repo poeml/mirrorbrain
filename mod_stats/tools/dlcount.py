@@ -255,6 +255,7 @@ def main():
     for req in reqs:
 
         (ip, url, status, referer, ua, country) = req
+        url_raw = url
 
         # over a window of StatsDupWindow last requests, the same request must
         # not have occured already
@@ -287,6 +288,7 @@ def main():
         for r, s, mreg in conf['statsprefilter']:
             url = r.sub(s, url)
 
+        # url_raw still contains the original url, if needed
         print '%-80s ' % url, 
 
         matched = False
