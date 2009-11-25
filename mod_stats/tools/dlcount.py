@@ -272,24 +272,25 @@ def main():
         known.append(md)
 
         # apply prefiltering
-        for m, s, mreg in conf['statsprefilter']:
-            url = m.sub(s, url)
+        for r, s, mreg in conf['statsprefilter']:
+            url = r.sub(s, url)
 
         print '%-80s ' % url, 
 
         matched = False
-        for m, s, mreg in conf['statscount']:
-            if matched:
-                sys.exit('warning: %r matches\n   %r\nbut already matched a pevious regexp:\n   %r' % (url, mreg, matched))
-            if m.match(url):
-                print m.sub(s, url)
+        for r, s, mreg in conf['statscount']:
+            if r.match(url):
+                if matched:
+                    # FIXME: eventually, we want to allow multiple matches. But now we are debugging.
+                    sys.exit('warning: %r matches\n   %r\nbut already matched a pevious regexp:\n   %r' % (url, mreg, matched))
+                print r.sub(s, url)
                 matched = mreg
         if not matched:
             print '-'
 
         # apply postfiltering
-        for m, s, mreg in conf['statspostfilter']:
-            url = m.sub(s, url)
+        for r, s, mreg in conf['statspostfilter']:
+            url = r.sub(s, url)
 
 
     sys.exit(0)
