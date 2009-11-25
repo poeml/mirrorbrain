@@ -162,8 +162,10 @@ class RingBuffer:
 
 def readconf(filename):
     """we'd need Apache's config parser here..."""
-    known_directives = ['StatsDupWindow', 'StatsIgnoreIP', 'StatsPreFilter', 'StatsCount', 'StatsPostFilter']
+    known_directives = ['StatsDupWindow', 'StatsIgnoreIP', 'StatsIgnoreMask', 'StatsPreFilter', 'StatsCount', 'StatsPostFilter']
     known_directives_lower = [ i.lower() for i in known_directives ]
+    # regular expressions to parse arguments
+    parse_1_in_quotes = re.compile(r'"(.*)"')
     parse_2_in_quotes = re.compile(r'"(.*)"\s+"(.*)"')
 
     # create a dictionary to hold the config
@@ -197,6 +199,13 @@ def readconf(filename):
         if directive in ['statsdupwindow']:
             conf[directive] = int(val)
 
+        # directives with one argument: a regexp
+        elif directive in ['statsignoremask']:
+            m = parse_1_in_quotes.match(val)
+            regex = m.group(1).replace('\\"', '"')
+            regex_compiled = re.compile(regex)
+            conf[directive].append((regex_compiled, regex))
+
         # these come with two args: a regexp and a substitution rule
         elif directive in ['statsprefilter', 'statscount', 'statspostfilter']:
             m = parse_2_in_quotes.match(val)
@@ -205,7 +214,7 @@ def readconf(filename):
             subst = m.group(2).replace('\\"', '"')
             regex_compiled = re.compile(regex)
             conf[directive].append((regex_compiled, subst, regex))
-            #print conf['statsprefilter'][i]
+            #print conf['statsprefilter']
 
         elif directive in ['statsignoreip']:
             conf[directive].append(val)
@@ -260,10 +269,22 @@ def main():
         m.update(repr(req))
         md = m.digest()
 
+        skip = False
+        for r, mreg in conf['statsignoremask']:
+            if r.match(url):
+                #print 'ignoring req %s because it matches %s' %(url, mreg)
+                skip = True
+                break
+        if skip:
+            continue
+
         for i in conf['statsignoreip']:
             if ip.startswith(i):
                 #print 'ignoring ip %s because it matches %s' %(ip, i)
-                continue
+                skip = True
+                break
+        if skip:
+            continue
 
         # was the requests seen recently? If yes, ignore it.
         # otherwise, put it into the ring buffer.
