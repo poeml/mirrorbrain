@@ -65,7 +65,9 @@ __license__='GPLv2'
 __url__='http://mirrorbrain.org/'
 
 
+import sys
 import re
+import hashlib
 
 try:
     set
@@ -163,32 +165,47 @@ def readconf(filename):
     known_directives = ['StatsDupWindow', 'StatsIgnoreIP', 'StatsPreFilter', 'StatsCount', 'StatsPostFilter']
     known_directives_lower = [ i.lower() for i in known_directives ]
 
-    # dictionary to hold the config
-    # each item is a list
-    cf = {}
+    # create a dictionary to hold the config
+    # each item is a list (because the directives could occur more than once)
+    # each list item will correspond to one directive occurrence
+    conf = {}
     for i in known_directives_lower:
-        cf[i] = list()
+        conf[i] = list()
 
     for line in open(filename):
+        # remove trailing and leading whitespace and newlines
         line = line.strip()
+        # ignore comment lines
         if line.startswith('#'):
             continue
 
-        d = line.split(None, 1)
-        if not len(d):
+        # split line into 1st word plus rest
+        # will fail if it's not a valid config line
+        try:
+            word, rest = line.split(None, 1)
+        except ValueError:
             continue
-        if d[0].lower() not in known_directives_lower:
-            print 'not found:', d[0]
+        if word.lower() not in known_directives_lower:
+            sys.exit('unknown config directive: %r' % word)
             continue
-        d, val = d
-        d = d.lower()
+        d = word.lower()
+        val = rest
 
-        print d, val
-        cf[d].append(val)
+        print word, val
+        conf[d].append(val)
 
-    cf['statsdupwindow'] = int(cf['statsdupwindow'][0])
 
-    return cf
+    parse_2_in_quotes = re.compile(r'"(.*)"\s+"(.*)"')
+    for i, item in enumerate(conf['statsprefilter']):
+        match = parse_2_in_quotes.match(item)
+        #print 'substitute %s by %s' % (match.group(1), match.group(2))
+        conf['statsprefilter'][i] = (re.compile(match.group(1)), match.group(2), match.group(1))
+        #print conf['statsprefilter'][i]
+
+    # this is jut a single integer
+    conf['statsdupwindow'] = int(conf['statsdupwindow'][0])
+
+    return conf
     
 
 
@@ -197,9 +214,6 @@ def main():
     Create a generator pipeline for the matching log file lines
     and process them.
     """
-    import re
-    import sys
-    import hashlib
 
     if not len(sys.argv[2:]):
         sys.exit('Usage: dlcount CONFIGFILE LOGFILE [LOGFILE ...]')
@@ -211,10 +225,8 @@ def main():
 
 
 
-    matchlist = [ 
-        # FIXME: grab list of regexp from config
-
-    ]
+    # FIXME: grab list of regexp from config
+    matchlist = []
     re_matchlist = []
     for match, sub in matchlist:
         re_matchlist.append((re.compile(match), sub, match))
@@ -259,6 +271,8 @@ def main():
 
         # apply prefiltering
         # FIXME
+        for m, s, mreg in conf['statsprefilter']:
+            url = m.sub(s, url)
 
         print '%-80s ' % url, 
 
