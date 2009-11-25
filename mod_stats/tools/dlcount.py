@@ -158,6 +158,39 @@ class RingBuffer:
         return self.data
 
 
+def readconf(filename):
+    """we'd need Apache's config parser here..."""
+    known_directives = ['StatsDupWindow', 'StatsIgnoreIP', 'StatsPreFilter', 'StatsCount', 'StatsPostFilter']
+    known_directives_lower = [ i.lower() for i in known_directives ]
+
+    # dictionary to hold the config
+    # each item is a list
+    cf = {}
+    for i in known_directives_lower:
+        cf[i] = list()
+
+    for line in open(filename):
+        line = line.strip()
+        if line.startswith('#'):
+            continue
+
+        d = line.split(None, 1)
+        if not len(d):
+            continue
+        if d[0].lower() not in known_directives_lower:
+            print 'not found:', d[0]
+            continue
+        d, val = d
+        d = d.lower()
+
+        print d, val
+        cf[d].append(val)
+
+    cf['statsdupwindow'] = int(cf['statsdupwindow'][0])
+
+    return cf
+    
+
 
 def main():
     """
@@ -168,35 +201,18 @@ def main():
     import sys
     import hashlib
 
-    if not len(sys.argv[1:]):
-        sys.exit('Usage: dlcount LOGFILE [LOGFILE ...]')
+    if not len(sys.argv[2:]):
+        sys.exit('Usage: dlcount CONFIGFILE LOGFILE [LOGFILE ...]')
+
+    conf = readconf(sys.argv[1])
+    print; print
+    import pprint
+    pprint.pprint(conf)
 
 
 
-    # best reference about Python regexp: http://www.amk.ca/python/howto/regex/regex.html
-    #
-    # short intro to things that *may* be special: 
-    #   (?:   )         non-capturing group
-    #   (?P<foo>    )   named group
-    # (FIXME: need to check if all these are supported in Apache)
-    #
     matchlist = [ 
-        # stable/3.1.1/OOo_3.1.1_Win32Intel_install_en-US.exe
-        # stable/3.1.1/OOo_3.1.1_MacOSXIntel_install_en-US.dmg
-        # stable/3.1.1/OOo_3.1.1_Win32Intel_install_wJRE_en-US.exe
-        # extended/3.1.1rc2/OOo_3.1.1rc2_20090820_Win32Intel_langpack_en-ZA.exe      -
-        # extended/3.1.1rc2/OOo_3.1.1rc2_20090820_Win32Intel_langpack_en-ZA.exe      -
-        # extended/3.1.1rc2/OOo_3.1.1rc2_20090820_Win32Intel_langpack_en-ZA.exe      -
-        # extended/3.1.1rc2/OOo_3.1.1rc2_20090820_LinuxIntel_langpack_brx_deb.tar.gz
-        # extended/developer/DEV300_m65/OOo-Dev-SDK_DEV300_m65_Win32Intel_install_en-US.exe
-        ( r'^(?:stable|extended)/(?:developer/)?([^/]+)/(OOo|OOo-SDK|OOo-Dev|OOo-Dev-SDK)_(?P<realversion>[^_]+(?:_[0-9]+)?)_(.+)_(?P<lang>([a-zA-Z]{2}(-[a-zA-Z]{2})?|binfilter|core|l10n|extensions|system|testautomation|brx|dgo|kok|mai|mni|sat))(_deb|_rpm)?\.(exe|dmg|sh|tar\.gz|tar\.bz2)$', r'prod: \2  os: \4  version: \1  realversion: \g<realversion>  lang: \g<lang>'),
-
-
-        # extended/3.1.1rc2/OOo_3.1.1rc2_20090820_LinuxX86-64_langpack_zh-CN.tar.gz
-        # extended/3.1.1rc2/OOo_3.1.1rc2_20090820_LinuxX86-64_langpack_zh-CN_deb.tar.gz
-
-        # localized/ru/2.4.3/OOo_2.4.3_Win32Intel_install_ru.exe      -
-        # localized/es/2.4.3/OOo_2.4.3_Win32Intel_install_es.exe      -
+        # FIXME: grab list of regexp from config
 
     ]
     re_matchlist = []
@@ -204,11 +220,9 @@ def main():
         re_matchlist.append((re.compile(match), sub, match))
 
 
+    known = RingBuffer(conf['statsdupwindow'])
 
-    DUP_WINDOW = 200
-    known = RingBuffer(DUP_WINDOW)
-
-    filenames = sys.argv[1:]
+    filenames = sys.argv[2:]
     logfiles = gen_open(filenames)
     loglines = gen_cat(logfiles)
 
@@ -217,27 +231,24 @@ def main():
     pat = r'^(\S+).+"GET (\S*) HTTP.*" (200|302) [^"]+ "([^"]*)" "([^"]*)".* \w\w:(\w\w) ASN:'
     reqs = gen_fragments(pat, loglines)
 
-    re_strip_protocol = re.compile(r'^http://[^/]+/')
-    re_single_slashes = re.compile(r'/+')
-    re_strip_queries = re.compile(r'\?.*')
-    re_strip_prefix = re.compile(r'^/files/')
-    re_strip_metalink = re.compile(r'\.metalink$')
+    # pretreatment (filtering, fixups), applied in order
+    # FIXME: read prefilter expressions here
 
 
     for req in reqs:
 
         (ip, url, status, referer, ua, country) = req
 
-        # over a window of DUP_WINDOW last requests, the same request must
+        # over a window of StatsDupWindow last requests, the same request must
         # not have occured already
         m = hashlib.md5()
         m.update(repr(req))
         md = m.digest()
 
-        # FIXME
-        if ip == '140.211.167.212':
-            # that's osuosl.org's Bouncer host
-            continue
+        for i in conf['statsignoreip']:
+            if ip.startswith(i):
+                #print 'ignoring ip %s because it matches %s' %(ip, i)
+                continue
 
         # was the requests seen recently? If yes, ignore it.
         # otherwise, put it into the ring buffer.
@@ -246,14 +257,8 @@ def main():
         known.append(md)
 
 
-        # note that we could use .replace() for many of these, but for compatibility with
-        # an Apache module in C we'll follow a pure regex-based approach
-        url = re_strip_protocol.sub('', url)
-        url = re_single_slashes.sub('/', url)
-        # FIXME: should we rather ignore requests with query string?
-        url = re_strip_queries.sub('', url)
-        url = re_strip_prefix.sub('', url)
-        url = re_strip_metalink.sub('', url)
+        # apply prefiltering
+        # FIXME
 
         print '%-80s ' % url, 
 
