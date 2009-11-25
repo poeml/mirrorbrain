@@ -164,6 +164,7 @@ def readconf(filename):
     """we'd need Apache's config parser here..."""
     known_directives = ['StatsDupWindow', 'StatsIgnoreIP', 'StatsPreFilter', 'StatsCount', 'StatsPostFilter']
     known_directives_lower = [ i.lower() for i in known_directives ]
+    parse_2_in_quotes = re.compile(r'"(.*)"\s+"(.*)"')
 
     # create a dictionary to hold the config
     # each item is a list (because the directives could occur more than once)
@@ -182,28 +183,39 @@ def readconf(filename):
         # split line into 1st word plus rest
         # will fail if it's not a valid config line
         try:
-            word, rest = line.split(None, 1)
+            word, val = line.split(None, 1)
         except ValueError:
             continue
         if word.lower() not in known_directives_lower:
             sys.exit('unknown config directive: %r' % word)
             continue
-        d = word.lower()
-        val = rest
-
-        print word, val
-        conf[d].append(val)
+        directive = word.lower()
+        val = val
 
 
-    parse_2_in_quotes = re.compile(r'"(.*)"\s+"(.*)"')
-    for i, item in enumerate(conf['statsprefilter']):
-        match = parse_2_in_quotes.match(item)
-        #print 'substitute %s by %s' % (match.group(1), match.group(2))
-        conf['statsprefilter'][i] = (re.compile(match.group(1)), match.group(2), match.group(1))
-        #print conf['statsprefilter'][i]
+        # this is just a single integer
+        if directive in ['statsdupwindow']:
+            conf[directive] = int(val)
 
-    # this is jut a single integer
-    conf['statsdupwindow'] = int(conf['statsdupwindow'][0])
+        # these come with two args: a regexp and a substitution rule
+        elif directive in ['statsprefilter', 'statscount', 'statspostfilter']:
+            m = parse_2_in_quotes.match(val)
+            #print 'substitute %s by %s' % (m.group(1), m.group(2))
+            regex = m.group(1).replace('\\"', '"')
+            subst = m.group(2).replace('\\"', '"')
+            regex_compiled = re.compile(regex)
+            conf[directive].append((regex_compiled, subst, regex))
+            #print conf['statsprefilter'][i]
+
+        elif directive in ['statsignoreip']:
+            conf[directive].append(val)
+
+        else:
+            sys.exit('unparsed directive (implementation needed)', directive)
+
+
+    #for i, item in enumerate(conf['statsprefilter']):
+
 
     return conf
     
@@ -222,14 +234,6 @@ def main():
     print; print
     import pprint
     pprint.pprint(conf)
-
-
-
-    # FIXME: grab list of regexp from config
-    matchlist = []
-    re_matchlist = []
-    for match, sub in matchlist:
-        re_matchlist.append((re.compile(match), sub, match))
 
 
     known = RingBuffer(conf['statsdupwindow'])
@@ -268,16 +272,14 @@ def main():
             continue
         known.append(md)
 
-
         # apply prefiltering
-        # FIXME
         for m, s, mreg in conf['statsprefilter']:
             url = m.sub(s, url)
 
         print '%-80s ' % url, 
 
         matched = False
-        for m, s, mreg in re_matchlist:
+        for m, s, mreg in []: # conf['statscount']:
             if matched:
                 sys.exit('warning: %r matches\n   %r\nbut already matched a pevious regexp:\n   %r' % (url, mreg, matched))
             if m.match(url):
@@ -285,6 +287,10 @@ def main():
                 matched = mreg
         if not matched:
             print '-'
+
+        # apply postfiltering
+        for m, s, mreg in conf['statspostfilter']:
+            url = m.sub(s, url)
 
 
     sys.exit(0)
