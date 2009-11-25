@@ -222,10 +222,6 @@ def readconf(filename):
         else:
             sys.exit('unparsed directive (implementation needed)', directive)
 
-
-    #for i, item in enumerate(conf['statsprefilter']):
-
-
     return conf
     
 
@@ -255,9 +251,6 @@ def main():
     pat = r'^(\S+).+"GET (\S*) HTTP.*" (200|302) [^"]+ "([^"]*)" "([^"]*)".* \w\w:(\w\w) ASN:'
     reqs = gen_fragments(pat, loglines)
 
-    # pretreatment (filtering, fixups), applied in order
-    # FIXME: read prefilter expressions here
-
 
     for req in reqs:
 
@@ -275,16 +268,14 @@ def main():
                 #print 'ignoring req %s because it matches %s' %(url, mreg)
                 skip = True
                 break
-        if skip:
-            continue
+        if skip: continue
 
         for i in conf['statsignoreip']:
             if ip.startswith(i):
                 #print 'ignoring ip %s because it matches %s' %(ip, i)
                 skip = True
                 break
-        if skip:
-            continue
+        if skip: continue
 
         # was the requests seen recently? If yes, ignore it.
         # otherwise, put it into the ring buffer.
