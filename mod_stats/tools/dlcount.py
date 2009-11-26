@@ -112,10 +112,8 @@ def gen_grep(pat, lines):
 def gen_fragments(pat, lines): 
     """Generate a sequence of line fragments, according to
     a given regular expression"""
-    import re 
-    patc = re.compile(pat) 
     for line in lines: 
-        m = patc.match(line)
+        m = pat.match(line)
         if m:
             yield m.groups()
 
@@ -162,7 +160,13 @@ class RingBuffer:
 
 def readconf(filename):
     """we'd need Apache's config parser here..."""
-    known_directives = ['StatsDupWindow', 'StatsIgnoreIP', 'StatsIgnoreMask', 'StatsPreFilter', 'StatsCount', 'StatsPostFilter']
+    known_directives = ['StatsLogMask', 
+                        'StatsIgnoreMask', 
+                        'StatsIgnoreIP', 
+                        'StatsDupWindow', 
+                        'StatsPreFilter', 
+                        'StatsCount', 
+                        'StatsPostFilter']
     known_directives_lower = [ i.lower() for i in known_directives ]
     # regular expressions to parse arguments
     parse_1_in_quotes = re.compile(r'"(.*)"')
@@ -200,7 +204,7 @@ def readconf(filename):
             conf[directive] = int(val)
 
         # directives with one argument: a regexp
-        elif directive in ['statsignoremask']:
+        elif directive in ['statslogmask', 'statsignoremask']:
             m = parse_1_in_quotes.match(val)
             regex = m.group(1).replace('\\"', '"')
             regex_compiled = re.compile(regex)
@@ -221,6 +225,12 @@ def readconf(filename):
 
         else:
             sys.exit('unparsed directive (implementation needed)', directive)
+
+    # set defaults for directives that didn't occur in the config
+    if len(conf['statslogmask']) == 0:
+        regex = '^(\S+).+"GET (\S*) HTTP.*" (200|302) [^"]+ "([^"]*)" "([^"]*)".* \w\w:(\w\w) ASN:'
+        regex_compiled = re.compile(regex)
+        conf['statslogmask'].append((regex_compiled, regex))
 
     return conf
     
@@ -246,10 +256,7 @@ def main():
     logfiles = gen_open(filenames)
     loglines = gen_cat(logfiles)
 
-    # 123.123.123.123 - - [23/Nov/2009:18:19:14 +0100] "GET /files/stable/3.1.1/OOo_3.1.1_MacOSXIntel_install_en-US.dmg HTTP/1.1" 302 399 "http://download.openoffice.org/all_rc.html" "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.0; SLCC1; .NET CLR 2.0.50727; Media Center PC 5.0; .NET CLR 1.1.4322; .NET CLR 3.5.30729; .NET CLR 3.0.30618)" ftp.astral.ro r:country 913 844 EU:RO ASN:9050 P:92.81.0.0/16 size:24661382 -
-    # 200 is returned for files that are not on mirrors, and for metalinks
-    pat = r'^(\S+).+"GET (\S*) HTTP.*" (200|302) [^"]+ "([^"]*)" "([^"]*)".* \w\w:(\w\w) ASN:'
-    reqs = gen_fragments(pat, loglines)
+    reqs = gen_fragments(conf['statslogmask'][0][0], loglines)
 
 
     for req in reqs:
