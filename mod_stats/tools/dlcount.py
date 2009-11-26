@@ -277,21 +277,20 @@ def main():
         if skip: continue
 
         # over a window of StatsDupWindow last requests, the same request must
-        # not have occured already
-        m = hashlib.md5()
-        m.update(ip)
-        m.update(url)
-        m.update(referer)
-        m.update(ua)
-        md = m.digest()
+        # not have occured already. If it did, ignore it. If it didn't, put
+        # it into the ring buffer.
+        if conf['statsdupwindow'] > 0:
+            m = hashlib.md5()
+            m.update(ip)
+            m.update(url)
+            m.update(referer)
+            m.update(ua)
+            md = m.digest()
+            if md in known.data:
+                continue
+            known.append(md)
 
-        # was the requests seen recently? If yes, ignore it.
-        # otherwise, put it into the ring buffer.
-        if md in known.data:
-            continue
-        known.append(md)
-
-        # apply prefiltering
+        # apply the prefiltering rules
         for r, s, mreg in conf['statsprefilter']:
             url = r.sub(s, url)
 
