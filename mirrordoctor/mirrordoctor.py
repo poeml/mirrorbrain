@@ -1030,7 +1030,7 @@ class MirrorDoctor(cmdln.Cmdln):
                                                   NOT(self.conn.Server.q.prefixOnly),
                                                   NOT(self.conn.Server.q.asOnly),
                                                   self.conn.Server.q.country != '**'),
-                                              orderBy=['region', 'country', '-score'])
+                                              orderBy=['region', 'country', 'operatorName'])
 
         import mb.mirrorlists
 
