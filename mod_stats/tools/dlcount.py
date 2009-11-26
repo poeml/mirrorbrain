@@ -178,6 +178,7 @@ def readconf(filename):
     conf = {}
     for i in known_directives_lower:
         conf[i] = list()
+    conf['statsdupwindow'] = 200
 
     for line in open(filename):
         # remove trailing and leading whitespace and newlines
@@ -218,7 +219,6 @@ def readconf(filename):
             subst = m.group(2).replace('\\"', '"')
             regex_compiled = re.compile(regex)
             conf[directive].append((regex_compiled, subst, regex))
-            #print conf['statsprefilter']
 
         elif directive in ['statsignoreip']:
             conf[directive].append(val)
@@ -227,10 +227,14 @@ def readconf(filename):
             sys.exit('unparsed directive (implementation needed)', directive)
 
     # set defaults for directives that didn't occur in the config
-    if len(conf['statslogmask']) == 0:
+    if not len(conf['statslogmask']):
         regex = '^(\S+).+"GET (\S*) HTTP.*" (200|302) [^"]+ "([^"]*)" "([^"]*)".* \w\w:(\w\w) ASN:'
         regex_compiled = re.compile(regex)
-        conf['statslogmask'].append((regex_compiled, regex))
+        conf['statslogmask'] = ((regex_compiled, regex))
+
+    #import pprint
+    #pprint.pprint(conf)
+    #sys.exit(0)
 
     return conf
     
@@ -246,9 +250,6 @@ def main():
         sys.exit('Usage: dlcount CONFIGFILE LOGFILE [LOGFILE ...]')
 
     conf = readconf(sys.argv[1])
-    #import pprint
-    #pprint.pprint(conf)
-
 
     known = RingBuffer(conf['statsdupwindow'])
 
