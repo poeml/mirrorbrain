@@ -127,7 +127,6 @@ class Conn:
             """the marker table"""
             class sqlmeta:
                 fromDatabase = True
-                defaultOrder = 'subtree_name'
         self.Marker = Marker
 
         class Country(SQLObject):
