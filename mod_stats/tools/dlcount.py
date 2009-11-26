@@ -21,29 +21,21 @@
 #
 #
 # This script parses a MirrorBrain-enhanced access_log and does the following:
-#   - a little ring buffer filters requests recurring within a sliding time window (keyed by ip+url+referer+user-agent)
-#   - strip trailing http://... cruft
-#   - remove duplicated slashes
-#   - remove accidental query strings
-#   - remove a possible .metalink suffix
-#   - remove the /files/ prefix
-# 
-# It applies filtering by
-#   - status code being 200 or 302
-#   - requests must be GET
-#   - bouncer's IP which keeps coming back to download all files (from OOo)
-# 
-# It also captures the country where the client requests originate from.
+#   - select lines on that the log analysis is supposed to run
+#     (StatsLogMask directive, which defaults to a regexp suitable for a MirrorBrain logfile)
+#     The expression also selects data from the log line, for example the
+#     country where a client request originated from.
+#   - a little ring buffer filters requests recurring within a sliding time
+#     window (keyed by ip+url+referer+user-agent
+#     length of the sliding window: StatsDupWindow
+#   - arbitrary log lines can be ignored by regexp (StatsIgnoreMask)
+#   - IP addresses can be ignored by string prefix match (StatsIgnoreIP)
+#   - apply prefiltering to the request (regular expressions with substitution) 
+#     with one or more StatsPrefilter directives
+#   - parse the remaining request url into the values to be logged
+#     (StatsCount directive)
+#   - apply optional post-filtering to the parsed data (StatsPostfilter)
 #
-# This script uses Python generators, which means that it doesn't allocate
-# memory according to the log size. It rather works like a Unix pipe.
-# (The implementation of the generator pipeline is based on David Beazley's
-# PyCon UK 08 great talk about generator tricks for systems programmers.)
-#
-# 
-# I baked a first regexp which is able to parse most (OpenOffice.org) requests
-# from /stable and /extended. There are some exceptions (language code with 3
-# letters) and I didn't take care of /localized yet.
 # 
 # The script should serve as model implementation for the Apache module which
 # does the same in realtime.
@@ -54,8 +46,12 @@
 #
 # Uncompressed, gzip or bzip2 compressed files are transparently opened.
 # 
-#
 # 
+# This script uses Python generators, which means that it doesn't allocate
+# memory according to the log size. It rather works like a Unix pipe.
+# (The implementation of the generator pipeline is based on David Beazley's
+# PyCon UK 08 great talk about generator tricks for systems programmers.)
+#
 
 
 __version__='0.9'
