@@ -265,12 +265,6 @@ def main():
         (ip, url, status, referer, ua, country) = req
         url_raw = url
 
-        # over a window of StatsDupWindow last requests, the same request must
-        # not have occured already
-        m = hashlib.md5()
-        m.update(repr(req))
-        md = m.digest()
-
         skip = False
         for r, mreg in conf['statsignoremask']:
             if r.match(url):
@@ -285,6 +279,15 @@ def main():
                 skip = True
                 break
         if skip: continue
+
+        # over a window of StatsDupWindow last requests, the same request must
+        # not have occured already
+        m = hashlib.md5()
+        m.update(ip)
+        m.update(url)
+        m.update(referer)
+        m.update(ua)
+        md = m.digest()
 
         # was the requests seen recently? If yes, ignore it.
         # otherwise, put it into the ring buffer.
