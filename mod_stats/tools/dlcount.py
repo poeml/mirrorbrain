@@ -226,7 +226,7 @@ def readconf(filename):
     if not len(conf['statslogmask']):
         regex = '^(\S+).+"GET (\S*) HTTP.*" (200|302) [^"]+ "([^"]*)" "([^"]*)".* \w\w:(\w\w) ASN:'
         regex_compiled = re.compile(regex)
-        conf['statslogmask'] = ((regex_compiled, regex))
+        conf['statslogmask'] = [(regex_compiled, regex)]
 
     #import pprint
     #pprint.pprint(conf)
