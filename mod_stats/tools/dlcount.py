@@ -182,16 +182,18 @@ def readconf(filename):
         # ignore comment lines
         if line.startswith('#'):
             continue
+        # and empty lines
+        if not line:
+            continue
 
         # split line into 1st word plus rest
         # will fail if it's not a valid config line
         try:
             word, val = line.split(None, 1)
-        except ValueError:
-            continue
+        except:
+            sys.exit('error: can\'t parse the line %r' % line)
         if word.lower() not in known_directives_lower:
             sys.exit('unknown config directive: %r' % word)
-            continue
         directive = word.lower()
         val = val
 
