@@ -3,6 +3,43 @@
 Release Notes/Change History
 ============================
 
+Release 2.10.3 (r7871, Nov 28, 2009)
+------------------------------------
+
+This release adds a new script, which hopefully opens up interesting new use
+cases, called :program:`null-rsync`. This is a special rsync wrapper which
+creates a local file tree from a mirror, where all files contain only zeroes
+instead of real data. The files are created as *sparse files*, so only the
+metadata occupies actual space in the filesystem. Modification times and sizes
+are fully copied, so that even (native) rsync thinks that the file tree is
+identical. 
+
+This script should allow to create a pseudo mirror of arbitrary size (or
+several mirrors), in order to host MirrorBrain instances which run under the
+precondition that they *always* redirects. (This scenario hasn't tested yet,
+but should work.) At any rate, it is a good basis for experimentation.
+
+Then, this release fixes some usability issues in the :program:`mb` tool:
+
+* :program:`mb new`:
+
+  - when creating a new mirror, and detecting that the hostname resolved to
+    multiple addresses (round-robin DNS), a warning about this fact was issued.
+    Now, (short of documentaion in the manual) a reference to
+    http://mirrorbrain.org/archive/mirrorbrain/0042.html is added, where the
+    issue has been discussed in depth.
+  - A proper error message is now shown if an identifier is chosen that already
+    exists.
+
+* :program:`mb mirrorlist` / :program:`mb marker`:
+
+  - The order in which mirrorlist columns are presented is now kept unchanged,
+    so it appears as it was entered into the database.
+  - The sort order of mirrorlist entries has been improved. Instead of the
+    priority, the mirror operator name is now given precendence in order, which
+    results in a mirror list that actually *looks* sorted.
+
+
 Release 2.10.2 (r7853, Nov 9, 2009)
 -----------------------------------
 
