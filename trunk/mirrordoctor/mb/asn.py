@@ -23,6 +23,8 @@ def iplookup(conn, s):
             print >>sys.stderr, \
                     'warning: %r resolves to a multiple IP addresses: %s' \
                     % (s, ', '.join(ips))
+            print >>sys.stderr, '\nsee http://mirrorbrain.org/archive/mirrorbrain/0042.html why this could\n' \
+                                'could be a problem, and what to do about it.'
         a = IpAddress(ips[0])
         
 
