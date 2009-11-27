@@ -152,6 +152,16 @@ class MirrorDoctor(cmdln.Cmdln):
         import mb.asn
 
 
+        try:
+            # does an existing mirror have the same identifier? They must be unique.
+            m = self.conn.Server.select(self.conn.Server.q.identifier == identifier)[0]
+        except IndexError:
+            pass
+        else:
+            sys.exit('Error: a mirror\'s identifier must be unique.\n'
+                     'There is already a mirror using this identifier. See output of `mb show %s`.\n'
+                     'Exiting. ' % identifier)
+
         if not opts.http:
             sys.exit('An HTTP base URL needs to be specified')
 
