@@ -2080,7 +2080,9 @@ static const command_rec mb_cmds[] =
     /* to be used everywhere */
     AP_INIT_TAKE1("MirrorBrainMinSize", mb_cmd_minsize, NULL, 
                   OR_OPTIONS,
-                  "Minimum size, in bytes, that a file must be to be mirrored"),
+                  "Minimum size, in bytes, that a file must be, in order to redirect "
+                  "requests to a mirror. Smaller files will be delivered directly. "
+                  "Default: 4096 bytes."),
     AP_INIT_TAKE1("MirrorBrainExcludeMimeType", mb_cmd_excludemime, 0, 
                   OR_OPTIONS,
                   "Mimetype to always exclude from redirecting (wildcards allowed)"),
