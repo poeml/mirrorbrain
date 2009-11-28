@@ -84,6 +84,7 @@ def perms_to_mode(p):
 
 rsync_src = sys.argv[1]
 rsync_dst = sys.argv[2]
+rsync_dst = rsync_dst.rstrip('/')
 verbose = True
 
 cmd = [ 'rsync',
