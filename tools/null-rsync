@@ -2,7 +2,7 @@
 
 """
 Create a local file tree as copy from a remote server via rsync.
-
+All files will contain zeroes.
 
     Copyright 2009 Peter Poeml
 
@@ -44,8 +44,7 @@ We copy all permissions and timestamps where possible.
 
 Timestamps on symlinks can't be set by Python (its os.utime() implementation
 always follows to the target). (It *would* work if Python would export
-utimensat() with AT_SYMLINK_NOFOLLOW.) But doesnt' matter.
-
+utimensat() with AT_SYMLINK_NOFOLLOW.) But it doesn't really matter.
 
 """
 
@@ -212,7 +211,8 @@ for line in o.readlines():
     
 while len(mtime_dir_list) > 0:
     path, mtime_rsync = mtime_dir_list.pop()
-    print 'delayed setting of mtime on %r' % path
+    if verbose:
+        print 'delayed setting of mtime on %r' % path
 
     t = time.strptime(mtime_rsync, '%Y/%m/%d-%H:%M:%S')
     mtime = int(time.mktime(t))
