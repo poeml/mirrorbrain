@@ -270,7 +270,7 @@ static void *create_mb_dir_config(apr_pool_t *p, char *dirspec)
     new->debug                      = UNSET;
     new->min_size                   = DEFAULT_MIN_MIRROR_SIZE;
     new->handle_dirindex_locally    = UNSET;
-    new->handle_headrequest_locally = UNSET;
+    new->handle_headrequest_locally = 0;
     new->mirror_base = NULL;
     new->exclude_mime = apr_array_make(p, 0, sizeof (char *));
     new->exclude_agents = apr_array_make(p, 0, sizeof (char *));
@@ -2102,7 +2102,8 @@ static const command_rec mb_cmds[] =
                   "Set to On/Off to handle directory listings locally (don't redirect)"),
     AP_INIT_FLAG("MirrorBrainHandleHEADRequestLocally", mb_cmd_handle_headrequest_locally, NULL, 
                   OR_OPTIONS,
-                  "Set to On/Off to handle HEAD requests locally (don't redirect)"),
+                  "Set to On to handle HEAD requests locally (instead of redirecting "
+                  "them to a mirror). Default: Off."),
 
     AP_INIT_TAKE1("MirrorBrainMetalinkTorrentAddMask", mb_cmd_metalink_torrentadd_mask, NULL, 
                   ACCESS_CONF,
