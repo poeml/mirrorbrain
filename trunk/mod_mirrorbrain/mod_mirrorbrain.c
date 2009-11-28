@@ -1582,7 +1582,7 @@ static int mb_handler(request_rec *r)
         const char *hashfilename;     /* the even newer hash filename contains the size of the file */
         const char *inode_hashfilename;     /* the new hash filename contains the inode of the file */
         const char *old_hashfilename; /* for a transition period - will be depreciated later */
-        hashfilename = apr_psprintf(r->pool, "%s%s.size_%lu", 
+        hashfilename = apr_psprintf(r->pool, "%s%s.size_%llu", 
                                    scfg->metalink_hashes_prefix ? scfg->metalink_hashes_prefix : "", 
                                    r->filename, 
                                    r->finfo.size);
