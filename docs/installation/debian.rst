@@ -280,7 +280,6 @@ The following snippet would create a new site as virtual host::
        FormGET On
        MirrorBrainHandleHEADRequestLocally Off
        MirrorBrainMinSize 2048
-       MirrorBrainHandleDirectoryIndexLocally On
        MirrorBrainExcludeUserAgent rpm/4.4.2*
        MirrorBrainExcludeUserAgent *APT-HTTP*
        MirrorBrainExcludeMimeType application/pgp-keys

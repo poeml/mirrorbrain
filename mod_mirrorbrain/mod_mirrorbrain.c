@@ -137,7 +137,6 @@ typedef struct
     int engine_on;
     int debug;
     int min_size;
-    int handle_dirindex_locally;
     int handle_headrequest_locally;
     const char *mirror_base;
     apr_array_header_t *exclude_mime;
@@ -269,7 +268,6 @@ static void *create_mb_dir_config(apr_pool_t *p, char *dirspec)
     new->engine_on                  = UNSET;
     new->debug                      = UNSET;
     new->min_size                   = DEFAULT_MIN_MIRROR_SIZE;
-    new->handle_dirindex_locally    = UNSET;
     new->handle_headrequest_locally = 0;
     new->mirror_base = NULL;
     new->exclude_mime = apr_array_make(p, 0, sizeof (char *));
@@ -294,7 +292,6 @@ static void *merge_mb_dir_config(apr_pool_t *p, void *basev, void *addv)
     cfgMergeInt(engine_on);
     cfgMergeInt(debug);
     mrg->min_size = (add->min_size != DEFAULT_MIN_MIRROR_SIZE) ? add->min_size : base->min_size;
-    cfgMergeInt(handle_dirindex_locally);
     cfgMergeInt(handle_headrequest_locally);
     cfgMergeString(mirror_base);
     mrg->exclude_mime = apr_array_append(p, base->exclude_mime, add->exclude_mime);
@@ -431,8 +428,9 @@ static const char *mb_cmd_exclude_filemask(cmd_parms *cmd, void *config,
 static const char *mb_cmd_handle_dirindex_locally(cmd_parms *cmd, 
                                                   void *config, int flag)
 {
-    mb_dir_conf *cfg = (mb_dir_conf *) config;
-    cfg->handle_dirindex_locally = flag;
+    ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL,
+                 "[mod_mirrorbrain] The MirrorBrainHandleDirectoryIndexLocally "
+                 "directive is obsolete. You can remove it from your config.");
     return NULL;
 }
 
@@ -681,15 +679,6 @@ static int mb_handler(request_rec *r)
     /* is there a password? */
     if (r->ap_auth_type != NULL) {
         debugLog(r, cfg, "URI '%s' requires auth", r->unparsed_uri);
-        return DECLINED;
-    }
-
-    /* do we redirect if the request is for directories? */
-    /* XXX should one actually respect all strings which are configured
-     * as DirectoryIndex ? */
-    if (cfg->handle_dirindex_locally && ap_strcasestr(r->uri, "index.html")) {
-        debugLog(r, cfg, "serving index.html locally "
-                "(MirrorBrainHandleDirectoryIndexLocally)");
         return DECLINED;
     }
 
@@ -2101,7 +2090,7 @@ static const command_rec mb_cmds[] =
 
     AP_INIT_FLAG("MirrorBrainHandleDirectoryIndexLocally", mb_cmd_handle_dirindex_locally, NULL, 
                   OR_OPTIONS,
-                  "Set to On/Off to handle directory listings locally (don't redirect)"),
+                  "Obsolete directive. You can remove it from your config."),
     AP_INIT_FLAG("MirrorBrainHandleHEADRequestLocally", mb_cmd_handle_headrequest_locally, NULL, 
                   OR_OPTIONS,
                   "Set to On to handle HEAD requests locally (instead of redirecting "

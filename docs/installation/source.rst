@@ -281,7 +281,6 @@ After installation of mod_mirrorbrain, you'll need to:
               FormGET On
               MirrorBrainHandleHEADRequestLocally Off
               MirrorBrainMinSize 2048
-              MirrorBrainHandleDirectoryIndexLocally On
               MirrorBrainExcludeUserAgent rpm/4.4.2*
               MirrorBrainExcludeUserAgent *APT-HTTP*
               MirrorBrainExcludeMimeType application/pgp-keys
