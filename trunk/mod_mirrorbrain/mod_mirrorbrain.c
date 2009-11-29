@@ -73,6 +73,14 @@
 #define UNSET (-1)
 #endif
 
+/* available since APR 1.3 */
+#ifndef APR_ARRAY_IDX
+#define APR_ARRAY_IDX(ary,i,type) (((type *)(ary)->elts)[i])
+#endif
+#ifndef APR_ARRAY_PUSH
+#define APR_ARRAY_PUSH(ary,type) (*((type *)apr_array_push(ary)))
+#endif
+
 #define MOD_MIRRORBRAIN_VER "2.10.3"
 #define VERSION_COMPONENT "mod_mirrorbrain/"MOD_MIRRORBRAIN_VER
 
@@ -139,6 +147,7 @@ typedef struct
     int min_size;
     int handle_headrequest_locally;
     const char *mirror_base;
+    apr_array_header_t *fallbacks;
     apr_array_header_t *exclude_mime;
     apr_array_header_t *exclude_agents;
     apr_array_header_t *exclude_networks;
@@ -270,6 +279,7 @@ static void *create_mb_dir_config(apr_pool_t *p, char *dirspec)
     new->min_size                   = DEFAULT_MIN_MIRROR_SIZE;
     new->handle_headrequest_locally = 0;
     new->mirror_base = NULL;
+    new->fallbacks = apr_array_make(p, 10, sizeof (mirror_entry_t));
     new->exclude_mime = apr_array_make(p, 0, sizeof (char *));
     new->exclude_agents = apr_array_make(p, 0, sizeof (char *));
     new->exclude_networks = apr_array_make(p, 4, sizeof (char *));
@@ -294,6 +304,11 @@ static void *merge_mb_dir_config(apr_pool_t *p, void *basev, void *addv)
     mrg->min_size = (add->min_size != DEFAULT_MIN_MIRROR_SIZE) ? add->min_size : base->min_size;
     cfgMergeInt(handle_headrequest_locally);
     cfgMergeString(mirror_base);
+    /* inheriting makes sense, but does it also make sense if the directory has its own
+     * fallback mirror directives? */
+    /* mrg->fallbacks = apr_is_empty_array(add->fallbacks) ? base->fallbacks : add->fallbacks; */
+    /* it's a merge for now */
+    mrg->fallbacks = apr_array_append(p, base->fallbacks, add->fallbacks);
     mrg->exclude_mime = apr_array_append(p, base->exclude_mime, add->exclude_mime);
     mrg->exclude_agents = apr_array_append(p, base->exclude_agents, add->exclude_agents);
     mrg->exclude_networks = apr_array_append(p, base->exclude_networks, add->exclude_networks);
@@ -375,6 +390,44 @@ static const char *mb_cmd_minsize(cmd_parms *cmd, void *config,
     cfg->min_size = atoi(arg1);
     if (cfg->min_size < 0)
         return "MirrorBrainMinSize requires a non-negative integer.";
+    return NULL;
+}
+
+static const char *mb_cmd_fallback(cmd_parms *cmd, void *config,
+                                   const char *arg1, const char *arg2,
+                                   const char *arg3)
+{
+    mb_dir_conf *cfg = (mb_dir_conf *) config;
+    mirror_entry_t *new;
+    apr_uri_t uri;
+
+    if (APR_SUCCESS != apr_uri_parse(cmd->pool, arg3, &uri)) {
+        return "MirrorBrainFallback URI cannot be parsed";
+    }
+
+    new = apr_array_push(cfg->fallbacks);
+    new->id = 0;
+    new->identifier = uri.hostname;
+    new->region = apr_pstrdup(cmd->pool, arg1);
+    new->country_code = apr_pstrdup(cmd->pool, arg2);
+    new->other_countries = NULL;
+    new->as = NULL;
+    new->prefix = NULL;
+    new->region_only = 0;
+    new->country_only = 0;
+    new->as_only = 0;
+    new->prefix_only = 0;
+    new->score = 1; /* give it a minimal score (but with 0, it wouldn't be considered) */
+    new->file_maxsize = 0;
+    if (arg3[strlen(arg3) - 1] == '/') { 
+        new->baseurl = apr_pstrdup(cmd->pool, arg3);
+    } else {
+        new->baseurl = apr_pstrcat(cmd->pool, arg3, "/", NULL); 
+    }
+    ap_log_error(APLOG_MARK, APLOG_INFO, 0, NULL,
+                 "[mod_mirrorbrain] configured fallback mirror (%s:%s): %s", 
+                 new->region, new->country_code, new->baseurl);
+
     return NULL;
 }
 
@@ -985,7 +1038,9 @@ static int mb_handler(request_rec *r)
     if (dbd == NULL) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
                 "[mod_mirrorbrain] Error acquiring database connection");
-        return DECLINED; /* fail gracefully */
+        if (apr_is_empty_array(cfg->fallbacks)) {
+            return DECLINED; /* fail gracefully */
+        }
     }
     debugLog(r, cfg, "Successfully acquired database connection.");
 
@@ -1041,21 +1096,30 @@ static int mb_handler(request_rec *r)
                 filename, NULL) != 0) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
                 "[mod_mirrorbrain] Error looking up %s in database", filename);
-        return DECLINED;
+        if (apr_is_empty_array(cfg->fallbacks)) {
+            return DECLINED;
+        }
     }
 
     mirror_cnt = apr_dbd_num_tuples(dbd->driver, res);
+
     if (mirror_cnt > 0) {
         debugLog(r, cfg, "Found %d mirror%s", mirror_cnt,
                 (mirror_cnt == 1) ? "" : "s");
-    }
-    else {
-        ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, 
-                "[mod_mirrorbrain] no mirrors found for %s", filename);
-        /* can be used for a CustomLog */
+    } else {
+        if (apr_is_empty_array(cfg->fallbacks))  {
+            ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, 
+                    "[mod_mirrorbrain] no mirrors found for %s", filename);
+        } else {
+            ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, 
+                    "[mod_mirrorbrain] no mirrors found for %s, "
+                    "but fallback mirrors are available", filename);
+        }
+
+        /* can be used with a CustomLog directive, conditionally logging these requests */
         apr_table_setn(r->subprocess_env, "MB_NOMIRROR", "1");
 
-        if (mirrorlist) {
+        if (mirrorlist && apr_is_empty_array(cfg->fallbacks)) {
             debugLog(r, cfg, "empty mirrorlist");
             ap_set_content_type(r, "text/html; charset=ISO-8859-1");
             ap_rputs(DOCTYPE_XHTML_1_0T
@@ -1078,34 +1142,24 @@ static int mb_handler(request_rec *r)
 
             ap_rputs("</body></html>\n", r);
             return OK;
+        } 
+        if (!mirrorlist && apr_is_empty_array(cfg->fallbacks)) {
+            /* deliver the file ourselves */
+            debugLog(r, cfg, "have to deliver directly");
+            return DECLINED;
         }
-
-        /* deliver the file ourselves */
-        return DECLINED;
     }
 
 
     /* allocate space for the expected results */
     mirrors              = apr_array_make(r->pool, mirror_cnt, sizeof (mirror_entry_t));
+    /* n.b., the following arrays only hold pointers into the above array */
     mirrors_same_prefix  = apr_array_make(r->pool, 1,          sizeof (mirror_entry_t *));
     mirrors_same_as      = apr_array_make(r->pool, 1,          sizeof (mirror_entry_t *));
     mirrors_same_country = apr_array_make(r->pool, mirror_cnt, sizeof (mirror_entry_t *));
     mirrors_fallback_country = apr_array_make(r->pool, 5,      sizeof (mirror_entry_t *));
     mirrors_same_region  = apr_array_make(r->pool, mirror_cnt, sizeof (mirror_entry_t *));
     mirrors_elsewhere    = apr_array_make(r->pool, mirror_cnt, sizeof (mirror_entry_t *));
-
-
-    /* need to remind myself... how to use the pointer arrays:
-     *                                                          
-     * 1) multi line version, allowing for easier access of last added element
-     * void **new_same = (void **)apr_array_push(mirrors_same_country);
-     * *new_same = new;
-     *
-     * ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, "[mod_mirrorbrain] new_same->identifier: %s",
-     *        ((mirror_entry_t *)*new_same)->identifier);
-     *
-     * 2) one line version
-     * *(void **)apr_array_push(mirrors_same_country) = new;                        */
 
 
     /* store the results which the database yielded, taking into account which
@@ -1330,19 +1384,55 @@ static int mb_handler(request_rec *r)
     mirror_entry_t *elts;
     elts = (mirror_entry_t *) mirrors->elts;
     for (i = 0; i < mirrors->nelts; i++) {
-        debugLog(r, cfg, "mirror  %3d  %-30ss", elts[i].id, elts[i].identifier);
+        debugLog(r, cfg, "mirror  %3d  %-30s", elts[i].id, elts[i].identifier);
     }
 #endif
 
 
     /* 2nd pass */
 
-    /* if we didn't found a mirror in the country: are other mirrors set to
+    /* if we didn't find a mirror in the country: are other mirrors set to
      * handle this country? */
     if (apr_is_empty_array(mirrors_same_country) 
             && !apr_is_empty_array(mirrors_fallback_country)) {
         mirrors_same_country = mirrors_fallback_country;
         debugLog(r, cfg, "no mirror in country, but found fallback_country mirrors");
+    }
+
+
+    /* 3rd pass */
+    if (apr_is_empty_array(mirrors) && ! apr_is_empty_array(cfg->fallbacks)) {
+
+        debugLog(r, cfg, "ok, need to add fallback mirrors (%d configured)", 
+                 cfg->fallbacks->nelts);
+
+        /* we copy the array, so we don't modify the one in the config */
+        mirrors = apr_array_copy(r->pool, cfg->fallbacks);
+
+        mirror_entry_t *elts;
+        elts = (mirror_entry_t *) mirrors->elts;
+        for (i = 0; i < mirrors->nelts; i++) {
+
+            elts[i].rank = (rand()>>16) * ((RAND_MAX>>16) / elts[i].score);
+            /* elts[i].identifier = apr_psprintf(r->pool, "fallback_%02d(%s)", 
+                                              i, elts[i].baseurl); */
+
+            if (strcasecmp(elts[i].country_code, country_code) == 0) {
+                *(void **)apr_array_push(mirrors_same_country) = &(elts[i]);
+                debugLog(r, cfg, "adding fallback mirror in same country: %s:%s %s", 
+                         elts[i].region, elts[i].country_code, elts[i].baseurl);
+            } 
+            else if (strcasecmp(elts[i].region, continent_code) == 0) {
+                *(void **)apr_array_push(mirrors_same_region) = &(elts[i]);
+                debugLog(r, cfg, "adding fallback mirror in same region: %s:%s %s", 
+                         elts[i].region, elts[i].country_code, elts[i].baseurl);
+            } 
+            else {
+                *(void **)apr_array_push(mirrors_elsewhere) = &(elts[i]);
+                debugLog(r, cfg, "adding fallback mirror elsewhere: %s:%s %s", 
+                         elts[i].region, elts[i].country_code, elts[i].baseurl);
+            }
+        }
     }
 
 
@@ -2088,6 +2178,7 @@ static const command_rec mb_cmds[] =
                   ACCESS_CONF,
                   "Regexp which determines which files will be excluded form redirecting"),
 
+    /* obsolete, and to removed later */
     AP_INIT_FLAG("MirrorBrainHandleDirectoryIndexLocally", mb_cmd_handle_dirindex_locally, NULL, 
                   OR_OPTIONS,
                   "Obsolete directive. You can remove it from your config."),
@@ -2100,6 +2191,12 @@ static const command_rec mb_cmds[] =
                   ACCESS_CONF,
                   "Regexp which determines for which files to look for correspondant "
                   ".torrent files, and add them into generated metalinks"),
+
+    AP_INIT_TAKE3("MirrorBrainFallback", mb_cmd_fallback, NULL, 
+                  ACCESS_CONF, 
+                  "region code, country code and base URL of a mirror that is used when no "
+                  "mirror can be found in the database. These mirrors are assumed to have "
+                  "*all* files."),
 
     /* to be used only in server context */
     AP_INIT_TAKE1("MirrorBrainDBDQuery", mb_cmd_dbdquery, NULL,
