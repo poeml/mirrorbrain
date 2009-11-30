@@ -100,7 +100,7 @@ class Hasheable:
         except OSError:
             dst_mtime = dst_size = 0 # file missing
 
-        if dst_mtime == self.mtime and dst_size != 0:
+        if int(dst_mtime) == int(self.mtime) and dst_size != 0:
             if verbose:
                 print 'Up to date: %r' % self.dst
             return 
