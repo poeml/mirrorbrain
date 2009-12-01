@@ -1170,7 +1170,19 @@ static int mb_handler(request_rec *r)
         const char *val = NULL;
         short col = 0; /* incremented for the column we are reading out */
 
-        rv = apr_dbd_get_row(dbd->driver, r->pool, res, &row, i);
+        rv = apr_dbd_get_row(dbd->driver, r->pool, res, &row, 
+#if (APR_MAJOR_VERSION == 1 && APR_MINOR_VERSION == 2)
+                             /* APR 1.2 was the first version to support the DBD
+                              * framework, and had a different way of counting
+                              * rows, see http://mirrorbrain.org/issues/issue7
+                              * */
+                             i - 1
+#else
+                             i
+#endif
+                             );
+
+
         if (rv != 0) {
             ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r,
                       "[mod_mirrorbrain] Error looking up %s in database", filename);
