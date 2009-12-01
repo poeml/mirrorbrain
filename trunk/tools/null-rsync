@@ -98,6 +98,10 @@ def main():
     parser = OptionParser(usage=usage, version=version)
     #parser.disable_interspersed_args()
 
+    parser.add_option('--exclude',
+                      action='append', dest='excludes', metavar='PATTERN', default=[],
+                      help='exclude files matching PATTERN (passed through to rsync')
+
     parser.add_option('-q', '--quiet',
                       action='store_true', dest='quiet', default=False,
                       help='Don\'t show output, except errors')
@@ -134,6 +138,9 @@ def main():
             rsync_src,
             rsync_dst ]
 
+    for i in options.excludes:
+        cmd.append('--exclude')
+        cmd.append(i)
 
     if not os.path.exists(rsync_dst):
         os.mkdir(rsync_dst)
