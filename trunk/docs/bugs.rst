@@ -11,12 +11,6 @@ Apache children don't do it, and a graceful restart of Apache is needed. This
 needs further inspection.
 
 
-Passwords containing spaces
------------------------------
-
-Passwords containing spaces in :file:`/etc/mirrorbrain.conf` are known not to work.
-
-
 Sporadic corruption of ASN and PFX variables in the subprocess environment
 --------------------------------------------------------------------------
 
