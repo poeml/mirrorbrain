@@ -4,55 +4,43 @@
 Create a local file tree as copy from a remote server via rsync.
 All files will contain zeroes.
 
-    Copyright 2009 Peter Poeml
+Copyright 2009 Peter Poeml
 
-    Licensed under the Apache License, Version 2.0 (the "License");
-    you may not use this file except in compliance with the License.
-    You may obtain a copy of the License at
- 
-        http://www.apache.org/licenses/LICENSE-2.0
- 
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
+    http://www.apache.org/licenses/LICENSE-2.0
 
-
-To get the file metadata over rsync, rsync's own itemized output is used for
-that purpose:
-
-del. rw-r--r-- *deleting   ultimate-edition-2.4-x86.iso 0 1970/01/01-01:00:00
-del. rw-r--r-- *deleting   ultimate-edition-1.9-x86.iso 0 1970/01/01-01:00:00
-del. rw-r--r-- *deleting   ultimate-edition-1.9-x64.iso 0 1970/01/01-01:00:00
-del. rw-r--r-- *deleting   nothere 0 1970/01/01-01:00:00
-recv rwxr-xr-x .d..t...... ./ 4096 2009/11/06-00:46:02
-recv rw-r--r-- >f.st...... .htaccess 288 2009/11/05-23:56:46
-recv rwxr-xr-x cd+++++++++ firefox/ 4096 2005/09/06-22:00:35
-recv rwxr-sr-x cd+++++++++ firefox/releases/ 4096 2009/11/17-22:10:23
-recv rwxr-xr-x cd+++++++++ firefox/releases/3.0.15/ 4096 2009/10/26-19:23:12
-recv rw-r--r-- >f+++++++++ firefox/releases/3.0.15/KEY 3818 2009/10/19-18:17:29
-recv rw-r--r-- >f+++++++++ firefox/releases/3.0.15/MD5SUMS 54256 2009/10/26-19:21:21
-
-
-
-All files are created as sparse files, so they don't take actual space in the
-filesystem (besides metadata).
-
-We copy all permissions and timestamps where possible.
-
-Timestamps on symlinks can't be set by Python (its os.utime() implementation
-always follows to the target). (It *would* work if Python would export
-utimensat() with AT_SYMLINK_NOFOLLOW.) But it doesn't really matter.
-
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 """
+
+__version__ = '0.9'
 
 import sys
 import os
 import subprocess
 import time
 import stat
+import signal
+import textwrap
+from optparse import OptionParser
+
+
+
+class SignalInterrupt(Exception):
+    """Exception raised on SIGTERM and SIGHUP."""
+
+def catchterm(*args):
+    raise SignalInterrupt
+
+for name in 'SIGBREAK', 'SIGHUP', 'SIGTERM':
+    num = getattr(signal, name, None)
+    if num: signal.signal(num, catchterm)
 
 
 def perms_to_mode(p):
@@ -82,146 +70,216 @@ def perms_to_mode(p):
     return m
 
 
-rsync_src = sys.argv[1]
-rsync_dst = sys.argv[2]
-rsync_dst = rsync_dst.rstrip('/')
-verbose = True
+def main():
 
-cmd = [ 'rsync',
-        '--no-motd', 
-        # not -a because we don't want --devices --specials --owner --group
-        '-rlpt', 
-        # upstream may have world-writable files/directories, but that doesn't mean
-        # that we want that locally
-        '--chmod=o-w',
-        '--out-format=%o %B %i %M %l %n%L',
-        '--delete',
-        '-n',
-        rsync_src,
-        rsync_dst ]
+    usage = textwrap.dedent("""\
+    usage: %prog [options] RSYNC_SOURCE_URL LOCAL_PATH
 
+    Create a local file tree as copy from a remote server via rsync.
+    All files will contain zeroes.
 
-if not os.path.exists(rsync_dst):
-    os.mkdir(rsync_dst)
-# remember directories to set mtime afterwards
-mtime_dir_list = []
+    To get the file metadata over rsync, rsync's own itemized output is used,
+    because it tells us all we need to know:
+        del. rw-r--r-- *deleting   ultimate-edition-1.9-x64.iso 0 1970/01/01-01:00:00
+        recv rwxr-xr-x cd+++++++++ firefox/releases/3.0.15/ 4096 2009/10/26-19:23:12
+        recv rw-r--r-- >f+++++++++ firefox/releases/3.0.15/MD5SUMS 54256 2009/10/26-19:21:21
 
-o = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                close_fds=True).stdout
+    All files are created as sparse files, so they don't take actual space in the
+    filesystem (besides metadata).
 
-for line in o.readlines():
+    We copy all permissions and timestamps where possible. An exception are
+    timestamps on symlinks, that can't be set by Python (its os.utime()
+    implementation always follows to the target). (It *would* work if Python
+    would export utimensat() with AT_SYMLINK_NOFOLLOW.) But it doesn't really
+    matter.""")
 
-    if verbose:
-        print line.rstrip()
+    version = '%prog ' + __version__
 
-    words = line.strip().split(None, 5)
-    # ['recv', 'rwxrwxrwx', 'cL+++++++++', '2009/05/31-03:31:46', '25', 'repo/1.0/11.1/suse/x86_64/yaz.rpm -> yaz-3.0.34-1.8.x86_64.rpm']
+    parser = OptionParser(usage=usage, version=version)
+    #parser.disable_interspersed_args()
 
-    action = words[0]
-    perms  = words[1]
-    attrs  = words[2]
-    mtime_rsync = words[3]
-    size   = int(words[4])
-    name   = words[5]
-    
-    if attrs[1] == 'L':
-        # symlink
-        name, name_to = name.split(' -> ')
+    parser.add_option('-q', '--quiet',
+                      action='store_true', dest='quiet', default=False,
+                      help='Don\'t show output, except errors')
 
-    # for safety
-    path = os.path.join(rsync_dst, name)
-    canonical_path = os.path.realpath(path)
-    if not canonical_path.startswith(rsync_dst):
-        sys.exit("canonical path (%r) doesn't start with the rsync destination dir (%r)")
-    path = canonical_path.rstrip('/')
-
-    if action == 'del.':
-        if name.endswith('/'):
-            #print 'unlinking directory', name
-            os.rmdir(os.path.join(rsync_dst, name))
-        else:
-            #print 'unlinking file', name
-            os.unlink(os.path.join(rsync_dst, name))
-
-    elif action == 'recv':
-
-        if attrs[1] == 'd':
-            if name == './':
-                # top-level dir
-                # recv rwxr-xr-x .d..t...... 2009/11/06-00:46:02 4096 ./
-                #print 'ignoring top-level dir'
-                mtime_dir_list.append((path, mtime_rsync))
-
-            if attrs[0] == 'c':
-                # recv rwxr-xr-x cd+++++++++ 2005/09/06-22:00:35 4096 firefox/
-                #print 'creating directory %r' % path
-                os.mkdir(path)
-                mtime_dir_list.append((path, mtime_rsync))
-
-            elif attrs[0] == '.':
-                pass
-
-            else:
-                sys.exit('don\'t know how to handle this line: %r' % words)
+    parser.add_option('-v', '--verbose', action='count', dest='verbosity',
+                      help='Print debug messages to stderr. '
+                           'Option can be repeated to increase verbosity.')
 
 
-        elif attrs == 'cL+++++++++':
-            #print 'creating symlink from %s to %s' % (name, name_to)
-            os.symlink(name_to, path)
+
+    (options, args) = parser.parse_args()
+
+    if len(args) < 2:
+        print >>sys.stderr, 'Not enough arguments.'
+        sys.exit(2)
+    elif len(args) > 2:
+        print >>sys.stderr, 'Too many arguments.'
+        sys.exit(2)
+
+    rsync_src = args[0]
+    rsync_dst = args[1]
+    rsync_dst = rsync_dst.rstrip('/')
+
+    cmd = [ 'rsync',
+            '--no-motd', 
+            # not -a because we don't want --devices --specials --owner --group
+            '-rlpt', 
+            # upstream may have world-writable files/directories, but that doesn't mean
+            # that we want that locally
+            '--chmod=o-w',
+            '--out-format=%o %B %i %M %l %n%L',
+            '--delete',
+            '-n',
+            rsync_src,
+            rsync_dst ]
 
 
-        if attrs.startswith('>f') and attrs[3] in ['s', '+']:
-            # transfer a file
-            fd = open(path, 'w')
-            # writing info wastes massive space already; the mozilla file tree took 
-            # 254 MB instead of 19 MB (real size: 25 G)
-            #info = 'This is only a pseudo file, containing nothing than zeros. ' + \
-            #      'Same length as the original file.'
-            #if size > len(info):
-            #    fd.write(info)
-            if size == 0:
-                fd.truncate()
-            else:
-                fd.seek(size - 1)
-                fd.write('\0')
-            fd.close()
+    if not os.path.exists(rsync_dst):
+        os.mkdir(rsync_dst)
+    # remember directories to set mtime afterwards
+    mtime_dir_list = []
 
-        if attrs[5] in ['p', '+']:
-            if attrs[1] == 'L':
-                # not relevant for symlinks
-                pass
-            else:
-                #print '%s: setting permissions' % path
-                os.chmod(path, perms_to_mode(perms))
+    o = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                    close_fds=True).stdout
 
-        if attrs[4] in ['t', '+'] or attrs[3] in ['s', '+']:
-            if attrs[1] == 'L':
-                # not doable jor symlinks
-                # it *would* work if Python would export utimensat() with
-                # AT_SYMLINK_NOFOLLOW
-                pass
-            else:
-                t = time.strptime(mtime_rsync, '%Y/%m/%d-%H:%M:%S')
-                mtime = int(time.mktime(t))
-                #print '%s: setting mtime (%s)' % (path, mtime_rsync)
-                os.utime(path, (mtime, mtime))
+    for line in o.readlines():
 
+        if not options.quiet:
+            # print what we are doing
+            # but omit symlinks with incorrect mtime
+            if not line.startswith('recv rwxrwxrwx .L..t......'):
+                print line.rstrip()
 
-    else:
-        sys.exit('unknown action %r (line was: %r)' % (action, line))
-    
-while len(mtime_dir_list) > 0:
-    path, mtime_rsync = mtime_dir_list.pop()
-    if verbose:
-        print 'delayed setting of mtime on %r' % path
+        words = line.strip().split(None, 5)
+        # ['recv', 'rwxrwxrwx', 'cL+++++++++', '2009/05/31-03:31:46', '25', 'repo/1.0/11.1/suse/x86_64/yaz.rpm -> yaz-3.0.34-1.8.x86_64.rpm']
 
-    t = time.strptime(mtime_rsync, '%Y/%m/%d-%H:%M:%S')
-    mtime = int(time.mktime(t))
-    os.utime(path, (mtime, mtime))
-
-
+        action = words[0]
+        perms  = words[1]
+        attrs  = words[2]
+        mtime_rsync = words[3]
+        size   = int(words[4])
+        name   = words[5]
         
-if verbose:
-    print 'rsync command for validation:'
-    print 'rsync --no-motd -rlpt --chmod=o-w %s %s -i -n' % (rsync_src, rsync_dst)
+        if attrs[1] == 'L':
+            # symlink
+            name, name_to = name.split(' -> ')
+
+        # for safety
+        path = os.path.join(rsync_dst, name)
+        canonical_path = os.path.realpath(path)
+        if not canonical_path.startswith(rsync_dst):
+            sys.exit("canonical path (%r) doesn't start with the rsync destination dir (%r)")
+        path = canonical_path.rstrip('/')
+
+        if action == 'del.':
+            if name.endswith('/'):
+                if options.verbosity > 1:
+                    print >>sys.stderr, 'unlinking directory', name
+                os.rmdir(os.path.join(rsync_dst, name))
+            else:
+                if options.verbosity > 1:
+                    print >>sys.stderr, 'unlinking file', name
+                os.unlink(os.path.join(rsync_dst, name))
+
+        elif action == 'recv':
+
+            if attrs[1] == 'd':
+                if name == './':
+                    # top-level dir
+                    # recv rwxr-xr-x .d..t...... 2009/11/06-00:46:02 4096 ./
+                    if options.verbosity > 1:
+                        print >>sys.stderr, 'ignoring top-level dir'
+                    mtime_dir_list.append((path, mtime_rsync))
+
+                if attrs[0] == 'c':
+                    # recv rwxr-xr-x cd+++++++++ 2005/09/06-22:00:35 4096 firefox/
+                    if options.verbosity > 1:
+                        print >>sys.stderr, 'creating directory %r' % path
+                    os.mkdir(path)
+                    mtime_dir_list.append((path, mtime_rsync))
+
+                elif attrs[0] == '.':
+                    pass
+
+                else:
+                    sys.exit('don\'t know how to handle this line: %r' % words)
+
+
+            elif attrs == 'cL+++++++++':
+                if options.verbosity > 1:
+                    print >>sys.stderr, 'creating symlink from %s to %s' % (name, name_to)
+                os.symlink(name_to, path)
+
+
+            if attrs.startswith('>f') and attrs[3] in ['s', '+']:
+                # transfer a file
+                fd = open(path, 'w')
+                # writing info wastes massive space already; the mozilla file tree took 
+                # 254 MB instead of 19 MB (real size: 25 G)
+                #info = 'This is only a pseudo file, containing nothing than zeros. ' + \
+                #      'Same length as the original file.'
+                #if size > len(info):
+                #    fd.write(info)
+                if size == 0:
+                    fd.truncate()
+                else:
+                    fd.seek(size - 1)
+                    fd.write('\0')
+                fd.close()
+
+            if attrs[5] in ['p', '+']:
+                if attrs[1] == 'L':
+                    # not relevant for symlinks
+                    pass
+                else:
+                    if options.verbosity > 1:
+                        print >>sys.stderr, '%s: setting permissions' % path
+                    os.chmod(path, perms_to_mode(perms))
+
+            if attrs[4] in ['t', '+'] or attrs[3] in ['s', '+']:
+                if attrs[1] == 'L':
+                    # not doable jor symlinks
+                    # it *would* work if Python would export utimensat() with
+                    # AT_SYMLINK_NOFOLLOW
+                    pass
+                else:
+                    t = time.strptime(mtime_rsync, '%Y/%m/%d-%H:%M:%S')
+                    mtime = int(time.mktime(t))
+                    if options.verbosity > 1:
+                        print >>sys.stderr, '%s: setting mtime (%s)' % (path, mtime_rsync)
+                    os.utime(path, (mtime, mtime))
+
+
+        else:
+            sys.exit('unknown action %r (line was: %r)' % (action, line))
+        
+    while len(mtime_dir_list) > 0:
+        path, mtime_rsync = mtime_dir_list.pop()
+        if options.verbosity > 0:
+            print >>sys.stderr, 'delayed setting of mtime on %r' % path
+
+        t = time.strptime(mtime_rsync, '%Y/%m/%d-%H:%M:%S')
+        mtime = int(time.mktime(t))
+        os.utime(path, (mtime, mtime))
+
+
+            
+    if options.verbosity > 0:
+        print >>sys.stderr, 'rsync command for validation:'
+        print >>sys.stderr, 'rsync --no-motd -rlpt --chmod=o-w %s %s -i -n' % (rsync_src, rsync_dst)
+
+
+
+
+if __name__ == '__main__':
+
+    try:
+        main()
+
+    except SignalInterrupt:
+        print >>sys.stderr, 'killed!'
+
+    except KeyboardInterrupt:
+        print >>sys.stderr, 'interrupted!'
 
