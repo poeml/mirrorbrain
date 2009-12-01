@@ -97,6 +97,11 @@ class Conn:
                 import psycopg2
             except: 
                 sys.exit('To use mb with PostgreSQL, you need the pcycopg2 Python module installed.')
+            # see http://mirrorbrain.org/issues/issue27
+            config['dbpass'] = config['dbpass'].replace(' ', r'\ ')
+            config['dbpass'] = config['dbpass'].replace('\t', '\\\t')
+            config['dbpass'] = config['dbpass'].replace("'", r"\'")
+            config['dbpass'] = config['dbpass'].replace('"', r'$$"$$')
         elif dbdriver in ['mysql']:
             dbport = '3306'
         else:
