@@ -1,4 +1,5 @@
 
+import sys
 import ConfigParser
 import re
 
@@ -22,7 +23,11 @@ class Config:
         self.mirrorprobe = {}
 
         cp = ConfigParser.SafeConfigParser()
-        cp.read(conffile)
+        try:
+            cp.read(conffile)
+        except ConfigParser.ParsingError, e:
+            print e
+            sys.exit(2)
 
         #
         # take care of the [general] section
