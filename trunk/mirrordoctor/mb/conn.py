@@ -101,7 +101,6 @@ class Conn:
             config['dbpass'] = config['dbpass'].replace(' ', r'\ ')
             config['dbpass'] = config['dbpass'].replace('\t', '\\\t')
             config['dbpass'] = config['dbpass'].replace("'", r"\'")
-            config['dbpass'] = config['dbpass'].replace('"', r'$$"$$')
         elif dbdriver in ['mysql']:
             dbport = '3306'
         else:
