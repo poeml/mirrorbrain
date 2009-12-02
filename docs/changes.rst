@@ -3,6 +3,101 @@
 Release Notes/Change History
 ============================
 
+Release 2.11.0 (r7891, Dec 2, 2009)
+------------------------------------
+
+A new feature and lots of bug fixes and minor corrections come with this
+release. 
+
+It's now possible to configure fallback mirrors, via Apache config, in the
+following form::
+
+    MirrorBrainFallback na us ftp://linuxfreedom.com/ultimate/
+    MirrorBrainFallback eu de http://www.ultimate-edition.org/~ue/
+
+Those mirrors are used when no reachable mirror is found in the database.
+Thus, these mirrors get all those requests that MirrorBrain would normally
+deliver itself (you know, the default fallback behaviour).
+
+They are also used in the mirror lists (with priority 1) and metalinks, and
+country/region selection is done like for normal mirrors. They are used
+blindly, without knowing their file lists.
+
+This actually allows to run a MirrorBrain instance with a pseudo file tree
+(cf.  recently added :program:`null-rsync` script.) 
+
+A "degraded mode" that continues to work in case of database complete outages
+is easily achievable now, however for now the code path is less robust in
+that regard (*if* fallback mirrors are configured. Otherwise, it shouldn't).
+This should be fixed later.
+
+This new feature is still its infancy, but ready to be tested. It may be
+subject to refinement, based on future discussion.
+  
+* Other changes in :program:`mod_mirrorbrain` are:
+
+  - The module now automatically makes sure at compile time that its usage of
+    the DBD database API fits to the APR (Apache Portable Runtime) version. The
+    issue was that the semantics of reading result rows was with APR 1.3. With
+    older APR, different semantics need to be used, which hits Debian and
+    Ubuntu. This fixes `issue 7`_.
+
+  - The ``MirrorBrainHandleDirectoryIndexLocally`` directive has been removed.
+    It was never actually useful, because we never did (and could) redirect to
+    directory listings.  For one, a listing might not be available at each URL
+    that we might redirect to.  What's more, since the database only stores
+    file paths and not directories, we can't actually look up directories.
+    Thus, the directive is now removed, and a warning issued where it is still
+    found in the config.
+
+  - The default of ``MirrorBrainHandleHEADRequestLocally`` has been changed to
+    ``Off``, and it has been made clearer (in the Apache-internal help text)
+    what the default is. This change mainly has the effect that the directive
+    does *not* need to be given anymore, in most scenarios.
+  - The default setting of the ``MirrorBrainMinSize`` directive has been
+    documented in its help text.
+
+* The documentation for installation on Debian Lenny was tested and corrected
+  where needed. Thanks, TheUni! Minor issues in the Debian packages have been
+  improved, to further simplify the installation. Ubuntu benefits from this as
+  well.
+
+* :program:`mb`
+
+  - Parse errors in the configuration file are not caught and and reported
+    nicely.
+  - Special characters occurring in the configured password are not escaped
+    before passing them to SQLObject/psycopg2, thus fixing `issue
+    27`_. A remaining issue is that double quotes can't be used... a warning is
+    now issued if it's attempted.
+
+* :program:`mb scan`:
+
+  - A warning that appeared since the last release has been removed. It was
+    caused by the removal of obsolete code, and purely cosmetic.
+
+* :program:`null-rsync`
+
+  - An ``--exclude`` commandline option has been implemented, to be passed
+    through to :program:`rsync`. 
+  - Control over the program output can now be exerted by the two new options
+    ``--quiet`` and ``--verbose``.
+  - Usage info is implemented (``--help`` etc.).
+  - Interruptions by :kbd:`Ctrl-C` and similar signals are intercepted now.
+
+* :program:`metalink-hasher`
+
+  - When comparing the modification time of a saved metalink hash with that of a
+    source file, the sub(sub-)second portion of the value could be different
+    from the value that has just been set by :func:`os.ulimit`. (Quite
+    surprisingly.) So now, we compare only the :func:`int` portion of the
+    value. This fixed `issue 24`_.
+
+.. _`issue 7`: http://mirrorbrain.org/issues/issue7
+.. _`issue 24`: http://mirrorbrain.org/issues/issue24
+.. _`issue 27`: http://mirrorbrain.org/issues/issue27
+
+
 Release 2.10.3 (r7871, Nov 28, 2009)
 ------------------------------------
 
