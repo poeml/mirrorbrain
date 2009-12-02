@@ -1,5 +1,6 @@
 
 import sys
+import mberr
 from sqlobject import *
 
 
@@ -101,6 +102,8 @@ class Conn:
             config['dbpass'] = config['dbpass'].replace(' ', r'\ ')
             config['dbpass'] = config['dbpass'].replace('\t', '\\\t')
             config['dbpass'] = config['dbpass'].replace("'", r"\'")
+            if '"' in config['dbpass']:
+                sys.exit('Sorry, but passwords cannot contain double quotes.')
         elif dbdriver in ['mysql']:
             dbport = '3306'
         else:
