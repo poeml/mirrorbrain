@@ -76,43 +76,28 @@ To install the worker MPM, run::
 
 *If* the LAMP server has been installed, the prefork MPM was probably
 preselected. It may make sense to switch to the worker MPM in such cases, which
-is a good choice for busy download servers.
+is a good choice for busy download servers. If something like PHP is in use as
+embedded interpreter (mod_php), though, then you need to stick to the prefork
+MPM, because libraries that are used by PHP might not be threadsafe.
 
 
 Configure mod_geoip
 ~~~~~~~~~~~~~~~~~~~
 
-mod_geoip must be configured to find the the GeoIP data set::
+.. note:: 
+   The mod_geoip Apache module that ships with Debian and Ubuntu is too old
+   (1.x, see http://mirrorbrain.org/issues/issue16). Therefore the provided 
+   packages also include a newer mod_geoip (2.x). With the above apt-get line,
+   you've got it already installed.
 
-  sudo sh -c "cat > /etc/apache2/mods-available/geoip.conf << EOF
-  <IfModule mod_geoip.c>
-   GeoIPEnable On
-   GeoIPOutput Env
-   GeoIPDBFile /var/lib/GeoIP/GeoIP.dat Standard
-  </IfModule>
-  EOF
-  " 
-
-Download GeoIP data set::
+mod_geoip is configured to look for the GeoIP data set in
+:file:`/var/lib/GeoIP`. You need to download the GeoIP data set. We chose the
+larger "city" dataset::
 
   wget http://geolite.maxmind.com/download/geoip/database/GeoLiteCountry/GeoIP.dat.gz
   gunzip GeoIP.dat.gz
   sudo mkdir /var/lib/GeoIP
   sudo cp GeoIP.dat /var/lib/GeoIP/GeoIP.dat
-
-Enable module and restart Apache::
-
-  sudo a2enmod geoip
-  sudo /etc/init.d/apache2 restart
-
-
-Configure mod_form
-~~~~~~~~~~~~~~~~~~
-
-Enable module and restart Apache::
-
-  sudo a2enmod form
-  sudo /etc/init.d/apache2 restart
 
 
 Configure mod_dbd
@@ -133,20 +118,9 @@ Running the following snippet will create a configuration for mod_dbd::
   EOF
   "
 
-
-Enable module and restart Apache::
-
-  sudo a2enmod dbd
-  sudo /etc/init.d/apache2 restart
-
-
-Configure mod_mirrorbrain
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Enable module and restart Apache::
-
-  sudo a2enmod mirrorbrain
-  sudo /etc/init.d/apache2 restart
+.. note::
+   Edit the password in the template here -- take note of it, you'll need it
+   below, when you create a database user account.
 
 
 Install PostgreSQL
@@ -201,15 +175,17 @@ Create needed users and groups
 Create user and group ``mirrorbrain``::
 
   sudo groupadd -r mirrorbrain
-  sudo useradd -r -g mirrorbrain -s /bin/bash -c "MirrorBrain user" -d /home/mirrorbrain mirrorbrain
+  sudo useradd -r -m -g mirrorbrain -s /bin/bash -c "MirrorBrain user" -d /home/mirrorbrain mirrorbrain
 
 Import initial mirrorbrain data
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Import structure and data::
+Import structure and data, running the commands as user mirrorbrain::
 
+  sudo su - mirrorbrain
   gunzip -c /usr/share/doc/mirrorbrain/sql/schema-postgresql.sql.gz | psql -U mirrorbrain mirrorbrain
   gunzip -c /usr/share/doc/mirrorbrain/sql/initialdata-postgresql.sql.gz | psql -U mirrorbrain mirrorbrain
+  exit
 
 
 Create needed directories
@@ -247,6 +223,12 @@ Create a configuration file named :file:`mirrorbrain.conf`::
   EOF
   "
 
+.. note::
+   The database password in the above template is only a placeholder and you
+   need to edit it: change it to the actual password, the one that you gave
+   when you ran PostgreSQL's :program:`createuser` command. Likewise, make sure
+   that you picked the same username.
+
 Set permission and privileges on the file::
 
   sudo chmod 0640 /etc/mirrorbrain.conf 
@@ -268,26 +250,26 @@ Create a virtual host
 The following snippet would create a new site as virtual host::
 
   sudo sh -c "cat > /etc/apache2/sites-available/mirrorbrain << EOF
-   <VirtualHost 127.0.0.1>
-     ServerName mirrors.example.org
-     ServerAdmin webmaster@example.org
-     DocumentRoot /var/www/downloads
-     ErrorLog     /var/log/apache2/mirrors.example.org/error_log
-     CustomLog    /var/log/apache2/mirrors.example.org/access_log combined
-     <Directory /var/www/downloads>
-       MirrorBrainEngine On
-       MirrorBrainDebug Off
-       FormGET On
-       MirrorBrainHandleHEADRequestLocally Off
-       MirrorBrainMinSize 2048
-       MirrorBrainExcludeUserAgent rpm/4.4.2*
-       MirrorBrainExcludeUserAgent *APT-HTTP*
-       MirrorBrainExcludeMimeType application/pgp-keys
-       Options FollowSymLinks Indexes
-       AllowOverride None
-       Order allow,deny
-       Allow from all
-     </Directory>
+  <VirtualHost 127.0.0.1>
+      ServerName mirrors.example.org
+      ServerAdmin webmaster@example.org
+      DocumentRoot /var/www/downloads
+      ErrorLog     /var/log/apache2/mirrors.example.org/error.log
+      CustomLog    /var/log/apache2/mirrors.example.org/access.log combined
+      <Directory /var/www/downloads>
+          MirrorBrainEngine On
+          MirrorBrainDebug Off
+          FormGET On
+          MirrorBrainHandleHEADRequestLocally Off
+          MirrorBrainMinSize 2048
+          MirrorBrainExcludeUserAgent rpm/4.4.2*
+          MirrorBrainExcludeUserAgent *APT-HTTP*
+          MirrorBrainExcludeMimeType application/pgp-keys
+          Options FollowSymLinks Indexes
+          AllowOverride None
+          Order allow,deny
+          Allow from all
+      </Directory>
   </VirtualHost>
   EOF
   "
@@ -305,8 +287,9 @@ Enable the site::
   sudo a2ensite mirrorbrain
 
 
-Restart Apache::
+Restart Apache, best while watching the error log::
 
+  sudo tail -f /var/log/apache2/error.log &
   sudo /etc/init.d/apache2 restart
 
 
