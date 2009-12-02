@@ -3,7 +3,7 @@
 Release Notes/Change History
 ============================
 
-Release 2.11.0 (r7891, Dec 2, 2009)
+Release 2.11.0 (r7896, Dec 2, 2009)
 ------------------------------------
 
 A new feature and lots of bug fixes and minor corrections come with this
@@ -66,10 +66,9 @@ subject to refinement, based on future discussion.
 
   - Parse errors in the configuration file are not caught and and reported
     nicely.
-  - Special characters occurring in the configured password are not escaped
-    before passing them to SQLObject/psycopg2, thus fixing `issue
-    27`_. A remaining issue is that double quotes can't be used... a warning is
-    now issued if it's attempted.
+  - Special characters occurring in the password are escaped before passing
+    them to SQLObject/psycopg2, thus fixing `issue 27`_. A remaining issue is
+    that double quotes can't be used; a warning is issued if it's attempted.
 
 * :program:`mb scan`:
 
