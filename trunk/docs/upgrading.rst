@@ -203,3 +203,15 @@ If everything works, you can stop and remove the temporary database installation
    cron stop on mirrordb
    repopusher stop
    
+
+
+Version-specific upgrade notes
+-------------------------------
+
+From 2.10.3 to 2.11.0:
+^^^^^^^^^^^^^^^^^^^^^^
+
+The ``MirrorBrainHandleDirectoryIndexLocally`` directive has been removed.  A
+warning is issued where it is still found in the config. It didn't really have
+a function.
+
