@@ -3,7 +3,7 @@
 from distutils.core import setup
 
 setup(name='mirrordoctor',
-      version='1.1',
+      version='1.2',
       description='MirrorDoctor, a tool to maintain the MirrorBrain database',
       author='MirrorBrain project',
       author_email='info@mirrorbrain.org',
