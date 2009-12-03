@@ -41,6 +41,7 @@
 #include "http_protocol.h"
 #include "util_md5.h"
 
+#include "apr_version.h"
 #include "apr_strings.h"
 #include "apr_lib.h"
 #include "apr_fnmatch.h"
