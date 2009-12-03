@@ -3,6 +3,18 @@
 Release Notes/Change History
 ============================
 
+Release 2.11.1 (r7899, Dec 3, 2009)
+------------------------------------
+
+This release fixes a regression in :program:`mod_mirrorbrain` that was
+introduced with the 2.11.0 release. It affected Debian and Ubuntu, or more
+generally all platforms where the APR (Apache Portable Runtime) is version 1.2,
+not 1.3. The version detection at compile time was not working. This has been
+corrected, fixing `issue 29`_. Thanks to Cory Fields in tracking down this bug!
+
+.. _`issue 29`: http://mirrorbrain.org/issues/issue29
+
+
 Release 2.11.0 (r7896, Dec 2, 2009)
 ------------------------------------
 
