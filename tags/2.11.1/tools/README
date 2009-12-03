@@ -1,0 +1,51 @@
+This directory contains some tools that are used by the "mb" tool, or are
+packaged just for conveniency.
+
+
+
+Needed by "mb" (and therefore required to be placed within $PATH) are:
+
+    geoiplookup_continent.c   
+       A minimal clone of the "standard" geoiplookup tool (which comes with GeoIP),
+       just that it can print out the continent, which the standard tool can't.
+       Install it to /usr/bin/geoiplookup_continent
+  
+    scanner.pl
+       The scanner, for now written in Perl, which is integral part of MirrorBrain.
+       Install it as /usr/bin/scanner
+  
+
+Optional tools:
+
+    geoip-lite-update
+       Can fetch updated databases from GeoIP
+
+    metalink-hasher.py
+       Creates hashes for automatic inclusion into metalinks
+
+
+
+Additional tools that may or may not be useful for operators of MirrorBrain, or
+of a mirror infrastructure in general. You can ignore them for a MirrorBrain
+install:
+
+    create_timestamp
+       Creates a small file containing a timestamp which can be used to let it
+       spread to mirrors, so to check them for uptodate-ness.
+
+    geoiplookup_city.c
+       Show details from a city GeoIP database, similar to what the standard
+       geoiplookup tool does, but also shows the continent.
+
+    mirrorprobe-logrotate
+       Logrotate snippet for the /var/log/mirrorbrain/mirrorprobe.log file
+
+    rsyncusers
+       Tool to summarize rsync uses from an rsync log file
+    rsyncusers.sh
+       Same tool in a more stupid but more portable shell implementation
+
+    rsyncinfo.py
+       Tool to assess the size of rsync modules on a remote server, or a
+       subdirectory
+
