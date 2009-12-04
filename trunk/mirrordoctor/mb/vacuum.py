@@ -21,3 +21,24 @@ def vacuum(conn):
 
     print 'Done.'
 
+
+def dbstats(conn):
+    """show statistics about stale files in the database"""
+
+    query = """SELECT relname, relkind, relfilenode, reltuples, relpages, 
+                      relpages*8 AS relMB 
+               FROM pg_class 
+               WHERE relkind IN ('r', 'i') 
+                      AND relname ~ '^.*(file|server|pfx|temp1).*' 
+               ORDER BY 1"""
+    rows = conn.Filearr._connection.queryAll(query)
+
+    print 'Size(MB) Relation'
+    total = 0
+    for row in rows:
+        name, kind, filenode, tuples, pages, size = row
+        sizeMB = float(size) / 1024
+        total += sizeMB
+        print '%5.1f    %s' % (sizeMB, name)
+
+    print 'Total: %.1f' % total
