@@ -820,14 +820,25 @@ class MirrorDoctor(cmdln.Cmdln):
             mirror.score = int(score)
         
 
+    @cmdln.option('--size', action='store_true',
+                  help='don\'t delete, but show how much size the database uses.')
     @cmdln.option('-n', '--dry-run', action='store_true',
                   help='don\'t delete, but only show statistics.')
     def do_vacuum(self, subcmd, opts, *args):
-        """${cmd_name}: clean up unreferenced files from the mirror database
+        """${cmd_name}: perform database maintenance
+        
+        If called without further argumets, the command cleans up unreferenced
+        files from the mirror database.
+        This should be done once a week for a busy file tree.  Otherwise it
+        should be rarely needed, but can possibly improve performance if it is
+        able to shrink the database.
 
-        This should be done once a week for a busy file tree.
-        Otherwise it should be rarely needed, but can possibly 
-        improve performance if it is able to shrink the database.
+        When called with the -n option, only the number of files to be cleaned
+        up is printed. This is purely for information.
+
+        When called with the --size option, the size of each database relation
+        will be preinted, which can provide insight for the appropriate
+        database tuning.
 
         ${cmd_usage}
         ${cmd_option_list}
@@ -835,9 +846,12 @@ class MirrorDoctor(cmdln.Cmdln):
 
         import mb.vacuum
 
-        mb.vacuum.stale(self.conn)
-        if not opts.dry_run:
-            mb.vacuum.vacuum(self.conn)
+        if opts.size:
+            mb.vacuum.dbstats(self.conn)
+        else:
+            mb.vacuum.stale(self.conn)
+            if not opts.dry_run:
+                mb.vacuum.vacuum(self.conn)
 
 
     @cmdln.option('-u', '--url', action='store_true',
