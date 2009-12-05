@@ -3,6 +3,42 @@
 Release Notes/Change History
 ============================
 
+Release 2.11.2 (r7913, Dec 5, 2009)
+-----------------------------------
+
+This release improves scanning via FTP and adds a few small features:
+
+* :program:`mb scan`:
+
+  - When scanning via FTP, filenames containing whitespace would not be
+    recognized. The regular expression that parses the FTP directory listing
+    has been extended. In addition, a warning is now printed when a line can't
+    be parsed. This hopefully fixes `issue 31`_. 
+  - when using the FTP protocol for probing for a file or directory, the wrong
+    use of a variable let the result always be negative. This affected
+    subdirectory scans (using ``mb scan -d path/to/dir``), which would igore
+    some mirrors.
+
+* :program:`mb db`:
+
+  - new command for database maintenance tasks: 
+
+    + :program:`mb db sizes` --- shows sizes of all relations
+    + :program:`mb db shell` --- conveniently open a shell for the database 
+    + :program:`mb db vacuum` --- cleans up dead references (previously: 
+      :program:`mb vacuum`, which still can be used for backwards
+      compatibility.) 
+
+* :program:`mirrorprobe`:
+
+  - 60 seconds as timeout have always been a bit long. Change the default
+    timeout to 20 seconds, which is also the value suggested in the
+    documentation.
+
+
+.. _`issue 31`: http://mirrorbrain.org/issues/issue31
+
+
 Release 2.11.1 (r7899, Dec 3, 2009)
 ------------------------------------
 
