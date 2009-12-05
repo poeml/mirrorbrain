@@ -3,7 +3,7 @@
 Release Notes/Change History
 ============================
 
-Release 2.11.2 (r7913, Dec 5, 2009)
+Release 2.11.2 (r7915, Dec 5, 2009)
 -----------------------------------
 
 This release improves scanning via FTP and adds a few small features:
