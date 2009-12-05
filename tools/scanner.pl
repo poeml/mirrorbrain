@@ -748,7 +748,9 @@ sub ftp_readdir
         }
       }
     } else {
-      print "$identifier: line could not be parsed: $text->[$i]\n";
+      if ($text->[$i] !~ /^total/) {
+        print "$identifier: line could not be parsed: $text->[$i]\n";
+      }
     }
   }
   
