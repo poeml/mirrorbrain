@@ -165,7 +165,7 @@ def main():
 
     parser.add_option("-t", "--timeout",
                       dest="timeout",
-                      default=60,
+                      default=20,
                       help="Timeout in seconds",
                       metavar="TIMEOUT")
 
