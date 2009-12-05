@@ -301,7 +301,7 @@ After installation of mod_mirrorbrain, you'll need to:
     
   * mirror surveillance needs to be configured. Put this into /etc/crontab::
 
-      -* * * * *                mirrorbrain   mirrorprobe -t 20 
+      -* * * * *                mirrorbrain   mirrorprobe
 
     if the server has little memory, but there are many mirrors to probe, the
     mirrorprobe might start more threads than allowed by the OS per default. To fix this, 
@@ -311,7 +311,7 @@ After installation of mod_mirrorbrain, you'll need to:
 
     configure mirror scanning::
 
-      44 0,4,8,12,16,20 * * *   mirrorbrain   mb scan -j 3 -a
+      45 * * * *                mirrorbrain   mb scan -j 3 -a
 
     another cron job can remove unreferenced files from the database::
 
