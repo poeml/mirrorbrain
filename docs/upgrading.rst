@@ -217,7 +217,7 @@ be updated; the old command might be depracated later.
 
 Users that happen to use the :program:`mirrorprobe` with the default timeout of
 60 seconds should now run it with ``-t 60``, because the default has been
-   lowered to 20 seconds with release.
+lowered to 20 seconds with release.
 
 
 From 2.10.3 to 2.11.0:
