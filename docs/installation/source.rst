@@ -313,6 +313,12 @@ After installation of mod_mirrorbrain, you'll need to:
 
       44 0,4,8,12,16,20 * * *   mirrorbrain   mb scan -j 3 -a
 
+    another cron job can remove unreferenced files from the database::
+
+      # Monday: database clean-up day...
+      30 1 * * mon              mirrorbrain   mb db vacuum
+
+
 
 TODO: describe how to test that the install was successful
     (When testing, consider any excludes that you configured, and which may
