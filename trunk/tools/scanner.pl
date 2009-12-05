@@ -686,7 +686,8 @@ sub ftp_readdir
 
   my @r;
   for my $i (0..$#$text) {
-    if($text->[$i] =~ m/^([dl-])(.........).*\s(\d+)\s(\w\w\w\s+\d\d?\s+\d\d:?\d\d)\s+([\S]+)$/) {
+    # -rw-r--r--    1 804      804        255436 Nov 09 03:13 The Big Picture.tar.gz
+    if($text->[$i] =~ m/^([dl-])(.........).*\s(\d+)\s(\w\w\w\s+\d\d?\s+\d\d:?\d\d)\s+(\S+.*)$/) {
       my ($type, $mode, $size, $timestamp, $fname) = ($1, $2, $3, $4, $5);
       next if $fname eq "." or $fname eq "..";
 
@@ -747,6 +748,8 @@ sub ftp_readdir
           }
         }
       }
+    } else {
+      print "$identifier: line could not be parsed: $text->[$i]\n"; # if $verbose;
     }
   }
   
