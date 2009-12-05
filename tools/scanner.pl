@@ -47,7 +47,6 @@ use Time::HiRes qw(gettimeofday);
 use Encode;
 
 my $version = '0.41';
-my $scanner_email = 'poeml@cmdline.net';
 my $verbose = 1;
 my $sqlverbose = 0;
 
@@ -653,7 +652,7 @@ sub ftp_readdir
 
 
   my $toplevel = ($ftp) ? 0 : 1;
-  $ftp = ftp_connect($identifier, "$url/$name", "anonymous", $scanner_email) unless defined $ftp;
+  $ftp = ftp_connect($identifier, "$url/$name") unless defined $ftp;
   return unless defined $ftp;
   my $text = ftp_cont($ftp, "$url/$name");
 
@@ -671,7 +670,7 @@ sub ftp_readdir
       warn "$identifier: ftp status code $1. Last command " . $ftp_age . "s ago; attempting reconnect\n";
       print "$identifier: $text" if $verbose > 2;
       ftp_close($ftp);
-      $ftp = ftp_connect($identifier, "$url/$name", "anonymous", $scanner_email);
+      $ftp = ftp_connect($identifier, "$url/$name");
       return unless defined $ftp;
       $text = ftp_cont($ftp, "$url/$name");
     } else {
