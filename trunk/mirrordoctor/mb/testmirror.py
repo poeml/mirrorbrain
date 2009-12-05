@@ -83,9 +83,9 @@ def probe(S, http_method='GET'):
                 out = ''
 
             if len(out):
-                has_file = True
+                S.has_file = True
             else:
-                has_file = False
+                S.has_file = False
 
         return S
 
