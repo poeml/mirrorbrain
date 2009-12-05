@@ -208,6 +208,18 @@ If everything works, you can stop and remove the temporary database installation
 Version-specific upgrade notes
 -------------------------------
 
+From 2.11.1 to 2.11.2:
+^^^^^^^^^^^^^^^^^^^^^^
+
+The :program:`mb vacuum` command has been renamed to :program:`mb db vacuum`.
+The old command will continue to work for now - but existing cron jobs should
+be updated; the old command might be depracated later.
+
+Users that happen to use the :program:`mirrorprobe` with the default timeout of
+60 seconds should now run it with ``-t 60``, because the default has been
+   lowered to 20 seconds with release.
+
+
 From 2.10.3 to 2.11.0:
 ^^^^^^^^^^^^^^^^^^^^^^
 
