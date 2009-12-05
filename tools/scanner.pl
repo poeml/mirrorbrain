@@ -734,7 +734,7 @@ sub ftp_readdir
       }
 
       if($type eq 'l') {
-        warn "symlink($t) not impl.";
+        print "$identifier: ignoring symlink ($t)\n" if $verbose > 1;
       } else {
         if ($mode !~ m{r..r..r..}) {
           print "$identifier: bad mode $mode, skipping file $fname\n" if $verbose;
@@ -748,7 +748,7 @@ sub ftp_readdir
         }
       }
     } else {
-      print "$identifier: line could not be parsed: $text->[$i]\n"; # if $verbose;
+      print "$identifier: line could not be parsed: $text->[$i]\n";
     }
   }
   
