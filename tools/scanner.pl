@@ -46,7 +46,7 @@ use Config::IniFiles;
 use Time::HiRes qw(gettimeofday);
 use Encode;
 
-my $version = '0.40';
+my $version = '0.41';
 my $scanner_email = 'poeml@cmdline.net';
 my $verbose = 1;
 my $sqlverbose = 0;
