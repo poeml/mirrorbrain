@@ -22,7 +22,7 @@ def vacuum(conn):
     print 'Done.'
 
 
-def dbstats(conn):
+def stats(conn):
     """show statistics about stale files in the database"""
 
     query = """SELECT relname, relkind, relfilenode, reltuples, relpages, 
@@ -42,3 +42,16 @@ def dbstats(conn):
         print '%5.1f    %s' % (sizeMB, name)
 
     print 'Total: %.1f' % total
+
+
+def shell(c):
+    """spawn a database shell (psql).
+    
+    The argument is the configuration structure for that MirrorBrain instance."""
+    import os
+    os.environ['PGHOST'] = c.get('dbhost')
+    os.environ['PGPORT'] = c.get('dbport', '5432')
+    os.environ['PGUSER'] = c.get('dbuser')
+    os.environ['PGPASSWORD'] = c.get('dbpass')
+    os.environ['PGDATABASE'] = c.get('dbname')
+    os.system('psql')

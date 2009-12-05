@@ -820,38 +820,71 @@ class MirrorDoctor(cmdln.Cmdln):
             mirror.score = int(score)
         
 
-    @cmdln.option('--size', action='store_true',
-                  help='don\'t delete, but show how much size the database uses.')
+    # the previous command name
+    @cmdln.alias('vacuum')
+
     @cmdln.option('-n', '--dry-run', action='store_true',
                   help='don\'t delete, but only show statistics.')
-    def do_vacuum(self, subcmd, opts, *args):
+    def do_db(self, subcmd, opts, *args):
         """${cmd_name}: perform database maintenance
         
-        If called without further argumets, the command cleans up unreferenced
-        files from the mirror database.
-        This should be done once a week for a busy file tree.  Otherwise it
-        should be rarely needed, but can possibly improve performance if it is
-        able to shrink the database.
+        This command needs to be called with one of the following actions:
+        
+        vacuum
+          Clean up unreferenced
+          files from the mirror database.
+          This should be done once a week for a busy file tree.  Otherwise it
+          should be rarely needed, but can possibly improve performance if it
+          is able to shrink the database.
 
-        When called with the -n option, only the number of files to be cleaned
-        up is printed. This is purely for information.
+          When called with the -n option, only the number of files to be
+          cleaned up is printed. This is purely for information.
 
-        When called with the --size option, the size of each database relation
-        will be preinted, which can provide insight for the appropriate
-        database tuning.
+        sizes
+          Print the size of each database relation. This can provide insight
+          for the most appropriate database tuning.
 
-        ${cmd_usage}
+        shell
+          Conveniently open a database shell.
+
+
+        usage:
+            mb vacuum [-n]
+            mb sizes
+            mb shell
         ${cmd_option_list}
         """
 
-        import mb.vacuum
+        import mb.dbmaint
 
-        if opts.size:
-            mb.vacuum.dbstats(self.conn)
-        else:
-            mb.vacuum.stale(self.conn)
+        # this subcommand was renamed from "mb vacuum" to "mb db <action>"
+        # let's keep the old way working
+        if subcmd == 'vacuum':
+                mb.dbmaint.stale(self.conn)
+                mb.dbmaint.vacuum(self.conn)
+                sys.exit(0)
+
+        if len(args) < 1:
+            sys.exit('Too few arguments.')
+        action = args[0]
+
+        if action == 'sizes':
+            mb.dbmaint.stats(self.conn)
+        elif action == 'vacuum':
             if not opts.dry_run:
-                mb.vacuum.vacuum(self.conn)
+                mb.dbmaint.stale(self.conn)
+                mb.dbmaint.vacuum(self.conn)
+            else:
+                mb.dbmaint.stale(self.conn)
+        elif action == 'shell':
+            mb.dbmaint.shell(self.config.dbconfig)
+
+        else:
+            sys.exit('unknown action %r' % action)
+
+
+
+
 
 
     @cmdln.option('-u', '--url', action='store_true',
