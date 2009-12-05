@@ -62,6 +62,7 @@ list of known subcommands::
     
     Commands:
         commentadd     add a comment about a mirror
+        db (vacuum)    perform database maintenance
         delete         delete a mirror from the database
         dirs           show directories that are in the database
         disable        disable a mirror
@@ -83,7 +84,7 @@ list of known subcommands::
         show           show a mirror entry
         test           test if a mirror is working
         update         update mirrors network data in the database
-        vacuum         clean up unreferenced files from the mirror database
+
 
 
 By typing :program:`mb <command> -h` or :program:`mb help <command>`, help for
@@ -621,10 +622,97 @@ database.
 Exporting in Django format
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This is expiremental stuff — for hacking on the `Django`_ web framework. Data
-is exported in the form of Django ORM objects, and the export routine will very
-likely need modification for particular purposes. The existing code has been
-used to expirement with. Get in contact if you are interested in hacking on
-this!
+This is experimental stuff — intended for hacking on the `Django`_ web
+framework. Data is exported in the form of Django ORM objects, and the export
+routine will very likely need modification for particular purposes. The
+existing code has been used to experiment with. Get in contact if you are
+interested in hacking on this!
 
 .. _`Django`: http://www.djangoproject.com/
+
+
+Performing database maintenance
+-------------------------------
+
+The :program:`mb db` command offers some helpful functionality regarding
+database maintenance. It has several subcommands.
+
+
+Regular cleanups with :program:`mb db vacuum`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This command cleans up unreferenced files from the mirror database.
+
+This should be done once a week for a busy file tree.  Otherwise it should be
+rarely needed, but can possibly improve performance if it is able to shrink the
+database.
+
+When called with the ``-n`` option, only the number of files to be cleaned up
+is printed, so it's purely for information. No cleanup is performed.
+
+The recommended cron job looks like this::
+
+    # Monday: database clean-up day...
+    30 1 * * mon              mirrorbrain   mb db vacuum
+
+Note: This functionality is not to be confused with the PostgreSQL-internal
+vacuuming, which typically happens automatic these days (8.x), but was a manual
+process at some time in the past.
+
+
+Database shell with :program:`mb db shell`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+With this command, you can conveniently open a database shell::
+
+     % mb db shell
+    psql (8.4.1)
+    Type "help" for help.
+    
+    mb_opensuse=> 
+
+...ready to enter commands in psql, the `PostgreSQL interactive terminal`_.
+
+.. _`PostgreSQL interactive terminal`: http://www.postgresql.org/docs/8.4/static/app-psql.html
+
+
+Database size info with :program:`mb db size`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The command :program:`mb db size` prints the size of each database relation.
+(In PostgreSQL speak, a A *relation* is a table or an index.) This provides
+insight for appropriate database tuning and planning. Here's an example::
+
+     % mb db sizes       
+    Size(MB) Relation
+    464.5    filearr
+    532.9    filearr_path_key
+     74.3    filearr_pkey
+     23.8    pfx2asn
+     30.1    pfx2asn_pfx_key
+     19.9    pfx2asn_pkey
+      0.0    pg_foreign_server
+      0.0    pg_foreign_server_name_index
+      0.0    pg_foreign_server_oid_index
+      0.0    pg_user_mapping_user_server_index
+      0.2    server
+      0.0    server_enabled_status_baseurl_score_key
+      0.0    server_identifier_key
+      0.0    server_pkey
+      0.0    sql_sizing_profiles
+    Total: 1145.9
+
+That's a really large database, containing nearly 3 millions (!) of files. It
+uses a good gigabyte of disk space.
+
+``filearr`` contains the file names and associations to the mirrors.
+``filearr_path_key`` is the index on the file names. ``filearr_pkey`` is the
+primary key. These will be the largest things in a database filled with
+millions of files.
+
+The ``pfx*`` relations are only present when `mod_asn`_ is installed. The size
+they use is always the same.
+
+.. _`mod_asn`: http://mirrorbrain.org/mod_asn/
+
+
