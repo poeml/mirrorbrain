@@ -3,7 +3,7 @@
 Release Notes/Change History
 ============================
 
-Release 2.11.2 (r7915, Dec 5, 2009)
+Release 2.11.2 (r7917, Dec 5, 2009)
 -----------------------------------
 
 This release improves scanning via FTP and adds a few small features:
@@ -34,7 +34,6 @@ This release improves scanning via FTP and adds a few small features:
   - 60 seconds as timeout have always been a bit long. Change the default
     timeout to 20 seconds, which is also the value suggested in the
     documentation.
-
 
 .. _`issue 31`: http://mirrorbrain.org/issues/issue31
 
