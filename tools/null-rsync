@@ -159,6 +159,9 @@ def main():
             if not line.startswith('recv rwxrwxrwx .L..t......'):
                 print line.rstrip()
 
+        if line.startswith('IO'):
+            sys.exit('rsync returned an error:\n%s' % line)
+
         words = line.strip().split(None, 5)
         # ['recv', 'rwxrwxrwx', 'cL+++++++++', '2009/05/31-03:31:46', '25', 'repo/1.0/11.1/suse/x86_64/yaz.rpm -> yaz-3.0.34-1.8.x86_64.rpm']
 
