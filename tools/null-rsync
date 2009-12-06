@@ -134,6 +134,7 @@ def main():
             '--chmod=o-w',
             '--out-format=%o %B %i %M %l %n%L',
             '--delete',
+            '--ignore-errors',
             '-n',
             rsync_src,
             rsync_dst ]
