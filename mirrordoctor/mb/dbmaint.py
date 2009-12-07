@@ -53,5 +53,5 @@ def shell(c):
     os.environ['PGPORT'] = c.get('dbport', '5432')
     os.environ['PGUSER'] = c.get('dbuser')
     os.environ['PGPASSWORD'] = c.get('dbpass')
-    os.environ['PGDATABASE'] = c.get('dbname')
-    os.system('psql')
+    # my python-2.6.0 segfaults when trying to use os.exec* without an argument for the command.
+    os.execlp('psql', c.get('dbname'))
