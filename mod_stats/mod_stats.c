@@ -19,7 +19,8 @@
  * mod_stats
  *
  * collect download statistics and log them to a database
- * see http://mirrorbrain.org/download-statistics/
+ * see http://svn.mirrorbrain.org/svn/mod_stats and
+ * http://mirrorbrain.org/download-statistics/
  *
  */
 
