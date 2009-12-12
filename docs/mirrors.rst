@@ -618,6 +618,10 @@ The format "postgresql" creates SQL INSERT statements that can be run on a
 PostgreSQL database. This can e.g. be used to migrate the data into another
 database.
 
+The resulting dump could be loaded into a mirrorbrain instance like this::
+
+    mb db shell < db.dump
+
 
 Exporting in Django format
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
