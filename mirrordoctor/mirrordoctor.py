@@ -230,6 +230,12 @@ class MirrorDoctor(cmdln.Cmdln):
                         help='also display the AS')
     @cmdln.option('--prio', action='store_true',
                         help='also display priorities')
+    @cmdln.option('-R', '--rsync-url', action='store_true',
+                        help='also display the rsync URL')
+    @cmdln.option('-F', '--ftp-url', action='store_true',
+                        help='also display the FTP URL')
+    @cmdln.option('-H', '--http-url', action='store_true',
+                        help='also display the HTTP URL')
     @cmdln.option('--disabled', action='store_true',
                         help='show only disabled mirrors')
     @cmdln.option('-a', '--show-disabled', action='store_true',
@@ -271,6 +277,12 @@ class MirrorDoctor(cmdln.Cmdln):
                 s.append('%5s' % mirror.asn)
             if opts.prefix:
                 s.append('%-19s' % mirror.prefix)
+            if opts.http_url:
+                s.append('%-55s' % mirror.baseurl)
+            if opts.ftp_url:
+                s.append('%-55s' % mirror.baseurlFtp)
+            if opts.rsync_url:
+                s.append('%-55s' % mirror.baseurlRsync)
             # boolean flags
             if opts.region_only:
                 s.append('region_only=%s' % mirror.regionOnly)
