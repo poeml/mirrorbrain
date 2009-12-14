@@ -63,9 +63,11 @@ __url__='http://mirrorbrain.org/'
 
 import sys
 import os
+import os.path
 import re
 import hashlib
 import time
+from datetime import datetime
 from optparse import OptionParser
 
 try:
@@ -321,6 +323,7 @@ def gen_processreqs(reqs, conf):
                 matched = mreg
         if not matched:
             yield rq
+            continue
 
         # apply postfiltering
         for r, s, mreg in conf['statspostfilter']:
@@ -343,6 +346,10 @@ def main():
 
     parser = OptionParser(usage=usage, version=version)
     #parser.disable_interspersed_args()
+
+    parser.add_option('--db',
+                      action="store_true", dest="db", default=False,
+                      help="save counts to the database")
 
     parser.add_option("-q", "--quiet",
                       action="store_true", dest="quiet", default=False,
@@ -370,9 +377,36 @@ def main():
     reqs = gen_fragments(loglines, conf['statslogmask'][0][0])
     items = gen_processreqs(reqs, conf)
 
+
+    if options.db:
+        dirpath = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        sys.path.insert(0, dirpath)
+        os.environ['DJANGO_SETTINGS_MODULE'] = 'downloadstats.settings'
+        from downloadstats.stats.models import Counter
+
+        #counters = Counter.objects.all()
+        #for i in counters:
+        #    print i
+
     for item in items:
         if item.countable:
-            print item.country, item.url
+            #print item.country, item.url
+            (product, osname, version, lang) = item.url.split()
+
+            # d = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(event_epoch))
+            d = datetime(item.tstamp[0], item.tstamp[1], item.tstamp[2])
+            #print d, (product, osname, version, lang), item.country
+            if options.db:
+                c, created = Counter.objects.get_or_create(date=d,
+                        product=product, osname=osname, version=version, lang=lang, 
+                        country=item.country)
+                if created:
+                    # count is 1 for a new item
+                    pass
+                else:
+                    # item existed already - increase its counter
+                    c.count += 1
+                    c.save()
 
 
     sys.exit(0)
