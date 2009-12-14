@@ -54,7 +54,7 @@
 #
 
 
-__version__='0.9'
+__version__='0.91'
 __author__='Peter Poeml <poeml@cmdline.net>'
 __copyright__='Peter poeml <poeml@cmdline.net>'
 __license__='GPLv2'
@@ -62,8 +62,11 @@ __url__='http://mirrorbrain.org/'
 
 
 import sys
+import os
 import re
 import hashlib
+import time
+from optparse import OptionParser
 
 try:
     set
@@ -105,7 +108,7 @@ def gen_grep(pat, lines):
     for line in lines: 
         if patc.search(line): yield line 
 
-def gen_fragments(pat, lines): 
+def gen_fragments(lines, pat): 
     """Generate a sequence of line fragments, according to
     a given regular expression"""
     for line in lines: 
@@ -226,7 +229,7 @@ def readconf(filename):
 
     # set defaults for directives that didn't occur in the config
     if not len(conf['statslogmask']):
-        regex = '^(\S+).+"GET (\S*) HTTP.*" (200|302) [^"]+ "([^"]*)" "([^"]*)".* \w\w:(\w\w) ASN:'
+        regex = '^(\S+).+\[(.*?)\] "GET (\S*) HTTP.*" (200|302) [^"]+ "([^"]*)" "([^"]*)".* \w\w:(\w\w) ASN:'
         regex_compiled = re.compile(regex)
         conf['statslogmask'] = [(regex_compiled, regex)]
 
@@ -237,31 +240,33 @@ def readconf(filename):
     return conf
     
 
+class Req():
+    def __init__(self):
+        # url_raw contains the original url, if needed
+        self.url_raw = None
+        self.tstamp = None
+        self.tstamp_raw = None
+        self.status = None
+        self.referer = None
+        self.ua = None
+        self.country = None
 
-def main():
-    """
-    Create a generator pipeline for the matching log file lines
-    and process them.
-    """
+        self.url = None
 
-    if not len(sys.argv[2:]):
-        sys.exit('Usage: dlcount CONFIGFILE LOGFILE [LOGFILE ...]')
+        self.countable = False
 
-    conf = readconf(sys.argv[1])
+    def __str__(self):
+        return '%-80s' % self.url 
+
+
+def gen_processreqs(reqs, conf): 
+    """process a tuple of request data, and return the parsed in the form of a generator"""
 
     known = RingBuffer(conf['statsdupwindow'])
 
-    filenames = sys.argv[2:]
-    logfiles = gen_open(filenames)
-    loglines = gen_cat(logfiles)
-
-    reqs = gen_fragments(conf['statslogmask'][0][0], loglines)
-
-
-    for req in reqs:
-
-        (ip, url, status, referer, ua, country) = req
-        url_raw = url
+    for req in reqs: 
+        rq = Req()
+        (ip, tstamp_raw, url, status, referer, ua, country) = req
 
         skip = False
         for r, mreg in conf['statsignoremask']:
@@ -292,12 +297,19 @@ def main():
                 continue
             known.append(md)
 
+        rq.url_raw = url
+        rq.status = status
+        rq.referer = referer
+        rq.ua = ua
+        rq.country = country.lower()
+
+        rq.tstamp = time.strptime(tstamp_raw, '%d/%b/%Y:%H:%M:%S +0100')
+        rq.tstamp_raw = tstamp_raw
+
         # apply the prefiltering rules
         for r, s, mreg in conf['statsprefilter']:
             url = r.sub(s, url)
 
-        # url_raw still contains the original url, if needed
-        print '%-80s ' % url, 
 
         matched = False
         for r, s, mreg in conf['statscount']:
@@ -305,14 +317,62 @@ def main():
                 if matched:
                     # FIXME: eventually, we want to allow multiple matches. But now we are debugging.
                     sys.exit('warning: %r matches\n   %r\nbut already matched a pevious regexp:\n   %r' % (url, mreg, matched))
-                print r.sub(s, url)
+                url = r.sub(s, url)
                 matched = mreg
         if not matched:
-            print '-'
+            yield rq
 
         # apply postfiltering
         for r, s, mreg in conf['statspostfilter']:
             url = r.sub(s, url)
+
+        rq.url = url
+
+        rq.countable = True
+        yield rq
+
+
+def main():
+    """
+    Create a generator pipeline for the matching log file lines
+    and process them.
+    """
+
+    usage = 'usage: %prog [options] CONFIGFILE LOGFILE [LOGFILE ...]'
+    version = '%prog ' + __version__
+
+    parser = OptionParser(usage=usage, version=version)
+    #parser.disable_interspersed_args()
+
+    parser.add_option("-q", "--quiet",
+                      action="store_true", dest="quiet", default=False,
+                      help="print only errors")
+
+    parser.add_option("-v", "--verbose",
+                      action="store_true", dest="verbose", default=False,
+                      help="print debug messages to stderr")
+
+    (options, args) = parser.parse_args()
+
+    usage = usage.replace('%prog', os.path.basename(sys.argv[0]))
+
+
+    if len(args) < 2:
+        sys.exit(usage)
+
+    conffile = args[0]
+    filenames = args[1:]
+
+    conf = readconf(conffile)
+
+    logfiles = gen_open(filenames)
+    loglines = gen_cat(logfiles)
+    reqs = gen_fragments(loglines, conf['statslogmask'][0][0])
+    items = gen_processreqs(reqs, conf)
+
+    for item in items:
+        if item.countable:
+            print item.country, item.url
 
 
     sys.exit(0)
