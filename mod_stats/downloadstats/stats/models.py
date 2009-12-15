@@ -7,15 +7,15 @@ class Counter(models.Model):
     # described in the proposal.
     #year = models.PositiveSmallIntegerField()
     #day = models.PositiveSmallIntegerField()
-    date = models.DateField()
+    date = models.DateField(db_index=True)
     
-    product = models.CharField(max_length=512)
+    product = models.CharField(max_length=256, db_index=True)
 
     # all these should probably called attr1, attr2, attr3, ...
-    osname = models.CharField(max_length=512)
-    version = models.CharField(max_length=32)
-    lang = models.CharField(max_length=32)
-    country = models.CharField(max_length=2)
+    osname = models.CharField(max_length=256, db_index=True)
+    version = models.CharField(max_length=32, db_index=True)
+    lang = models.CharField(max_length=32, db_index=True)
+    country = models.CharField(max_length=2, db_index=True)
 
     count = models.IntegerField(default=1)
 
