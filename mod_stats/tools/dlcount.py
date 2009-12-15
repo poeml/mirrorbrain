@@ -384,12 +384,21 @@ def main():
         os.environ['DJANGO_SETTINGS_MODULE'] = 'downloadstats.settings'
         from downloadstats.stats.models import Counter
 
-        #counters = Counter.objects.all()
-        #for i in counters:
-        #    print i
+        import downloadstats.settings 
+        if downloadstats.settings.DEBUG:
+            from django import db
+            #print 'you are runninng in DEBUG mode. This is not recommended,\n' \
+            #      'because Django then saves a copy of every SQL statement it has\n' \
+            #      'executed. Installing a cleanup handler.'
+            # see below
+            # http://docs.djangoproject.com/en/dev/faq/models/#why-is-django-leaking-memory
 
     for item in items:
         if item.countable:
+
+            if downloadstats.settings.DEBUG:
+                db.reset_queries()
+
             #print item.country, item.url
             (product, osname, version, lang) = item.url.split()
 
