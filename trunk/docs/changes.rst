@@ -135,7 +135,7 @@ subject to refinement, based on future discussion.
 
   - When comparing the modification time of a saved metalink hash with that of a
     source file, the sub(sub-)second portion of the value could be different
-    from the value that has just been set by :func:`os.ulimit`. (Quite
+    from the value that has just been set by :func:`os.utime`. (Quite
     surprisingly.) So now, we compare only the :func:`int` portion of the
     value. This fixed `issue 24`_.
 
