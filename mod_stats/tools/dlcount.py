@@ -351,6 +351,9 @@ def main():
                       action="store_true", dest="db", default=False,
                       help="save counts to the database")
 
+    parser.add_option('--db-home',
+                      help="specify directory where the database lives", metavar='DIR')
+
     parser.add_option("-q", "--quiet",
                       action="store_true", dest="quiet", default=False,
                       help="print only errors")
@@ -377,27 +380,30 @@ def main():
     reqs = gen_fragments(loglines, conf['statslogmask'][0][0])
     items = gen_processreqs(reqs, conf)
 
+    if options.db and not options.db_home:
+        sys.exit('--db-home is mandatory with --db.')
 
     if options.db:
-        dirpath = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-        sys.path.insert(0, dirpath)
+        dirpath = options.db_home
+        #dirpath = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        dirpath = os.path.realpath(dirpath)
+        os.chdir(dirpath)
+        sys.path.insert(0, os.path.dirname(dirpath))
         os.environ['DJANGO_SETTINGS_MODULE'] = 'downloadstats.settings'
         from downloadstats.stats.models import Counter
 
         import downloadstats.settings 
         if downloadstats.settings.DEBUG:
             from django import db
-            #print 'you are runninng in DEBUG mode. This is not recommended,\n' \
-            #      'because Django then saves a copy of every SQL statement it has\n' \
-            #      'executed. Installing a cleanup handler.'
-            # see below
+            #print 'you are runninng in DEBUG mode. This is not recommended, because\n' \
+            #      'Django then saves a copy of every SQL statement it has executed.\n' \
+            #      'I'm installing a cleanup handler that\'ll help.'
+            # see below, in the loop
             # http://docs.djangoproject.com/en/dev/faq/models/#why-is-django-leaking-memory
 
     for item in items:
         if item.countable:
 
-            if downloadstats.settings.DEBUG:
-                db.reset_queries()
 
             #print item.country, item.url
             (product, osname, version, lang) = item.url.split()
@@ -406,6 +412,10 @@ def main():
             d = datetime(item.tstamp[0], item.tstamp[1], item.tstamp[2])
             #print d, (product, osname, version, lang), item.country
             if options.db:
+
+                if downloadstats.settings.DEBUG:
+                    db.reset_queries()
+
                 c, created = Counter.objects.get_or_create(date=d,
                         product=product, osname=osname, version=version, lang=lang, 
                         country=item.country)
