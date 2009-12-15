@@ -303,12 +303,6 @@ After installation of mod_mirrorbrain, you'll need to:
 
       -* * * * *                mirrorbrain   mirrorprobe
 
-    if the server has little memory, but there are many mirrors to probe, the
-    mirrorprobe might start more threads than allowed by the OS per default. To fix this, 
-    use ulimit::
-
-      -* * * * *                mirrorbrain   ulimit -s unlimited; mirrorprobe -t 20
-
     configure mirror scanning::
 
       45 * * * *                mirrorbrain   mb scan -j 3 -a
