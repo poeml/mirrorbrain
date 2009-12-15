@@ -26,10 +26,10 @@ def stats(conn):
     """show statistics about stale files in the database"""
 
     query = """SELECT relname, relkind, relfilenode, reltuples, relpages, 
-                      relpages*8 AS relMB 
+                      relpages*8 AS relKB 
                FROM pg_class 
                WHERE relkind IN ('r', 'i') 
-                      AND relname ~ '^.*(file|server|pfx|temp1).*' 
+                      AND relname ~ '^.*(file|server|pfx|temp1|stats).*' 
                ORDER BY 1"""
     rows = conn.Filearr._connection.queryAll(query)
 
