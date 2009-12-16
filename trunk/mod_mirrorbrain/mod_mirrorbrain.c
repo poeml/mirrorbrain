@@ -82,7 +82,7 @@
 #define APR_ARRAY_PUSH(ary,type) (*((type *)apr_array_push(ary)))
 #endif
 
-#define MOD_MIRRORBRAIN_VER "2.11.2"
+#define MOD_MIRRORBRAIN_VER "2.11.3"
 #define VERSION_COMPONENT "mod_mirrorbrain/"MOD_MIRRORBRAIN_VER
 
 #ifdef NO_MOD_GEOIP
