@@ -3,6 +3,54 @@
 Release Notes/Change History
 ============================
 
+Release 2.11.3 (r7933, Dec 16, 2009)
+------------------------------------
+
+This release contains a number of small improvements in the toolchain, plus
+small documentation fixes.
+
+* :program:`null-rsync`:
+  
+  - IO errors returned by rsync are handled now 
+  - remote errors from rsync are ignored now, and we let rsync continue with
+    dry-run deletions.
+
+* :program:`mb db sizes`:
+
+  - Sizes of tables from `mod_stats`_ are now shown in addition to
+    MirrorBrain's own tables.
+
+* :program:`mb db shell`:
+
+  - The script now uses :func:`os.execlp` instead of :func:`os.system` to spawn
+    the database commandline interpreter, because the latter doesn't reliably
+    pass ``SIGCONT`` to the subprocess when resuming.
+
+* :program:`mb list`:
+
+  - New options ``-H``, ``-F``, ``-R`` to display HTTP/FTP/rsync base URLs have
+    been added.
+
+* :program:`mb mirrorlist`:
+
+  - The script now tries harder to not leave temp files -- also in case of a
+    crash (which may happen when working with templates).
+  - Add a link to our project in the footer.
+
+Changes in the documentation were: 
+
+- The new ``MirrorBrainFallback`` directive is now documented in the example
+  :file:`mod_mirrorbrain.conf`.
+- The ``-t 20`` option has been removed from the :program:`mirrorprobe` call,
+  since that is the default now. The scan cronjob also has been simplified.
+- A hint about ulimits has been removed, which turned out to be a band-aid
+  for a purely local problem.
+- A hint how to load a database dump with :program:`mb db shell` has been
+  added.
+
+.. _`mod_stats`: http://mirrorbrain.org/download-statistics/
+
+
 Release 2.11.2 (r7917, Dec 5, 2009)
 -----------------------------------
 
