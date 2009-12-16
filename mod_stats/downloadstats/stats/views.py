@@ -10,8 +10,8 @@ from downloadstats.stats.models import Counter
 #@cache_page(60*15)
 def stats_csv(request, year, month, day=None):
 
-    response = HttpResponse(mimetype='text/csv')
-    response['Content-Disposition'] = 'attachment; filename=%s%s%s.csv' % (year, month, day)
+    response = HttpResponse(mimetype='text/plain')
+    #response['Content-Disposition'] = 'attachment; filename=%s%s%s.csv' % (year, month, day or '')
 
     import csv
     writer = csv.writer(response)
