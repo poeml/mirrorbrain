@@ -241,24 +241,43 @@ def readconf(filename):
 
     return conf
     
+#class Countable():
+#    """This holds a result from a parsed log line
+#    which consists of a date and 5 attributes"""
+#    #def __init__(self, date, a0, a1, a2, a3, a4):
+#    def __init__(self, (date, a0, a1, a2, a3, a4, a5)):
+#        self.date  = date
+#        self.a0 = a0
+#        self.a1 = a1
+#        self.a2 = a2
+#        self.a3 = a3
+#        self.a4 = a4
+#        self.a5 = a5
 
 class Req():
+    """This helps us in housekeeping while parsing a log line"""
     def __init__(self):
         # url_raw contains the original url, if needed
         self.url_raw = None
         self.tstamp = None
         self.tstamp_raw = None
+        self.date = None
         self.status = None
         self.referer = None
         self.ua = None
         self.country = None
 
+        # this is the processed URL, after running through all the regexps
         self.url = None
 
         self.countable = False
 
     def __str__(self):
         return '%-80s' % self.url 
+    def as_tuple(self):
+        return self.tuple
+#    def as_obj(self):
+#        return Countable(self.tuple)
 
 
 def gen_processreqs(reqs, conf): 
@@ -331,6 +350,15 @@ def gen_processreqs(reqs, conf):
 
         rq.url = url
 
+        # would time.strftime("%Y-%m-%d", ...) be faster?
+        rq.date = datetime(rq.tstamp[0], rq.tstamp[1], rq.tstamp[2])
+
+        rq.tuple = [rq.date]
+        rq.tuple.extend(rq.url.split())
+        # the country is our fifth attribute
+        rq.tuple.append(rq.country)
+        rq.tuple = tuple(rq.tuple)
+
         rq.countable = True
         yield rq
 
@@ -401,32 +429,47 @@ def main():
             # see below, in the loop
             # http://docs.djangoproject.com/en/dev/faq/models/#why-is-django-leaking-memory
 
+
+    start = time.time()
+
+    counterdict = {}
+    n = 0
+    get = counterdict.get
     for item in items:
-        if item.countable:
+        if not item.countable:
+            continue
+
+        t = item.as_tuple()
+        n += 1
+        counterdict[t] = get(t, 0) + 1
+
+    delta = time.time() - start
+    print 'processed %s lines in %s seconds' % (n, delta)
+    print 'found %s countables' % len(counterdict)
+    start = time.time()
 
 
-            #print item.country, item.url
-            (product, osname, version, lang) = item.url.split()
+    if options.db:
+        for key, val in counterdict.iteritems():
 
-            # d = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(event_epoch))
-            d = datetime(item.tstamp[0], item.tstamp[1], item.tstamp[2])
-            #print d, (product, osname, version, lang), item.country
-            if options.db:
+            (date, a0, a1, a2, a3, a4) = key
 
-                if downloadstats.settings.DEBUG:
-                    db.reset_queries()
+            if downloadstats.settings.DEBUG:
+                db.reset_queries()
 
-                c, created = Counter.objects.get_or_create(date=d,
-                        product=product, osname=osname, version=version, lang=lang, 
-                        country=item.country)
-                if created:
-                    # count is 1 for a new item
-                    pass
-                else:
-                    # item existed already - increase its counter
-                    c.count += 1
-                    c.save()
+            counter, created = Counter.objects.get_or_create(date=date,
+                    product=a0, osname=a1, version=a2, lang=a3, 
+                    country=a4)
+            if created:
+                # count is 1 for a new item
+                counter.count = val
+            else:
+                # item existed already - increase its counter
+                counter.count += val
+            counter.save()
 
+    delta = time.time() - start
+    print 'saved data in %s seconds' % delta
 
     sys.exit(0)
 
