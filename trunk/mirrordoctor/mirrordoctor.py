@@ -377,7 +377,7 @@ class MirrorDoctor(cmdln.Cmdln):
         from sqlobject.sqlbuilder import AND
 
         if not (opts.asn or opts.prefix or opts.coordinates):
-            sys.exit('Either -c, -a or -p must be given as option.')
+            sys.exit('At least one of -c, -a or -p must be given as option.')
 
         #r = mb.asn.iplookup(self.conn, ip)
 
