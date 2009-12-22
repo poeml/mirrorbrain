@@ -172,6 +172,7 @@ class MirrorDoctor(cmdln.Cmdln):
             opts.region = mb.geoip.lookup_region_code(host)
         if not opts.country:
             opts.country = mb.geoip.lookup_country_code(host)
+        lat, lng = mb.geoip.lookup_coordinates(host)
 
         r = mb.asn.iplookup(self.conn, host)
         asn, prefix = r.asn, r.prefix
@@ -189,6 +190,8 @@ class MirrorDoctor(cmdln.Cmdln):
                              country      = opts.country,
                              asn          = asn,
                              prefix       = prefix,
+                             lat          = lat or 0,
+                             lng          = lng or 0,
                              score        = opts.score,
                              enabled      = 0,
                              statusBaseurl = 0,

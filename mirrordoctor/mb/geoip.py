@@ -36,6 +36,24 @@ def lookup_region_code(addr):
 
     return out.strip().lower()
 
+def lookup_coordinates(addr):
+    try:
+        out = Popen(['geoiplookup_city', '-f', database, addr], stdout=PIPE).communicate()[0]
+    except OSError, e:
+        if e.errno == errno.ENOENT:
+            sys.exit('Error: The geoiplookup_city binary could not be found.\n'
+                     'Make sure to install the geoiplookup_city into a directory contained in $PATH.')
+
+    lat = lng = 0
+    for line in out.splitlines():
+        if line.startswith('Latitude'):
+            lat = float(line.split()[1])
+            continue
+        if line.startswith('Longitude'):
+            lng = float(line.split()[1])
+            continue
+    return lat, lng
+
 
 if __name__ == '__main__':
     import sys
