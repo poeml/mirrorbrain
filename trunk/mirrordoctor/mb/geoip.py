@@ -52,6 +52,11 @@ def lookup_coordinates(addr):
         if line.startswith('Longitude'):
             lng = float(line.split()[1])
             continue
+
+    # if the number of digits here matches the database declaration, we can
+    # compare the values and see whether they have changed
+    lat = round(lat, 3)
+    lng = round(lng, 3)
     return lat, lng
 
 
