@@ -16,6 +16,7 @@ databases = ['/var/lib/GeoIP/GeoLiteCity.dat.updated',
 for i in databases:
     if os.path.exists(i):
         database = i
+        break
 
 
 def lookup_country_code(addr):
