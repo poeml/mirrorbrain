@@ -344,13 +344,23 @@ TODO: describe a decent logging setup
     * First, add some configuration::
 
         MirrorBrainMetalinkPublisher "openSUSE" http://download.opensuse.org
-        MirrorBrainMetalinkHashesPathPrefix /srv/metalink-hashes/ppc
+        MirrorBrainMetalinkHashesPathPrefix /srv/metalink-hashes/srv/opensuse
 
     * install the "metalink" tool from http://metamirrors.nl/metalinks_project
-      (openSUSE package called metalink, http://download.opensuse.org/repositories/network:/utilities/)
-      and create the hashes::
+      (openSUSE/Debian/Ubuntu package called metalink, to be found at
+      http://download.opensuse.org/repositories/Apache:/MirrorBrain/)
 
-        metalink-hasher update -t /srv/metalink-hashes/ppc/srv/ftp/pub/opensuse/ppc /srv/ftp/pub/opensuse/ppc
+    * you need to create a directory where to store the hashes. For instance,
+      :file:`/srv/metalink-hashes/srv/opensuse`. Note that the full pathname to
+      the filetree (``/srv/opensuse``) is part of this target path.
+      
+      Make the directory owned by the ``mirrorbrain`` user.
+
+    * now, create the hashes with the following command. It is best run as
+      unprivileged user (``mirrorbrain``)::
+
+        metalink-hasher update /srv/opensuse -t /srv/metalink-hashes/srv/opensuse
+
 
     * add the hashing command to /etc/crontab to be run every few hours. Alternatively, run
       it after changes in the file tree happen.
