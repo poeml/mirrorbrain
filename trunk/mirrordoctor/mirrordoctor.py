@@ -1000,7 +1000,7 @@ class MirrorDoctor(cmdln.Cmdln):
                             if opts.probe and opts.md5:
                                 print (sample.digest or ' ' * 32),
                     if opts.url:
-                        print row['baseurl'] + row['path'],
+                        print row['baseurl'].rstrip('/') + '/' + row['path'],
                     print
             except KeyboardInterrupt:
                 print >>sys.stderr, 'interrupted!'
