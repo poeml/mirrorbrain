@@ -315,8 +315,25 @@ After installation of mod_mirrorbrain, you'll need to:
 
 
 TODO: describe how to test that the install was successful
-    (When testing, consider any excludes that you configured, and which may
-    confuse you.)
+    (When testing, consider any excludes that you configured, and which might
+    introduce confusion.)
+
+* Many HTTP clients can be used for testing, but `cURL`_ is a most helpful tool
+  for that. Here are some examples.
+
+  Showy the HTTP response code and the Location header pointing to the new location::
+
+    curl -sI <url>
+
+  Display the metalink::
+
+    curl -s <url>.metalink
+
+  Show a HTML list with the available mirrors::
+
+    curl -s <url>?mirrorlist
+
+.. _`cURL`: http://curl.haxx.se/
 
 
 TODO: describe a decent logging setup
