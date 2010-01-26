@@ -1194,11 +1194,13 @@ sub ftp_connect
   my $port = 21;
   $port = $1 if $url =~ s{:(\d+)$}{};	# port number?
 
+  my $user = 'anonymous';
+  my $pass = "$0@" . Net::Domain::hostfqdn;
   my $auth = $1 if $url =~ s{^([^:]*:[^@]*)@}{};	# auth data?
-  my $user = $1 if $auth =~ s{^([^:]*):}{};
-  my $pass = $auth;
-  $user ||= 'anonymous';
-  $pass ||= "$0@" . Net::Domain::hostfqdn;
+  if (defined $auth) {
+    $user = $1 if $auth =~ s{^([^:]*):}{};
+    $pass = $auth;
+  }
 
   my $ftp = Net::FTP->new($url, Timeout => 360, Port => $port, Debug => (($verbose||0)>2)?1:0, Passive => 1, Hash => 0);
   unless (defined $ftp) {
