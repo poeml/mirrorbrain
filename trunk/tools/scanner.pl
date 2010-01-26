@@ -1183,9 +1183,6 @@ sub rsync_get_filelist
 sub ftp_connect
 {
   my ($identifier, $url) = @_;
-  my $port = 21;
-  my $user ||= 'anonymous';
-  my $pass ||= "$0@" . Net::Domain::hostfqdn;
 
   if($url =~ s{^(\w+)://}{}) {	# no protocol prefix please
     if(lc $1 ne 'ftp') {
@@ -1194,7 +1191,15 @@ sub ftp_connect
     }
   }
   $url =~ s{/.*$}{};  # no path components please
+  my $port = 21;
   $port = $1 if $url =~ s{:(\d+)$}{};	# port number?
+
+  my $auth = $1 if $url =~ s{^([^:]*:[^@]*)@}{};	# auth data?
+  my $user = $1 if $auth =~ s{^([^:]*):}{};
+  my $pass = $auth;
+  $user ||= 'anonymous';
+  $pass ||= "$0@" . Net::Domain::hostfqdn;
+
   my $ftp = Net::FTP->new($url, Timeout => 360, Port => $port, Debug => (($verbose||0)>2)?1:0, Passive => 1, Hash => 0);
   unless (defined $ftp) {
     warn "$identifier: ftp_connect($identifier, $url, $port) failed: $! $@\n";
