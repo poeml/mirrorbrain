@@ -168,3 +168,18 @@ def timer_elapsed():
     else:
         return '%s seconds' % int(t_delta)
 
+
+def strip_auth(s):
+    """remove user/password from URLs. The URL is split into
+    <scheme>://<netloc>/<path>;<params>?<query>#<fragment>
+    with the urlparse module and and returned reassembled.
+    """
+
+    import urlparse
+
+    u = urlparse.urlsplit(s)
+    netloc = u[1]
+    if '@' in netloc:
+        netloc = netloc.split('@')[1]
+    return urlparse.urlunsplit((u[0], netloc, u[2], u[3], u[4]))
+

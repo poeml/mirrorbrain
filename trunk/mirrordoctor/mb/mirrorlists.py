@@ -254,9 +254,9 @@ def xhtml(conn, opts, mirrors, markers):
                 'identifier': mirror.identifier,
                 'operatorName': cgi.escape(mirror.operatorName),
                 'operatorUrl': mirror.operatorUrl,
-                'http_link':  href(mirror.baseurl, 'HTTP'),
-                'ftp_link':   href(mirror.baseurlFtp, 'FTP'),
-                'rsync_link': href(mirror.baseurlRsync, 'rsync'),
+                'http_link':  href(mb.util.strip_auth(mirror.baseurl), 'HTTP'),
+                'ftp_link':   href(mb.util.strip_auth(mirror.baseurlFtp), 'FTP'),
+                'rsync_link': href(mb.util.strip_auth(mirror.baseurlRsync), 'rsync'),
                 'prio':       stars(mirror.score),
                 }
         
