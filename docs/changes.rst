@@ -598,15 +598,15 @@ Release 2.8 (Mar 31, 2009)
   pattern, which were not correctly implemented to work in subdir scans. 
 * The documentation was enhanced in some places.
 * mod_autoindex_mb (which is based on mod_autoindex) was rebased on httpd-2.2.11.
-* :program:`mb dirs``: new subcommand for showing directories that the database contains,
+* :program:`mb dirs`: new subcommand for showing directories that the database contains,
   useful to tune scan exclude patterns.
-* :program:`mb export``: implement a new output format, named ``vcs``. Can be used to commit
+* :program:`mb export`: implement a new output format, named ``vcs``. Can be used to commit
   changes to a subversion repository and get change notifications from it. See 
   http://mirrorbrain.org/archive/mirrorbrain-commits/0152.html
 * Partial deletions (for subdir scans) have been implemented.
-* :program:`mb list`` accept ``--country`` ``--region`` ``--prefix`` ``--as``
+* :program:`mb list` accept ``--country`` ``--region`` ``--prefix`` ``--as``
   ``--prio`` options to influence which details are output by it.
-* :program:`mb file``: support for probing files, with optional md5 hash check of the
+* :program:`mb file`: support for probing files, with optional md5 hash check of the
   downloaded content.
 * The latter three changes have already been described in more detail at
   http://mirrorbrain.org/news_items/2.7_mb_toolchain_work
