@@ -276,6 +276,51 @@ When you save the text and close the editor, you'll be asked whether to save
 the data to the database.
 
 
+.. _editing_mirrors_network_location:
+
+Editing a mirrors network location
+----------------------------------
+
+There are some fields in the mirror record, for which manual editing doesn't
+make so much sense.  These are: 
+
+- country, 
+- region,
+- autonomous system number,
+- network prefix,
+- geographical coordinates.
+
+*When a mirror is created (using* :program:`mb new` *), then all these fields are
+automatically filled in.* This requires a working DNS lookup and a GeoIP
+database. 
+
+The lookup of the autonomous system number and network prefix require
+`mod_asn`_ to be configured. 
+
+The geographical coordinates require the GeoIP database to be the `GeoIP city
+(lite)`_ version. The smaller database versions don't contain the coordinates.
+
+.. _`GeoIP city (lite)`: http://www.maxmind.com/app/geolitecity
+
+
+The data can be updated later with the :program:`mb update` command. Regularly
+running this command (say, once a month) is a good idea because the data
+sometimes might change over time. However, this also means that manual edits
+will be overwritten.
+
+The update command can be used for individual mirrors::
+
+     % mb update --coordinates --asn --prefix ftp5
+    updating geographical coordinates for ftp5.gwdg.de (0.000 0.000 -> 53.083 8.8)
+
+Or it can be applied to all active mirrors::
+
+     % mb update --coordinates --asn --prefix 
+    updating geographical coordinates for ring.yamanashi.ac.jp (0.000 0.000 -> 36.0 138.0)
+    updating network prefix for mirror.lupaworld.com (122.224.0.0/12 -> 115.224.0.0/12)
+    [...]
+
+
 Listing mirrors
 ---------------
 
