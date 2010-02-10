@@ -650,6 +650,18 @@ static int cmp_mirror_rank(const void *v1, const void *v2)
     return m1->rank - m2->rank;
 }
 
+/* return the scheme of an URL, e.g. ftp for ftp://foo.example.com/ */
+static const char *url_scheme(apr_pool_t *p, const char *url)
+{
+    const char *s;
+    s = apr_pstrndup(p, url, strcspn(url, ":"));
+    if (s && s[0]) {
+        return s;
+    }
+    return "INVALID URL SCHEME";
+}
+
+
 static int mb_handler(request_rec *r)
 {
     mb_dir_conf *cfg = NULL;
@@ -1813,7 +1825,8 @@ static int mb_handler(request_rec *r)
         for (i = 0; i < mirrors_same_prefix->nelts; i++) {
             if (pref) pref--;
             mirror = mirrorp[i];
-            ap_rprintf(r, "      <url type=\"http\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
+            ap_rprintf(r, "      <url type=\"%s\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
+                       url_scheme(r->pool, mirror->baseurl),
                        mirror->country_code,
                        pref,
                        mirror->baseurl, filename);
@@ -1827,7 +1840,8 @@ static int mb_handler(request_rec *r)
             if (mirror->prefix_only)
                 continue;
             if (pref) pref--;
-            ap_rprintf(r, "      <url type=\"http\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
+            ap_rprintf(r, "      <url type=\"%s\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
+                       url_scheme(r->pool, mirror->baseurl),
                        mirror->country_code,
                        pref,
                        mirror->baseurl, filename);
@@ -1842,7 +1856,8 @@ static int mb_handler(request_rec *r)
             if (mirror->prefix_only || mirror->as_only)
                 continue;
             if (pref) pref--;
-            ap_rprintf(r, "      <url type=\"http\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
+            ap_rprintf(r, "      <url type=\"%s\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
+                       url_scheme(r->pool, mirror->baseurl),
                        mirror->country_code,
                        pref,
                        mirror->baseurl, filename);
@@ -1856,7 +1871,8 @@ static int mb_handler(request_rec *r)
             if (mirror->prefix_only || mirror->as_only || mirror->country_only)
                 continue;
             if (pref) pref--;
-            ap_rprintf(r, "      <url type=\"http\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
+            ap_rprintf(r, "      <url type=\"%s\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
+                       url_scheme(r->pool, mirror->baseurl),
                        mirror->country_code,
                        pref,
                        mirror->baseurl, filename);
@@ -1871,7 +1887,8 @@ static int mb_handler(request_rec *r)
                 continue;
             }
             if (pref) pref--;
-            ap_rprintf(r, "      <url type=\"http\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
+            ap_rprintf(r, "      <url type=\"%s\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
+                       url_scheme(r->pool, mirror->baseurl),
                        mirror->country_code,
                        pref,
                        mirror->baseurl, filename);
