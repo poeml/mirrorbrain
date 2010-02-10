@@ -81,10 +81,6 @@ class Hasheable:
         self.dst_basename = '%s.size_%s' % (self.basename, self.size)
         self.dst = os.path.join(self.dst_dir, self.dst_basename)
 
-        # migration 2.10.0 -> 2.10.1
-        self.dst_old_basename = '%s.inode_%s' % (self.basename, self.inode)
-        self.dst_old = os.path.join(self.dst_dir, self.dst_old_basename)
-
     def islink(self):
         return stat.S_ISLNK(self.mode)
     def isreg(self):
@@ -103,14 +99,6 @@ class Hasheable:
         if int(dst_mtime) == int(self.mtime) and dst_size != 0:
             if verbose:
                 print 'Up to date: %r' % self.dst
-            return 
-
-        if os.path.exists(self.dst_old):
-            # upgrade mode 2.10.0 -> 2.10.1
-            print 'migrating %s -> %s' % (self.dst_old, self.dst)
-            if not dry_run: 
-                os.rename(self.dst_old, self.dst)
-                os.utime(self.dst, (self.atime, self.mtime))
             return 
 
         cmd = [ 'metalink',
