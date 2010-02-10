@@ -3,6 +3,111 @@
 Release Notes/Change History
 ============================
 
+Release 2.12.0 (r7957, Feb 10, 2010)
+------------------------------------
+
+This release contains several important bug fixes, a new feature,
+and documentation fixes.
+
+The new feature is that geographical coordinates of mirrors are stored. This
+affects newly created mirrors, as well as mirrors whose metadata is updated
+with :program:`mb update -c`. The data are obtained from the GeoIP database, if
+available. Note that only the `GeoIP city (lite)`_ database contains this kind of
+data. The coordinates aren't used for anything yet, but it's easily possible
+now to display mirrors on a map, or to use them to aid mirror selection (which
+seems helpful in some cases; see `issue 34`_ for a proposal).
+
+.. _`GeoIP city (lite)`: http://www.maxmind.com/app/geolitecity
+
+
+For that, :program:`mb update` got a new option ``--coordinates`` to insert (or
+update) geographical coordinates in the mirror's database records. The command
+can be used to add the data to existing mirrors. Just use ``mb update --coordinates --asn --prefix`` to update all mirror records with the coordinates, as well as refreshing asn and prefix data.
+
+
+Bug fixes:
+
+* :program:`mb scan`
+
+  - If :program:`rsync` is 3.0.0 or newer, :program:`mb` now uses the
+    ``--contimeout`` option in addition to ``--timeout``. This fixes `issue
+    12`_, where problems during opening the connection could lead to an
+    infinite hang, because that period isn't covered by rsync's ``--timeout``
+    option. The additional option to configure this timeout became available
+    with rsync 3.0.0.
+  - Scanning with FTP authentication has been implemented (URLs in the format
+    `ftp://user:pass@hostname/path`).  
+
+* :program:`mb mirrorlist`
+
+  - When generating mirror lists, authentication data (in the form of
+    `user:password@`) is now removed from URLs. The assumption is that if URLs
+    contain such data, it will almost surely be not the intention to publish them.
+
+* :program:`mod_mirrorbrain`
+
+  - On some platforms, :program:`mod_mirrorbrain` didn't construct proper
+    filenames for the metalink hash cache. The bug was reported for Debian
+    Lenny, and probably also affected some version of Ubuntu (`issue 35`_). This
+    is fixed by using the APR library function :func:`apr_off_t_toa` instead of
+    ``%llu`` in the format string fix. Thanks Cory for reporting and tracking
+    this down!
+  - When Metalinks contained FTP URLs, the URL scheme (``url type`` in the XML)
+    was incorrectly set to ``http``. (`issue 23`_). This has been fixed.
+
+* :program:`mb db shell`
+
+  - This new command to spawn a database shell turned out to work only by
+    accident -- :func:`os.execlp` was used wrongly (missing its 0th argument).
+    This has been correected.
+
+* :program:`mb file ls -u`
+
+  - When using the ``-u`` option with this command to display URLs, broken URLs
+    could result if a base URL doesn't end in a slash (`issue 36`_).
+    Thanks Vittorio for reporting!
+
+* :program:`mb new` and :program:`mb update`
+
+  - A stupid error in the selection of the best GeoIP database has been fixed.
+    A forgotten `break` in the code caused the least preferable database to be
+    chosen, of more than one acceptable database file was available.
+  - Geographical coordinates are saved to mirror database records.
+  - The readability of DNSrr DNSrr warnings is improved.
+  
+
+
+Since when the metalink hash cache had been reimplemented with release
+2.10.0 and 2.10.1, there remained a migration path in :program:`mod_mirrorbrain`
+and :program:`metalink-hasher` for reusing the existing hash files. Since this
+is several versions away (or 5 months), this migration path has been cleaned
+up in both :program:`mod_mirrorbrain` and :program:`metalink-hasher`.
+
+- Backward compatibility and migration support (added around r7794) for old
+  filename scheme (``.inode_$INODE``) in the metalink hash cache removed.
+- Backward compatibility (added in r7787) for old filename scheme
+  (``.metalink-hashes``) in the metalink hash cache removed.
+
+When updating from an installation older than 2.10.1, that is no problem -- it
+just means that metalink hashes will be regenerated before they can be used
+again.
+
+The documentation was enhanced in the following places:
+
+* A few examples for using cURL for testing have been added.
+* The example for creating metalink hashes was wrong. This was fixed, and
+  some more details added.
+* The usage info of :program:`mb update` was improved.
+* The :program:`mb update` command has been documented
+  (:ref:`editing_mirrors_network_location`).
+
+.. _`issue 12`: http://mirrorbrain.org/issues/issue12
+.. _`issue 23`: http://mirrorbrain.org/issues/issue23
+.. _`issue 34`: http://mirrorbrain.org/issues/issue34
+.. _`issue 35`: http://mirrorbrain.org/issues/issue35
+.. _`issue 36`: http://mirrorbrain.org/issues/issue36
+
+
 Release 2.11.3 (r7933, Dec 16, 2009)
 ------------------------------------
 
