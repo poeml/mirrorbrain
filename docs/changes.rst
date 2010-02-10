@@ -73,7 +73,7 @@ Bug fixes:
     A forgotten `break` in the code caused the least preferable database to be
     chosen, of more than one acceptable database file was available.
   - Geographical coordinates are saved to mirror database records.
-  - The readability of DNSrr DNSrr warnings is improved.
+  - The readability of DNSrr warnings is improved.
   
 
 
