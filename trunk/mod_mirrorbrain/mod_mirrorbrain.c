@@ -1684,10 +1684,10 @@ static int mb_handler(request_rec *r)
         /* inject hashes, if they are prepared on-disk */
         apr_finfo_t sb;
         const char *hashfilename;     /* the even newer hash filename contains the size of the file */
-        hashfilename = apr_psprintf(r->pool, "%s%s.size_%llu", 
+        hashfilename = apr_psprintf(r->pool, "%s%s.size_%s", 
                                    scfg->metalink_hashes_prefix ? scfg->metalink_hashes_prefix : "", 
                                    r->filename, 
-                                   r->finfo.size);
+                                   apr_off_t_toa(r->pool, r->finfo.size));
 
         if (apr_stat(&sb, hashfilename, APR_FINFO_MIN, r->pool) == APR_SUCCESS && (sb.filetype == APR_REG)) {
             debugLog(r, cfg, "hashfile '%s' exists", hashfilename);
