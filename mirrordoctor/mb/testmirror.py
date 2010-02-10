@@ -103,9 +103,16 @@ def probe(S, http_method='GET'):
             # presumably runs a really old rsync server. The system seems to be 
             # SuSE Linux 8.2.)
             # poeml, Mon Jun 22 18:10:33 CEST 2009
-            cmd = 'rsync -d --timeout=%d %s %s/' % (TIMEOUT, S.probeurl, tmpdir)
+            cmd = ['rsync -d']
+            if mb.util.get_rsync_version().startswith('3.'):
+                cmd.append('--contimeout=%s' % TIMEOUT)
+            cmd.append('--timeout=%d %s %s/' % (TIMEOUT, S.probeurl, tmpdir))
+
             if not S.get_content:
-                cmd += ' --list-only'
+                cmd.append('--list-only')
+
+            cmd = ' '.join(cmd)
+
             (rc, out) = commands.getstatusoutput(cmd)
             targetfile = os.path.join(tmpdir, os.path.basename(S.filename))
             if rc == 0 or os.path.exists(targetfile):
