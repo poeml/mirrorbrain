@@ -2,6 +2,7 @@ import sys, os
 import time
 
 t_start = 0
+rsync_version = None
 
 
 class Afile:
@@ -149,6 +150,24 @@ def edit_file(data, boilerplate = None):
                 return
             else:
                 pass
+
+
+def get_rsync_version():
+    """call the rsync program and get to know its version number.  Save the
+    result in a global, and returned only the "cached" result in subsequent
+    calls."""
+
+    global rsync_version
+
+    if rsync_version:
+        return rsync_version
+    else:
+        import commands
+        status, output = commands.getstatusoutput('rsync --version')
+        if status != 0:
+            sys.exit('rsync command not found')
+        rsync_version = output.splitlines()[0].split()[2]
+        return rsync_version
 
 
 def timer_start():
