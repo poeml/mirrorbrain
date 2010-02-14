@@ -444,8 +444,8 @@ def main():
         counterdict[t] = get(t, 0) + 1
 
     delta = time.time() - start
-    print 'processed %s lines in %s seconds' % (n, delta)
-    print 'found %s countables' % len(counterdict)
+    print 'processed log in %.1f seconds, found %s valid and unique requests' % (delta, n)
+    print '%s distinct countables' % len(counterdict)
     start = time.time()
 
 
@@ -468,8 +468,8 @@ def main():
                 counter.count += val
             counter.save()
 
-    delta = time.time() - start
-    print 'saved data in %s seconds' % delta
+        delta = time.time() - start
+        print 'saved counts to db in %.1f seconds' % delta
 
     sys.exit(0)
 
