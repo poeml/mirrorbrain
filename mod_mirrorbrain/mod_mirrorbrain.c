@@ -673,7 +673,7 @@ static int mb_handler(request_rec *r)
     const char *query_country = NULL;
     char *query_asn = NULL;
     char fakefile = 0, newmirror = 0;
-    char mirrorlist = 0, mirrorlist_txt = 0;
+    char mirrorlist = 0;
     char metalink_forced = 0;                   /* metalink was explicitely requested */
     char metalink = 0;                          /* metalink was negotiated */ 
                                                 /* for negotiated metalinks, the exceptions are observed. */
@@ -780,13 +780,11 @@ static int mb_handler(request_rec *r)
         query_asn[i] = '\0';
     }
 
-    if (!mirrorlist_txt && !metalink_forced && !mirrorlist) {
+    if (!metalink_forced && !mirrorlist) {
         const char *accepts;
         accepts = apr_table_get(r->headers_in, "Accept");
         if (accepts != NULL) {
-            if (ap_strstr_c(accepts, "mirrorlist-txt")) {
-                mirrorlist_txt = 1;
-            } else if (ap_strstr_c(accepts, "metalink+xml")) {
+            if (ap_strstr_c(accepts, "metalink+xml")) {
                 metalink = 1;
             } 
         }
@@ -1476,7 +1474,7 @@ static int mb_handler(request_rec *r)
     *
     * => best to sort the mirrors_same_country et al. individually, right?
     */
-    if (mirrorlist_txt || metalink || metalink_forced || mirrorlist) {
+    if (metalink || metalink_forced || mirrorlist) {
         qsort(mirrors_same_prefix->elts, mirrors_same_prefix->nelts, 
               mirrors_same_prefix->elt_size, cmp_mirror_rank);
         qsort(mirrors_same_as->elts, mirrors_same_as->nelts, 
@@ -1545,80 +1543,6 @@ static int mb_handler(request_rec *r)
                 mirrors_elsewhere->nelts);
     }
 
-    /* return a mirrorlist_txt instead of doing a redirect? */
-    if (mirrorlist_txt) {
-        debugLog(r, cfg, "Sending mirrorlist-txt");
-
-        /* tell caches that this is negotiated response and that not every client will take it */
-        apr_table_mergen(r->headers_out, "Vary", "accept");
-
-        ap_set_content_type(r, "application/mirrorlist-txt; charset=UTF-8");
-
-        ap_rputs("# mirrorlist-txt version=1.0\n", r);
-        ap_rputs("# url baseurl_len mirrorid region:country power\n", r);
-
-        mirrorp = (mirror_entry_t **)mirrors_same_prefix->elts;
-        for (i = 0; i < mirrors_same_prefix->nelts; i++) {
-            mirror = mirrorp[i];
-            ap_rprintf(r, "%s%s %d %d %s:%s %d\n", 
-                       mirror->baseurl, filename,
-                       (int) strlen(mirror->baseurl),
-                       mirror->id,
-                       mirror->region,
-                       mirror->country_code,
-                       mirror->score);
-        }
-
-        mirrorp = (mirror_entry_t **)mirrors_same_as->elts;
-        for (i = 0; i < mirrors_same_as->nelts; i++) {
-            mirror = mirrorp[i];
-            ap_rprintf(r, "%s%s %d %d %s:%s %d\n", 
-                       mirror->baseurl, filename,
-                       (int) strlen(mirror->baseurl),
-                       mirror->id,
-                       mirror->region,
-                       mirror->country_code,
-                       mirror->score);
-        }
-
-        mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
-        for (i = 0; i < mirrors_same_country->nelts; i++) {
-            mirror = mirrorp[i];
-            ap_rprintf(r, "%s%s %d %d %s:%s %d\n", 
-                       mirror->baseurl, filename,
-                       (int) strlen(mirror->baseurl),
-                       mirror->id,
-                       mirror->region,
-                       mirror->country_code,
-                       mirror->score);
-        }
-
-        mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
-        for (i = 0; i < mirrors_same_region->nelts; i++) {
-            mirror = mirrorp[i];
-            ap_rprintf(r, "%s%s %d %d %s:%s %d\n", 
-                       mirror->baseurl, filename,
-                       (int) strlen(mirror->baseurl),
-                       mirror->id,
-                       mirror->region,
-                       mirror->country_code,
-                       mirror->score);
-        }
-
-        mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
-        for (i = 0; i < mirrors_elsewhere->nelts; i++) {
-            mirror = mirrorp[i];
-            ap_rprintf(r, "%s%s %d %d %s:%s %d\n", 
-                       mirror->baseurl, filename,
-                       (int) strlen(mirror->baseurl),
-                       mirror->id,
-                       mirror->region,
-                       mirror->country_code,
-                       mirror->score);
-        }
-
-        return OK;
-    } /* end mirrorlist-txt */
 
     /* return a metalink instead of doing a redirect? */
     if (metalink || metalink_forced) {
