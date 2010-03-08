@@ -826,6 +826,234 @@ class MirrorDoctor(cmdln.Cmdln):
         print 'Completed in', mb.util.timer_elapsed()
 
 
+
+    @cmdln.option('-n', '--dry-run', action='store_true',
+                        help='don\'t actually do anything, just show what would be done')
+    @cmdln.option('--copy-permissions', action='store_true',
+                        help='copy the permissions of directories and files '
+                             'to the hashes files. Normally, this should not '
+                             'be needed, because the hash files don\'t contain '
+                             'any reversible information.')
+    @cmdln.option('-f', '--file-mask', metavar='REGEX',
+                        help='regular expression to select files to create hashes for')
+    @cmdln.option('-i', '--ignore-mask', metavar='REGEX',
+                        help='regular expression to ignore certain files or directories. '
+                             'If matching a file, no hashes are created for it. '
+                             'If matching a directory, the directory is ignored and '
+                             'deleted in the target tree.')
+    @cmdln.option('-b', '--base-dir', metavar='PATH',
+                        help='set the base directory (so that you can work on a subdirectory)')
+    @cmdln.option('-t', '--target-dir', metavar='PATH',
+                        help='set a different target directory')
+    @cmdln.option('-v', '--verbose', action='store_true',
+                        help='show more information')
+    def do_makehashes(self, subcmd, opts, startdir):
+        """${cmd_name}: Update the verification hashes, e.g. for inclusion into Metalinks
+
+        Examples:
+
+        mb makehashes /srv/mirrors/mozilla -t /srv/metalink-hashes/srv/mirrors/mozilla
+
+        mb makehashes \\
+            -t /srv/metalink-hashes/srv/ftp/pub/opensuse/repositories/home:/poeml \\
+            /srv/ftp-stage/pub/opensuse/repositories/home:/poeml \\
+            -i '^.*/repoview/.*$'
+
+        mb makehashes \\
+            -f '.*.(torrent|iso)$' \\
+            -t /var/lib/apache2/metalink-hashes/srv/ftp/pub/opensuse/distribution/11.0/iso \\
+            -b /srv/ftp-stage/pub/opensuse/distribution/11.0/iso \\
+            /srv/ftp-stage/pub/opensuse/distribution/11.0/iso \\
+            -n
+
+        ${cmd_usage}
+        ${cmd_option_list}
+        """
+
+        import os
+        import fcntl
+        import errno
+        import re
+        import mb.hashes
+
+        if not opts.target_dir:
+            sys.exit('You must specify the target directory (-t)')
+        if not opts.base_dir:
+            opts.base_dir = startdir
+            #sys.exit('You must specify the base directory (-b)')
+
+        if not opts.target_dir.startswith('/'):
+            sys.exit('The target directory must be an absolut path')
+        if not opts.base_dir.startswith('/'):
+            sys.exit('The base directory must be an absolut path')
+
+        startdir = startdir.rstrip('/')
+        opts.target_dir = opts.target_dir.rstrip('/')
+        opts.base_dir = opts.base_dir.rstrip('/')
+
+        if not os.path.exists(startdir):
+            sys.exit('STARTDIR %r does not exist' % startdir) 
+
+        directories_todo = [startdir]
+
+        if opts.ignore_mask: 
+            opts.ignore_mask = re.compile(opts.ignore_mask)
+        if opts.file_mask: 
+            opts.file_mask = re.compile(opts.file_mask)
+
+        unlinked_files = unlinked_dirs = 0
+
+        while len(directories_todo) > 0:
+            src_dir = directories_todo.pop(0)
+
+            try:
+                src_dir_mode = os.stat(src_dir).st_mode
+            except OSError, e:
+                if e.errno == errno.ENOENT:
+                    sys.stderr.write('Directory vanished: %r\n' % src_dir)
+                    continue
+
+            dst_dir = os.path.join(opts.target_dir, src_dir[len(opts.base_dir):].lstrip('/'))
+
+            if not opts.dry_run:
+                if not os.path.isdir(dst_dir):
+                    os.makedirs(dst_dir, mode = 0755)
+                if opts.copy_permissions:
+                    os.chmod(dst_dir, src_dir_mode)
+                else:
+                    os.chmod(dst_dir, 0755)
+
+            try:
+                dst_names = os.listdir(dst_dir)
+                dst_names.sort()
+            except OSError, e:
+                if e.errno == errno.ENOENT:
+                    sys.exit('\nSorry, cannot really continue in dry-run mode, because directory %r does not exist.\n'
+                             'You might want to create it:\n'
+                             '  mkdir %s' % (dst_dir, dst_dir))
+
+
+            # a set offers the fastest access for "foo in ..." lookups
+            src_basenames = set(os.listdir(src_dir))
+
+            if opts.verbose:
+                print 'looking at', src_dir
+
+            dst_keep = set()
+            dst_keep.add('LOCK')
+
+            lockfile = os.path.join(dst_dir, 'LOCK')
+            try:
+                if not opts.dry_run:
+                    lock = open(lockfile, 'w')
+                    fcntl.lockf(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    try:
+                        os.stat(lockfile)
+                    except OSError, e: 
+                        if e.errno == errno.ENOENT:
+                            if opts.verbose:
+                                print '====== skipping %s, which we were about to lock' % lockfile
+                            continue
+
+                if opts.verbose:
+                    print 'locked %s' % lockfile
+            except IOError, e:
+                if e.errno in [ errno.EAGAIN, errno.EACCES, errno.EWOULDBLOCK ]:
+                    print 'Skipping %r, which is locked' % src_dir
+                    continue
+                else:
+                    raise
+
+
+            for src_basename in sorted(src_basenames):
+                src = os.path.join(src_dir, src_basename)
+
+                if opts.ignore_mask and re.match(opts.ignore_mask, src):
+                    continue
+
+                # stat only once
+                try:
+                    hasheable = mb.hashes.Hasheable(src_basename, 
+                                                    src_dir=src_dir, 
+                                                    dst_dir=dst_dir)
+                except OSError, e:
+                    if e.errno == errno.ENOENT:
+                        sys.stderr.write('File vanished: %r\n' % src)
+                        continue
+
+                if hasheable.islink():
+                    if opts.verbose:
+                        print 'ignoring link', src
+                    continue
+
+                elif hasheable.isreg():
+                    if not opts.file_mask or re.match(opts.file_mask, src_basename):
+                        #if opts.verbose:
+                        #    print 'dst:', dst
+                        hasheable.do_hashes(verbose=opts.verbose, 
+                                            dry_run=opts.dry_run, 
+                                            copy_permissions=opts.copy_permissions)
+                        dst_keep.add(hasheable.dst_basename)
+
+                elif hasheable.isdir():
+                    directories_todo.append(src)  # It's a directory, store it.
+                    dst_keep.add(hasheable.basename)
+
+
+            dst_remove = set(dst_names) - dst_keep
+
+            # print 'files to keep:'
+            # print dst_keep
+            # print
+            # print 'files to remove:'
+            # print dst_remove
+            # print
+
+            for i in sorted(dst_remove):
+                i_path = os.path.join(dst_dir, i)
+                #print i_path
+
+                if (opts.ignore_mask and re.match(opts.ignore_mask, i_path)):
+                    print 'ignoring, not removing %s', i_path
+                    continue
+
+                if os.path.isdir(i_path):
+                    print 'Recursively removing obsolete directory %r' % i_path
+                    if not opts.dry_run: 
+                        try:
+                            shutil.rmtree(i_path)
+                        except OSError, e:
+                            if e.errno == errno.EACCES:
+                                sys.stderr.write('Recursive removing failed for %r (%s). Ignoring.\n' \
+                                                    % (i_path, os.strerror(e.errno)))
+                            else:
+                                sys.exit('Recursive removing failed for %r: %s\n' \
+                                                    % (i_path, os.strerror(e.errno)))
+                    unlinked_dirs += 1
+                    
+                else:
+                    print 'Unlinking obsolete %r' % i_path
+                    if not opts.dry_run: 
+                        try:
+                            os.unlink(i_path)
+                        except OSError, e:
+                            if e.errno != errno.ENOENT:
+                                sys.stderr.write('Unlink failed for %r: %s\n' \
+                                                    % (i_path, os.strerror(e.errno)))
+                    unlinked_files += 1
+
+            if opts.verbose:
+                print 'unlocking', lockfile 
+            if not opts.dry_run:
+                os.unlink(lockfile)
+                lock.close()
+
+        if  unlinked_files or unlinked_dirs:
+            print 'Unlinked %s files, %d directories.' % (unlinked_files, unlinked_dirs)
+
+
+
+
     def do_score(self, subcmd, opts, *args):
         """${cmd_name}: show or change the score of a mirror
 
