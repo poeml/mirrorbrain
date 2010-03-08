@@ -176,8 +176,14 @@ def main():
             # symlink
             name, name_to = name.split(' -> ')
 
-        # for safety
         path = os.path.join(rsync_dst, name)
+
+        # this special case also deals with broken links that point outside the tree
+        if attrs[1] == 'd' and os.path.islink(path.rstrip('/')):
+            print 'removing link %r, to be replaced by directory' % path.rstrip('/')
+            os.unlink(path.rstrip('/'))
+
+        # for safety
         canonical_path = os.path.realpath(path)
         if not canonical_path.startswith(rsync_dst):
             sys.exit("Error: After canonicalization, %r is outside the rsync destination path (%r):\n       %r" \
