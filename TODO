@@ -1,3 +1,7 @@
+This file is relatively obsolete. Issues are tracked in the issue tracker
+meanwhile, which can be found here:
+http://mirrorbrain.org/issues
+
 Missing features:
 
 * mb probefile: follow redirects. Testcase:
@@ -7,37 +11,28 @@ Missing features:
 
 * mirrorprobe: does it deal with FTP urls entered as baseurl (which is meant for HTTP)?
 
-* make ZrkadloExcludeNetwork work by prefix match, instead of simple string
+* make MirrorBrainExcludeNetwork work by prefix match, instead of simple string
   prefix comparison using apr_ipsubnet_create() and apr_ipsubnet_test() as 
-  mod_authz_host does
+  mod_authz_host does?
 
 * make installation easier, by providing Makefiles, and a setup.py for the Python module.
 
 
 Improvements:
 
-* rewrite debugLog(r, cfg, ...) as Macro which checks for cfg->debug==1 before
+* rewrite debugLog(r, cfg, ...) as macro which checks for cfg->debug==1 before
   caling ebugLog()
 
 * check whether the maxconnections metalink attribute should be included, so that
   aria2c downloads from more than one server even when every server has a distinct
   preference value.
 
-* add "md5" and "sha1" or "checksums" link to mod_autoindex_mb. Make it configurable so
-  it can be switched off for the very large directories that are already slow
-  to show anyway.
-  In addition, the checksum(s) could be added into the mirror list. Would be highly useful.
-
-  On further thought about this, I realize that serving the hash from the
-  metalink-hashes-dir by appending .md5, would shadow existing .md5 files;
-  likewise for sha1 files.  But it would still be worthwhile and it wouldn't
-  matter I guess.
 
 * ?mirrorlist mirror lists: set Vary header on X-AS?
   make it more cacheable?
   Cf. http://redbot.org/?uri=http%3A%2F%2Fdownload.opensuse.org%2Frepositories%2FApache%2FFedora_10%2FApache.repo%3Fmirrorlist
   Metalinks:
-  make less cacheable?
+  make them less cacheable?
 
 * check if the Vary header on Accept is added on all requests!
 
@@ -50,15 +45,8 @@ Further ideas:
   As a key for the memcache object, one could use the label of the prepared SQL
   statement combined with the filename.
 
-* add SQL_CACHE hints? do this conditionally?
-
 * stickyness of (large) files to certain mirrors, to make better use of buffer caches?
 
 * collect statistics on number and volume (cumulated file sizes) of redirects
   for mod_status, show per mirror identifier since last restart
-
-* check whether usage of explicit ap_dbd_open/ap_dbd_close, instead of the
-  ap_dbd_acquire wrapping function, results in better utilization of the database
-  connection pool
-  but apr_reslist is undergoing some fixes/changes currently (1.2.11 time), so let's wait
 
