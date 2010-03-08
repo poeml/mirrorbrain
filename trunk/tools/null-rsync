@@ -180,7 +180,8 @@ def main():
         path = os.path.join(rsync_dst, name)
         canonical_path = os.path.realpath(path)
         if not canonical_path.startswith(rsync_dst):
-            sys.exit("canonical path (%r) doesn't start with the rsync destination dir (%r)")
+            sys.exit("Error: After canonicalization, %r is outside the rsync destination path (%r):\n       %r" \
+                       % (name, rsync_dst, canonical_path))
         path = canonical_path.rstrip('/')
 
         if action == 'del.':
