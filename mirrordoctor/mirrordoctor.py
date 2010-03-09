@@ -827,6 +827,8 @@ class MirrorDoctor(cmdln.Cmdln):
 
 
 
+    @cmdln.option('--force', action='store_true',
+                        help='force refreshing all cached hashes')
     @cmdln.option('-n', '--dry-run', action='store_true',
                         help='don\'t actually do anything, just show what would be done')
     @cmdln.option('--copy-permissions', action='store_true',
@@ -842,7 +844,8 @@ class MirrorDoctor(cmdln.Cmdln):
                              'If matching a directory, the directory is ignored and '
                              'deleted in the target tree.')
     @cmdln.option('-b', '--base-dir', metavar='PATH',
-                        help='set the base directory (so that you can work on a subdirectory)')
+                        help='set the base directory (so that you can work on a '
+                             'subdirectory -- see examples)')
     @cmdln.option('-t', '--target-dir', metavar='PATH',
                         help='set a different target directory')
     @cmdln.option('-v', '--verbose', action='store_true',
@@ -860,9 +863,14 @@ class MirrorDoctor(cmdln.Cmdln):
             -i '^.*/repoview/.*$'
 
         mb makehashes \\
+            -t /srv/metalink-hashes/samba/srv/mirrors/samba \\
+            -b /srv/mirrors/samba \\
+            /srv/mirrors/samba/pub/samba/xfertest
+
+        mb makehashes \\
             -f '.*.(torrent|iso)$' \\
-            -t /var/lib/apache2/metalink-hashes/srv/ftp/pub/opensuse/distribution/11.0/iso \\
-            -b /srv/ftp-stage/pub/opensuse/distribution/11.0/iso \\
+            -t /var/lib/apache2/metalink-hashes/srv/ftp/pub/opensuse \\
+            -b /srv/ftp-stage/pub/opensuse \\
             /srv/ftp-stage/pub/opensuse/distribution/11.0/iso \\
             -n
 
@@ -874,6 +882,7 @@ class MirrorDoctor(cmdln.Cmdln):
         import fcntl
         import errno
         import re
+        import shutil
         import mb.hashes
 
         if not opts.target_dir:
@@ -937,7 +946,7 @@ class MirrorDoctor(cmdln.Cmdln):
             src_basenames = set(os.listdir(src_dir))
 
             if opts.verbose:
-                print 'looking at', src_dir
+                print 'Examining directory', src_dir
 
             dst_keep = set()
             dst_keep.add('LOCK')
@@ -975,7 +984,8 @@ class MirrorDoctor(cmdln.Cmdln):
                 try:
                     hasheable = mb.hashes.Hasheable(src_basename, 
                                                     src_dir=src_dir, 
-                                                    dst_dir=dst_dir)
+                                                    dst_dir=dst_dir,
+                                                    base_dir=opts.base_dir)
                 except OSError, e:
                     if e.errno == errno.ENOENT:
                         sys.stderr.write('File vanished: %r\n' % src)
@@ -990,9 +1000,14 @@ class MirrorDoctor(cmdln.Cmdln):
                     if not opts.file_mask or re.match(opts.file_mask, src_basename):
                         #if opts.verbose:
                         #    print 'dst:', dst
-                        hasheable.do_hashes(verbose=opts.verbose, 
+                        hasheable.check_file(verbose=opts.verbose, 
                                             dry_run=opts.dry_run, 
+                                            force=opts.force, 
                                             copy_permissions=opts.copy_permissions)
+                        hasheable.check_db(conn=self.conn,
+                                           verbose=opts.verbose, 
+                                           dry_run=opts.dry_run,
+                                           force=opts.force)
                         dst_keep.add(hasheable.dst_basename)
 
                 elif hasheable.isdir():

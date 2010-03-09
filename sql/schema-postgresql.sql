@@ -21,6 +21,32 @@ CREATE TABLE "filearr" (
 
 -- --------------------------------------------------------
 
+
+CREATE TABLE "hash" (
+        "id" INTEGER REFERENCES filearr PRIMARY KEY,
+        "mtime" INTEGER NOT NULL,
+        "size"  INTEGER NOT NULL,
+        "md5"    BYTEA NOT NULL,
+        "sha1"   BYTEA NOT NULL,
+        "sha256" BYTEA NOT NULL,
+        "sha1piecesize" INTEGER NOT NULL,
+        "sha1pieces" BYTEA,
+        "pgp" TEXT NOT NULL
+);
+
+CREATE VIEW hexhash AS 
+  SELECT file_id, mtime, size, 
+         encode(md5, 'hex') AS md5, 
+         encode(sha1, 'hex') AS sha1, 
+         encode(sha256, 'hex') AS sha256, 
+         sha1piecesize, 
+         encode(sha1pieces, 'hex') AS sha1pieces,
+         pgp 
+  FROM hash;
+
+-- --------------------------------------------------------
+
+
 CREATE TABLE "server" (
         "id" serial NOT NULL PRIMARY KEY,
         "identifier" varchar(64) NOT NULL UNIQUE,

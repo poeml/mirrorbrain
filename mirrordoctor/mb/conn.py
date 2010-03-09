@@ -162,9 +162,19 @@ class Conn:
             # to be installed as well
             pass
 
+        try:
+            class Hash(SQLObject):
+                """the hashes table"""
+                class sqlmeta:
+                    fromDatabase = True
+                    idName = 'file_id'
+            self.Hash = Hash
+        except psycopg2.ProgrammingError:
+            # this is raised if the table hasn't been installed yet
+            pass
+
         if debug:
             self.Server._connection.debug = True
-
 
 
 def servertext2dict(s):
