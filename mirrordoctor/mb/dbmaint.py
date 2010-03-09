@@ -29,7 +29,7 @@ def stats(conn):
                       relpages*8 AS relKB 
                FROM pg_class 
                WHERE relkind IN ('r', 'i') 
-                      AND relname ~ '^.*(file|server|pfx|temp1|stats).*' 
+                      AND relname ~ '^.*(file|server|pfx|temp1|stats|hash).*' 
                ORDER BY 1"""
     rows = conn.Filearr._connection.queryAll(query)
 
