@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+import sys
 import os
 import os.path
 import stat
@@ -22,7 +23,8 @@ PIECESIZE = 262144
 
 class Hasheable:
     """represent a file and its metadata"""
-    def __init__(self, basename, src_dir=None, dst_dir=None):
+    def __init__(self, basename, src_dir=None, dst_dir=None,
+                 base_dir=None):
         self.basename = basename
         if src_dir:
             self.src_dir = src_dir
@@ -30,6 +32,8 @@ class Hasheable:
             self.src_dir = os.path.dirname(self.basename)
 
         self.src = os.path.join(src_dir, self.basename)
+        self.base_dir = base_dir
+        self.src_rel = os.path.join(src_dir[len(base_dir):], self.basename).lstrip('/')
 
         self.finfo = os.lstat(self.src)
         self.atime = self.finfo.st_atime
@@ -43,6 +47,8 @@ class Hasheable:
         self.dst_basename = '%s.size_%s' % (self.basename, self.size)
         self.dst = os.path.join(self.dst_dir, self.dst_basename)
 
+        self.hb = HashBag(src = self.src)
+
     def islink(self):
         return stat.S_ISLNK(self.mode)
     def isreg(self):
@@ -50,7 +56,9 @@ class Hasheable:
     def isdir(self):
         return stat.S_ISDIR(self.mode)
 
-    def do_hashes(self, verbose=False, dry_run=False, copy_permissions=True):
+
+    def check_file(self, verbose=False, dry_run=False, force=False, copy_permissions=True):
+        """check whether the hashes stored on disk are up to date"""
         try:
             dst_statinfo = os.stat(self.dst)
             dst_mtime = dst_statinfo.st_mtime
@@ -58,26 +66,24 @@ class Hasheable:
         except OSError:
             dst_mtime = dst_size = 0 # file missing
 
-        if int(dst_mtime) == int(self.mtime) and dst_size != 0:
+        if int(dst_mtime) == int(self.mtime) and dst_size != 0 and not force:
             if verbose:
-                print 'Up to date: %r' % self.dst
+                print 'Up to date hash file: %r' % self.dst
             return 
 
         if dry_run: 
             print 'Would make hashes for: ', self.src
             return
 
-        digests = Digests(src = self.src)
-
-        # if present, grab PGP signature
-        if os.path.exists(self.src + '.asc'):
-            digests.pgp = open(self.src + '.asc').read()
-
-        digests.read()
+        if self.hb.empty:
+            self.hb.fill(verbose=verbose)
 
         d = open(self.dst, 'wb')
-        d.write(digests.dump_2_12_template())
+        d.write(self.hb.dump_2_12_template())
         d.close()
+
+        if verbose:
+            print 'Hash file updated: %r' % self.dst
 
         os.utime(self.dst, (self.atime, self.mtime))
 
@@ -85,6 +91,77 @@ class Hasheable:
             os.chmod(self.dst, self.mode)
         else:
             os.chmod(self.dst, 0644)
+
+
+    def check_db(self, conn, verbose=False, dry_run=False, force=False):
+        """check if the hashes that are stored in the database are up to date
+        
+        for performance, this function talks very low level to the database"""
+        # get a database cursor, but make it persistent which is faster
+        try:
+            conn.mycursor
+        except AttributeError:
+            conn.mycursor = conn.Hash._connection.getConnection().cursor()
+        c = conn.mycursor
+
+        c.execute("SELECT id FROM filearr WHERE path = %s LIMIT 1",
+                  [self.src_rel])
+        res = c.fetchone()
+        if not res:
+            print 'file %r not found (no mirror has it?)' % self.src_rel
+            ### XXX we'd need to insert it, if we want to support hashes for files that are not on any mirror...
+            return
+        file_id = res[0]
+
+        c.execute("SELECT file_id, mtime, size FROM hash WHERE file_id = %s LIMIT 1",
+                  [file_id])
+        res = c.fetchone()
+
+        if not res:
+
+            if self.hb.empty:
+                self.hb.fill(verbose=verbose)
+
+            c.execute("""INSERT INTO hash (file_id, mtime, size, md5, 
+                                           sha1, sha256, sha1piecesize, 
+                                           sha1pieces, pgp) 
+                         VALUES (%s, %s, %s, 
+                                 decode(%s, 'hex'), decode(%s, 'hex'), 
+                                 decode(%s, 'hex'), %s, decode(%s, 'hex'),
+                                 %s )""",
+                      [file_id, self.mtime, self.size,
+                       self.hb.md5hex,
+                       self.hb.sha1hex,
+                       self.hb.sha256hex or '',
+                       PIECESIZE,
+                       ''.join(self.hb.pieceshex),
+                       self.hb.pgp or ''])
+            print 'hash was not present yet in database - inserted'
+        else:
+            mtime, size = res[1], res[2]
+            if int(self.mtime) == mtime and self.size == size and not force:
+                if verbose:
+                    print 'Up to date in db: %r' % self.src_rel
+                return
+            c.execute("""UPDATE hash set mtime = %s, size = %s, 
+                                         md5 = decode(%s, 'hex'), 
+                                         sha1 = decode(%s, 'hex'), 
+                                         sha256 = decode(%s, 'hex'), 
+                                         sha1piecesize = %s,
+                                         sha1pieces = decode(%s, 'hex'), 
+                                         pgp = %s
+                         WHERE file_id = %s""",
+                      [int(self.mtime), self.size,
+                       self.hb.md5hex, self.hb.sha1hex, self.hb.sha256hex or '',
+                       PIECESIZE, ''.join(self.hb.pieceshex),
+                       self.hb.pgp or '', 
+                       file_id])
+            if verbose:
+                print 'Hash updated in database for %r' % self.src_rel
+
+        c.execute('commit')
+
+
 
     #def __eq__(self, other):
     #    return self.basename == other.basename
@@ -96,7 +173,8 @@ class Hasheable:
 
 
 
-class Digests():
+class HashBag():
+
     def __init__(self, src):
         self.src = src
         self.basename = os.path.basename(src)
@@ -104,13 +182,23 @@ class Digests():
         self.md5 = None
         self.sha1 = None
         self.sha256 = None
+        self.md5hex = None
+        self.sha1hex = None
+        self.sha256hex = None
         self.pgp = None
 
         self.npieces = 0
         self.pieces = []
+        self.pieceshex = []
 
+        self.empty = True
 
-    def read(self):
+    def fill(self, verbose=False):
+        verbose = True # XXX
+        if verbose:
+            sys.stdout.write('Hashing %r... ' % self.src)
+            sys.stdout.flush()
+
         m = md5.md5()
         s1 = sha1.sha1()
         s256 = sha256.sha256()
@@ -133,22 +221,36 @@ class Digests():
             s256.update(buf)
 
             self.npieces += 1
-            self.pieces.append(hashlib.sha1(buf).hexdigest())
+            self.pieces.append(hashlib.sha1(buf).digest())
+            self.pieceshex.append(hashlib.sha1(buf).hexdigest())
 
         f.close()
 
-        self.md5 = m.hexdigest()
-        self.sha1 = s1.hexdigest()
-        self.sha256 = s256.hexdigest()
+        self.md5 = m.digest()
+        self.sha1 = s1.digest()
+        self.sha256 = s256.digest()
+        self.md5hex = m.hexdigest()
+        self.sha1hex = s1.hexdigest()
+        self.sha256hex = s256.hexdigest()
+
+        # if present, grab PGP signature
+        if os.path.exists(self.src + '.asc'):
+            self.pgp = open(self.src + '.asc').read()
+
+        self.empty = False
+
+        if verbose:
+            sys.stdout.write('done.\n')
+
 
     def dump_raw(self):
         r = []
-        for i in self.pieces:
+        for i in self.pieceshex:
             r.append('piece %s' % i)
-        r.append('md5 %s' % self.md5)
-        r.append('sha1 %s' % self.sha1)
+        r.append('md5 %s' % self.md5hex)
+        r.append('sha1 %s' % self.sha1hex)
         if sha256:
-            r.append('sha256 %s' % self.sha256)
+            r.append('sha256 %s' % self.sha256hex)
         return '\n'.join(r)
 
 
@@ -164,9 +266,9 @@ class Digests():
 
         r.append("""      <verification>
         <hash type="md5">%s</hash>
-        <hash type="sha1">%s</hash>""" % (self.md5, self.sha1))
+        <hash type="sha1">%s</hash>""" % (self.md5hex, self.sha1hex))
         if self.sha256:
-            r.append('        <hash type="sha256">%s</hash>' % (self.sha256))
+            r.append('        <hash type="sha256">%s</hash>' % (self.sha256hex))
 
         if self.pgp:
             r.append('        <signature type="pgp" file="%s.asc">' % self.basename)
@@ -176,7 +278,7 @@ class Digests():
         r.append('        <pieces length="%s" type="sha1">' % (PIECESIZE))
 
         n = 0
-        for piece in self.pieces:
+        for piece in self.pieceshex:
             r.append('            <hash piece="%s">%s</hash>' % (n, piece))
             n += 1
 
