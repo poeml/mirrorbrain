@@ -85,6 +85,7 @@
 #define MOD_MIRRORBRAIN_VER "2.13.0"
 #define VERSION_COMPONENT "mod_mirrorbrain/"MOD_MIRRORBRAIN_VER
 
+/* no space for time zones */
 #define RFC3339_DATE_LEN (21)
 
 #ifdef NO_MOD_GEOIP
@@ -675,6 +676,32 @@ static const char *url_scheme(apr_pool_t *p, const char *url)
     }
     return "INVALID URL SCHEME";
 }
+
+/*
+ * This routine out an URL in the format needed for old (v3) or newer (IETF)
+ * Metalinks.
+ */
+static void emit_metalink_url(request_rec *r, int rep, 
+                              const char *baseurl, 
+#ifdef NO_MOD_GEOIP
+                              char *country_code,
+#else
+                              const char *country_code,
+#endif
+                              const char *filename, int v3prio, int prio)
+{
+    switch (rep) {
+    case META4:
+        ap_rprintf(r, "    <url location=\"%s\" priority=\"%d\">%s%s</url>\n", 
+                   country_code, prio, baseurl, filename);
+        break;
+    case METALINK:
+        ap_rprintf(r, "    <url type=\"%s\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
+                   url_scheme(r->pool, baseurl), country_code, v3prio, baseurl, filename);
+        break;
+    }
+}
+
 
 
 static int mb_handler(request_rec *r)
@@ -1783,9 +1810,11 @@ static int mb_handler(request_rec *r)
                    mirrors_same_region->nelts,
                    mirrors_elsewhere->nelts);
 
-        /* the highest metalink preference according to the spec is 100, and
+        /* metalink resource priority */
+        int prio = 0;
+        /* the highest v3 metalink preference according to the spec is 100, and
          * we'll decrement it for each mirror by one, until zero is reached */
-        int pref = 101;
+        int v3prio = 101;
 
 
         /* insert broken mirrors at the top, for failover testing? */
@@ -1825,20 +1854,17 @@ static int mb_handler(request_rec *r)
 
             /* we leave a gap for insertion of 15 such non-working URLs,
              * still keeping decrementing the preference in order */
-            pref = 85;
+            v3prio = 85;
         }
 
         ap_rprintf(r, "\n    <!-- Mirrors in the same network (%s): -->\n",
                    (strcmp(prefix, "--") == 0) ? "unknown" : prefix);
         mirrorp = (mirror_entry_t **)mirrors_same_prefix->elts;
         for (i = 0; i < mirrors_same_prefix->nelts; i++) {
-            if (pref) pref--;
             mirror = mirrorp[i];
-            ap_rprintf(r, "    <url type=\"%s\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
-                       url_scheme(r->pool, mirror->baseurl),
-                       mirror->country_code,
-                       pref,
-                       mirror->baseurl, filename);
+            prio++;
+            if (v3prio) v3prio--;
+            emit_metalink_url(r, rep, mirror->baseurl, mirror->country_code, filename, v3prio, prio);
         }
 
         ap_rprintf(r, "\n    <!-- Mirrors in the same AS (%s): -->\n",
@@ -1848,12 +1874,9 @@ static int mb_handler(request_rec *r)
             mirror = mirrorp[i];
             if (mirror->prefix_only)
                 continue;
-            if (pref) pref--;
-            ap_rprintf(r, "    <url type=\"%s\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
-                       url_scheme(r->pool, mirror->baseurl),
-                       mirror->country_code,
-                       pref,
-                       mirror->baseurl, filename);
+            prio++;
+            if (v3prio) v3prio--;
+            emit_metalink_url(r, rep, mirror->baseurl, mirror->country_code, filename, v3prio, prio);
         }
 
         /* failed geoip lookups yield country='--', which leads to invalid XML */
@@ -1864,12 +1887,9 @@ static int mb_handler(request_rec *r)
             mirror = mirrorp[i];
             if (mirror->prefix_only || mirror->as_only)
                 continue;
-            if (pref) pref--;
-            ap_rprintf(r, "    <url type=\"%s\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
-                       url_scheme(r->pool, mirror->baseurl),
-                       mirror->country_code,
-                       pref,
-                       mirror->baseurl, filename);
+            prio++;
+            if (v3prio) v3prio--;
+            emit_metalink_url(r, rep, mirror->baseurl, mirror->country_code, filename, v3prio, prio);
         }
 
         ap_rprintf(r, "\n    <!-- Mirrors in the same continent (%s): -->\n", 
@@ -1879,12 +1899,9 @@ static int mb_handler(request_rec *r)
             mirror = mirrorp[i];
             if (mirror->prefix_only || mirror->as_only || mirror->country_only)
                 continue;
-            if (pref) pref--;
-            ap_rprintf(r, "    <url type=\"%s\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
-                       url_scheme(r->pool, mirror->baseurl),
-                       mirror->country_code,
-                       pref,
-                       mirror->baseurl, filename);
+            prio++;
+            if (v3prio) v3prio--;
+            emit_metalink_url(r, rep, mirror->baseurl, mirror->country_code, filename, v3prio, prio);
         }
 
         ap_rputs("\n    <!-- Mirrors in the rest of the world: -->\n", r);
@@ -1895,12 +1912,9 @@ static int mb_handler(request_rec *r)
                     || mirror->country_only || mirror->region_only) {
                 continue;
             }
-            if (pref) pref--;
-            ap_rprintf(r, "    <url type=\"%s\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
-                       url_scheme(r->pool, mirror->baseurl),
-                       mirror->country_code,
-                       pref,
-                       mirror->baseurl, filename);
+            prio++;
+            if (v3prio) v3prio--;
+            emit_metalink_url(r, rep, mirror->baseurl, mirror->country_code, filename, v3prio, prio);
         }
 
         switch (rep) {
