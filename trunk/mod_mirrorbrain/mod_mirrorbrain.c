@@ -85,6 +85,8 @@
 #define MOD_MIRRORBRAIN_VER "2.12.0"
 #define VERSION_COMPONENT "mod_mirrorbrain/"MOD_MIRRORBRAIN_VER
 
+#define RFC3339_DATE_LEN (20)
+
 #ifdef NO_MOD_GEOIP
 #define DEFAULT_GEOIPFILE "/var/lib/GeoIP/GeoIP.dat"
 #endif
@@ -107,6 +109,19 @@
 
 
 module AP_MODULE_DECLARE_DATA mirrorbrain_module;
+
+/* (meta) representations of a requested file */
+enum { META4, METALINK, MIRRORLIST, UNKNOWN };
+static struct {
+        int     id;
+        char    *ext;
+} reps [] = {
+        { META4,         "meta4" },
+        { METALINK,      "metalink" },
+        { MIRRORLIST,    "mirrorlist" },
+        { UNKNOWN,       NULL }
+};
+
 
 #ifdef NO_MOD_GEOIP
 /* could also be put into the server config */
@@ -674,9 +689,13 @@ static int mb_handler(request_rec *r)
     char *query_asn = NULL;
     char fakefile = 0, newmirror = 0;
     char mirrorlist = 0;
-    char metalink_forced = 0;                   /* metalink was explicitely requested */
-    char metalink = 0;                          /* metalink was negotiated */ 
+    char meta4_forced = 0;                      /* IETF metalink was explicitely requested */
+    char meta4 = 0;                             /* IETF metalink was negotiated */ 
                                                 /* for negotiated metalinks, the exceptions are observed. */
+    char metalink_forced = 0;                   /* v3 metalink was explicitely requested */
+    char metalink = 0;                          /* v3 metalink was negotiated */ 
+    int rep = UNKNOWN;                          /* type of a requested representation */
+    char *rep_ext = NULL;                       /* extension string of a requested representation */
     const char* continent_code;
 #ifdef NO_MOD_GEOIP
     short int country_id;
@@ -763,8 +782,21 @@ static int mb_handler(request_rec *r)
         query_country = form_lookup(r, "country");
         query_asn = (char *) form_lookup(r, "as");
         if (form_lookup(r, "newmirror")) newmirror = 1;
-        if (form_lookup(r, "mirrorlist")) mirrorlist =1;
-        if (form_lookup(r, "metalink")) metalink_forced = 1;
+        if (form_lookup(r, "mirrorlist")) {
+            rep = MIRRORLIST;
+            rep_ext = reps[MIRRORLIST].ext;
+            mirrorlist =1;
+        }
+        if (form_lookup(r, "meta4")) {
+            rep = META4;
+            rep_ext = reps[META4].ext;
+            meta4_forced = 1;
+        };
+        if (form_lookup(r, "metalink")) {
+            rep = METALINK;
+            rep_ext = reps[METALINK].ext;
+            metalink_forced = 1;
+        };
     }
     
     if (!query_country 
@@ -780,13 +812,19 @@ static int mb_handler(request_rec *r)
         query_asn[i] = '\0';
     }
 
-    if (!metalink_forced && !mirrorlist) {
+    if (!meta4_forced && !metalink_forced && !mirrorlist) {
         const char *accepts;
         accepts = apr_table_get(r->headers_in, "Accept");
         if (accepts != NULL) {
-            if (ap_strstr_c(accepts, "metalink+xml")) {
+            if (ap_strstr_c(accepts, "metalink4+xml")) {
+                rep = META4;
+                rep_ext = reps[META4].ext;
+                meta4 = 1;
+            } else if (ap_strstr_c(accepts, "metalink+xml")) {
+                rep = METALINK;
+                rep_ext = reps[METALINK].ext;
                 metalink = 1;
-            } 
+            }
         }
     }
 
@@ -832,39 +870,69 @@ static int mb_handler(request_rec *r)
             return DECLINED;
         }   
 
-        /* check if the file exists. Strip off optional .metalink extension. */
+        /* if the file doesn't exist, maybe a representation of it is requested */
         if (r->finfo.filetype != APR_REG) {
-            debugLog(r, cfg, "File does not exist acc. to r->finfo");
+            debugLog(r, cfg, "File does not exist according to r->finfo");
+
+            if (r->filename[strlen(r->filename) - 1] == '.') {
+                debugLog(r, cfg, "invalid file extension '.'");
+                return DECLINED;
+            }
+
+            /* Try if we find a valid .metalink/.meta4/... extension. */
             char *ext;
             if ((ext = ap_strrchr(r->filename, '.')) == NULL) {
                 return DECLINED;
-            } else {
-                if (strcmp(ext, ".metalink") == 0) {
-                    debugLog(r, cfg, "Metalink requested by .metalink extension");
+            } 
+
+            for (i = 0; reps[i].ext; i++) {
+                if (strcmp(ext + 1, reps[i].ext) == 0) {
+                    rep = i;
+                    rep_ext = reps[i].ext;
+                    debugLog(r, cfg, "File ending .%s found", rep_ext);
+                    break;
+                }
+            }
+
+            switch (rep) {
+                case UNKNOWN:
+                    return DECLINED;
+
+                case META4:
+                    debugLog(r, cfg, "Metalink requested by .meta4 extension");
+                    meta4_forced = 1;
+
+                case METALINK:
+                    debugLog(r, cfg, "Metalink v3 requested by .metalink extension");
                     metalink_forced = 1;
-                    /* we modify r->filename here. */
+
+                case MIRRORLIST:
+                    debugLog(r, cfg, "Mirrorlist requested by .mirrorlist extension");
+                    mirrorlist = 1;
+
+                    /* note this actually modifies r->filename. */
                     ext[0] = '\0';
 
                     /* strip the extension from r->uri as well */
+                    debugLog(r, cfg, "r->uri: '%s'", r->uri);
                     if ((ext = ap_strrchr(r->uri, '.')) != NULL) {
-                        if (strcmp(ext, ".metalink") == 0) {
+                        if (strcmp(ext + 1, rep_ext) == 0) {
                             ext[0] = '\0';
                         }
                     } 
+                    debugLog(r, cfg, "r->uri: '%s'", r->uri);
+            }
 
-                    /* fill in finfo */
-                    if ( apr_stat(&r->finfo, r->filename, APR_FINFO_SIZE, r->pool)
-                            != APR_SUCCESS ) {
-                        return HTTP_NOT_FOUND;
-                    }
-                } else {
-                    return DECLINED;
-                }
-            } 
+
+            /* fill in finfo */
+            if ( apr_stat(&r->finfo, r->filename, APR_FINFO_SIZE, r->pool)
+                    != APR_SUCCESS ) {
+                return HTTP_NOT_FOUND;
+            }
         }
 
         /* is the requested file too small to be worth a redirect? */
-        if (!mirrorlist && !metalink_forced && (r->finfo.size < cfg->min_size)) {
+        if (!mirrorlist && !meta4_forced && !metalink_forced && (r->finfo.size < cfg->min_size)) {
             debugLog(r, cfg, "File '%s' too small (%d bytes, less than %d)", 
                     r->filename, (int) r->finfo.size, (int) cfg->min_size);
             return DECLINED;
@@ -873,6 +941,7 @@ static int mb_handler(request_rec *r)
 
     /* is this file excluded from mirroring? */
     if (!mirrorlist 
+       && !meta4_forced
        && !metalink_forced
        && cfg->exclude_filemask 
        && !ap_regexec(cfg->exclude_filemask, r->uri, 0, NULL, 0) ) {
@@ -881,7 +950,7 @@ static int mb_handler(request_rec *r)
     }
 
     /* is the request originating from an ip address excluded from redirecting? */
-    if (!mirrorlist && !metalink_forced && cfg->exclude_ips->nelts) {
+    if (!mirrorlist && !meta4_forced && !metalink_forced && cfg->exclude_ips->nelts) {
 
         for (i = 0; i < cfg->exclude_ips->nelts; i++) {
 
@@ -899,7 +968,7 @@ static int mb_handler(request_rec *r)
 
 
     /* is the request originating from a network excluded from redirecting? */
-    if (!mirrorlist && !metalink_forced && cfg->exclude_networks->nelts) {
+    if (!mirrorlist && !meta4_forced && !metalink_forced && cfg->exclude_networks->nelts) {
 
         for (i = 0; i < cfg->exclude_networks->nelts; i++) {
 
@@ -917,7 +986,7 @@ static int mb_handler(request_rec *r)
 
 
     /* is the file in the list of mimetypes to never mirror? */
-    if (!mirrorlist && !metalink_forced && (r->content_type) && (cfg->exclude_mime->nelts)) {
+    if (!mirrorlist && !meta4_forced && !metalink_forced && (r->content_type) && (cfg->exclude_mime->nelts)) {
 
         for (i = 0; i < cfg->exclude_mime->nelts; i++) {
 
@@ -934,7 +1003,7 @@ static int mb_handler(request_rec *r)
 
     /* is this User-Agent excluded from redirecting? */
     user_agent = (const char *) apr_table_get(r->headers_in, "User-Agent");
-    if (!mirrorlist && !metalink_forced && (user_agent) && (cfg->exclude_agents->nelts)) {
+    if (!mirrorlist && !meta4_forced && !metalink_forced && (user_agent) && (cfg->exclude_agents->nelts)) {
 
         for (i = 0; i < cfg->exclude_agents->nelts; i++) {
 
@@ -1474,7 +1543,7 @@ static int mb_handler(request_rec *r)
     *
     * => best to sort the mirrors_same_country et al. individually, right?
     */
-    if (metalink || metalink_forced || mirrorlist) {
+    if (meta4 || meta4_forced || metalink || metalink_forced || mirrorlist) {
         qsort(mirrors_same_prefix->elts, mirrors_same_prefix->nelts, 
               mirrors_same_prefix->elt_size, cmp_mirror_rank);
         qsort(mirrors_same_as->elts, mirrors_same_as->nelts, 
@@ -1545,7 +1614,11 @@ static int mb_handler(request_rec *r)
 
 
     /* return a metalink instead of doing a redirect? */
-    if (metalink || metalink_forced) {
+    switch (rep) {
+
+    case META4:
+    case METALINK:
+
         debugLog(r, cfg, "Sending metalink");
 
         /* tell caches that this is negotiated response and that not every client will take it */
@@ -1566,44 +1639,77 @@ static int mb_handler(request_rec *r)
                        "Content-Disposition",
                        apr_pstrcat(r->pool,
                                    "attachment; filename=\"",
-                                   basename, ".metalink\"", NULL));
+                                   basename, ".", rep_ext, "\"", NULL));
 
-        /* the current time in rfc 822 format */
-        char *time_str = apr_palloc(r->pool, APR_RFC822_DATE_LEN);
-        apr_rfc822_date(time_str, apr_time_now());
+        char *time_str = NULL;
 
-        ap_set_content_type(r, "application/metalink+xml; charset=UTF-8");
-        ap_rputs(     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-                      "<metalink version=\"3.0\" xmlns=\"http://www.metalinker.org/\"\n", r);
+        switch (rep) {
+        case META4:
+            ap_set_content_type(r, "application/metalink4+xml; charset=UTF-8");
+            ap_rputs(     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                          "<metalink version=\"3.0\" xmlns=\"http://www.metalinker.org/\"\n", r);
 
+            /* put the current time into rfc 3339 date format */ 
+            time_str = apr_palloc(r->pool, RFC3339_DATE_LEN);
+            apr_time_exp_t tm; 
+            /* r->request_time should be filled out already, and save us the syscall to time() 
+             * through apr_time_now() */
+            apr_time_exp_gmt(&tm, r->request_time);
+            apr_strftime(time_str, &len, RFC3339_DATE_LEN, "%Y-%m-%dT%H:%M:%SZ", &tm); 
 
-        /* The origin URL is meant to specify the location for revalidation of this metalink
-         *
-         * Unfortunately, r->parsed_uri.scheme and r->parsed_uri.hostname don't
-         * seem to be filled out (why?). But we can put it together from
-         * r->hostname and r->uri. Actually we should add the port.
-         *
-         * We could use r->server->server_hostname instead, which would be the configured server name.
-         *
-         * We use r->uri, not r->unparsed_uri, so we don't need to escape query strings for xml.
-         */
-        ap_rprintf(r, "  origin=\"http://%s%s.metalink\"\n", r->hostname, r->uri);
-        ap_rputs(     "  generator=\"MirrorBrain "MOD_MIRRORBRAIN_VER" (see http://mirrorbrain.org/)\"\n", r);
-        ap_rputs(     "  type=\"dynamic\"", r);
-        ap_rprintf(r, "  pubdate=\"%s\"", time_str);
-        ap_rprintf(r, "  refreshdate=\"%s\">\n\n", time_str);
+            ap_rputs(     "  <generator>MirrorBrain/"MOD_MIRRORBRAIN_VER"</generator>\n", r);
+            /* The origin URL is meant to specify the location for revalidation of this metalink
+             *
+             * Unfortunately, r->parsed_uri.scheme and r->parsed_uri.hostname don't
+             * seem to be filled out (why?). But we can put it together from
+             * r->hostname and r->uri. Actually we should add the port.
+             *
+             * We could use r->server->server_hostname instead, which would be the configured server name.
+             *
+             * We use r->uri, not r->unparsed_uri, so we don't need to escape query strings for xml.
+             */
+            ap_rprintf(r, "  <origin dynamic=\"true\">http://%s%s.%s</origin>\n", r->hostname, r->uri, rep_ext);
+            ap_rprintf(r, "  <published>%s</published>\n", time_str);
 
-        if (scfg->metalink_publisher_name && scfg->metalink_publisher_url) {
-            ap_rputs(     "  <publisher>\n", r);
-            ap_rprintf(r, "    <name>%s</name>\n", scfg->metalink_publisher_name);
-            ap_rprintf(r, "    <url>%s</url>\n", scfg->metalink_publisher_url);
-            ap_rputs(     "  </publisher>\n\n", r);
+            if (scfg->metalink_publisher_name && scfg->metalink_publisher_url) {
+                ap_rputs(     "  <publisher>\n", r);
+                ap_rprintf(r, "    <name>%s</name>\n", scfg->metalink_publisher_name);
+                ap_rprintf(r, "    <url>%s</url>\n", scfg->metalink_publisher_url);
+                ap_rputs(     "  </publisher>\n\n", r);
+            }
+
+            break;
+
+        case METALINK:
+            ap_set_content_type(r, "application/metalink+xml; charset=UTF-8");
+            ap_rputs(     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                          "<metalink xmlns=\"urn:ietf:params:xml:ns:metalink\">\n", r);
+
+            /* the current time in rfc 822 format */
+            time_str = apr_palloc(r->pool, APR_RFC822_DATE_LEN);
+            apr_rfc822_date(time_str, apr_time_now());
+
+            ap_rprintf(r, "  origin=\"http://%s%s.%s\"\n", r->hostname, r->uri, rep_ext);
+            ap_rputs(     "  generator=\"MirrorBrain "MOD_MIRRORBRAIN_VER" (see http://mirrorbrain.org/)\"\n", r);
+            ap_rputs(     "  type=\"dynamic\"", r);
+            ap_rprintf(r, "  pubdate=\"%s\"", time_str);
+            ap_rprintf(r, "  refreshdate=\"%s\">\n\n", time_str);
+
+            if (scfg->metalink_publisher_name && scfg->metalink_publisher_url) {
+                ap_rputs(     "  <publisher>\n", r);
+                ap_rprintf(r, "    <name>%s</name>\n", scfg->metalink_publisher_name);
+                ap_rprintf(r, "    <url>%s</url>\n", scfg->metalink_publisher_url);
+                ap_rputs(     "  </publisher>\n\n", r);
+            }
+
+            ap_rputs(     "  <files>\n", r);
+
+            break;
         }
 
-        ap_rputs(     "  <files>\n", r);
+
         ap_rprintf(r, "    <file name=\"%s\">\n", basename);
         ap_rprintf(r, "      <size>%s</size>\n\n", apr_off_t_toa(r->pool, r->finfo.size));
-
 
         /* inject hashes, if they are prepared on-disk */
         apr_finfo_t sb;
@@ -1776,10 +1882,11 @@ static int mb_handler(request_rec *r)
                       "  </files>\n"
                       "</metalink>\n", r);
         return OK;
-    } /* end metafile */
+
 
     /* send an HTML list instead of doing a redirect? */
-    if (mirrorlist) {
+    case MIRRORLIST:
+
         debugLog(r, cfg, "Sending mirrorlist");
 
         ap_set_content_type(r, "text/html; charset=ISO-8859-1");
@@ -1910,7 +2017,7 @@ static int mb_handler(request_rec *r)
         ap_rputs("</body>\n", r);
         ap_rputs("</html>\n", r);
         return OK;
-    } /* end mirrorlist */
+    } /* end switch representation */
 
 
     const char *found_in;
