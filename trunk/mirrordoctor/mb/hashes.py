@@ -72,7 +72,7 @@ class Hasheable:
             return 
 
         if dry_run: 
-            print 'Would make hashes for: ', self.src
+            print 'Would make hash file', self.dst
             return
 
         if self.hb.empty:
@@ -107,17 +107,26 @@ class Hasheable:
         c.execute("SELECT id FROM filearr WHERE path = %s LIMIT 1",
                   [self.src_rel])
         res = c.fetchone()
-        if not res:
-            print 'file %r not found (no mirror has it?)' % self.src_rel
-            ### XXX we'd need to insert it, if we want to support hashes for files that are not on any mirror...
-            return
-        file_id = res[0]
+        if res:
+            file_id = res[0]
+        else:
+            print 'File %r not found. Not on mirrors yet? Inserting.' % self.src_rel
+            c.execute("INSERT INTO filearr (path, mirrors) VALUES (%s, '{}')",
+                      [self.src_rel])
+            c.execute("SELECT currval('filearr_id_seq')")
+            file_id =  c.fetchone()[0]
+            c.execute("commit")
+            
 
         c.execute("SELECT file_id, mtime, size FROM hash WHERE file_id = %s LIMIT 1",
                   [file_id])
         res = c.fetchone()
 
         if not res:
+
+            if dry_run: 
+                print 'Would create hashes in db for: ', self.src_rel
+                return
 
             if self.hb.empty:
                 self.hb.fill(verbose=verbose)
@@ -136,7 +145,8 @@ class Hasheable:
                        PIECESIZE,
                        ''.join(self.hb.pieceshex),
                        self.hb.pgp or ''])
-            print 'hash was not present yet in database - inserted'
+            if verbose:
+                print 'Hash was not present yet in database - inserted'
         else:
             mtime, size = res[1], res[2]
             if int(self.mtime) == mtime and self.size == size and not force:
