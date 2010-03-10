@@ -170,8 +170,48 @@ class Conn:
                     idName = 'file_id'
             self.Hash = Hash
         except psycopg2.ProgrammingError:
-            # this is raised if the table hasn't been installed yet
-            pass
+            # This is what's raised if the table hasn't been installed yet
+            # Which is the case when coming from a 2.12.0 or earlier install
+            # XXX This feels like being totally the wrong place for a database migration.
+            #     maybe a separate module with upgrade procedures to be run would be better.
+            #     The main point is that this is a migration that we want to happen fully automatically.
+            print >>sys.stderr
+            print >>sys.stderr, '>>> A database table for hashes does not exit. Creating...'
+            query = """
+            CREATE TABLE "hash" (
+                    "file_id" INTEGER REFERENCES filearr PRIMARY KEY,
+                    "mtime" INTEGER NOT NULL,
+                    "size"  INTEGER NOT NULL,
+                    "md5"    BYTEA NOT NULL,
+                    "sha1"   BYTEA NOT NULL,
+                    "sha256" BYTEA NOT NULL,
+                    "sha1piecesize" INTEGER NOT NULL,
+                    "sha1pieces" BYTEA,
+                    "pgp" TEXT NOT NULL
+            );
+            """
+            Filearr._connection.query(query)
+            query = """
+            CREATE VIEW hexhash AS
+              SELECT file_id, mtime, size,
+                     encode(md5, 'hex') AS md5,
+                     encode(sha1, 'hex') AS sha1,
+                     encode(sha256, 'hex') AS sha256,
+                     sha1piecesize,
+                     encode(sha1pieces, 'hex') AS sha1pieces,
+                     pgp
+              FROM hash;
+            """
+            Filearr._connection.query(query)
+            print >>sys.stderr, '>>> Done.'
+            print >>sys.stderr 
+            # now try again
+            class Hash(SQLObject):
+                """the hashes table"""
+                class sqlmeta:
+                    fromDatabase = True
+                    idName = 'file_id'
+            self.Hash = Hash
 
         if debug:
             self.Server._connection.debug = True
