@@ -25,7 +25,7 @@ CREATE TABLE "filearr" (
 CREATE TABLE "hash" (
         "id" INTEGER REFERENCES filearr PRIMARY KEY,
         "mtime" INTEGER NOT NULL,
-        "size"  INTEGER NOT NULL,
+        "size" BIGINT NOT NULL,
         "md5"    BYTEA NOT NULL,
         "sha1"   BYTEA NOT NULL,
         "sha256" BYTEA NOT NULL,
