@@ -85,7 +85,7 @@
 #define MOD_MIRRORBRAIN_VER "2.13.0"
 #define VERSION_COMPONENT "mod_mirrorbrain/"MOD_MIRRORBRAIN_VER
 
-#define RFC3339_DATE_LEN (20)
+#define RFC3339_DATE_LEN (21)
 
 #ifdef NO_MOD_GEOIP
 #define DEFAULT_GEOIPFILE "/var/lib/GeoIP/GeoIP.dat"
@@ -1641,6 +1641,7 @@ static int mb_handler(request_rec *r)
                                    "attachment; filename=\"",
                                    basename, ".", rep_ext, "\"", NULL));
 
+
         char *time_str = NULL;
 
         switch (rep) {
@@ -1649,7 +1650,7 @@ static int mb_handler(request_rec *r)
             ap_rputs(     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
                           "<metalink xmlns=\"urn:ietf:params:xml:ns:metalink\">\n", r);
 
-            /* put the current time into rfc 3339 date format */ 
+            /* current time */ 
             time_str = apr_palloc(r->pool, RFC3339_DATE_LEN);
             apr_time_exp_t tm; 
             /* r->request_time should be filled out already, and save us the syscall to time() 
@@ -1677,7 +1678,6 @@ static int mb_handler(request_rec *r)
                 ap_rprintf(r, "    <url>%s</url>\n", scfg->metalink_publisher_url);
                 ap_rputs(     "  </publisher>\n\n", r);
             }
-
             break;
 
         case METALINK:
@@ -1685,7 +1685,7 @@ static int mb_handler(request_rec *r)
             ap_rputs(     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
                           "<metalink version=\"3.0\" xmlns=\"http://www.metalinker.org/\"\n", r);
 
-            /* the current time in rfc 822 format */
+            /* current time */
             time_str = apr_palloc(r->pool, APR_RFC822_DATE_LEN);
             apr_rfc822_date(time_str, apr_time_now());
 
@@ -1703,59 +1703,78 @@ static int mb_handler(request_rec *r)
             }
 
             ap_rputs(     "  <files>\n", r);
-
             break;
         }
 
 
-        ap_rprintf(r, "    <file name=\"%s\">\n", basename);
-        ap_rprintf(r, "      <size>%s</size>\n\n", apr_off_t_toa(r->pool, r->finfo.size));
+        ap_rprintf(r, "  <file name=\"%s\">\n", basename);
+        ap_rprintf(r, "    <size>%s</size>\n\n", apr_off_t_toa(r->pool, r->finfo.size));
+        ap_rprintf(r, "    <!-- <mtime>%lld</mtime> -->\n\n", r->finfo.mtime / 1000000);
 
-        /* inject hashes, if they are prepared on-disk */
-        apr_finfo_t sb;
-        const char *hashfilename;     /* the even newer hash filename contains the size of the file */
-        hashfilename = apr_psprintf(r->pool, "%s%s.size_%s", 
-                                   scfg->metalink_hashes_prefix ? scfg->metalink_hashes_prefix : "", 
-                                   r->filename, 
-                                   apr_off_t_toa(r->pool, r->finfo.size));
 
-        if (apr_stat(&sb, hashfilename, APR_FINFO_MIN, r->pool) == APR_SUCCESS && (sb.filetype == APR_REG)) {
-            debugLog(r, cfg, "hashfile '%s' exists", hashfilename);
 
-            if (sb.mtime == r->finfo.mtime) {
-                debugLog(r, cfg, "hashfile '%s' up to date, injecting", hashfilename);
+        /* pull hashes from the database here - but in a separate function that can be used from elsewhere as well */
+        /* the function should return a structure with either all hashes filled
+         * out, or alternatively only one that was requested */
 
-                apr_file_t *fh;
-                rv = apr_file_open(&fh, hashfilename, APR_READ, APR_OS_DEFAULT, r->pool);
-                if (rv == APR_SUCCESS) {
-                    ap_send_fd(fh, r, 0, sb.size, &len);
-                    apr_file_close(fh);
+
+
+        if (rep == METALINK) {
+            /* if the above failed, and we are creating a v3 metalink, let's try the old on-disk format */
+            apr_finfo_t sb;
+            const char *hashfilename;
+            hashfilename = apr_psprintf(r->pool, "%s%s.size_%s", 
+                                       scfg->metalink_hashes_prefix ? scfg->metalink_hashes_prefix : "", 
+                                       r->filename, 
+                                       apr_off_t_toa(r->pool, r->finfo.size));
+
+            if (apr_stat(&sb, hashfilename, APR_FINFO_MIN, r->pool) == APR_SUCCESS && (sb.filetype == APR_REG)) {
+                debugLog(r, cfg, "hashfile '%s' exists", hashfilename);
+
+                /* the old on-disk format is injected as-is */
+                if (sb.mtime == r->finfo.mtime) {
+                    debugLog(r, cfg, "hashfile '%s' up to date, injecting", hashfilename);
+
+                    apr_file_t *fh;
+                    rv = apr_file_open(&fh, hashfilename, APR_READ, APR_OS_DEFAULT, r->pool);
+                    if (rv == APR_SUCCESS) {
+                        ap_send_fd(fh, r, 0, sb.size, &len);
+                        apr_file_close(fh);
+                    } else {
+                        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+                                      "[mod_mirrorbrain] could not open hashfile '%s'.", hashfilename);
+                    }
                 } else {
-                    ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-                                  "[mod_mirrorbrain] could not open hashfile '%s'.", hashfilename);
+                    debugLog(r, cfg, "hashfile '%s' outdated, ignoring", hashfilename);
                 }
+
             } else {
-                debugLog(r, cfg, "hashfile '%s' outdated, ignoring", hashfilename);
-            }
+                debugLog(r, cfg, "no hash file found (%s)", hashfilename);
+            } 
+            break;
+        }
 
-        } else {
-            debugLog(r, cfg, "no hash file found (%s)", hashfilename);
-        } 
 
-        ap_rputs(     "      <resources>\n\n", r);
+
+
+        if (rep == METALINK) {
+            ap_rputs(     "    <resources>\n\n", r);
+        }
+
+        apr_finfo_t sb;
 
         if (cfg->metalink_torrentadd_mask
             && !ap_regexec(cfg->metalink_torrentadd_mask, r->filename, 0, NULL, 0)
             && apr_stat(&sb, apr_pstrcat(r->pool, r->filename, ".torrent", NULL), APR_FINFO_MIN, r->pool) == APR_SUCCESS) {
             debugLog(r, cfg, "found torrent file");
-            ap_rprintf(r, "      <url type=\"bittorrent\" preference=\"%d\">http://%s%s.torrent</url>\n\n", 
+            ap_rprintf(r, "    <url type=\"bittorrent\" preference=\"%d\">http://%s%s.torrent</url>\n\n", 
                        100,
                        r->hostname, 
                        r->uri);
         }
 
-        ap_rprintf(r, "      <!-- Found %d mirror%s: %d in the same network prefix, %d in the same "
-                   "autonomous system,\n           %d handling this country, %d in the same "
+        ap_rprintf(r, "    <!-- Found %d mirror%s: %d in the same network prefix, %d in the same "
+                   "autonomous system,\n         %d handling this country, %d in the same "
                    "region, %d elsewhere -->\n", 
                    mirror_cnt,
                    (mirror_cnt == 1) ? "" : "s",
@@ -1790,10 +1809,18 @@ static int mb_handler(request_rec *r)
 
             if (strcmp(ptr, "only") == 0) {
                 /* finish here */
-                ap_rputs(     "      </resources>\n"
-                              "    </file>\n"
-                              "  </files>\n"
-                              "</metalink>\n", r);
+                switch (rep) {
+                case META4:
+                    ap_rputs(     "  </file>\n"
+                                  "</metalink>\n", r);
+                    break;
+                case METALINK:
+                    ap_rputs(     "    </resources>\n"
+                                  "    </file>\n"
+                                  "  </files>\n"
+                                  "</metalink>\n", r);
+                    break;
+                }
                 return OK;
             }
 
@@ -1802,20 +1829,20 @@ static int mb_handler(request_rec *r)
             pref = 85;
         }
 
-        ap_rprintf(r, "\n      <!-- Mirrors in the same network (%s): -->\n",
+        ap_rprintf(r, "\n    <!-- Mirrors in the same network (%s): -->\n",
                    (strcmp(prefix, "--") == 0) ? "unknown" : prefix);
         mirrorp = (mirror_entry_t **)mirrors_same_prefix->elts;
         for (i = 0; i < mirrors_same_prefix->nelts; i++) {
             if (pref) pref--;
             mirror = mirrorp[i];
-            ap_rprintf(r, "      <url type=\"%s\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
+            ap_rprintf(r, "    <url type=\"%s\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
                        url_scheme(r->pool, mirror->baseurl),
                        mirror->country_code,
                        pref,
                        mirror->baseurl, filename);
         }
 
-        ap_rprintf(r, "\n      <!-- Mirrors in the same AS (%s): -->\n",
+        ap_rprintf(r, "\n    <!-- Mirrors in the same AS (%s): -->\n",
                    (strcmp(as, "--") == 0) ? "unknown" : as);
         mirrorp = (mirror_entry_t **)mirrors_same_as->elts;
         for (i = 0; i < mirrors_same_as->nelts; i++) {
@@ -1823,7 +1850,7 @@ static int mb_handler(request_rec *r)
             if (mirror->prefix_only)
                 continue;
             if (pref) pref--;
-            ap_rprintf(r, "      <url type=\"%s\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
+            ap_rprintf(r, "    <url type=\"%s\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
                        url_scheme(r->pool, mirror->baseurl),
                        mirror->country_code,
                        pref,
@@ -1831,7 +1858,7 @@ static int mb_handler(request_rec *r)
         }
 
         /* failed geoip lookups yield country='--', which leads to invalid XML */
-        ap_rprintf(r, "\n      <!-- Mirrors which handle this country (%s): -->\n", 
+        ap_rprintf(r, "\n    <!-- Mirrors which handle this country (%s): -->\n", 
                    (strcmp(country_code, "--") == 0) ? "unknown" : country_code);
         mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
         for (i = 0; i < mirrors_same_country->nelts; i++) {
@@ -1839,14 +1866,14 @@ static int mb_handler(request_rec *r)
             if (mirror->prefix_only || mirror->as_only)
                 continue;
             if (pref) pref--;
-            ap_rprintf(r, "      <url type=\"%s\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
+            ap_rprintf(r, "    <url type=\"%s\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
                        url_scheme(r->pool, mirror->baseurl),
                        mirror->country_code,
                        pref,
                        mirror->baseurl, filename);
         }
 
-        ap_rprintf(r, "\n      <!-- Mirrors in the same continent (%s): -->\n", 
+        ap_rprintf(r, "\n    <!-- Mirrors in the same continent (%s): -->\n", 
                    (strcmp(continent_code, "--") == 0) ? "unknown" : continent_code);
         mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
         for (i = 0; i < mirrors_same_region->nelts; i++) {
@@ -1854,14 +1881,14 @@ static int mb_handler(request_rec *r)
             if (mirror->prefix_only || mirror->as_only || mirror->country_only)
                 continue;
             if (pref) pref--;
-            ap_rprintf(r, "      <url type=\"%s\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
+            ap_rprintf(r, "    <url type=\"%s\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
                        url_scheme(r->pool, mirror->baseurl),
                        mirror->country_code,
                        pref,
                        mirror->baseurl, filename);
         }
 
-        ap_rputs("\n      <!-- Mirrors in the rest of the world: -->\n", r);
+        ap_rputs("\n    <!-- Mirrors in the rest of the world: -->\n", r);
         mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
         for (i = 0; i < mirrors_elsewhere->nelts; i++) {
             mirror = mirrorp[i];
@@ -1870,17 +1897,26 @@ static int mb_handler(request_rec *r)
                 continue;
             }
             if (pref) pref--;
-            ap_rprintf(r, "      <url type=\"%s\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
+            ap_rprintf(r, "    <url type=\"%s\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
                        url_scheme(r->pool, mirror->baseurl),
                        mirror->country_code,
                        pref,
                        mirror->baseurl, filename);
         }
 
-        ap_rputs(     "      </resources>\n"
-                      "    </file>\n"
-                      "  </files>\n"
-                      "</metalink>\n", r);
+        switch (rep) {
+        case META4:
+            ap_rputs(     "  </file>\n"
+                          "</metalink>\n", r);
+            break;
+        case METALINK:
+            ap_rputs(     "    </resources>\n"
+                          "    </file>\n"
+                          "  </files>\n"
+                          "</metalink>\n", r);
+            break;
+        }
+
         return OK;
 
 
