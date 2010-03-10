@@ -1647,7 +1647,7 @@ static int mb_handler(request_rec *r)
         case META4:
             ap_set_content_type(r, "application/metalink4+xml; charset=UTF-8");
             ap_rputs(     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-                          "<metalink version=\"3.0\" xmlns=\"http://www.metalinker.org/\"\n", r);
+                          "<metalink xmlns=\"urn:ietf:params:xml:ns:metalink\">\n", r);
 
             /* put the current time into rfc 3339 date format */ 
             time_str = apr_palloc(r->pool, RFC3339_DATE_LEN);
@@ -1683,7 +1683,7 @@ static int mb_handler(request_rec *r)
         case METALINK:
             ap_set_content_type(r, "application/metalink+xml; charset=UTF-8");
             ap_rputs(     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-                          "<metalink xmlns=\"urn:ietf:params:xml:ns:metalink\">\n", r);
+                          "<metalink version=\"3.0\" xmlns=\"http://www.metalinker.org/\"\n", r);
 
             /* the current time in rfc 822 format */
             time_str = apr_palloc(r->pool, APR_RFC822_DATE_LEN);
