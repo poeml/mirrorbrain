@@ -1751,7 +1751,6 @@ static int mb_handler(request_rec *r)
             } else {
                 debugLog(r, cfg, "no hash file found (%s)", hashfilename);
             } 
-            break;
         }
 
 
