@@ -13,9 +13,10 @@ try:
 except ImportError:
     import md5
     md5 = md5
-    import sha1
-    sha1 = sha1
-    # I guess that Python 2.4 didn't have a sha256 counterpart
+    import sha
+    sha1 = sha
+    sha1.sha1 = sha1.sha
+    # I think Python 2.4 didn't have a sha256 counterpart
     sha256 = None
 
 PIECESIZE = 262144
@@ -211,7 +212,8 @@ class HashBag():
 
         m = md5.md5()
         s1 = sha1.sha1()
-        s256 = sha256.sha256()
+        if sha256:
+            s256 = sha256.sha256()
         short_read_before = False
 
         f = open(self.src, 'rb')
@@ -228,20 +230,22 @@ class HashBag():
 
             m.update(buf)
             s1.update(buf)
-            s256.update(buf)
+            if sha256:
+                s256.update(buf)
 
             self.npieces += 1
-            self.pieces.append(hashlib.sha1(buf).digest())
-            self.pieceshex.append(hashlib.sha1(buf).hexdigest())
+            self.pieces.append(sha1.sha1(buf).digest())
+            self.pieceshex.append(sha1.sha1(buf).hexdigest())
 
         f.close()
 
         self.md5 = m.digest()
-        self.sha1 = s1.digest()
-        self.sha256 = s256.digest()
         self.md5hex = m.hexdigest()
+        self.sha1 = s1.digest()
         self.sha1hex = s1.hexdigest()
-        self.sha256hex = s256.hexdigest()
+        if sha256:
+            self.sha256 = s256.digest()
+            self.sha256hex = s256.hexdigest()
 
         # if present, grab PGP signature
         if os.path.exists(self.src + '.asc'):
