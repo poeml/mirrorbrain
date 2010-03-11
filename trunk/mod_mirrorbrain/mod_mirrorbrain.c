@@ -1902,7 +1902,7 @@ static int mb_handler(request_rec *r)
                     ap_rputs("      <verification>\n", r);
 
                     if (hashbag->pgp) {
-                        ap_rputs("    <signature mediatype=\"application/pgp-signature\">\n", r);
+                        ap_rprintf(r, "    <signature type=\"pgp\" file=\"%s\">\n", basename);
                         ap_rputs(hashbag->pgp, r);
                         ap_rputs("    </signature>\n", r);
                     }
