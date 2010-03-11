@@ -85,6 +85,8 @@
 /* no space for time zones */
 #define RFC3339_DATE_LEN (21)
 
+#define SHA1_HEX_LENGTH 40
+
 #ifdef WITH_MEMCACHE
 #define DEFAULT_MEMCACHED_LIFETIME 600
 #endif
@@ -101,13 +103,21 @@
                            "FROM filearr " \
                            "WHERE path = %s)::smallint[]) " \
                       "AND enabled AND status_baseurl AND score > 0"
-#define DEFAULT_QUERY_HASH "SELECT file_id, size, mtime, md5, sha1, sha256, " \
-                                  "sha1piecesize, substring(sha1pieces from 0 for 30), pgp " \
+#define DEFAULT_QUERY_HASH "SELECT file_id, md5, sha1, sha256, " \
+                                  "sha1piecesize, sha1pieces, pgp " \
                            "FROM hexhash " \
                            "WHERE file_id = (SELECT id " \
                                             "FROM filearr " \
-                                            "WHERE path = %s " \
-                                            "AND size = %lld AND mtime = %lld)"
+                                            "WHERE path = %s) " \
+                           "AND size = %lld " \
+                           "AND mtime = %lld " \
+                           "LIMIT 1"
+
+#if (APR_MAJOR_VERSION == 1 && APR_MINOR_VERSION == 2)
+#define DBD_FIRST_ROW 0
+#else
+#define DBD_FIRST_ROW 1
+#endif
 
 
 module AP_MODULE_DECLARE_DATA mirrorbrain_module;
@@ -125,7 +135,7 @@ static struct {
 };
 
 
-/** A structure that represents a mirror */
+/* A structure that represents a mirror */
 typedef struct mirror_entry mirror_entry_t;
 
 /* a mirror */
@@ -145,6 +155,18 @@ struct mirror_entry {
     int file_maxsize;
     char *other_countries;    /* comma-separated 2-letter strings */
     int rank;
+};
+
+/* verification hashes of a file */
+typedef struct hashbag hashbag_t;
+struct hashbag {
+    int id;
+    const char *md5;
+    const char *sha1;
+    const char *sha256;
+    int sha1piecesize;
+    apr_array_header_t *sha1pieces;
+    const char *pgp;
 };
 
 /* per-dir configuration */
@@ -681,6 +703,151 @@ static void emit_metalink_url(request_rec *r, int rep,
     }
 }
 
+static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
+{
+    mb_server_conf *scfg = NULL;
+    scfg = (mb_server_conf *) ap_get_module_config(r->server->module_config, 
+                                                   &mirrorbrain_module);
+
+    if (scfg->query_hash == NULL) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+                "[mod_mirrorbrain] No MirrorBrainDBDQueryHash configured!");
+        return NULL;
+    }
+    if (scfg->query_hash_label == NULL) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] No database hash query prepared!");
+        return NULL;
+    }
+    if (dbd == NULL) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+                "[mod_mirrorbrain] Don't have a database connection");
+        return NULL;
+    }
+
+    apr_dbd_prepared_t *stmt;
+    stmt = apr_hash_get(dbd->prepared, scfg->query_hash_label, APR_HASH_KEY_STRING);
+    if (stmt == NULL) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+                      "[mod_mirrorbrain] Could not get prepared statement labelled '%s'",
+                      scfg->query_hash_label);
+
+        return NULL;
+    }
+
+
+    hashbag_t *h = apr_pcalloc(r->pool, sizeof(hashbag_t));
+    h->id = 0;
+    h->md5 = NULL;
+    h->sha1 = NULL;
+    h->sha256 = NULL;
+    h->sha1piecesize = 0;
+    h->sha1pieces = NULL;
+    h->pgp = NULL;
+
+
+    apr_status_t rv;
+    apr_dbd_results_t *res = NULL;
+    apr_dbd_row_t *row = NULL;
+
+    if (apr_dbd_pvselect(dbd->driver, r->pool, dbd->handle, &res, stmt, 0,
+                filename, 
+                apr_off_t_toa(r->pool, r->finfo.size), 
+                apr_itoa(r->pool, r->finfo.mtime / 1000000), /* APR finfo times are in microseconds */
+                NULL) != 0) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+                "[mod_mirrorbrain] Error looking up %s in database", filename);
+        return NULL;
+    }
+
+    /* we care only about the 1st row, because our query uses 'limit 1' */
+    rv = apr_dbd_get_row(dbd->driver, r->pool, res, &row, DBD_FIRST_ROW);
+    if (rv != 0) {
+        ap_log_rerror(APLOG_MARK, APLOG_WARNING, rv, r,
+                      "[mod_mirrorbrain] Error retrieving row from database for %s "
+                      "(size: %s, mtime %s)",
+                      filename,
+                      apr_off_t_toa(r->pool, r->finfo.size),
+                      apr_itoa(r->pool, r->finfo.mtime / 1000000));
+        return NULL;
+    }
+
+    const char *val = NULL;
+    short col = 0; /* column that we are reading out */
+
+    if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL) 
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] dbd: got NULL for file_id");
+    else
+        h->id = atoi(val);
+
+    if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] dbd: got NULL for md5");
+    } else {
+        if (val[0])
+            h->md5 = apr_pstrdup(r->pool, val);
+    }
+
+    if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] dbd: got NULL for sha1");
+    } else {
+        if (val[0])
+            h->sha1 = apr_pstrdup(r->pool, val);
+    }
+
+    if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] dbd: got NULL for sha256");
+    } else {
+        if (val[0])
+            h->sha256 = apr_pstrdup(r->pool, val);
+    }
+
+    if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL) 
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] dbd: got NULL for sha1piecesize");
+    else
+        h->sha1piecesize = atoi(val);
+
+    if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] dbd: got NULL for sha1pieces");
+    } else {
+        if (val[0] && (h->sha1piecesize > 0)) {
+
+            /* split the string into an array of the actual pieces */
+
+            apr_off_t n = r->finfo.size / h->sha1piecesize;
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] dbd: %lld sha1 pieces", n);
+
+            h->sha1pieces = apr_array_make(r->pool, n, sizeof(const char *));
+            int max = strlen(val);
+            int i;
+            for (i = 0; (i <= n); i++) {
+                if (((i + 1) * SHA1_HEX_LENGTH) > max)
+                        break;
+                APR_ARRAY_PUSH(h->sha1pieces, char *) = apr_pstrndup(r->pool, 
+                                                                     val + i * SHA1_HEX_LENGTH, 
+                                                                     SHA1_HEX_LENGTH);
+            }
+        }
+    }
+
+    if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] dbd: got NULL for pgp");
+    } else {
+        if (val[0])
+            h->pgp = apr_pstrdup(r->pool, val);
+    }
+        
+    /* clear the cursor by accessing invalid row */
+    rv = apr_dbd_get_row(dbd->driver, r->pool, res, &row, DBD_FIRST_ROW + 1);
+    if (rv != -1) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r,
+                      "[mod_mirrorbrain] found one row too much looking up hashes for %s",
+                      filename);
+        return NULL;
+    }
+
+    return h;
+
+
+}
 
 
 static int mb_handler(request_rec *r)
@@ -689,6 +856,7 @@ static int mb_handler(request_rec *r)
     mb_server_conf *scfg = NULL;
     char *uri = NULL;
     char *filename = NULL;
+    char *realfile = NULL;
     const char *user_agent = NULL;
     const char *clientip = NULL;
     const char *query_country = NULL;
@@ -713,6 +881,7 @@ static int mb_handler(request_rec *r)
     mirror_entry_t *mirror;
     mirror_entry_t **mirrorp;
     mirror_entry_t *chosen = NULL;
+    hashbag_t *hashbag = NULL;
     apr_status_t rv;
     apr_dbd_prepared_t *statement;
     apr_dbd_results_t *res = NULL;
@@ -912,7 +1081,7 @@ static int mb_handler(request_rec *r)
 
 
             /* fill in finfo */
-            if ( apr_stat(&r->finfo, r->filename, APR_FINFO_SIZE, r->pool)
+            if ( apr_stat(&r->finfo, r->filename, APR_FINFO_SIZE | APR_FINFO_MTIME, r->pool)
                     != APR_SUCCESS ) {
                 return HTTP_NOT_FOUND;
             }
@@ -1138,9 +1307,11 @@ static int mb_handler(request_rec *r)
         return HTTP_INTERNAL_SERVER_ERROR;
     }
     /* XXX we should forbid symlinks in mirror_base */
-    filename = apr_pstrdup(r->pool, ptr + strlen(cfg->mirror_base));
+    realfile = apr_pstrdup(r->pool, ptr);
+    filename = realfile + strlen(cfg->mirror_base);
     free(ptr);
-    debugLog(r, cfg, "SQL lookup for (canonicalized) '%s'", filename);
+    debugLog(r, cfg, "Canonicalized file on disk: %s", realfile);
+    debugLog(r, cfg, "SQL file to look up: %s", filename);
 
     if (apr_dbd_pvselect(dbd->driver, r->pool, dbd->handle, &res, statement, 
                 1, /* we don't need random access actually, but 
@@ -1218,6 +1389,8 @@ static int mb_handler(request_rec *r)
 
     /* store the results which the database yielded, taking into account which
      * mirrors are in the same country, same reagion, or elsewhere */
+    /* we copy all values to pool memory, because not all database drivers
+     * behave the same (see http://marc.info/?l=apr-dev&m=122982975912314&w=2 ) */
     i = 1;
     while (i <= mirror_cnt) { 
         char unusable = 0; /* if crucial data is missing... */
@@ -1587,6 +1760,13 @@ static int mb_handler(request_rec *r)
     }
 
 
+    /* any hashes to find in the database? */
+    hashbag = hashbag_fill(r, dbd, filename);
+    if (hashbag == NULL) {
+        debugLog(r, cfg, "no hashes found in database");
+    } 
+
+
     /* return a metalink instead of doing a redirect? */
     switch (rep) {
 
@@ -1683,13 +1863,45 @@ static int mb_handler(request_rec *r)
 
         ap_rprintf(r, "  <file name=\"%s\">\n", basename);
         ap_rprintf(r, "    <size>%s</size>\n\n", apr_off_t_toa(r->pool, r->finfo.size));
-        ap_rprintf(r, "    <!-- <mtime>%lld</mtime> -->\n\n", r->finfo.mtime / 1000000);
+        ap_rprintf(r, "    <!-- <mtime>%lld</mtime> -->\n\n", 
+                   r->finfo.mtime / 1000000); /* APR finfo times are in microseconds */
 
 
 
-        /* pull hashes from the database here - but in a separate function that can be used from elsewhere as well */
-        /* the function should return a structure with either all hashes filled
-         * out, or alternatively only one that was requested */
+        if (hashbag != NULL) {
+            switch (rep) {
+                case META4:
+                    if (hashbag->pgp) {
+                        ap_rputs("    <signature mediatype=\"application/pgp-signature\">\n", r);
+                        ap_rputs(hashbag->pgp, r);
+                        ap_rputs("    </signature>\n", r);
+                    }
+
+                    if (hashbag->md5)
+                        ap_rprintf(r, "    <hash type=\"md5\">%s</hash>\n", hashbag->md5);
+                    if (hashbag->sha256)
+                        ap_rprintf(r, "    <hash type=\"sha-1\">%s</hash>\n", hashbag->sha1);
+                    if (hashbag->sha256)
+                        ap_rprintf(r, "    <hash type=\"sha-256\">%s</hash>\n", hashbag->sha256);
+
+
+                    if (hashbag->sha1pieces 
+                        && (hashbag->sha1piecesize > 0) 
+                        && !apr_is_empty_array(hashbag->sha1pieces)) {
+                        ap_rprintf(r, "    <pieces length=\"%d\" type=\"sha-1\">\n", 
+                                   hashbag->sha1piecesize);
+
+                        char **p = (char **)hashbag->sha1pieces->elts;
+                        for (i = 0; i < hashbag->sha1pieces->nelts; i++) {
+                            ap_rprintf(r, "      <hash>%s</hash>\n", p[i]);
+                        }
+                        ap_rputs("    </pieces>\n", r);
+                    }
+
+                    break;
+            }
+
+        }
 
 
 
@@ -1746,7 +1958,7 @@ static int mb_handler(request_rec *r)
                        r->uri);
         }
 
-        ap_rprintf(r, "    <!-- Found %d mirror%s: %d in the same network prefix, %d in the same "
+        ap_rprintf(r, "\n\n    <!-- Found %d mirror%s: %d in the same network prefix, %d in the same "
                    "autonomous system,\n         %d handling this country, %d in the same "
                    "region, %d elsewhere -->\n", 
                    mirror_cnt,
