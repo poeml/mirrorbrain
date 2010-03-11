@@ -139,7 +139,7 @@ class Hasheable:
                                  decode(%s, 'hex'), decode(%s, 'hex'), 
                                  decode(%s, 'hex'), %s, decode(%s, 'hex'),
                                  %s )""",
-                      [file_id, self.mtime, self.size,
+                      [file_id, int(self.mtime), self.size,
                        self.hb.md5hex,
                        self.hb.sha1hex,
                        self.hb.sha256hex or '',
@@ -150,10 +150,15 @@ class Hasheable:
                 print 'Hash was not present yet in database - inserted'
         else:
             mtime, size = res[1], res[2]
+            
             if int(self.mtime) == mtime and self.size == size and not force:
                 if verbose:
                     print 'Up to date in db: %r' % self.src_rel
                 return
+
+            if self.hb.empty:
+                self.hb.fill(verbose=verbose)
+
             c.execute("""UPDATE hash set mtime = %s, size = %s, 
                                          md5 = decode(%s, 'hex'), 
                                          sha1 = decode(%s, 'hex'), 
