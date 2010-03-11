@@ -813,7 +813,7 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
             /* split the string into an array of the actual pieces */
 
             apr_off_t n = r->finfo.size / h->sha1piecesize;
-            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] dbd: %lld sha1 pieces", n);
+            // XXX ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] dbd: %lld sha1 pieces", n);
 
             h->sha1pieces = apr_array_make(r->pool, n, sizeof(const char *));
             int max = strlen(val);
@@ -1867,7 +1867,6 @@ static int mb_handler(request_rec *r)
                    r->finfo.mtime / 1000000); /* APR finfo times are in microseconds */
 
 
-
         if (hashbag != NULL) {
             switch (rep) {
                 case META4:
@@ -1884,7 +1883,6 @@ static int mb_handler(request_rec *r)
                     if (hashbag->sha256)
                         ap_rprintf(r, "    <hash type=\"sha-256\">%s</hash>\n", hashbag->sha256);
 
-
                     if (hashbag->sha1pieces 
                         && (hashbag->sha1piecesize > 0) 
                         && !apr_is_empty_array(hashbag->sha1pieces)) {
@@ -1897,6 +1895,39 @@ static int mb_handler(request_rec *r)
                         }
                         ap_rputs("    </pieces>\n", r);
                     }
+                    break;
+
+                case METALINK:
+                    /* There are a few slight differences to the newer meta4 format */
+                    ap_rputs("      <verification>\n", r);
+
+                    if (hashbag->pgp) {
+                        ap_rputs("    <signature mediatype=\"application/pgp-signature\">\n", r);
+                        ap_rputs(hashbag->pgp, r);
+                        ap_rputs("    </signature>\n", r);
+                    }
+
+                    if (hashbag->md5)
+                        ap_rprintf(r, "        <hash type=\"md5\">%s</hash>\n", hashbag->md5);
+                    if (hashbag->sha256)
+                        ap_rprintf(r, "        <hash type=\"sha1\">%s</hash>\n", hashbag->sha1);
+                    if (hashbag->sha256)
+                        ap_rprintf(r, "        <hash type=\"sha256\">%s</hash>\n", hashbag->sha256);
+
+                    if (hashbag->sha1pieces 
+                        && (hashbag->sha1piecesize > 0) 
+                        && !apr_is_empty_array(hashbag->sha1pieces)) {
+                        ap_rprintf(r, "        <pieces length=\"%d\" type=\"sha1\">\n", 
+                                   hashbag->sha1piecesize);
+
+                        char **p = (char **)hashbag->sha1pieces->elts;
+                        for (i = 0; i < hashbag->sha1pieces->nelts; i++) {
+                            ap_rprintf(r, "          <hash piece=\"%d\">%s</hash>\n", i, p[i]);
+                        }
+                        ap_rputs("        </pieces>\n", r);
+                    }
+
+                    ap_rputs("      </verification>\n", r);
 
                     break;
             }
@@ -1904,8 +1935,7 @@ static int mb_handler(request_rec *r)
         }
 
 
-
-        if (rep == METALINK) {
+        if (!hashbag  && rep == METALINK) {
             /* if the above failed, and we are creating a v3 metalink, let's try the old on-disk format */
             apr_finfo_t sb;
             const char *hashfilename;
