@@ -50,9 +50,6 @@
 
 #include <unistd.h> /* for getpid */
 #include <arpa/inet.h>
-#ifdef NO_MOD_GEOIP
-#include <GeoIP.h>
-#endif
 #ifdef WITH_MEMCACHE
 #include "mod_memcache.h"
 #include "apr_memcache.h"
@@ -88,9 +85,6 @@
 /* no space for time zones */
 #define RFC3339_DATE_LEN (21)
 
-#ifdef NO_MOD_GEOIP
-#define DEFAULT_GEOIPFILE "/var/lib/GeoIP/GeoIP.dat"
-#endif
 #ifdef WITH_MEMCACHE
 #define DEFAULT_MEMCACHED_LIFETIME 600
 #endif
@@ -131,12 +125,6 @@ static struct {
 };
 
 
-#ifdef NO_MOD_GEOIP
-/* could also be put into the server config */
-static const char *geoipfilename = DEFAULT_GEOIPFILE;
-static GeoIP *gip = NULL;     /* geoip object */
-#endif
-
 /** A structure that represents a mirror */
 typedef struct mirror_entry mirror_entry_t;
 
@@ -144,14 +132,10 @@ typedef struct mirror_entry mirror_entry_t;
 struct mirror_entry {
     int id;
     const char *identifier;
-    const char *region;      /* 2-letter-string */
-#ifdef NO_MOD_GEOIP
-    char *country_code;      /* 2-letter-string */
-#else
-    const char *country_code;      /* 2-letter-string */
-#endif
-    const char *as;          /* autonomous system number as string */
-    const char *prefix;      /* network prefix xxx.xxx.xxx.xxx/yy */
+    const char *region;       /* 2-letter-string */
+    const char *country_code; /* 2-letter-string */
+    const char *as;           /* autonomous system number as string */
+    const char *prefix;       /* network prefix xxx.xxx.xxx.xxx/yy */
     unsigned char region_only;
     unsigned char country_only;
     unsigned char as_only;
@@ -159,7 +143,7 @@ struct mirror_entry {
     int score;
     const char *baseurl;
     int file_maxsize;
-    char *other_countries;   /* comma-separated 2-letter strings */
+    char *other_countries;    /* comma-separated 2-letter strings */
     int rank;
 };
 
@@ -223,26 +207,11 @@ static void debugLog(const request_rec *r, const mb_dir_conf *cfg,
 
 static apr_status_t mb_cleanup()
 {
-#ifdef NO_MOD_GEOIP
-        GeoIP_delete(gip);
-        ap_log_error(APLOG_MARK, APLOG_INFO, 0, NULL, "[mod_mirrorbrain] cleaned up geoipfile");
-#endif
         return APR_SUCCESS;
 }
 
 static void mb_child_init(apr_pool_t *p, server_rec *s)
 {
-#ifdef NO_MOD_GEOIP
-    if (!gip) {
-        ap_log_error(APLOG_MARK, APLOG_INFO, 0, s, 
-                "[mod_mirrorbrain] opening geoip file %s", geoipfilename);
-        gip = GeoIP_open(geoipfilename, GEOIP_STANDARD);
-    }
-    if (!gip) {
-        ap_log_error(APLOG_MARK, APLOG_CRIT, 0, s, 
-                "[mod_mirrorbrain] Error while opening geoip file '%s'", geoipfilename);
-    }
-#endif
     apr_pool_cleanup_register(p, NULL, mb_cleanup, mb_cleanup);
 
     srand((unsigned int)getpid());
@@ -563,24 +532,11 @@ static const char *mb_cmd_dbd_query_hash(cmd_parms *cmd, void *config,
     return NULL;
 }
 
-#ifdef NO_MOD_GEOIP
-static const char *mb_cmd_geoip_filename(cmd_parms *cmd, void *config,
-                                         const char *arg1)
-{
-    geoipfilename = apr_pstrdup(cmd->pool, arg1);
-
-    ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, NULL,
-                 "[mod_mirrorbrain] Setting GeoIPFilename: '%s'", 
-                 geoipfilename);
-    return NULL;
-}
-#else
 static const char *mb_cmd_geoip_filename(cmd_parms *cmd, void *config,
                                          const char *arg1)
 {
     return "mod_mirrorbrain: the GeoIPFilename directive is obsolete. Use mod_geoip.";
 }
-#endif
 
 static const char *mb_cmd_metalink_hashes_prefix(cmd_parms *cmd, 
                                                  void *config, 
@@ -710,11 +666,7 @@ static const char *url_scheme(apr_pool_t *p, const char *url)
  */
 static void emit_metalink_url(request_rec *r, int rep, 
                               const char *baseurl, 
-#ifdef NO_MOD_GEOIP
-                              char *country_code,
-#else
                               const char *country_code,
-#endif
                               const char *filename, int v3prio, int prio)
 {
     switch (rep) {
@@ -751,12 +703,7 @@ static int mb_handler(request_rec *r)
     int rep = UNKNOWN;                          /* type of a requested representation */
     char *rep_ext = NULL;                       /* extension string of a requested representation */
     const char* continent_code;
-#ifdef NO_MOD_GEOIP
-    short int country_id;
-    char* country_code;
-#else
     const char* country_code;
-#endif
     const char* as;                             /* autonomous system */
     const char* prefix;                         /* network prefix */
     int i;
@@ -883,19 +830,6 @@ static int mb_handler(request_rec *r)
     }
 
     if (clientip) {
-#ifdef NO_MOD_GEOIP
-        debugLog(r, cfg, "FAKE clientip address: '%s'", clientip);
-
-        /* ensure that the string represents a valid IP address
-         *
-         * if clientip contains a colon, we should principally do the lookup
-         * for AF_INET6 instead, but GeoIP doesn't support IPv6 anyway */
-        struct in_addr addr;
-        if (inet_pton(AF_INET, clientip, &addr) != 1) {
-            debugLog(r, cfg, "FAKE clientip address not valid: '%s'", clientip);
-            return HTTP_BAD_REQUEST;
-        }
-#else
         debugLog(r, cfg, "obsolete clientip address parameter: '%s'", clientip);
         ap_set_content_type(r, "text/html; charset=ISO-8859-1");
         ap_rputs(DOCTYPE_XHTML_1_0T
@@ -909,7 +843,6 @@ static int mb_handler(request_rec *r)
                       "ISO 3166 country code</a>.\n</p>\n");
         ap_rputs("\n\n</body>\n</html>\n", r);
         return OK;
-#endif
     } else 
         clientip = apr_pstrdup(r->pool, r->connection->remote_ip);
 
@@ -1105,18 +1038,6 @@ static int mb_handler(request_rec *r)
     }
 
 
-#ifdef NO_MOD_GEOIP
-    /* GeoIP lookup 
-     * if mod_geoip was loaded, it would suffice to retrieve GEOIP_COUNTRY_CODE
-     * as supplied by it via the notes table, but since we also need the
-     * continent we need to use libgeoip ourselves. Thus, we can do our own
-     * lookup just as well. 
-     * Update (2008/2009): mod_geoip supports continent code passing now; 
-     * thus we made the compilation with GeoIP lookups optional. */
-    country_id = GeoIP_id_by_addr(gip, clientip);
-    country_code = apr_pstrdup(r->pool, GeoIP_country_code[country_id]);
-    continent_code = GeoIP_country_continent[country_id];
-#else
     country_code = apr_table_get(r->subprocess_env, "GEOIP_COUNTRY_CODE");
     continent_code = apr_table_get(r->subprocess_env, "GEOIP_CONTINENT_CODE");
 
@@ -1128,7 +1049,6 @@ static int mb_handler(request_rec *r)
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] could not resolve continent");
         continent_code = "--";
     }
-#endif
 
     if (query_country) {
         country_code = query_country;
@@ -2296,15 +2216,9 @@ static const command_rec mb_cmds[] =
                   RSRC_CONF,
                   "The SQL query for fetching verification hashes from the backend database"),
 
-#ifdef NO_MOD_GEOIP
-    AP_INIT_TAKE1("MirrorBrainGeoIPFile", mb_cmd_geoip_filename, NULL, 
-                  RSRC_CONF, 
-                  "Path to GeoIP Data File"),
-#else
     AP_INIT_TAKE1("MirrorBrainGeoIPFile", mb_cmd_geoip_filename, NULL, 
                   RSRC_CONF, 
                   "Obsolete directive - use mod_geoip, please."),
-#endif
 
 #ifdef WITH_MEMCACHE
     AP_INIT_TAKE1("MirrorBrainInstance", mb_cmd_instance, NULL, 
