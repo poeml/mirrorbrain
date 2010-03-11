@@ -107,6 +107,13 @@
                            "FROM filearr " \
                            "WHERE path = %s)::smallint[]) " \
                       "AND enabled AND status_baseurl AND score > 0"
+#define DEFAULT_QUERY_HASH "SELECT file_id, size, mtime, md5, sha1, sha256, " \
+                                  "sha1piecesize, substring(sha1pieces from 0 for 30), pgp " \
+                           "FROM hexhash " \
+                           "WHERE file_id = (SELECT id " \
+                                            "FROM filearr " \
+                                            "WHERE path = %s " \
+                                            "AND size = %lld AND mtime = %lld)"
 
 
 module AP_MODULE_DECLARE_DATA mirrorbrain_module;
@@ -188,6 +195,8 @@ typedef struct
     const char *mirrorlist_stylesheet;
     const char *query;
     const char *query_label;
+    const char *query_hash;
+    const char *query_hash_label;
 } mb_server_conf;
 
 
@@ -273,13 +282,15 @@ static int mb_post_config(apr_pool_t *pconf, apr_pool_t *plog,
                                                         &mirrorbrain_module);
         /* make a label */
         cfg->query_label = apr_psprintf(pconf, "mirrorbrain_dbd_%d", ++label_num);
+        cfg->query_hash_label = apr_psprintf(pconf, "mirrorbrain_dbd_hash_%d", ++label_num);
+        ap_log_error(APLOG_MARK, APLOG_ERR, 0, s,
+                     "[mod_mirrorbrain] preparing stmt for server %s, label_num %d, label %s", 
+                     s->server_hostname, label_num, cfg->query_label);
         mb_dbd_prepare_fn(sp, cfg->query, cfg->query_label);
-
-        ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, s,
-                     "[mod_mirrorbrain] prepared: server %s, label_num %d, query_label %s", 
-                     s->server_hostname, 
-                     label_num,
-                     cfg->query_label);
+        ap_log_error(APLOG_MARK, APLOG_ERR, 0, s,
+                     "[mod_mirrorbrain] preparing stmt for server %s, label_num %d, label %s", 
+                     s->server_hostname, label_num, cfg->query_hash_label);
+        mb_dbd_prepare_fn(sp, cfg->query_hash, cfg->query_hash_label);
     }
 
     return OK;
@@ -356,6 +367,8 @@ static void *create_mb_server_config(apr_pool_t *p, server_rec *s)
     new->mirrorlist_stylesheet = NULL;
     new->query = DEFAULT_QUERY;
     new->query_label = NULL;
+    new->query_hash = DEFAULT_QUERY_HASH;
+    new->query_hash_label = NULL;
 
     return (void *) new;
 }
@@ -381,6 +394,9 @@ static void *merge_mb_server_config(apr_pool_t *p, void *basev, void *addv)
     cfgMergeString(mirrorlist_stylesheet);
     mrg->query = (add->query != (char *) DEFAULT_QUERY) ? add->query : base->query;
     cfgMergeString(query_label);
+    mrg->query_hash = (add->query_hash != (char *) DEFAULT_QUERY_HASH) 
+                      ? add->query_hash : base->query_hash;
+    cfgMergeString(query_hash_label);
 
     return (void *) mrg;
 }
@@ -525,7 +541,7 @@ static const char *mb_cmd_instance(cmd_parms *cmd,
 }
 #endif
 
-static const char *mb_cmd_dbdquery(cmd_parms *cmd, void *config, 
+static const char *mb_cmd_dbd_query(cmd_parms *cmd, void *config, 
                                    const char *arg1)
 {
     server_rec *s = cmd->server;
@@ -533,6 +549,17 @@ static const char *mb_cmd_dbdquery(cmd_parms *cmd, void *config,
         ap_get_module_config(s->module_config, &mirrorbrain_module);
 
     cfg->query = arg1;
+    return NULL;
+}
+
+static const char *mb_cmd_dbd_query_hash(cmd_parms *cmd, void *config, 
+                                   const char *arg1)
+{
+    server_rec *s = cmd->server;
+    mb_server_conf *cfg = 
+        ap_get_module_config(s->module_config, &mirrorbrain_module);
+
+    cfg->query_hash = arg1;
     return NULL;
 }
 
@@ -1182,7 +1209,7 @@ static int mb_handler(request_rec *r)
 
     /* strip the leading directory
      * no need to escape it for the SQL query because we use a prepared 
-     * statement with bound parameter */
+     * statement with bound parameters */
 
     char *ptr = canonicalize_file_name(r->filename);
     if (ptr == NULL) {
@@ -2262,9 +2289,12 @@ static const command_rec mb_cmds[] =
                   "*all* files."),
 
     /* to be used only in server context */
-    AP_INIT_TAKE1("MirrorBrainDBDQuery", mb_cmd_dbdquery, NULL,
+    AP_INIT_TAKE1("MirrorBrainDBDQuery", mb_cmd_dbd_query, NULL,
                   RSRC_CONF,
-                  "the SQL query string to fetch the mirrors from the backend database"),
+                  "The SQL query for fetching the mirrors from the backend database"),
+    AP_INIT_TAKE1("MirrorBrainDBDQueryHash", mb_cmd_dbd_query_hash, NULL,
+                  RSRC_CONF,
+                  "The SQL query for fetching verification hashes from the backend database"),
 
 #ifdef NO_MOD_GEOIP
     AP_INIT_TAKE1("MirrorBrainGeoIPFile", mb_cmd_geoip_filename, NULL, 
