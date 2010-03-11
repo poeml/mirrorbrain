@@ -2144,11 +2144,42 @@ static int mb_handler(request_rec *r)
 
         ap_rputs("  <address>Powered by <a href=\"http://mirrorbrain.org/\">MirrorBrain</a></address>\n", r);
 
+        /* Metadata */
+        ap_rputs("  <ul>\n", r);
+        ap_rprintf(r, "  <li>Size: %s bytes</li>\n", apr_off_t_toa(r->pool, r->finfo.size));
+        time_str = apr_palloc(r->pool, APR_RFC822_DATE_LEN);
+        apr_rfc822_date(time_str, r->finfo.mtime);
+        ap_rprintf(r, "  <li>Last modified: %s (epoch %lld)</li>\n", time_str, r->finfo.mtime / 1000000);
+
+        if (hashbag != NULL) {
+                    if (hashbag->sha256)
+                        ap_rprintf(r, "  <li>SHA-256 sum: <tt>%s</tt></li>\n", hashbag->sha256);
+                    if (hashbag->sha256)
+                        ap_rprintf(r, "  <li>SHA-1 sum: <tt>%s</tt></li>\n", hashbag->sha1);
+                    if (hashbag->md5)
+                        ap_rprintf(r, "  <li>MD5 sum: <tt>%s</tt></li>\n", hashbag->md5);
+
+                    /* XXX
+                    if (hashbag->pgp) {
+                        ap_rputs("    <signature mediatype=\"application/pgp-signature\">\n", r);
+                        ap_rputs(hashbag->pgp, r);
+                        ap_rputs("    </signature>\n", r);
+                    }
+                    */
+        }
+        ap_rputs("  </ul>\n", r);
+
+
+        /* Metalink info */
         ap_rputs("  <br/>\n" 
                  "  <blockquote>Hint: For larger downloads, a <a href=\"http://metalinker.org\">Metalink</a> client "
                  "  is best -- easier, more reliable, self healing downloads.\n" 
                  "  <br/>\n", r);
-        ap_rprintf(r, "  The metalink for this file is: "
+        ap_rprintf(r, "  IETF Metalink for this file: "
+                   "<a href=\"http://%s%s.meta4\">http://%s%s.meta4</a>"
+                   "  <br/>\n", 
+                r->hostname, r->uri, r->hostname, r->uri);
+        ap_rprintf(r, "  Old (v3) Metalink: "
                    "<a href=\"http://%s%s.metalink\">http://%s%s.metalink</a></blockquote>"
                    "  <br/>\n", 
                 r->hostname, r->uri, r->hostname, r->uri);
