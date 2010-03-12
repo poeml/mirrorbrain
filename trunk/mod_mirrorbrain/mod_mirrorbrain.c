@@ -1808,14 +1808,20 @@ static int mb_handler(request_rec *r)
         case METALINK:
         case MIRRORLIST:
             magnet = apr_psprintf(r->pool, "magnet:"
-                          "?xl=%s"          /* size */
-                          "&amp;dn=%s"          /* FIXME: the basename should be www-formencoded for
-                                                      spaces or funny characters */
+                          "?xl=%s"              /* size */
+                          "&amp;dn=%s"          /* file basename */
                           "&amp;xt=urn:sha1:%s"
                           "&amp;xt=urn:bith:%s" /* bittorrent information hash */
-                          "&amp;xt=urn:md5:%s", /* Gnutella */
-                       apr_off_t_toa(r->pool, r->finfo.size), basename,
-                       hashbag->sha1, hashbag->sha1, hashbag->md5); 
+                          "&amp;xt=urn:md5:%s"  /* Gnutella */
+                          "&amp;as=%s",         /* a HTTP link to the file */
+                       apr_off_t_toa(r->pool, r->finfo.size), 
+                       ap_escape_uri(r->pool, basename),
+                       hashbag->sha1, hashbag->sha1, hashbag->md5,
+                       apr_psprintf(r->pool, 
+                                    "http://%s%s", 
+                                    ap_escape_uri(r->pool, r->hostname), 
+                                    ap_escape_uri(r->pool, r->uri))
+                       ); 
 
             /* FIXME: including a tracker URL might be cool (&amp;tr=<tracker-url>) 
              * see http://mirrorbrain.org/issues/issue38 */
