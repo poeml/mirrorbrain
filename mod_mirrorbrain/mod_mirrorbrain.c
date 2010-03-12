@@ -1783,17 +1783,19 @@ static int mb_handler(request_rec *r)
         case METALINK:
         case MIRRORLIST:
             magnet = apr_psprintf(r->pool, "magnet:"
-                          "&xl=%s"          /* size */
+                          "?xl=%s"          /* size */
                           "&dn=%s"          /* FIXME: the basename should be www-formencoded for
                                                       spaces or funny characters */
-                          "?xt=urn:sha1:%s"
-                          "?xt=urn:bith:%s" /* bittorrent information hash */
+                          "&xt=urn:sha1:%s"
+                          "&xt=urn:bith:%s" /* bittorrent information hash */
                           "&xt=urn:md5:%s", /* Gnutella */
                        apr_off_t_toa(r->pool, r->finfo.size), basename,
                        hashbag->sha1, hashbag->sha1, hashbag->md5); 
 
-             /* FIXME: including a tracker URL might be cool (&tr=<tracker-url>) 
+            /* FIXME: including a tracker URL might be cool (&tr=<tracker-url>) 
              * see http://mirrorbrain.org/issues/issue38 */
+            /* the URL to the file (for HTTP redirection) can also be included
+             * http://en.wikipedia.org/wiki/Magnet_URI_scheme#Normal_.28as.29 */
         }
     }
 
@@ -2188,22 +2190,25 @@ static int mb_handler(request_rec *r)
         ap_rprintf(r, "  <li>Last modified: %s (Unix time: %lld)</li>\n", time_str, r->finfo.mtime / 1000000);
 
         if (hashbag != NULL) {
-                    /* XXX we should link to the hash, but we need to build a handler for it first
-                     * <a href=\"http://%s%s.sha256\">(link)</a> */
-                    if (hashbag->sha256)
-                        ap_rprintf(r, "  <li>SHA-256 sum: <tt>%s</tt></li>\n", hashbag->sha256);
-                    if (hashbag->sha1)
-                        ap_rprintf(r, "  <li>SHA-1 sum: <tt>%s</tt></li>\n", hashbag->sha1);
-                    if (hashbag->md5)
-                        ap_rprintf(r, "  <li>MD5 sum: <tt>%s</tt></li>\n", hashbag->md5);
+            /* XXX we should link to the hash, but we need to build a handler for it first
+             * <a href=\"http://%s%s.sha256\">(link)</a> */
+            if (hashbag->sha256)
+                ap_rprintf(r, "  <li>SHA-256 sum: <tt>%s</tt></li>\n", hashbag->sha256);
+            if (hashbag->sha1)
+                ap_rprintf(r, "  <li>SHA-1 sum: <tt>%s</tt></li>\n", hashbag->sha1);
+            if (hashbag->md5)
+                ap_rprintf(r, "  <li>MD5 sum: <tt>%s</tt></li>\n", hashbag->md5);
 
-                    /* XXX we could link to the signature
-                    if (hashbag->pgp) {
-                        ap_rputs("    <signature mediatype=\"application/pgp-signature\">\n", r);
-                        ap_rputs(hashbag->pgp, r);
-                        ap_rputs("    </signature>\n", r);
-                    }
-                    */
+            /* XXX we could link to the signature
+            if (hashbag->pgp) {
+                ap_rputs("    <signature mediatype=\"application/pgp-signature\">\n", r);
+                ap_rputs(hashbag->pgp, r);
+                ap_rputs("    </signature>\n", r);
+            }
+            */
+            if (magnet) {
+                ap_rprintf(r, "  <li><a href=\"%s\">Magnet Link</a></li>\n", magnet);
+            }
         }
         ap_rputs("  </ul>\n", r);
 
