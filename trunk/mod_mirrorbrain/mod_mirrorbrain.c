@@ -1767,6 +1767,38 @@ static int mb_handler(request_rec *r)
     } 
 
 
+    /* keep a filename version without leading path, because metalink clients
+     * will otherwise place the downloaded file into a directory hierarchy */
+    const char *basename;
+    if ((basename = ap_strrchr_c(filename, '/')) == NULL)
+        basename = filename;
+    else 
+        ++basename;
+
+    /* if it makes sense, build a magnet link for later inclusion */
+    char *magnet = NULL;
+    if (hashbag != NULL) {
+        switch (rep) {
+        case META4:
+        case METALINK:
+        case MIRRORLIST:
+            magnet = apr_psprintf(r->pool, "magnet:"
+                          "&xl=%s"          /* size */
+                          "&dn=%s"          /* FIXME: the basename should be www-formencoded for
+                                                      spaces or funny characters */
+                          "?xt=urn:sha1:%s"
+                          "?xt=urn:bith:%s" /* bittorrent information hash */
+                          "&xt=urn:md5:%s", /* Gnutella */
+                       apr_off_t_toa(r->pool, r->finfo.size), basename,
+                       hashbag->sha1, hashbag->sha1, hashbag->md5); 
+
+             /* FIXME: including a tracker URL might be cool (&tr=<tracker-url>) 
+             * see http://mirrorbrain.org/issues/issue38 */
+        }
+    }
+
+
+
     /* return a metalink instead of doing a redirect? */
     switch (rep) {
 
@@ -1777,15 +1809,6 @@ static int mb_handler(request_rec *r)
 
         /* tell caches that this is negotiated response and that not every client will take it */
         apr_table_mergen(r->headers_out, "Vary", "accept");
-
-        /* drop the path leading up to the file name, because metalink clients
-         * will otherwise place the downloaded file into a directory hierarchy */
-        const char *basename;
-        if ((basename = ap_strrchr_c(filename, '/')) == NULL) {
-            basename = filename;
-        } else {
-            ++basename;
-        }
 
         /* add rfc2183 header for filename, with .metalink appended 
          * because some clients trigger on that extension */
@@ -1988,6 +2011,19 @@ static int mb_handler(request_rec *r)
                        r->uri);
         }
 
+
+        if (rep == META4) {
+            /* inclusion of torrents and other metaurls should probably happen here 
+             *
+             * for safety, restrict the use of the new metaurl element to new metalinks */
+
+            /* <metaurl mediatype="torrent">http://example.com/example.ext.torrent</metaurl> */
+            ap_rputs("\n\n    <!-- Meta URLs -->\n", r);
+            if (hashbag != NULL && magnet != NULL) {
+                ap_rprintf(r, "    <metaurl mediatype=\"magnet\">%s</metaurl>\n", magnet);
+            }
+        }
+
         ap_rprintf(r, "\n\n    <!-- Found %d mirror%s: %d in the same network prefix, %d in the same "
                    "autonomous system,\n         %d handling this country, %d in the same "
                    "region, %d elsewhere -->\n", 
@@ -2149,9 +2185,11 @@ static int mb_handler(request_rec *r)
         ap_rprintf(r, "  <li>Size: %s bytes</li>\n", apr_off_t_toa(r->pool, r->finfo.size));
         time_str = apr_palloc(r->pool, APR_RFC822_DATE_LEN);
         apr_rfc822_date(time_str, r->finfo.mtime);
-        ap_rprintf(r, "  <li>Last modified: %s (epoch %lld)</li>\n", time_str, r->finfo.mtime / 1000000);
+        ap_rprintf(r, "  <li>Last modified: %s (Unix time: %lld)</li>\n", time_str, r->finfo.mtime / 1000000);
 
         if (hashbag != NULL) {
+                    /* XXX we should link to the hash, but we need to build a handler for it first
+                     * <a href=\"http://%s%s.sha256\">(link)</a> */
                     if (hashbag->sha256)
                         ap_rprintf(r, "  <li>SHA-256 sum: <tt>%s</tt></li>\n", hashbag->sha256);
                     if (hashbag->sha1)
@@ -2159,7 +2197,7 @@ static int mb_handler(request_rec *r)
                     if (hashbag->md5)
                         ap_rprintf(r, "  <li>MD5 sum: <tt>%s</tt></li>\n", hashbag->md5);
 
-                    /* XXX
+                    /* XXX we could link to the signature
                     if (hashbag->pgp) {
                         ap_rputs("    <signature mediatype=\"application/pgp-signature\">\n", r);
                         ap_rputs(hashbag->pgp, r);
