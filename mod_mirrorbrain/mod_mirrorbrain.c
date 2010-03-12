@@ -1809,15 +1809,15 @@ static int mb_handler(request_rec *r)
         case MIRRORLIST:
             magnet = apr_psprintf(r->pool, "magnet:"
                           "?xl=%s"          /* size */
-                          "&dn=%s"          /* FIXME: the basename should be www-formencoded for
+                          "&amp;dn=%s"          /* FIXME: the basename should be www-formencoded for
                                                       spaces or funny characters */
-                          "&xt=urn:sha1:%s"
-                          "&xt=urn:bith:%s" /* bittorrent information hash */
-                          "&xt=urn:md5:%s", /* Gnutella */
+                          "&amp;xt=urn:sha1:%s"
+                          "&amp;xt=urn:bith:%s" /* bittorrent information hash */
+                          "&amp;xt=urn:md5:%s", /* Gnutella */
                        apr_off_t_toa(r->pool, r->finfo.size), basename,
                        hashbag->sha1, hashbag->sha1, hashbag->md5); 
 
-            /* FIXME: including a tracker URL might be cool (&tr=<tracker-url>) 
+            /* FIXME: including a tracker URL might be cool (&amp;tr=<tracker-url>) 
              * see http://mirrorbrain.org/issues/issue38 */
             /* the URL to the file (for HTTP redirection) can also be included
              * http://en.wikipedia.org/wiki/Magnet_URI_scheme#Normal_.28as.29 */
