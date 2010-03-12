@@ -274,11 +274,11 @@ static int mb_post_config(apr_pool_t *pconf, apr_pool_t *plog,
         /* make a label */
         cfg->query_label = apr_psprintf(pconf, "mirrorbrain_dbd_%d", ++label_num);
         cfg->query_hash_label = apr_psprintf(pconf, "mirrorbrain_dbd_hash_%d", ++label_num);
-        ap_log_error(APLOG_MARK, APLOG_ERR, 0, s,
+        ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, s,
                      "[mod_mirrorbrain] preparing stmt for server %s, label_num %d, label %s", 
                      s->server_hostname, label_num, cfg->query_label);
         mb_dbd_prepare_fn(sp, cfg->query, cfg->query_label);
-        ap_log_error(APLOG_MARK, APLOG_ERR, 0, s,
+        ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, s,
                      "[mod_mirrorbrain] preparing stmt for server %s, label_num %d, label %s", 
                      s->server_hostname, label_num, cfg->query_hash_label);
         mb_dbd_prepare_fn(sp, cfg->query_hash, cfg->query_hash_label);
@@ -2013,8 +2013,8 @@ static int mb_handler(request_rec *r)
                        r->uri);
         }
 
-
-        if (rep == META4) {
+        switch (rep) {
+        case META4:
             /* inclusion of torrents and other metaurls should probably happen here 
              *
              * for safety, restrict the use of the new metaurl element to new metalinks */
@@ -2022,7 +2022,13 @@ static int mb_handler(request_rec *r)
             /* <metaurl mediatype="torrent">http://example.com/example.ext.torrent</metaurl> */
             ap_rputs("\n\n    <!-- Meta URLs -->\n", r);
             if (hashbag != NULL && magnet != NULL) {
-                ap_rprintf(r, "    <metaurl mediatype=\"magnet\">%s</metaurl>\n", magnet);
+                ap_rprintf(r, "    <metaurl mediatype=\"torrent\">%s</metaurl>\n", magnet);
+            }
+            break;
+        case METALINK:
+            if (hashbag != NULL && magnet != NULL) {
+                ap_rprintf(r, "    <url type=\"bittorrent\" preference=\"%d\">%s</url>\n\n", 
+                           100, magnet);
             }
         }
 
@@ -2206,26 +2212,26 @@ static int mb_handler(request_rec *r)
                 ap_rputs("    </signature>\n", r);
             }
             */
-            if (magnet) {
-                ap_rprintf(r, "  <li><a href=\"%s\">Magnet Link</a></li>\n", magnet);
-            }
         }
         ap_rputs("  </ul>\n", r);
 
 
         /* Metalink info */
         ap_rputs("  <br/>\n" 
-                 "  <blockquote>Hint: For larger downloads, a <a href=\"http://metalinker.org\">Metalink</a> client "
-                 "  is best -- easier, more reliable, self healing downloads.\n" 
+                 "  <blockquote>Use one of the following links for easier, more reliable, self healing downloads:\n"
                  "  <br/>\n", r);
-        ap_rprintf(r, "  IETF Metalink for this file: "
+        ap_rprintf(r, "  IETF Metalink: "
                    "<a href=\"http://%s%s.meta4\">http://%s%s.meta4</a>"
                    "  <br/>\n", 
                 r->hostname, r->uri, r->hostname, r->uri);
         ap_rprintf(r, "  Old (v3) Metalink: "
-                   "<a href=\"http://%s%s.metalink\">http://%s%s.metalink</a></blockquote>"
+                   "<a href=\"http://%s%s.metalink\">http://%s%s.metalink</a>"
                    "  <br/>\n", 
                 r->hostname, r->uri, r->hostname, r->uri);
+        if (magnet) {
+            ap_rprintf(r, "  <a href=\"%s\">Magnet Link</a>\n", magnet);
+        }
+        ap_rputs("  </blockquote>", r);
 
 
         ap_rprintf(r, "  <p>List of best mirrors for IP address %s, located in country %s, %s (AS%s).</p>\n", 
