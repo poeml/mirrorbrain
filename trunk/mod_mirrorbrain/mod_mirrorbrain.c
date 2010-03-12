@@ -1878,7 +1878,7 @@ static int mb_handler(request_rec *r)
 
                     if (hashbag->md5)
                         ap_rprintf(r, "    <hash type=\"md5\">%s</hash>\n", hashbag->md5);
-                    if (hashbag->sha256)
+                    if (hashbag->sha1)
                         ap_rprintf(r, "    <hash type=\"sha-1\">%s</hash>\n", hashbag->sha1);
                     if (hashbag->sha256)
                         ap_rprintf(r, "    <hash type=\"sha-256\">%s</hash>\n", hashbag->sha256);
@@ -1909,7 +1909,7 @@ static int mb_handler(request_rec *r)
 
                     if (hashbag->md5)
                         ap_rprintf(r, "        <hash type=\"md5\">%s</hash>\n", hashbag->md5);
-                    if (hashbag->sha256)
+                    if (hashbag->sha1)
                         ap_rprintf(r, "        <hash type=\"sha1\">%s</hash>\n", hashbag->sha1);
                     if (hashbag->sha256)
                         ap_rprintf(r, "        <hash type=\"sha256\">%s</hash>\n", hashbag->sha256);
@@ -2154,7 +2154,7 @@ static int mb_handler(request_rec *r)
         if (hashbag != NULL) {
                     if (hashbag->sha256)
                         ap_rprintf(r, "  <li>SHA-256 sum: <tt>%s</tt></li>\n", hashbag->sha256);
-                    if (hashbag->sha256)
+                    if (hashbag->sha1)
                         ap_rprintf(r, "  <li>SHA-1 sum: <tt>%s</tt></li>\n", hashbag->sha1);
                     if (hashbag->md5)
                         ap_rprintf(r, "  <li>MD5 sum: <tt>%s</tt></li>\n", hashbag->md5);
