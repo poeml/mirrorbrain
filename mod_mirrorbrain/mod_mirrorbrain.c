@@ -1298,7 +1298,7 @@ static int mb_handler(request_rec *r)
         }
 
         if (h && h[0]) {
-            ap_set_content_type(r, "text/html; charset=UTF-8");
+            ap_set_content_type(r, "text/plain; charset=UTF-8");
             ap_rprintf(r, "%s  %s\n", h, basename);
             return OK;
         }
@@ -2221,14 +2221,15 @@ static int mb_handler(request_rec *r)
         ap_rprintf(r, "  <li>Last modified: %s (Unix time: %lld)</li>\n", time_str, r->finfo.mtime / 1000000);
 
         if (hashbag != NULL) {
-            /* XXX we should link to the hash, but we need to build a handler for it first
-             * <a href=\"http://%s%s.sha256\">(link)</a> */
             if (hashbag->sha256)
-                ap_rprintf(r, "  <li>SHA-256 sum: <tt>%s</tt></li>\n", hashbag->sha256);
+                ap_rprintf(r, "  <li><a href=\"http://%s%s.sha256\">SHA-256 Hash</a>: <tt>%s</tt> "
+                              "</li>\n", r->hostname, r->uri, hashbag->sha256);
             if (hashbag->sha1)
-                ap_rprintf(r, "  <li>SHA-1 sum: <tt>%s</tt></li>\n", hashbag->sha1);
+                ap_rprintf(r, "  <li><a href=\"http://%s%s.sha1\">SHA-1 Hash</a>: <tt>%s</tt> "
+                              "</li>\n", r->hostname, r->uri, hashbag->sha1);
             if (hashbag->md5)
-                ap_rprintf(r, "  <li>MD5 sum: <tt>%s</tt></li>\n", hashbag->md5);
+                ap_rprintf(r, "  <li><a href=\"http://%s%s.md5\">MD5 Hash</a>: <tt>%s</tt> "
+                              "</li>\n", r->hostname, r->uri, hashbag->md5);
 
             /* XXX we could link to the signature
             if (hashbag->pgp) {
