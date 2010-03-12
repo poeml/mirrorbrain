@@ -123,14 +123,18 @@
 module AP_MODULE_DECLARE_DATA mirrorbrain_module;
 
 /* (meta) representations of a requested file */
-enum { META4, METALINK, MIRRORLIST, UNKNOWN };
+enum { REDIRECT, META4, METALINK, MIRRORLIST, MD5, SHA1, SHA256, UNKNOWN };
 static struct {
         int     id;
         char    *ext;
 } reps [] = {
+        { REDIRECT,      "" },
         { META4,         "meta4" },
         { METALINK,      "metalink" },
         { MIRRORLIST,    "mirrorlist" },
+        { MD5,           "md5" },
+        { SHA1,          "sha1" },
+        { SHA256,        "sha256" },
         { UNKNOWN,       NULL }
 };
 
@@ -857,19 +861,15 @@ static int mb_handler(request_rec *r)
     char *uri = NULL;
     char *filename = NULL;
     char *realfile = NULL;
-    const char *user_agent = NULL;
     const char *clientip = NULL;
     const char *query_country = NULL;
     char *query_asn = NULL;
     char fakefile = 0, newmirror = 0;
-    char mirrorlist = 0;
-    char meta4_forced = 0;                      /* IETF metalink was explicitely requested */
-    char meta4 = 0;                             /* IETF metalink was negotiated */ 
-                                                /* for negotiated metalinks, the exceptions are observed. */
-    char metalink_forced = 0;                   /* v3 metalink was explicitely requested */
-    char metalink = 0;                          /* v3 metalink was negotiated */ 
     int rep = UNKNOWN;                          /* type of a requested representation */
     char *rep_ext = NULL;                       /* extension string of a requested representation */
+    char meta_negotiated = 0;                   /* a metalink representation was chosed by negotiation, i.e.
+                                                   the server might still decide to return the file itself 
+                                                   if it's excluded from redirection by configuration */
     const char* continent_code;
     const char* country_code;
     const char* as;                             /* autonomous system */
@@ -942,7 +942,6 @@ static int mb_handler(request_rec *r)
     debugLog(r, cfg, "filename: '%s'", r->filename);
     //debugLog(r, cfg, "server_hostname: '%s'", r->server->server_hostname);
 
-
     /* parse query arguments if present, */
     /* using mod_form's form_value() */
     form_lookup = APR_RETRIEVE_OPTIONAL_FN(form_value);
@@ -955,18 +954,18 @@ static int mb_handler(request_rec *r)
         if (form_lookup(r, "mirrorlist")) {
             rep = MIRRORLIST;
             rep_ext = reps[MIRRORLIST].ext;
-            mirrorlist =1;
         }
         if (form_lookup(r, "meta4")) {
             rep = META4;
             rep_ext = reps[META4].ext;
-            meta4_forced = 1;
         };
         if (form_lookup(r, "metalink")) {
             rep = METALINK;
             rep_ext = reps[METALINK].ext;
-            metalink_forced = 1;
         };
+        if (form_lookup(r, "md5"))    { rep = MD5;    rep_ext = reps[MD5].ext; };
+        if (form_lookup(r, "sha1"))   { rep = SHA1;   rep_ext = reps[SHA1].ext; };
+        if (form_lookup(r, "sha256")) { rep = SHA256; rep_ext = reps[SHA256].ext; };
     }
     
     if (!query_country 
@@ -982,18 +981,18 @@ static int mb_handler(request_rec *r)
         query_asn[i] = '\0';
     }
 
-    if (!meta4_forced && !metalink_forced && !mirrorlist) {
+    if (rep == UNKNOWN) {
         const char *accepts;
         accepts = apr_table_get(r->headers_in, "Accept");
         if (accepts != NULL) {
             if (ap_strstr_c(accepts, "metalink4+xml")) {
                 rep = META4;
                 rep_ext = reps[META4].ext;
-                meta4 = 1;
+                meta_negotiated = 1;
             } else if (ap_strstr_c(accepts, "metalink+xml")) {
                 rep = METALINK;
                 rep_ext = reps[METALINK].ext;
-                metalink = 1;
+                meta_negotiated = 1;
             }
         }
     }
@@ -1021,7 +1020,7 @@ static int mb_handler(request_rec *r)
 
     } else {
         if (r->finfo.filetype == APR_DIR) {
-        /* if (ap_is_directory(r->pool, r->filename)) { */
+        /* if (ap_is_directory(r->pool, r->filename)) */
             debugLog(r, cfg, "'%s' is a directory", r->filename);
             return DECLINED;
         }   
@@ -1045,7 +1044,7 @@ static int mb_handler(request_rec *r)
                 if (strcmp(ext + 1, reps[i].ext) == 0) {
                     rep = i;
                     rep_ext = reps[i].ext;
-                    debugLog(r, cfg, "File ending .%s found", rep_ext);
+                    /* debugLog(r, cfg, "File ending .%s found", rep_ext); */
                     break;
                 }
             }
@@ -1055,17 +1054,12 @@ static int mb_handler(request_rec *r)
                     return DECLINED;
 
                 case META4:
-                    debugLog(r, cfg, "Metalink requested by .meta4 extension");
-                    meta4_forced = 1;
-
                 case METALINK:
-                    debugLog(r, cfg, "Metalink v3 requested by .metalink extension");
-                    metalink_forced = 1;
-
                 case MIRRORLIST:
-                    debugLog(r, cfg, "Mirrorlist requested by .mirrorlist extension");
-                    mirrorlist = 1;
-
+                case MD5:
+                case SHA1:
+                case SHA256:
+                    debugLog(r, cfg, "Representation chosen by .%s extension", rep_ext);
                     /* note this actually modifies r->filename. */
                     ext[0] = '\0';
 
@@ -1077,103 +1071,99 @@ static int mb_handler(request_rec *r)
                         }
                     } 
                     debugLog(r, cfg, "r->uri: '%s'", r->uri);
-            }
 
-
-            /* fill in finfo */
-            if ( apr_stat(&r->finfo, r->filename, APR_FINFO_SIZE | APR_FINFO_MTIME, r->pool)
-                    != APR_SUCCESS ) {
-                return HTTP_NOT_FOUND;
+                    /* fill in finfo */
+                    if ( apr_stat(&r->finfo, r->filename, APR_FINFO_SIZE | APR_FINFO_MTIME, r->pool)
+                            != APR_SUCCESS ) {
+                        return HTTP_NOT_FOUND;
+                    }
+                    break;
             }
         }
 
+    } /* end if(!fakefile) */
+
+
+    if (rep == UNKNOWN) 
+        rep = REDIRECT;
+
+
+    if ((rep == REDIRECT) || meta_negotiated) {
+
         /* is the requested file too small to be worth a redirect? */
-        if (!mirrorlist && !meta4_forced && !metalink_forced && (r->finfo.size < cfg->min_size)) {
+        if (!fakefile && (r->finfo.size < cfg->min_size)) {
             debugLog(r, cfg, "File '%s' too small (%d bytes, less than %d)", 
                     r->filename, (int) r->finfo.size, (int) cfg->min_size);
             return DECLINED;
         }
-    }
 
-    /* is this file excluded from mirroring? */
-    if (!mirrorlist 
-       && !meta4_forced
-       && !metalink_forced
-       && cfg->exclude_filemask 
-       && !ap_regexec(cfg->exclude_filemask, r->uri, 0, NULL, 0) ) {
-        debugLog(r, cfg, "File '%s' is excluded by MirrorBrainExcludeFileMask", r->uri);
-        return DECLINED;
-    }
+        /* is this file excluded from mirroring? */
+        if (cfg->exclude_filemask 
+           && !ap_regexec(cfg->exclude_filemask, r->uri, 0, NULL, 0) ) {
+            debugLog(r, cfg, "File '%s' is excluded by MirrorBrainExcludeFileMask", r->uri);
+            return DECLINED;
+        }
 
-    /* is the request originating from an ip address excluded from redirecting? */
-    if (!mirrorlist && !meta4_forced && !metalink_forced && cfg->exclude_ips->nelts) {
-
-        for (i = 0; i < cfg->exclude_ips->nelts; i++) {
-
-            char *ip = ((char **) cfg->exclude_ips->elts)[i];
-
-            if (strcmp(ip, clientip) == 0) {
-                debugLog(r, cfg,
-                    "URI request '%s' from ip '%s' is excluded from"
-                    " redirecting because it matches IP '%s'",
-                    r->unparsed_uri, clientip, ip);
-                return DECLINED;
+        /* is the request originating from an ip address excluded from redirecting? */
+        if (cfg->exclude_ips->nelts) {
+            for (i = 0; i < cfg->exclude_ips->nelts; i++) {
+                char *ip = ((char **) cfg->exclude_ips->elts)[i];
+                if (strcmp(ip, clientip) == 0) {
+                    debugLog(r, cfg,
+                        "URI request '%s' from ip '%s' is excluded from"
+                        " redirecting because it matches IP '%s'",
+                        r->unparsed_uri, clientip, ip);
+                    return DECLINED;
+                }
             }
         }
-    }
 
-
-    /* is the request originating from a network excluded from redirecting? */
-    if (!mirrorlist && !meta4_forced && !metalink_forced && cfg->exclude_networks->nelts) {
-
-        for (i = 0; i < cfg->exclude_networks->nelts; i++) {
-
-            char *network = ((char **) cfg->exclude_networks->elts)[i];
-
-            if (strncmp(network, clientip, strlen(network)) == 0) {
-                debugLog(r, cfg,
-                    "URI request '%s' from ip '%s' is excluded from"
-                    " redirecting because it matches network '%s'",
-                    r->unparsed_uri, clientip, network);
-                return DECLINED;
+        /* is the request originating from a network excluded from redirecting? */
+        if (cfg->exclude_networks->nelts) {
+            for (i = 0; i < cfg->exclude_networks->nelts; i++) {
+                char *network = ((char **) cfg->exclude_networks->elts)[i];
+                if (strncmp(network, clientip, strlen(network)) == 0) {
+                    debugLog(r, cfg,
+                        "URI request '%s' from ip '%s' is excluded from"
+                        " redirecting because it matches network '%s'",
+                        r->unparsed_uri, clientip, network);
+                    return DECLINED;
+                }
             }
         }
-    }
 
 
-    /* is the file in the list of mimetypes to never mirror? */
-    if (!mirrorlist && !meta4_forced && !metalink_forced && (r->content_type) && (cfg->exclude_mime->nelts)) {
-
-        for (i = 0; i < cfg->exclude_mime->nelts; i++) {
-
-            char *mimetype = ((char **) cfg->exclude_mime->elts)[i];
-            if (wild_match(mimetype, r->content_type)) {
-                debugLog(r, cfg,
-                    "URI '%s' (%s) is excluded from redirecting"
-                    " by mimetype pattern '%s'", r->unparsed_uri,
-                    r->content_type, mimetype);
-                return DECLINED;
+        /* is the file in the list of mimetypes to never mirror? */
+        if ((r->content_type) && (cfg->exclude_mime->nelts)) {
+            for (i = 0; i < cfg->exclude_mime->nelts; i++) {
+                char *mimetype = ((char **) cfg->exclude_mime->elts)[i];
+                if (wild_match(mimetype, r->content_type)) {
+                    debugLog(r, cfg,
+                        "URI '%s' (%s) is excluded from redirecting"
+                        " by mimetype pattern '%s'", r->unparsed_uri,
+                        r->content_type, mimetype);
+                    return DECLINED;
+                }
             }
         }
-    }
 
-    /* is this User-Agent excluded from redirecting? */
-    user_agent = (const char *) apr_table_get(r->headers_in, "User-Agent");
-    if (!mirrorlist && !meta4_forced && !metalink_forced && (user_agent) && (cfg->exclude_agents->nelts)) {
-
-        for (i = 0; i < cfg->exclude_agents->nelts; i++) {
-
-            char *agent = ((char **) cfg->exclude_agents->elts)[i];
-
-            if (wild_match(agent, user_agent)) {
-                debugLog(r, cfg,
-                    "URI request '%s' from agent '%s' is excluded from"
-                    " redirecting by User-Agent pattern '%s'",
-                    r->unparsed_uri, user_agent, agent);
-                return DECLINED;
+        /* is this User-Agent excluded from redirecting? */
+        const char *user_agent = 
+            (const char *) apr_table_get(r->headers_in, "User-Agent");
+        if (user_agent && (cfg->exclude_agents->nelts)) {
+            for (i = 0; i < cfg->exclude_agents->nelts; i++) {
+                char *agent = ((char **) cfg->exclude_agents->elts)[i];
+                if (wild_match(agent, user_agent)) {
+                    debugLog(r, cfg,
+                        "URI request '%s' from agent '%s' is excluded from"
+                        " redirecting by User-Agent pattern '%s'",
+                        r->unparsed_uri, user_agent, agent);
+                    return DECLINED;
+                }
             }
         }
-    }
+
+    } /* end if ((rep == REDIRECT) || meta_negotiated) */
 
 
 #ifdef WITH_MEMCACHE
@@ -1250,7 +1240,30 @@ static int mb_handler(request_rec *r)
     debugLog(r, cfg, "AS '%s', Prefix '%s'", as, prefix);
 
 
-    /* ask the database and pick the matching server according to region */
+    /* prepare the filename to look up */
+    char *ptr = canonicalize_file_name(r->filename);
+    if (ptr == NULL) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+                "[mod_mirrorbrain] Error canonicalizing filename '%s'", r->filename);
+        return HTTP_INTERNAL_SERVER_ERROR;
+    }
+    /* XXX we should forbid symlinks in mirror_base */
+    realfile = apr_pstrdup(r->pool, ptr);
+    /* strip the leading directory */
+    filename = realfile + strlen(cfg->mirror_base);
+    free(ptr);
+    debugLog(r, cfg, "Canonicalized file on disk: %s", realfile);
+    debugLog(r, cfg, "SQL file to look up: %s", filename);
+
+    /* keep a filename version without leading path, because metalink clients
+     * will otherwise place the downloaded file into a directory hierarchy */
+    const char *basename;
+    if ((basename = ap_strrchr_c(filename, '/')) == NULL)
+        basename = filename;
+    else 
+        ++basename;
+
+
 
     if (scfg->query_label == NULL) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] No database query prepared!");
@@ -1266,6 +1279,32 @@ static int mb_handler(request_rec *r)
         }
     }
     debugLog(r, cfg, "Successfully acquired database connection.");
+
+    switch (rep) {
+    case MD5:
+    case SHA1:
+    case SHA256:
+        hashbag = hashbag_fill(r, dbd, filename);
+        if (!hashbag) {
+            debugLog(r, cfg, "no hashes found in database");
+            return HTTP_NOT_FOUND;
+        }
+
+        const char *h = NULL;
+        switch (rep) {
+        case MD5: h = hashbag->md5; break;
+        case SHA1: h = hashbag->sha1; break;
+        case SHA256: h = hashbag->sha256; break;
+        }
+
+        if (h && h[0]) {
+            ap_set_content_type(r, "text/html; charset=UTF-8");
+            ap_rprintf(r, "%s  %s\n", h, basename);
+            return OK;
+        }
+        return HTTP_NOT_FOUND;
+    }
+
 
     statement = apr_hash_get(dbd->prepared, scfg->query_label, APR_HASH_KEY_STRING);
 
@@ -1296,23 +1335,9 @@ static int mb_handler(request_rec *r)
         return DECLINED;
     }
 
-    /* strip the leading directory
-     * no need to escape it for the SQL query because we use a prepared 
+
+    /* no need to escape for the SQL query because we use a prepared 
      * statement with bound parameters */
-
-    char *ptr = canonicalize_file_name(r->filename);
-    if (ptr == NULL) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-                "[mod_mirrorbrain] Error canonicalizing filename '%s'", r->filename);
-        return HTTP_INTERNAL_SERVER_ERROR;
-    }
-    /* XXX we should forbid symlinks in mirror_base */
-    realfile = apr_pstrdup(r->pool, ptr);
-    filename = realfile + strlen(cfg->mirror_base);
-    free(ptr);
-    debugLog(r, cfg, "Canonicalized file on disk: %s", realfile);
-    debugLog(r, cfg, "SQL file to look up: %s", filename);
-
     if (apr_dbd_pvselect(dbd->driver, r->pool, dbd->handle, &res, statement, 
                 1, /* we don't need random access actually, but 
                       without it the mysql driver doesn't return results
@@ -1344,7 +1369,11 @@ static int mb_handler(request_rec *r)
         /* can be used with a CustomLog directive, conditionally logging these requests */
         apr_table_setn(r->subprocess_env, "MB_NOMIRROR", "1");
 
-        if (mirrorlist && apr_is_empty_array(cfg->fallbacks)) {
+        /* FIXME: there is an unhandled case I think: a metalink was requested,
+         * but no mirror could be found. It should probably be handled with
+         * fallback mirrors. */
+
+        if ((rep == MIRRORLIST) && apr_is_empty_array(cfg->fallbacks)) {
             debugLog(r, cfg, "empty mirrorlist");
             ap_set_content_type(r, "text/html; charset=ISO-8859-1");
             ap_rputs(DOCTYPE_XHTML_1_0T
@@ -1368,7 +1397,7 @@ static int mb_handler(request_rec *r)
             ap_rputs("</body></html>\n", r);
             return OK;
         } 
-        if (!mirrorlist && apr_is_empty_array(cfg->fallbacks)) {
+        if ((rep != MIRRORLIST) && apr_is_empty_array(cfg->fallbacks)) {
             /* deliver the file ourselves */
             debugLog(r, cfg, "have to deliver directly");
             return DECLINED;
@@ -1690,7 +1719,10 @@ static int mb_handler(request_rec *r)
     *
     * => best to sort the mirrors_same_country et al. individually, right?
     */
-    if (meta4 || meta4_forced || metalink || metalink_forced || mirrorlist) {
+    switch (rep) {
+    case META4:
+    case METALINK:
+    case MIRRORLIST:
         qsort(mirrors_same_prefix->elts, mirrors_same_prefix->nelts, 
               mirrors_same_prefix->elt_size, cmp_mirror_rank);
         qsort(mirrors_same_as->elts, mirrors_same_as->nelts, 
@@ -1701,6 +1733,7 @@ static int mb_handler(request_rec *r)
               mirrors_same_region->elt_size, cmp_mirror_rank);
         qsort(mirrors_elsewhere->elts, mirrors_elsewhere->nelts, 
               mirrors_elsewhere->elt_size, cmp_mirror_rank);
+        break;
     }
 
     if (cfg->debug) {
@@ -1766,14 +1799,6 @@ static int mb_handler(request_rec *r)
         debugLog(r, cfg, "no hashes found in database");
     } 
 
-
-    /* keep a filename version without leading path, because metalink clients
-     * will otherwise place the downloaded file into a directory hierarchy */
-    const char *basename;
-    if ((basename = ap_strrchr_c(filename, '/')) == NULL)
-        basename = filename;
-    else 
-        ++basename;
 
     /* if it makes sense, build a magnet link for later inclusion */
     char *magnet = NULL;
