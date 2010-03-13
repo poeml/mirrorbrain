@@ -2254,7 +2254,10 @@ static int mb_handler(request_rec *r)
 
         /* Metadata */
         ap_rputs("  <ul>\n", r);
-        ap_rprintf(r, "  <li>Size: %s bytes</li>\n", apr_off_t_toa(r->pool, r->finfo.size));
+        char buf[5];
+        ap_rprintf(r, "  <li>Size: %s (%s bytes)</li>\n", 
+                   apr_strfsize(r->finfo.size, buf),
+                   apr_off_t_toa(r->pool, r->finfo.size));
         time_str = apr_palloc(r->pool, APR_RFC822_DATE_LEN);
         apr_rfc822_date(time_str, r->finfo.mtime);
         ap_rprintf(r, "  <li>Last modified: %s (Unix time: %lld)</li>\n", time_str, r->finfo.mtime / 1000000);
@@ -2294,7 +2297,7 @@ static int mb_handler(request_rec *r)
                    "  <br/>\n", 
                 r->hostname, r->uri, r->hostname, r->uri);
         if (magnet) {
-            ap_rprintf(r, "  <a href=\"%s\">Magnet Link</a>\n", magnet);
+            ap_rprintf(r, "  <a href=\"%s\">Magnet Link</a> for P2P software</a>\n", magnet);
         }
         ap_rputs("  </blockquote>", r);
 
