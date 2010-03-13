@@ -201,6 +201,7 @@ typedef struct
     const char *metalink_hashes_prefix;
     const char *metalink_publisher_name;
     const char *metalink_publisher_url;
+    const char *tracker_url;
     const char *metalink_broken_test_mirrors;
     const char *mirrorlist_stylesheet;
     const char *query;
@@ -358,6 +359,7 @@ static void *create_mb_server_config(apr_pool_t *p, server_rec *s)
     new->metalink_hashes_prefix = NULL;
     new->metalink_publisher_name = NULL;
     new->metalink_publisher_url = NULL;
+    new->tracker_url = NULL;
     new->metalink_broken_test_mirrors = NULL;
     new->mirrorlist_stylesheet = NULL;
     new->query = DEFAULT_QUERY;
@@ -385,6 +387,7 @@ static void *merge_mb_server_config(apr_pool_t *p, void *basev, void *addv)
     cfgMergeString(metalink_hashes_prefix);
     cfgMergeString(metalink_publisher_name);
     cfgMergeString(metalink_publisher_url);
+    cfgMergeString(tracker_url);
     cfgMergeString(metalink_broken_test_mirrors);
     cfgMergeString(mirrorlist_stylesheet);
     mrg->query = (add->query != (char *) DEFAULT_QUERY) ? add->query : base->query;
@@ -586,6 +589,17 @@ static const char *mb_cmd_metalink_publisher(cmd_parms *cmd, void *config,
 
     cfg->metalink_publisher_name = arg1;
     cfg->metalink_publisher_url = arg2;
+    return NULL;
+}
+
+static const char *mb_cmd_tracker_url(cmd_parms *cmd, void *config, 
+                                      const char *arg1)
+{
+    server_rec *s = cmd->server;
+    mb_server_conf *cfg = 
+        ap_get_module_config(s->module_config, &mirrorbrain_module);
+
+    cfg->tracker_url = arg1;
     return NULL;
 }
 
@@ -1806,27 +1820,46 @@ static int mb_handler(request_rec *r)
         switch (rep) {
         case META4:
         case METALINK:
-        case MIRRORLIST:
-            magnet = apr_psprintf(r->pool, "magnet:"
-                          "?xl=%s"              /* size */
-                          "&amp;dn=%s"          /* file basename */
-                          "&amp;xt=urn:sha1:%s"
-                          "&amp;xt=urn:bith:%s" /* bittorrent information hash */
-                          "&amp;xt=urn:md5:%s"  /* Gnutella */
-                          "&amp;as=%s",         /* a HTTP link to the file */
-                       apr_off_t_toa(r->pool, r->finfo.size), 
-                       ap_escape_uri(r->pool, basename),
-                       hashbag->sha1, hashbag->sha1, hashbag->md5,
-                       apr_psprintf(r->pool, 
-                                    "http://%s%s", 
-                                    ap_escape_uri(r->pool, r->hostname), 
-                                    ap_escape_uri(r->pool, r->uri))
-                       ); 
+        case MIRRORLIST: {
 
-            /* FIXME: including a tracker URL might be cool (&amp;tr=<tracker-url>) 
-             * see http://mirrorbrain.org/issues/issue38 */
-            /* the URL to the file (for HTTP redirection) can also be included
-             * http://en.wikipedia.org/wiki/Magnet_URI_scheme#Normal_.28as.29 */
+            apr_array_header_t *m;
+            m = apr_array_make(r->pool, 7, sizeof(char *));
+
+            /* Bittorrent info hash */
+            APR_ARRAY_PUSH(m, char *) = 
+                apr_psprintf(r->pool, "magnet:?xt=urn:btih:%s", hashbag->sha1);
+#if 0
+            /* SHA-1 */
+            /* As far as I can see, this hash would actually need to be Base32
+             * encoded, not hex. But it's probably not worth adding Base32
+             * encoder just for this. */
+            APR_ARRAY_PUSH(m, char *) = 
+                apr_psprintf(r->pool, "&amp;xt=urn:sha1:%s", hashbag->sha1);
+#endif
+            /* MD5 */
+            APR_ARRAY_PUSH(m, char *) = 
+                apr_psprintf(r->pool, "&amp;xt=urn:md5:%s", hashbag->md5);
+
+            /* size */
+            APR_ARRAY_PUSH(m, char *) = 
+                apr_psprintf(r->pool, "&amp;xl=%s", apr_off_t_toa(r->pool, r->finfo.size));
+
+            /* file basename */
+            APR_ARRAY_PUSH(m, char *) = 
+                apr_psprintf(r->pool, "&amp;dn=%s", ap_escape_uri(r->pool, basename));
+
+            /* a HTTP link to the file */
+            APR_ARRAY_PUSH(m, char *) = 
+                apr_psprintf(r->pool, "&amp;as=http://%s%s", ap_escape_uri(r->pool, r->hostname), 
+                                                             ap_escape_uri(r->pool, r->uri));
+
+            if (scfg->tracker_url) {
+                APR_ARRAY_PUSH(m, char *) = 
+                    apr_psprintf(r->pool, "&amp;tr=%s", ap_escape_uri(r->pool, scfg->tracker_url));
+            }
+
+            magnet = apr_array_pstrcat(r->pool, m, '\0');
+        }
         }
     }
 
@@ -2596,6 +2629,10 @@ static const command_rec mb_cmds[] =
     AP_INIT_TAKE2("MirrorBrainMetalinkPublisher", mb_cmd_metalink_publisher, NULL, 
                   RSRC_CONF, 
                   "Name and URL for the metalinks publisher elements"),
+
+    AP_INIT_TAKE1("MirrorBrainTrackerURL", mb_cmd_tracker_url, NULL, 
+                  RSRC_CONF, 
+                  "Define a Tracker URL to be included in Magnet links"),
 
     AP_INIT_TAKE1("MirrorBrainMetalinkBrokenTestMirrors", mb_cmd_metalink_broken_test_mirrors, NULL, 
                   RSRC_CONF, 
