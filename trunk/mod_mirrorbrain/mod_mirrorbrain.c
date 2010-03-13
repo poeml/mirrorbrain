@@ -2273,13 +2273,12 @@ static int mb_handler(request_rec *r)
                 ap_rprintf(r, "  <li><a href=\"http://%s%s.md5\">MD5 Hash</a>: <tt>%s</tt> "
                               "</li>\n", r->hostname, r->uri, hashbag->md5);
 
-            /* XXX we could link to the signature
             if (hashbag->pgp) {
-                ap_rputs("    <signature mediatype=\"application/pgp-signature\">\n", r);
-                ap_rputs(hashbag->pgp, r);
-                ap_rputs("    </signature>\n", r);
+                /* contrary to the hashes, we don't have a handler for .asc files, because
+                 * the database always only gets a signature when one already exists on-disk */
+                ap_rprintf(r, "  <li>PGP signature <a href=\"http://%s%s.asc\">available</a> "
+                              "</li>\n", r->hostname, r->uri);
             }
-            */
         }
         ap_rputs("  </ul>\n", r);
 
