@@ -62,8 +62,8 @@ The following commands will install all needed software via
   libapache2-mod-mirrorbrain libapache2-mod-autoindex-mb
 
 
-Install an Apache MPM
----------------------
+Select and install an Apache MPM
+--------------------------------
 
 The MirrorBrain packages have dependencies on the Apache common packages, but
 not on a MPM, since the choice of an MPM is one that the system admin must
@@ -199,97 +199,7 @@ mirrorbrain user::
   sudo chmod 0750 /var/log/mirrorbrain
 
 
-Create mirrorbrain.conf
-~~~~~~~~~~~~~~~~~~~~~~~
+Next steps
+----------
 
-Create a configuration file named :file:`mirrorbrain.conf`::
-
-  sudo sh -c "cat > /etc/mirrorbrain.conf << EOF
-  [general]
-  instances = main
-  
-  [main]
-  dbuser = mirrorbrain
-  dbpass = 12345
-  dbdriver = postgresql
-  dbhost = 127.0.0.1
-  # optional: dbport = ...
-  dbname = mirrorbrain
-  
-  [mirrorprobe]
-  # logfile = /var/log/mirrorbrain/mirrorprobe.log
-  # loglevel = INFO
-
-  EOF
-  "
-
-.. note::
-   The database password in the above template is only a placeholder and you
-   need to edit it: change it to the actual password, the one that you gave
-   when you ran PostgreSQL's :program:`createuser` command. Likewise, make sure
-   that you picked the same username.
-
-Set permission and privileges on the file::
-
-  sudo chmod 0640 /etc/mirrorbrain.conf 
-  sudo chown root:mirrorbrain /etc/mirrorbrain.conf
-
-
-Test mirrorbrain
-~~~~~~~~~~~~~~~~
-
-If the following command returns no error, but rather displays its usage info,
-the installation should be quite fine::
-
-  mb help
-
-
-Create a virtual host
----------------------
-
-The following snippet would create a new site as virtual host::
-
-  sudo sh -c "cat > /etc/apache2/sites-available/mirrorbrain << EOF
-  <VirtualHost 127.0.0.1>
-      ServerName mirrors.example.org
-      ServerAdmin webmaster@example.org
-      DocumentRoot /var/www/downloads
-      ErrorLog     /var/log/apache2/mirrors.example.org/error.log
-      CustomLog    /var/log/apache2/mirrors.example.org/access.log combined
-      <Directory /var/www/downloads>
-          MirrorBrainEngine On
-          MirrorBrainDebug Off
-          FormGET On
-          MirrorBrainHandleHEADRequestLocally Off
-          MirrorBrainMinSize 2048
-          MirrorBrainExcludeUserAgent rpm/4.4.2*
-          MirrorBrainExcludeUserAgent *APT-HTTP*
-          MirrorBrainExcludeMimeType application/pgp-keys
-          Options FollowSymLinks Indexes
-          AllowOverride None
-          Order allow,deny
-          Allow from all
-      </Directory>
-  </VirtualHost>
-  EOF
-  "
-
-Make the log directory::
-
-  sudo mkdir /var/log/apache2/mirrors.example.org/
-
-Make the download directory::
-
-  sudo mkdir /var/www/downloads
-
-Enable the site::
-
-  sudo a2ensite mirrorbrain
-
-
-Restart Apache, best while watching the error log::
-
-  sudo tail -f /var/log/apache2/error.log &
-  sudo /etc/init.d/apache2 restart
-
-
+From here, follow on with :ref:`initial_configuration`.

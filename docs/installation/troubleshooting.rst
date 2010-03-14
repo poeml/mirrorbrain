@@ -26,3 +26,6 @@ the directives belong.
           http://mirrorbrain.org/communication .  Questions can be answered
           there, and all kind of feedback is appreciated.
 
+.. note:: Bugs should be reported via http://mirrorbrain.org/issues/ or via the
+          mailing list.
+

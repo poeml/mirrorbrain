@@ -3,383 +3,248 @@ Installing from source
 ======================
 
 
-Install Apache 2.2.6 or later. 
+Installing Apache
+-----------------
 
-The main Apache module can be built with the following steps::
+Build or install Apache 2.2.6 or later. 
 
-  # unpack the tarball
+When installing/building the Apache Portable Runtime (APR), make sure that you
+build the required database adapter for the DBD module for PostgreSQL.
+
+
+Building Apache modules
+-----------------------
+
+mod_form
+~~~~~~~~
+
+Install mod_form. The sources are here:
+
+* http://apache.webthing.com/svn/apache/forms/mod_form.c
+* http://apache.webthing.com/svn/apache/forms/mod_form.h
+
+Its header file will be needed later to compile mod_mirrorbrain.
+
+It is useful to apply the following patch to mod_form.c::
+
+  Tue Mar 13 15:16:30 CET 2007 - poeml@cmdline.net
+  
+  preserve r->args (apr_strtok is destructive in this regard). Makes
+  mod_autoindex work again in conjunction with directories where FormGET is
+  enabled.
+  
+  --- mod_form.c.old      2007-03-13 15:05:13.872945000 +0100
+  +++ mod_form.c  2007-03-13 15:06:26.378367000 +0100
+  @@ -61,6 +61,7 @@
+     char* pair ;
+     char* last = NULL ;
+     char* eq ;
+  +  char* a ;
+     if ( ! ctx ) {
+       ctx = apr_pcalloc(r->pool, sizeof(form_ctx)) ;
+       ctx->delim = delim[0];
+  @@ -69,7 +70,8 @@
+     if ( ! ctx->vars ) {
+       ctx->vars = apr_table_make(r->pool, 10) ;
+     }
+  -  for ( pair = apr_strtok(args, delim, &last) ; pair ;
+  +  a = apr_pstrdup(r->pool, args);
+  +  for ( pair = apr_strtok(a, delim, &last) ; pair ;
+           pair = apr_strtok(NULL, delim, &last) ) {
+       for (eq = pair ; *eq ; ++eq)
+         if ( *eq == '+' )
+
+
+mod_mirrorbrain
+~~~~~~~~~~~~~~~
+
+The main Apache module, :program:`mod_mirrorbrain`, can be built with the
+following steps::
+
+  # unpack the tarball and go inside the source tree
   cd mod_mirrorbrain
-  apxs2 -c mod_mirrorbrain.c
+  apxs -c mod_mirrorbrain.c
 
-To install the module in the right place, you would typically call::
+To install the module in the right place, you would normally call::
 
-  apxs2 -i mod_mirrorbrain.c
+  apxs -i mod_mirrorbrain.c
 
-Building, installing and activation can typically be combined in one apxs call::
+Building, installing and activation can typically be combined in one :program:`apxs` call::
 
-  apxs2 -cia mod_mirrorbrain.c
-
-
-After installation of mod_mirrorbrain, you'll need to:
+  apxs -cia mod_mirrorbrain.c
 
 
-* install GeoIP library, commandline tools, and geoip apache module
-  (openSUSE/SLE packages: GeoIP, libGeoIP1, apache2-mod_geoip)
+mod_autoindex_mb
+~~~~~~~~~~~~~~~~
 
-* configure mod_geoip::
+Build and install mod_autoindex_mb::
 
-    GeoIPEnable On
-    GeoIPOutput Env
-    GeoIPDBFile /var/lib/GeoIP/GeoIP.dat MMapCache
-
-  (You would typically put this into the server-wide context of a virtual host.)
-
-  Note that a caching mode like MMapCache needs to be used, when Apache runs with the worker MPM.
-  See http://forum.maxmind.com/viewtopic.php?p=2078 for more information.
-
-* install mod_form. The sources are here:
-
-  * http://apache.webthing.com/svn/apache/forms/mod_form.c
-  * http://apache.webthing.com/svn/apache/forms/mod_form.h
-
-  It is useful to apply the following patch to mod_form.c::
-
-    Tue Mar 13 15:16:30 CET 2007 - poeml@cmdline.net
-    
-    preserve r->args (apr_strtok is destructive in this regard). Makes
-    mod_autoindex work again in conjunction with directories where FormGET is
-    enabled.
-    
-    --- mod_form.c.old      2007-03-13 15:05:13.872945000 +0100
-    +++ mod_form.c  2007-03-13 15:06:26.378367000 +0100
-    @@ -61,6 +61,7 @@
-       char* pair ;
-       char* last = NULL ;
-       char* eq ;
-    +  char* a ;
-       if ( ! ctx ) {
-         ctx = apr_pcalloc(r->pool, sizeof(form_ctx)) ;
-         ctx->delim = delim[0];
-    @@ -69,7 +70,8 @@
-       if ( ! ctx->vars ) {
-         ctx->vars = apr_table_make(r->pool, 10) ;
-       }
-    -  for ( pair = apr_strtok(args, delim, &last) ; pair ;
-    +  a = apr_pstrdup(r->pool, args);
-    +  for ( pair = apr_strtok(a, delim, &last) ; pair ;
-             pair = apr_strtok(NULL, delim, &last) ) {
-         for (eq = pair ; *eq ; ++eq)
-           if ( *eq == '+' )
+  # in mirrorbrain source tree
+  cd mod_autoindex_mb
+  apxs -cia mod_autoindex_mb.c
 
 
-- install the following Python modules:
+mod_geoip
+~~~~~~~~~
 
-  * python-cmdln
-  * python-sqlobject
-  * python-psycopg2
+Install the GeoIP library, the accompanying commandline tools, and the geoip Apache module.
 
-- for the scanner, which is written in Perl, a few Perl modules are required:
+Configure mod_geoip::
 
-  * perl-Config-IniFiles
-  * perl-libwww-perl
-  * perl-DBD-Pg
-  * perl-TimeDate
-  * perl-Digest-MD4 (it is not *really* needed, but prevents an ugly error message)
+  GeoIPEnable On
+  GeoIPOutput Env
+  GeoIPDBFile /var/lib/GeoIP/GeoIP.dat MMapCache
 
-- configure the database to use with MirrorBrain, and continue with the respective
-  description below:
+(You would typically put this into the server-wide context of a virtual host.)
+
+Note that a caching mode like MMapCache needs to be used, when Apache runs with the worker MPM.
+See http://forum.maxmind.com/viewtopic.php?p=2078 for more information.
+
+You need to build two commandline tools for GeoIP::
+
+  cd tools
+  gcc -Wall -o geoiplookup_continent geoiplookup_continent.c -lGeoIP
+  gcc -Wall -o geoiplookup_city geoiplookup_city.c -lGeoIP
 
 
-  * install the PostgreSQL database adapter for the DBD library
-    Note that if the web server is set up seperately from the database server,
-    only the web server needs this package.
+
+Installing Python and Perl modules
+----------------------------------
+
+Install the following Python modules:
+
+* python-cmdln
+* python-sqlobject
+* python-psycopg2
+
+Install a few Perl modules as well (required for the mirror scanner, which is written in Perl):
+
+* perl-Config-IniFiles
+* perl-libwww-perl
+* perl-DBD-Pg
+* perl-TimeDate
+* perl-Digest-MD4 (it is not *really* needed, but prevents an ugly error message)
+
+
+Installing PostgreSQL
+---------------------
+
+Install the PostgreSQL server, start it and create a user and a database::
+
+  su - postgres
   
-  * install postgresql and start it
-
-  * create the postgresql user account and database::
-
-
-       su - postgres
-       
-       root@powerpc:~ # su - postgres
-       postgres@powerpc:~> createuser -P mirrorbrain
-       Enter password for new role: 
-       Enter it again: 
-       Shall the new role be a superuser? (y/n) n
-       Shall the new role be allowed to create databases? (y/n) n
-       Shall the new role be allowed to create more new roles? (y/n) n
-       CREATE ROLE
-       
-       postgres@powerpc:~> createdb -O mirrorbrain mirrorbrain
-       CREATE DATABASE
-       postgres@powerpc:~> createlang plpgsql mirrorbrain
-       postgres@powerpc:~> 
-
-
-       postgres@powerpc:~> cp data/pg_hba.conf data/pg_hba.conf.orig
-       postgres@powerpc:~> vi data/pg_hba.conf
-
-       # TYPE  DATABASE    USER        CIDR-ADDRESS          METHOD
-       # "local" is for Unix domain socket connections only
-       #local   all         all                               ident
-       local   all         all                               password
-       # IPv4 local connections:
-       host    all         all         127.0.0.1/32          password
-       # IPv6 local connections:
-       host    all         all         ::1/128               password
-       # remote connections:
-       host    mirrorbrain mirrorbrain 10.10.2.3/32          md5
-
-       
-      
-  *  Tuning:
-
-     If the database will be large, reserve enough memory for it (mainly
-     by setting shared_buffers), and in any case you should switch off
-     synchronous commit mode (synchronous_commit = off). This can be set in
-     data/postgresql.conf.
-
-     Start the server::
-
-       root@powerpc:~ # rcpostgresql restart
-
-  * import table structure, and initial data::
-
-       psql -U mirrorbrain -f sql/schema-postgresql.sql mirrorbrain
-       psql -U mirrorbrain -f sql/initialdata-postgresql.sql mirrorbrain
-
-
-* Create a user and group::
-
-    groupadd -r mirrorbrain
-    useradd -r -o -g mirrorbrain -s /bin/bash -c "MirrorBrain user" -d /home/mirrorbrain mirrorbrain
-
-* create :file:`/etc/mirrorbrain.conf` with the content below. File permissions
-  should be 0640, ownership root:mirrorbrain::
-
-    [general]
-    instances = main
+  root@powerpc:~ # su - postgres
+  postgres@powerpc:~> createuser -P mirrorbrain
+  Enter password for new role: 
+  Enter it again: 
+  Shall the new role be a superuser? (y/n) n
+  Shall the new role be allowed to create databases? (y/n) n
+  Shall the new role be allowed to create more new roles? (y/n) n
+  CREATE ROLE
   
-    [main]
-    dbuser = mirrorbrain
-    dbpass = 12345
-    dbdriver = postgresql
-    dbhost = your_host.example.com
-    # optional: dbport = ...
-    dbname = mirrorbrain
-    
-    [mirrorprobe]
-    # logfile = /var/log/mirrorbrain/mirrorprobe.log
-    # loglevel = INFO
-    
+  postgres@powerpc:~> createdb -O mirrorbrain mirrorbrain
+  CREATE DATABASE
+  postgres@powerpc:~> createlang plpgsql mirrorbrain
+  postgres@powerpc:~> 
 
-* Note: the "mb" tool referenced below is (for convenience) a symlink to the
-  mirrordoctor.py script.
 
-* now you should be able to type 'mb list' without getting an error.
-  It'll produce no output, but exit with 0. If it gives an error, something is
-  wrong.
+  postgres@powerpc:~> cp data/pg_hba.conf data/pg_hba.conf.orig
+  postgres@powerpc:~> vi data/pg_hba.conf
 
-* collect a list of mirrors (their HTTP baseurl, and their rsync or FTP baseurl
-  for scanning). For example::
+  # TYPE  DATABASE    USER        CIDR-ADDRESS          METHOD
+  # "local" is for Unix domain socket connections only
+  #local   all         all                               ident
+  local   all         all                               password
+  # IPv4 local connections:
+  host    all         all         127.0.0.1/32          password
+  # IPv6 local connections:
+  host    all         all         ::1/128               password
+  # remote connections:
+  host    mirrorbrain mirrorbrain 10.10.2.3/32          md5
 
-    http://ftp.isr.ist.utl.pt/pub/MIRRORS/ftp.suse.com/projects/
-    rsync://ftp.isr.ist.utl.pt/suse/projects/
 
-    http://ftp.kddilabs.jp/Linux/distributions/ftp.suse.com/projects/
-    rsync://ftp.kddilabs.jp/suse/projects/
+Install the ip4r data type.
 
+Import the table structure and initial data::
 
+  psql -U mirrorbrain -f sql/schema-postgresql.sql mirrorbrain
+  psql -U mirrorbrain -f sql/initialdata-postgresql.sql mirrorbrain
 
-  Now you need to enter the mirrors into the database; it could be done using the
-  "mb" mirrorbrain tool. (See 'mb help new' for full option list.)::
 
-    mb new ftp.isr.ist.utl.pt \
-           --http http://ftp.isr.ist.utl.pt/pub/MIRRORS/ftp.suse.com/projects/ \
-           --rsync rsync://ftp.isr.ist.utl.pt/suse/projects/
 
-    mb new ftp.kddilabs.jp \
-           --http http://ftp.kddilabs.jp/Linux/distributions/ftp.suse.com/projects/ \
-           --rsync rsync://ftp.kddilabs.jp/suse/projects/
+Creating a "mirrorbrain" user and group
+---------------------------------------
 
+Create a "mirrorbrain" user and group::
 
-  The tool automatically figures out the GeoIP location of each mirror by itself.
-  But you could also specify them on the commandline.
+  groupadd -r mirrorbrain
+  useradd -r -o -g mirrorbrain -s /bin/bash -c "MirrorBrain user" -d /home/mirrorbrain mirrorbrain
 
-  If you want to edit a mirror later, use::
 
-    mb edit <identifier>
+Installation of the tools
+-------------------------
 
-  To simply display a mirror, you could use 'mb show kddi', for instance.
+You need to install a number of the provided tools to a location in your $PATH.
+Unfortunately, there is no Makefile to take this work off you. Hopefully, one can
+be provided later::
 
-  Finally, each mirror needs to be scanned and enabled::
+  install -m 755 tools/geoiplookup_continent /usr/bin/geoiplookup_continent
+  install -m 755 tools/geoiplookup_city      /usr/bin/geoiplookup_city
+  install -m 755 tools/geoip-lite-update     /usr/bin/geoip-lite-update
+  install -m 755 tools/null-rsync            /usr/bin/null-rsync
+  install -m 755 tools/scanner.pl            /usr/bin/scanner
+  install -m 755 mirrorprobe/mirrorprobe.py  /usr/bin/mirrorprobe
 
-    mb scan --enable <identifier>
 
-  See the output of 'mb help' for more commands.
+The following command should build and install the :program:`mb` admin tool (a.k.a. :program:`mirrordoctor`)::
 
+  setup.py install [--prefix=...]
+  ln -s mirrordoctor.py /usr/bin/mb
 
 
-* configure Apache:
 
-  * load the Apache modules::
+Configuring Apache
+------------------
 
-     a2enmod form
-     a2enmod geoip
-     a2enmod dbd
-     a2enmod mirrorbrain
+Load the Apache modules::
 
-  * create a DNS alias for your web host, if needed
+  a2enmod form
+  a2enmod geoip
+  a2enmod dbd
+  a2enmod mirrorbrain
 
-  * configure the database adapter (mod_dbd), resp. its connection pool.
-    Put the configuration into server-wide context. Config example::
 
-      # for prefork, this configuration is inactive. prefork simply uses 1
-      # connection per child.
-      <IfModule !prefork.c>
-              DBDMin  0
-              DBDMax  32
-              DBDKeep 4
-              DBDExptime 10
-      </IfModule>
+Configure the database adapter (mod_dbd), resp. its connection pool.
+Put the configuration into server-wide context. Config example::
 
-  * configure the database driver.
-    Put the following configuration into server-wide OR vhost context. Make the file
-    chmod 0640, owned root:root because it will contain the database password::
+  # for prefork, this configuration is inactive. prefork simply uses 1
+  # connection per child.
+  <IfModule !prefork.c>
+          DBDMin  0
+          DBDMax  32
+          DBDKeep 4
+          DBDExptime 10
+  </IfModule>
 
-      DBDriver pgsql
-      # note that the connection string (which is passed straight through to
-      # PGconnectdb in this case) looks slightly different - pass vs. password
-      DBDParams "host=localhost user=mirrorbrain password=12345 dbname=mirrorbrain connect_timeout=15"
+Configure the database driver. Put the following configuration into server-wide
+OR vhost context. Make the file chmod 0640, owned root:root because it will
+contain the database password::
 
+  DBDriver pgsql
+  # note that the connection string (which is passed straight through to
+  # PGconnectdb in this case) looks slightly different - pass vs. password
+  DBDParams "host=localhost user=mirrorbrain password=12345 dbname=mirrorbrain connect_timeout=15"
 
-    .. note:: The database connection string must be unique per virtual host.
-              This matters if several MirrorBrain instances are set up in one
-              Apache. If the database connection string is identical in
-              different virtual hosts, mod_dbd may fail to associate the
-              connection string with the correct virtual host.
 
+.. note:: The database connection string must be unique per virtual host.
+          This matters if several MirrorBrain instances are set up in one
+          Apache. If the database connection string is identical in
+          different virtual hosts, mod_dbd may fail to associate the
+          connection string with the correct virtual host.
 
-  * configure mod_mirrorbrain.
-    You probably want to reate a vhost (e.g.
-    /etc/apache2/vhosts.d/samba.mirrorbrain.org.conf) and add the MirrorBrain
-    configuration like shown here::
 
-      <VirtualHost your.host.name:80>
-          ServerName samba.mirrorbrain.org
-      
-          ServerAdmin webmaster@example.org
-      
-          DocumentRoot /srv/samba/pub/projects
-      
-          ErrorLog     /var/log/apache/samba.mirrorbrain.org/logs/error_log
-          CustomLog    /var/log/apache/samba.mirrorbrain.org/logs/access_log combined
 
-          <Directory /srv/samba/pub/projects>
-              MirrorBrainEngine On
-              MirrorBrainDebug Off
-              FormGET On
-              MirrorBrainHandleHEADRequestLocally Off
-              MirrorBrainMinSize 2048
-              MirrorBrainExcludeUserAgent rpm/4.4.2*
-              MirrorBrainExcludeUserAgent *APT-HTTP*
-              MirrorBrainExcludeMimeType application/pgp-keys
+Next steps
+----------
 
-              Options FollowSymLinks Indexes
-              AllowOverride None
-              Order allow,deny
-              Allow from all
-          </Directory>
-      
-      </VirtualHost>
-
-  * restart Apache, best while watching the error log::
-
-      tail -F /var/log/apache/*_log &
-      apachectl restart
-
-    
-  * mirror surveillance needs to be configured. Put this into /etc/crontab::
-
-      -* * * * *                mirrorbrain   mirrorprobe
-
-    configure mirror scanning::
-
-      45 * * * *                mirrorbrain   mb scan -j 3 -a
-
-    another cron job can remove unreferenced files from the database::
-
-      # Monday: database clean-up day...
-      30 1 * * mon              mirrorbrain   mb db vacuum
-
-
-
-TODO: describe how to test that the install was successful
-    (When testing, consider any excludes that you configured, and which might
-    introduce confusion.)
-
-* Many HTTP clients can be used for testing, but `cURL`_ is a most helpful tool
-  for that. Here are some examples.
-
-  Showy the HTTP response code and the Location header pointing to the new location::
-
-    curl -sI <url>
-
-  Display the metalink::
-
-    curl -s <url>.metalink
-
-  Show a HTML list with the available mirrors::
-
-    curl -s <url>?mirrorlist
-
-.. _`cURL`: http://curl.haxx.se/
-
-
-TODO: describe a decent logging setup
-
-
-* further things that you might want to configure:
-
-  * mod_autoindex_mb, a replacement for the standard module mod_autoindex::
-
-      a2dismod autoindex
-      a2enmod autoindex_mb
-      Add IndexOptions Metalink Mirrorlist
-      # or IndexOptions +Metalink +Mirrorlist, depending on your config
-
-  * add a link to a CSS stylesheet for mirror lists::
-
-      MirrorBrainMirrorlistStylesheet "http://static.opensuse.org/css/mirrorbrain.css"
-
-    and for the autoindex::
-
-      IndexStyleSheet "http://static.opensuse.org/css/mirrorbrain.css"
-
-  * prepare the metalink hashes. 
-
-    * First, add some configuration::
-
-        MirrorBrainMetalinkPublisher "openSUSE" http://download.opensuse.org
-        MirrorBrainMetalinkHashesPathPrefix /srv/hashes/srv/opensuse
-
-    * install the "metalink" tool from http://metamirrors.nl/metalinks_project
-      (openSUSE/Debian/Ubuntu package called metalink, to be found at
-      http://download.opensuse.org/repositories/Apache:/MirrorBrain/)
-
-    * you need to create a directory where to store the hashes. For instance,
-      :file:`/srv/hashes/srv/opensuse`. Note that the full pathname to
-      the filetree (``/srv/opensuse``) is part of this target path.
-      
-      Make the directory owned by the ``mirrorbrain`` user.
-
-    * now, create the hashes with the following command. It is best run as
-      unprivileged user (``mirrorbrain``)::
-
-        mb makehashes /srv/opensuse -t /srv/hashes/srv/opensuse
-
-
-    * add the hashing command to /etc/crontab to be run every few hours. Alternatively, run
-      it after changes in the file tree happen.
-
-
+From here, follow on with :ref:`initial_configuration`.

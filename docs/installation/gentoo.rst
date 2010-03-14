@@ -1,6 +1,7 @@
 Installation on Gentoo Linux
 ================================================================================
 
+These are very rough notes, which might be helpful for someone as a start maybe.
 
 .. note::
    See also
@@ -121,4 +122,7 @@ You should get about the following output::
   ...
 
 
+Next steps
+----------
 
+From here, follow on with :ref:`initial_configuration`.
