@@ -3,6 +3,36 @@
 Release Notes/Change History
 ============================
 
+
+*not released:* 2.13.0 (rXXXX, ...)
+------------------------------------
+
+* Issue #40 largely solved.
+
+  The semantics for detection of up-to-date-ness of caches hashes are the same as
+  before. File size and mtime are the criteria.
+
+  Need to describe the "failure case" when the hash table doesn't exist yet, but
+  mod_mirrorbrain can't prepare its statements then. Or: fix it.
+
+* The requirement on the metalink package has been removed.
+
+
+* Issue #41: Mirror lists now include hashes, link to PGP signature, file size and mtime.
+
+* Issue #14: Meta4 support.
+
+* Issue #38: Magnet link support.
+
+  Hashes are hex-encoded, because Base32 encoding would be awkward to add and
+  there seems to be a transition to hex encoding.
+
+* MirrorBrainTrackerURL directive added.
+
+* Issue #42: Implemented hash server.
+
+
+
 Release 2.12.0 (r7957, Feb 10, 2010)
 ------------------------------------
 
