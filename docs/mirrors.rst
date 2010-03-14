@@ -1,4 +1,6 @@
 
+.. _maintaining_the_mirror_database:
+
 Maintaining the mirror database
 ===============================
 
