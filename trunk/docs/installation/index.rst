@@ -10,5 +10,6 @@ Installation
     debian
     gentoo
     mod_asn
+    initial_config
     troubleshooting
 

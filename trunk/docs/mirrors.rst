@@ -725,11 +725,13 @@ With this command, you can conveniently open a database shell::
 .. _`PostgreSQL interactive terminal`: http://www.postgresql.org/docs/8.4/static/app-psql.html
 
 
+.. _mb_db_sizes:
+
 Database size info with :program:`mb db size`
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The command :program:`mb db size` prints the size of each database relation.
-(In PostgreSQL speak, a A *relation* is a table or an index.) This provides
+(In PostgreSQL speak, a *relation* is a table or an index.) This provides
 insight for appropriate database tuning and planning. Here's an example::
 
      % mb db sizes       
@@ -751,8 +753,8 @@ insight for appropriate database tuning and planning. Here's an example::
       0.0    sql_sizing_profiles
     Total: 1145.9
 
-That's a really large database, containing nearly 3 millions (!) of files. It
-uses a good gigabyte of disk space.
+This example shows a really, really large database, containing nearly 3
+millions (!) of files. It uses a good gigabyte of disk space.
 
 ``filearr`` contains the file names and associations to the mirrors.
 ``filearr_path_key`` is the index on the file names. ``filearr_pkey`` is the
