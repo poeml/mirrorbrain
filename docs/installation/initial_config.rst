@@ -4,6 +4,43 @@
 Initial configuration steps on all platforms
 ============================================
 
+
+Create a file tree
+------------------
+
+If you haven't got a file tree yet, you should create it now.
+
+Make the directory for the file tree and fill it::
+
+  mkdir /srv/mytree
+  rsync .... /srv/mytree
+
+Note that this file tree is a necessary prerequisite to running MirrorBrain,
+even though it intercepts the requests to those files and redirects them to
+mirrors.
+
+Having said that, there *is* a way to get by without local files, which is by
+using the :program:`null-rsync` (found in the source tree) tool instead of
+:program:`rsync` to pull the files. :program:`null-rsync` is used exactly as
+rsync, but it will create a pseudo file tree that requires very few local
+space. However, since those files are filled with zeroes (!), it is important
+to make sure that MirrorBrain *never* delivers content from those files. That
+is achieved by using the ``MirrorBrainFallback`` directive to define some
+mirrors that are *always* available and are guaranteed to have *all* those
+files. (The directive can be configured individually per directory in Apache
+config.) See the `2.11.0 release notes`_ for details.
+
+Note that if you have the files locally, you can automatically maintain
+cryptographic hashes of them in the database; running with pseudo files cuts on
+some very useful features. In addition, the local files are always available to
+deliver them directly, which is a good fallback behaviour for files that are
+not mirrored at all, files that have not arrived on any mirror just yet, and so
+on.
+
+.. _`2.11.0 release notes`: http://mirrorbrain.org/docs/changes/#release-2-11-0-r7896-dec-2-2009
+
+
+
 Create mirrorbrain.conf
 ~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -372,12 +409,6 @@ Another example::
 Make the log directory for the virtual host::
 
   sudo mkdir /var/log/apache2/mirrors.example.org/
-
-Make the download directory (for the file tree)::
-
-  sudo mkdir /var/www/downloads
-
-If you haven't done so yet, fill the file tree with the download tree.
 
 
 Enable the site::
