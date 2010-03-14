@@ -116,6 +116,14 @@ displays its usage info. If so, the installation should be quite fine::
   mb help
 
 
+Also, the following should work::
+
+   % geoiplookup_continent www.slashdot.org
+  NA
+
+The ``NA`` stands for North America and indicates that the GeoIP lookup works
+correctly.
+
 
 Creating some mirrors
 ~~~~~~~~~~~~~~~~~~~~~
