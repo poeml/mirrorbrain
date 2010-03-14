@@ -38,12 +38,6 @@ Set the following permissions and privileges on the file::
 
 
 
-* now you should be able to type 'mb list' without getting an error.
-  It'll produce no output, but exit with 0. If it gives an error, something is
-  wrong.
-
-
-
 Other possible options per MirrorBrain instance are:
 
 .. describe:: scan_top_include
@@ -63,72 +57,107 @@ Other possible options per MirrorBrain instance are:
    that match, everywhere in the tree.
 
 
+
+
 Test the database admin tool
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If the following command returns no error, but rather displays its usage info,
-the installation should be quite fine::
+At this point, you should be able to type the following command  without getting an
+error::
+
+  mb list
+  
+It'll produce no output, but exit with 0. If it gives an error, something is
+wrong.
+
+.. note:: 
+   Do this to verify that the previous steps have been completed successfully.
+
+Likewise, the following command should not return any error, but rather
+displays its usage info. If so, the installation should be quite fine::
 
   mb help
+
 
 
 Creating some mirrors
 ~~~~~~~~~~~~~~~~~~~~~
 
-* collect a list of mirrors (their HTTP baseurl, and their rsync or FTP baseurl
-  for scanning). For example::
+Collect a list of mirrors (their HTTP baseurl, and their rsync or FTP baseurl
+for scanning). For example::
 
-    http://ftp.isr.ist.utl.pt/pub/MIRRORS/ftp.suse.com/projects/
-    rsync://ftp.isr.ist.utl.pt/suse/projects/
+  http://ftp.isr.ist.utl.pt/pub/MIRRORS/ftp.suse.com/projects/
+  rsync://ftp.isr.ist.utl.pt/suse/projects/
 
-    http://ftp.kddilabs.jp/Linux/distributions/ftp.suse.com/projects/
-    rsync://ftp.kddilabs.jp/suse/projects/
-
-
-
-  Now you need to enter the mirrors into the database; it could be done using the
-  "mb" mirrorbrain tool. (See 'mb help new' for full option list.)::
-
-    mb new ftp.isr.ist.utl.pt \
-           --http http://ftp.isr.ist.utl.pt/pub/MIRRORS/ftp.suse.com/projects/ \
-           --rsync rsync://ftp.isr.ist.utl.pt/suse/projects/
-
-    mb new ftp.kddilabs.jp \
-           --http http://ftp.kddilabs.jp/Linux/distributions/ftp.suse.com/projects/ \
-           --rsync rsync://ftp.kddilabs.jp/suse/projects/
+  http://ftp.kddilabs.jp/Linux/distributions/ftp.suse.com/projects/
+  rsync://ftp.kddilabs.jp/suse/projects/
 
 
 
-  The tool automatically figures out the GeoIP location of each mirror by itself.
-  But you could also specify them on the commandline.
+Now you need to enter the mirrors into the database; it could be done using the
+"mb" mirrorbrain tool. (See 'mb help new' for full option list.)::
 
-  If you want to edit a mirror later, use::
+  mb new ftp.isr.ist.utl.pt \
+         --http http://ftp.isr.ist.utl.pt/pub/MIRRORS/ftp.suse.com/projects/ \
+         --rsync rsync://ftp.isr.ist.utl.pt/suse/projects/
 
-    mb edit <identifier>
-
-  To simply display a mirror, you could use 'mb show kddi', for instance.
-
-  Finally, each mirror needs to be scanned and enabled::
-
-    mb scan --enable <identifier>
-
-  See the output of 'mb help' for more commands.
+  mb new ftp.kddilabs.jp \
+         --http http://ftp.kddilabs.jp/Linux/distributions/ftp.suse.com/projects/ \
+         --rsync rsync://ftp.kddilabs.jp/suse/projects/
 
 
 
+The tool automatically figures out the GeoIP location of each mirror by itself.
+But you could also specify them on the commandline.
 
-  * mirror monitoring needs to be configured. Put this into /etc/crontab::
+If you want to edit a mirror later, use::
 
-      -* * * * *                mirrorbrain   mirrorprobe
+  mb edit <identifier>
 
-    configure mirror scanning::
+To simply display a mirror, you could use 'mb show kddi', for instance.
 
-      45 * * * *                mirrorbrain   mb scan -j 3 -a
+Finally, each mirror needs to be scanned and enabled::
 
-    another cron job can remove unreferenced files from the database::
+  mb scan --enable <identifier>
 
-      # Monday: database clean-up day...
-      30 1 * * mon              mirrorbrain   mb db vacuum
+
+See the output of :program:`mb help` for more commands. Refer to
+:ref:`maintaining_the_mirror_database` for a full reference documentation to
+the :program:`mb` tool.
+
+
+Set up required cron jobs
+-------------------------
+
+Set up mirror monitoring
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Mirror monitoring needs to be set up to run automatically. Put this into
+:file:`/etc/crontab`:
+
+The following cron job is needed to check which mirrors are reachable. This
+command is responsible for checking the mirrors in short intervals, and marking
+them online/offline in the database::
+
+  -* * * * *                mirrorbrain   mirrorprobe
+
+Setup mirror scanning
+~~~~~~~~~~~~~~~~~~~~~
+
+Configure mirror scanning::
+
+  45 * * * *                mirrorbrain   mb scan -j 3 -a
+
+Use more parallel scanners (-j ...) if you have a beefy machine.
+
+
+Maintenance
+~~~~~~~~~~~
+
+Another cron job is useful to remove unreferenced files from the database::
+
+  # Monday: database clean-up day...
+  30 1 * * mon              mirrorbrain   mb db vacuum
 
 
 
@@ -174,32 +203,35 @@ TODO: describe a decent logging setup
 
       IndexStyleSheet "http://static.opensuse.org/css/mirrorbrain.css"
 
-  * prepare the metalink hashes. 
 
-    * First, add some configuration::
+Create hashes
+-------------
 
-        MirrorBrainMetalinkPublisher "openSUSE" http://download.opensuse.org
-        MirrorBrainMetalinkHashesPathPrefix /srv/hashes/srv/opensuse
 
-    * you need to create a directory where to store the hashes. For instance,
-      :file:`/srv/hashes/srv/opensuse`. Note that the full pathname to
-      the filetree (``/srv/opensuse``) is part of this target path.
+First, add some configuration::
+
+  MirrorBrainMetalinkPublisher "openSUSE" http://download.opensuse.org
+  MirrorBrainMetalinkHashesPathPrefix /srv/hashes/srv/opensuse
+
+You need to create a directory where to store the hashes. For instance,
+:file:`/srv/hashes/srv/opensuse`. Note that the full pathname to the filetree
+(``/srv/opensuse``) is part of this target path.
       
-      Make the directory owned by the ``mirrorbrain`` user.
+Make the directory owned by the ``mirrorbrain`` user.
 
-    * now, create the hashes with the following command. It is best run as
-      unprivileged user (``mirrorbrain``)::
+Now, create the hashes with the following command. It is best run as
+unprivileged user (``mirrorbrain``)::
 
-        mb makehashes /srv/opensuse -t /srv/hashes/srv/opensuse
+  mb makehashes /srv/opensuse -t /srv/hashes/srv/opensuse
+
+Add the hashing command to /etc/crontab to be run every few hours.
+Alternatively, run it after changes in the file tree happen, coupled to some
+trigger etc.
+
+(This command was called ``metalink-hasher`` in previous releases of
+MirrorBrain.)
 
 
-    * add the hashing command to /etc/crontab to be run every few hours. Alternatively, run
-      it after changes in the file tree happen.
-
-
-
-
-Create a DNS alias for your web host, if needed
 
 
 
@@ -244,50 +276,10 @@ sure to set the GeoIPDBFile path (see above) to
 
 
 
-
-  * configure mod_mirrorbrain.
-    You probably want to reate a vhost (e.g.
-    /etc/apache2/vhosts.d/samba.mirrorbrain.org.conf) and add the MirrorBrain
-    configuration like shown here::
-
-      <VirtualHost your.host.name:80>
-          ServerName samba.mirrorbrain.org
-      
-          ServerAdmin webmaster@example.org
-      
-          DocumentRoot /srv/samba/pub/projects
-      
-          ErrorLog     /var/log/apache/samba.mirrorbrain.org/logs/error_log
-          CustomLog    /var/log/apache/samba.mirrorbrain.org/logs/access_log combined
-
-          <Directory /srv/samba/pub/projects>
-              MirrorBrainEngine On
-              MirrorBrainDebug Off
-              FormGET On
-              MirrorBrainHandleHEADRequestLocally Off
-              MirrorBrainMinSize 2048
-              MirrorBrainExcludeUserAgent rpm/4.4.2*
-              MirrorBrainExcludeUserAgent *APT-HTTP*
-              MirrorBrainExcludeMimeType application/pgp-keys
-
-              Options FollowSymLinks Indexes
-              AllowOverride None
-              Order allow,deny
-              Allow from all
-          </Directory>
-      
-      </VirtualHost>
-
-  * restart Apache, best while watching the error log::
-
-      tail -F /var/log/apache/*_log &
-      apachectl restart
-
-    
-
-
 Create a virtual host
 ---------------------
+
+Maybe create a DNS alias for your web host, if needed.
 
 The following snippet would create a new site as virtual host::
 
@@ -316,18 +308,52 @@ The following snippet would create a new site as virtual host::
   EOF
   "
 
-Make the log directory::
+Another example::
+
+  <VirtualHost your.host.name:80>
+      ServerName samba.mirrorbrain.org
+  
+      ServerAdmin webmaster@example.org
+  
+      DocumentRoot /srv/samba/pub/projects
+  
+      ErrorLog     /var/log/apache/samba.mirrorbrain.org/logs/error_log
+      CustomLog    /var/log/apache/samba.mirrorbrain.org/logs/access_log combined
+
+      <Directory /srv/samba/pub/projects>
+          MirrorBrainEngine On
+          MirrorBrainDebug Off
+          FormGET On
+          MirrorBrainHandleHEADRequestLocally Off
+          MirrorBrainMinSize 2048
+          MirrorBrainExcludeUserAgent rpm/4.4.2*
+          MirrorBrainExcludeUserAgent *APT-HTTP*
+          MirrorBrainExcludeMimeType application/pgp-keys
+
+          Options FollowSymLinks Indexes
+          AllowOverride None
+          Order allow,deny
+          Allow from all
+      </Directory>
+  
+  </VirtualHost>
+
+
+
+Make the log directory for the virtual host::
 
   sudo mkdir /var/log/apache2/mirrors.example.org/
 
-Make the download directory::
+Make the download directory (for the file tree)::
 
   sudo mkdir /var/www/downloads
+
+If you haven't done so yet, fill the file tree with the download tree.
+
 
 Enable the site::
 
   sudo a2ensite mirrorbrain
-
 
 Restart Apache, best while watching the error log::
 
