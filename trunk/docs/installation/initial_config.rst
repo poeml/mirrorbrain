@@ -160,6 +160,8 @@ Another cron job is useful to remove unreferenced files from the database::
   30 1 * * mon              mirrorbrain   mb db vacuum
 
 
+Testing
+-------
 
 TODO: describe how to test that the install was successful
     (When testing, consider any excludes that you configured, and which might
@@ -183,25 +185,31 @@ TODO: describe how to test that the install was successful
 .. _`cURL`: http://curl.haxx.se/
 
 
-TODO: describe a decent logging setup
+Logging setup
+-------------
+
+You may want to log more details than Apache normally logs into the access_log
+file. You can define a new log format that gives you an access_log, with
+details from MirrorBrain added::
+
+  LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\" \
+  %{X-MirrorBrain-Mirror}o r:%{MB_REALM}e \
+  %{MB_CONTINENT_CODE}e:%{MB_COUNTRY_CODE}e ASN:%{ASN}e P:%{PFX}e \
+  size:%{MB_FILESIZE}e %{Range}i" combined_redirect
 
 
-* further things that you might want to configure:
+This defines a new log format called "combined_redirect", which you can use in
+your virtual hosts with the CustomLog directive. 
 
-  * mod_autoindex_mb, a replacement for the standard module mod_autoindex::
+Instead of::
 
-      a2dismod autoindex
-      a2enmod autoindex_mb
-      Add IndexOptions Metalink Mirrorlist
-      # or IndexOptions +Metalink +Mirrorlist, depending on your config
+  CustomLog /var/log/apache2/myhost/access_log combined
 
-  * add a link to a CSS stylesheet for mirror lists::
+you would use:
 
-      MirrorBrainMirrorlistStylesheet "http://static.opensuse.org/css/mirrorbrain.css"
+  CustomLog /var/log/apache2/myhost/access_log combined_redirect
 
-    and for the autoindex::
-
-      IndexStyleSheet "http://static.opensuse.org/css/mirrorbrain.css"
+.. TODO: describe a good logging setup with cronolog
 
 
 Create hashes
@@ -231,7 +239,28 @@ trigger etc.
 (This command was called ``metalink-hasher`` in previous releases of
 MirrorBrain.)
 
+.. TODO: show how to run this command (and others) under withlock
 
+
+Optional things you might want
+------------------------------
+
+* further things that you might want to configure:
+
+  * mod_autoindex_mb, a replacement for the standard module mod_autoindex::
+
+      a2dismod autoindex
+      a2enmod autoindex_mb
+      Add IndexOptions Metalink Mirrorlist
+      # or IndexOptions +Metalink +Mirrorlist, depending on your config
+
+  * add a link to a CSS stylesheet for mirror lists::
+
+      MirrorBrainMirrorlistStylesheet "http://static.opensuse.org/css/mirrorbrain.css"
+
+    and for the autoindex::
+
+      IndexStyleSheet "http://static.opensuse.org/css/mirrorbrain.css"
 
 
 
