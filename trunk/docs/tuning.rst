@@ -106,20 +106,60 @@ time of 15 seconds in most Apache installs is far more than necessary. A good
 value is 2 seconds, which keeps the good side of KeepAlive, but avoids the
 drawbacks to the extent that they don't tend to be a problem.
 
-Hence, good settins are::
+Hence, good settings are::
 
     KeepAlive On
     MaxKeepAliveRequests 100
     KeepAliveTimeout 2
 
 
-.. Tuning PostgreSQL
-.. -----------------
-.. 
-.. To tune PostgreSQL for good performance, you should tweak the following
-.. parameters in :file:`postgresql.conf`.
-.. 
-.. 
-.. .. describe:: listen_addresses
-.. 
-..     asdfasdf asdflkasdasd
+
+Tuning PostgreSQL
+-----------------
+
+
+To tune PostgreSQL for good performance, you should tweak some or all of the
+parameters below in :file:`postgresql.conf`.
+
+This config file often lives in the same directory as the PostgreSQL database,
+which would be :file:`/var/lib/pgsql/data` on an openSUSE system -- or it could
+be in :file:`/etc`, as in :file:`/etc/postgresql/8.3/main` on Debian Lenny.
+
+
+Memory sizing
+^^^^^^^^^^^^^
+
+.. describe:: shared_buffers
+
+   Make sure to reserve enough memory for the database, especially if it will
+   be large. As a rough first estimate, it is usually sufficient and optimal if
+   the reserved RAM is about the same as the database size on disk.
+   
+   There is a special command :program:`mb db sizes` that helps you to assess
+   the size of your databases. See :ref:`mb_db_sizes`.
+
+.. FIXME: describe in detail
+
+
+Other parameters
+^^^^^^^^^^^^^^^^
+
+.. describe:: synchronous_commit
+
+   In any case, you should disable the synchronous commit mode
+   (synchronous_commit = off). The only case where you don't want that is if
+   you have other databases than MirrorBrain, which require a higher level of
+   data integrity than MirrorBrain does.
+
+   
+.. describe:: listen_addresses
+
+   You'll need to change the parameter listen_addresses if you 
+
+   a) run the web server on a different host than the database server, or if you 
+    
+   b) want to use the :program:`mb` admin tool from a different host than the the
+      database host.
+
+   The default is localhost only. Add '*' or comma-separated addresses.
+
