@@ -34,13 +34,19 @@ CREATE TABLE "hash" (
         "pgp" TEXT NOT NULL
 );
 
+-- For conveniency, this view provides the binary columns from the "hash" table
+-- also encoded in hex
 CREATE VIEW hexhash AS 
   SELECT file_id, mtime, size, 
-         encode(md5, 'hex') AS md5, 
-         encode(sha1, 'hex') AS sha1, 
-         encode(sha256, 'hex') AS sha256, 
+         md5,
+         encode(md5, 'hex') AS md5hex, 
+         sha1,
+         encode(sha1, 'hex') AS sha1hex, 
+         sha256,
+         encode(sha256, 'hex') AS sha256hex, 
          sha1piecesize, 
-         encode(sha1pieces, 'hex') AS sha1pieces,
+         sha1pieces,
+         encode(sha1pieces, 'hex') AS sha1pieceshex,
          pgp 
   FROM hash;
 
