@@ -36,6 +36,14 @@ CREATE TABLE "hash" (
 
 -- For conveniency, this view provides the binary columns from the "hash" table
 -- also encoded in hex
+--
+-- Note on binary data (bytea) column.
+-- PostgreSQL escapes binary (bytea) data on output. But hex encoding is more
+-- efficient (it results in shorter strings, and thus less data to transfer
+-- over the wire, and it's also faster). The escape format doesn't make sense
+-- for a new application (which we are).
+-- On the other hand, storage in bytea is as compact as it can be, which is good.
+-- The hex encoding function in PostgreSQL seems to be fast.
 CREATE VIEW hexhash AS 
   SELECT file_id, mtime, size, 
          md5,
