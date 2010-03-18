@@ -18,8 +18,9 @@
  * mod_mirrorbrain is the heart of MirrorBrain, which
  *  - redirects clients to mirror servers, based on an SQL database
  *  - generates metalinks in real-time
- *  - generates text or HTML mirror lists
- * See http://mirrorbrain.org/ 
+ *  - generates per-file HTML mirror lists
+ *  - acts as a server for verification hashes
+ * See http://mirrorbrain.org/ for more information.
  *
  * Credits:
  *
@@ -27,9 +28,37 @@
  * Ryan C. Gordon <icculus@icculus.org>.
  *
  * It uses code from mod_authn_dbd, mod_authnz_ldap, mod_status, 
- * apr_memcache, ssl_scache_memcache.c
+ * apr_memcache, ssl_scache_memcache.c */
+
+
+/* Copyright notice for the hex_decode() function
  *
- */
+ * Copyright (c) 2001-2009, PostgreSQL Global Development Group
+ *
+ * PostgreSQL Database Management System
+ * (formerly known as Postgres, then as Postgres95)
+ * 
+ * Portions Copyright (c) 1996-2009, PostgreSQL Global Development Group
+ * 
+ * Portions Copyright (c) 1994, The Regents of the University of California
+ * 
+ * Permission to use, copy, modify, and distribute this software and its
+ * documentation for any purpose, without fee, and without a written agreement
+ * is hereby granted, provided that the above copyright notice and this
+ * paragraph and the following two paragraphs appear in all copies.
+ * 
+ * IN NO EVENT SHALL THE UNIVERSITY OF CALIFORNIA BE LIABLE TO ANY PARTY FOR
+ * DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING
+ * LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS
+ * DOCUMENTATION, EVEN IF THE UNIVERSITY OF CALIFORNIA HAS BEEN ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * THE UNIVERSITY OF CALIFORNIA SPECIFICALLY DISCLAIMS ANY WARRANTIES,
+ * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS FOR A PARTICULAR PURPOSE.  THE SOFTWARE PROVIDED HEREUNDER IS
+ * ON AN "AS IS" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATIONS TO
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. */
+
 
 #include "ap_config.h"
 #include "httpd.h"
@@ -85,7 +114,9 @@
 /* no space for time zones */
 #define RFC3339_DATE_LEN (21)
 
-#define SHA1_HEX_LENGTH 40
+#define MD5_DIGESTSIZE 16
+#define SHA1_DIGESTSIZE 20
+#define SHA256_DIGESTSIZE 32
 
 #ifdef WITH_MEMCACHE
 #define DEFAULT_MEMCACHED_LIFETIME 600
@@ -103,8 +134,8 @@
                            "FROM filearr " \
                            "WHERE path = %s)::smallint[]) " \
                       "AND enabled AND status_baseurl AND score > 0"
-#define DEFAULT_QUERY_HASH "SELECT file_id, md5, sha1, sha256, " \
-                                  "sha1piecesize, sha1pieces, pgp " \
+#define DEFAULT_QUERY_HASH "SELECT file_id, md5hex, sha1hex, sha256hex, " \
+                                  "sha1piecesize, sha1pieceshex, pgp " \
                            "FROM hexhash " \
                            "WHERE file_id = (SELECT id " \
                                             "FROM filearr " \
@@ -123,7 +154,7 @@
 module AP_MODULE_DECLARE_DATA mirrorbrain_module;
 
 /* (meta) representations of a requested file */
-enum { REDIRECT, META4, METALINK, MIRRORLIST, MD5, SHA1, SHA256, UNKNOWN };
+enum { REDIRECT, META4, METALINK, MIRRORLIST, TORRENT, MD5, SHA1, SHA256, UNKNOWN };
 static struct {
         int     id;
         char    *ext;
@@ -132,6 +163,7 @@ static struct {
         { META4,         "meta4" },
         { METALINK,      "metalink" },
         { MIRRORLIST,    "mirrorlist" },
+        { TORRENT,       "torrent" },
         { MD5,           "md5" },
         { SHA1,          "sha1" },
         { SHA256,        "sha256" },
@@ -165,11 +197,11 @@ struct mirror_entry {
 typedef struct hashbag hashbag_t;
 struct hashbag {
     int id;
-    const char *md5;
-    const char *sha1;
-    const char *sha256;
+    const char *md5hex;
+    const char *sha1hex;
+    const char *sha256hex;
     int sha1piecesize;
-    apr_array_header_t *sha1pieces;
+    apr_array_header_t *sha1pieceshex;
     const char *pgp;
 };
 
@@ -721,6 +753,78 @@ static void emit_metalink_url(request_rec *r, int rep,
     }
 }
 
+
+/* Fast hex decoding function from PostgreSQL, src/backend/utils/adt/encode.c
+ * 
+ * Note on binary data (bytea columns) in PostgreSQL:
+ *
+ * PostgreSQL escapes binary (BYTEA) data on output. But hex encoding is more
+ * efficient than the traditionally (<8.5) used escaping method. Hex encoding
+ * results in shorter strings, and thus less data to transfer over the wire,
+ * and encoding is also done faster. Hex encoding might actually become the
+ * default later. The escape format doesn't make sense for a new application
+ * anymore (like us).
+ * Storage on the other hand (in BYTEA data type) is as compact as could be.
+ * Compact storage means that the datawill more likely fit into memory, which
+ * is crucial. And the hex encoding function in PostgreSQL seems to be fast. 
+ *
+ * This means that, on our side, we have to convert back the data from hex to
+ * binary for output formats like e.g. torrents. Therefore we copied the hex
+ * decoder from PostgreSQL here. */
+
+static const int8_t hexlookup[128] = {
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, -1, -1, -1, -1, -1, -1,
+    -1, 10, 11, 12, 13, 14, 15, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, 10, 11, 12, 13, 14, 15, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+};
+
+static char get_hex(request_rec *r, char c)
+{
+    int         res = -1;
+
+    if (c > 0 && c < 127)
+        res = hexlookup[(unsigned char) c];
+
+    if (res < 0)
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+                "[mod_mirrorbrain] invalid hexadecimal digit: \"%c\"", c);
+
+    return (char) res;
+}
+
+static char *hex_decode(request_rec *r, const char *src, unsigned dstlen)
+{
+    const char *s, *srcend;
+    char *dst;
+    char v1, v2, *p;
+
+    if (!dstlen) {
+        dstlen = (strlen(src) >> 1);
+    }
+    dst = apr_palloc(r->pool, (dstlen));
+
+    srcend = src + (dstlen << 1);
+    s = src;
+    p = dst;
+    while (s < srcend) {
+        v1 = get_hex(r, *s++) << 4;
+        if (s >= srcend) {
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+                          "[mod_mirrorbrain] invalid hexadecimal data: "
+                          "odd number of digits");
+        }
+        v2 = get_hex(r, *s++);
+        *p++ = v1 | v2;
+    }
+
+    return dst;
+}
+
 static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
 {
     mb_server_conf *scfg = NULL;
@@ -755,11 +859,11 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
 
     hashbag_t *h = apr_pcalloc(r->pool, sizeof(hashbag_t));
     h->id = 0;
-    h->md5 = NULL;
-    h->sha1 = NULL;
-    h->sha256 = NULL;
+    h->md5hex = NULL;
+    h->sha1hex = NULL;
+    h->sha256hex = NULL;
     h->sha1piecesize = 0;
-    h->sha1pieces = NULL;
+    h->sha1pieceshex = NULL;
     h->pgp = NULL;
 
 
@@ -770,7 +874,7 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
     if (apr_dbd_pvselect(dbd->driver, r->pool, dbd->handle, &res, stmt, 0,
                 filename, 
                 apr_off_t_toa(r->pool, r->finfo.size), 
-                apr_itoa(r->pool, r->finfo.mtime / 1000000), /* APR finfo times are in microseconds */
+                apr_itoa(r->pool, apr_time_sec(r->finfo.mtime)), /* APR finfo times are in microseconds */
                 NULL) != 0) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
                 "[mod_mirrorbrain] Error looking up %s in database", filename);
@@ -785,7 +889,7 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
                       "(size: %s, mtime %s)",
                       filename,
                       apr_off_t_toa(r->pool, r->finfo.size),
-                      apr_itoa(r->pool, r->finfo.mtime / 1000000));
+                      apr_itoa(r->pool, apr_time_sec(r->finfo.mtime)));
         return NULL;
     }
 
@@ -800,22 +904,23 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
     if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] dbd: got NULL for md5");
     } else {
-        if (val[0])
-            h->md5 = apr_pstrdup(r->pool, val);
+        if (val[0]) {
+            h->md5hex = apr_pstrdup(r->pool, val);
+        }
     }
 
     if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] dbd: got NULL for sha1");
     } else {
         if (val[0])
-            h->sha1 = apr_pstrdup(r->pool, val);
+            h->sha1hex = apr_pstrdup(r->pool, val);
     }
 
     if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] dbd: got NULL for sha256");
     } else {
         if (val[0])
-            h->sha256 = apr_pstrdup(r->pool, val);
+            h->sha256hex = apr_pstrdup(r->pool, val);
     }
 
     if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL) 
@@ -833,15 +938,14 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
             apr_off_t n = r->finfo.size / h->sha1piecesize;
             // XXX ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] dbd: %lld sha1 pieces", n);
 
-            h->sha1pieces = apr_array_make(r->pool, n, sizeof(const char *));
+            h->sha1pieceshex = apr_array_make(r->pool, n, sizeof(const char *));
             int max = strlen(val);
             int i;
             for (i = 0; (i <= n); i++) {
-                if (((i + 1) * SHA1_HEX_LENGTH) > max)
+                if (((i + 1) * SHA1_DIGESTSIZE*2) > max)
                         break;
-                APR_ARRAY_PUSH(h->sha1pieces, char *) = apr_pstrndup(r->pool, 
-                                                                     val + i * SHA1_HEX_LENGTH, 
-                                                                     SHA1_HEX_LENGTH);
+                APR_ARRAY_PUSH(h->sha1pieceshex, char *) = apr_pstrndup(r->pool, 
+                        val + (i * SHA1_DIGESTSIZE * 2), (SHA1_DIGESTSIZE * 2));
             }
         }
     }
@@ -965,10 +1069,6 @@ static int mb_handler(request_rec *r)
         query_country = form_lookup(r, "country");
         query_asn = (char *) form_lookup(r, "as");
         if (form_lookup(r, "newmirror")) newmirror = 1;
-        if (form_lookup(r, "mirrorlist")) {
-            rep = MIRRORLIST;
-            rep_ext = reps[MIRRORLIST].ext;
-        }
         if (form_lookup(r, "meta4")) {
             rep = META4;
             rep_ext = reps[META4].ext;
@@ -977,9 +1077,14 @@ static int mb_handler(request_rec *r)
             rep = METALINK;
             rep_ext = reps[METALINK].ext;
         };
-        if (form_lookup(r, "md5"))    { rep = MD5;    rep_ext = reps[MD5].ext; };
-        if (form_lookup(r, "sha1"))   { rep = SHA1;   rep_ext = reps[SHA1].ext; };
-        if (form_lookup(r, "sha256")) { rep = SHA256; rep_ext = reps[SHA256].ext; };
+        if (form_lookup(r, "mirrorlist")) {
+            rep = MIRRORLIST;
+            rep_ext = reps[MIRRORLIST].ext;
+        }
+        if (form_lookup(r, "torrent")) { rep = TORRENT; rep_ext = reps[TORRENT].ext; }
+        if (form_lookup(r, "md5"))     { rep = MD5;     rep_ext = reps[MD5].ext; };
+        if (form_lookup(r, "sha1"))    { rep = SHA1;    rep_ext = reps[SHA1].ext; };
+        if (form_lookup(r, "sha256"))  { rep = SHA256;  rep_ext = reps[SHA256].ext; };
     }
     
     if (!query_country 
@@ -1070,6 +1175,7 @@ static int mb_handler(request_rec *r)
                 case META4:
                 case METALINK:
                 case MIRRORLIST:
+                case TORRENT:
                 case MD5:
                 case SHA1:
                 case SHA256:
@@ -1106,8 +1212,8 @@ static int mb_handler(request_rec *r)
 
         /* is the requested file too small to be worth a redirect? */
         if (!fakefile && (r->finfo.size < cfg->min_size)) {
-            debugLog(r, cfg, "File '%s' too small (%d bytes, less than %d)", 
-                    r->filename, (int) r->finfo.size, (int) cfg->min_size);
+            debugLog(r, cfg, "File '%s' too small (%lld bytes, less than %lld)", 
+                    r->filename, r->finfo.size, cfg->min_size);
             return DECLINED;
         }
 
@@ -1294,21 +1400,29 @@ static int mb_handler(request_rec *r)
     }
     debugLog(r, cfg, "Successfully acquired database connection.");
 
+
     switch (rep) {
     case MD5:
     case SHA1:
     case SHA256:
+    case TORRENT:
         hashbag = hashbag_fill(r, dbd, filename);
         if (!hashbag) {
-            debugLog(r, cfg, "no hashes found in database");
+            debugLog(r, cfg, "no hashes found in database, but needed "
+                             "for %s representation", rep_ext);
             return HTTP_NOT_FOUND;
         }
+    }
 
+    switch (rep) {
+    case MD5:
+    case SHA1:
+    case SHA256: {
         const char *h = NULL;
         switch (rep) {
-        case MD5: h = hashbag->md5; break;
-        case SHA1: h = hashbag->sha1; break;
-        case SHA256: h = hashbag->sha256; break;
+        case MD5: h = hashbag->md5hex; break;
+        case SHA1: h = hashbag->sha1hex; break;
+        case SHA256: h = hashbag->sha256hex; break;
         }
 
         if (h && h[0]) {
@@ -1317,6 +1431,7 @@ static int mb_handler(request_rec *r)
             return OK;
         }
         return HTTP_NOT_FOUND;
+        }
     }
 
 
@@ -1827,18 +1942,18 @@ static int mb_handler(request_rec *r)
 
             /* Bittorrent info hash */
             APR_ARRAY_PUSH(m, char *) = 
-                apr_psprintf(r->pool, "magnet:?xt=urn:btih:%s", hashbag->sha1);
+                apr_psprintf(r->pool, "magnet:?xt=urn:btih:%s", hashbag->sha1hex);
 #if 0
             /* SHA-1 */
             /* As far as I can see, this hash would actually need to be Base32
              * encoded, not hex. But it's probably not worth adding Base32
              * encoder just for this. */
             APR_ARRAY_PUSH(m, char *) = 
-                apr_psprintf(r->pool, "&amp;xt=urn:sha1:%s", hashbag->sha1);
+                apr_psprintf(r->pool, "&amp;xt=urn:sha1:%s", hashbag->sha1hex);
 #endif
             /* MD5 */
             APR_ARRAY_PUSH(m, char *) = 
-                apr_psprintf(r->pool, "&amp;xt=urn:md5:%s", hashbag->md5);
+                apr_psprintf(r->pool, "&amp;xt=urn:md5:%s", hashbag->md5hex);
 
             /* size */
             APR_ARRAY_PUSH(m, char *) = 
@@ -1953,10 +2068,14 @@ static int mb_handler(request_rec *r)
         ap_rprintf(r, "  <file name=\"%s\">\n", basename);
         ap_rprintf(r, "    <size>%s</size>\n\n", apr_off_t_toa(r->pool, r->finfo.size));
         ap_rprintf(r, "    <!-- <mtime>%lld</mtime> -->\n\n", 
-                   r->finfo.mtime / 1000000); /* APR finfo times are in microseconds */
+                   apr_time_sec(r->finfo.mtime)); /* APR finfo times are in microseconds */
 
 
         if (hashbag != NULL) {
+            if (hashbag->id) {
+                ap_rprintf(r, "    <!-- internal id: %d -->\n", hashbag->id);
+            }
+
             switch (rep) {
                 case META4:
                     if (hashbag->pgp) {
@@ -1965,21 +2084,21 @@ static int mb_handler(request_rec *r)
                         ap_rputs("    </signature>\n", r);
                     }
 
-                    if (hashbag->md5)
-                        ap_rprintf(r, "    <hash type=\"md5\">%s</hash>\n", hashbag->md5);
-                    if (hashbag->sha1)
-                        ap_rprintf(r, "    <hash type=\"sha-1\">%s</hash>\n", hashbag->sha1);
-                    if (hashbag->sha256)
-                        ap_rprintf(r, "    <hash type=\"sha-256\">%s</hash>\n", hashbag->sha256);
+                    if (hashbag->md5hex)
+                        ap_rprintf(r, "    <hash type=\"md5\">%s</hash>\n", hashbag->md5hex);
+                    if (hashbag->sha1hex)
+                        ap_rprintf(r, "    <hash type=\"sha-1\">%s</hash>\n", hashbag->sha1hex);
+                    if (hashbag->sha256hex)
+                        ap_rprintf(r, "    <hash type=\"sha-256\">%s</hash>\n", hashbag->sha256hex);
 
-                    if (hashbag->sha1pieces 
+                    if (hashbag->sha1pieceshex 
                         && (hashbag->sha1piecesize > 0) 
-                        && !apr_is_empty_array(hashbag->sha1pieces)) {
+                        && !apr_is_empty_array(hashbag->sha1pieceshex)) {
                         ap_rprintf(r, "    <pieces length=\"%d\" type=\"sha-1\">\n", 
                                    hashbag->sha1piecesize);
 
-                        char **p = (char **)hashbag->sha1pieces->elts;
-                        for (i = 0; i < hashbag->sha1pieces->nelts; i++) {
+                        char **p = (char **)hashbag->sha1pieceshex->elts;
+                        for (i = 0; i < hashbag->sha1pieceshex->nelts; i++) {
                             ap_rprintf(r, "      <hash>%s</hash>\n", p[i]);
                         }
                         ap_rputs("    </pieces>\n", r);
@@ -1996,21 +2115,21 @@ static int mb_handler(request_rec *r)
                         ap_rputs("    </signature>\n", r);
                     }
 
-                    if (hashbag->md5)
-                        ap_rprintf(r, "        <hash type=\"md5\">%s</hash>\n", hashbag->md5);
-                    if (hashbag->sha1)
-                        ap_rprintf(r, "        <hash type=\"sha1\">%s</hash>\n", hashbag->sha1);
-                    if (hashbag->sha256)
-                        ap_rprintf(r, "        <hash type=\"sha256\">%s</hash>\n", hashbag->sha256);
+                    if (hashbag->md5hex)
+                        ap_rprintf(r, "        <hash type=\"md5\">%s</hash>\n", hashbag->md5hex);
+                    if (hashbag->sha1hex)
+                        ap_rprintf(r, "        <hash type=\"sha1\">%s</hash>\n", hashbag->sha1hex);
+                    if (hashbag->sha256hex)
+                        ap_rprintf(r, "        <hash type=\"sha256\">%s</hash>\n", hashbag->sha256hex);
 
-                    if (hashbag->sha1pieces 
+                    if (hashbag->sha1pieceshex 
                         && (hashbag->sha1piecesize > 0) 
-                        && !apr_is_empty_array(hashbag->sha1pieces)) {
+                        && !apr_is_empty_array(hashbag->sha1pieceshex)) {
                         ap_rprintf(r, "        <pieces length=\"%d\" type=\"sha1\">\n", 
                                    hashbag->sha1piecesize);
 
-                        char **p = (char **)hashbag->sha1pieces->elts;
-                        for (i = 0; i < hashbag->sha1pieces->nelts; i++) {
+                        char **p = (char **)hashbag->sha1pieceshex->elts;
+                        for (i = 0; i < hashbag->sha1pieceshex->nelts; i++) {
                             ap_rprintf(r, "          <hash piece=\"%d\">%s</hash>\n", i, p[i]);
                         }
                         ap_rputs("        </pieces>\n", r);
@@ -2260,18 +2379,18 @@ static int mb_handler(request_rec *r)
                    apr_off_t_toa(r->pool, r->finfo.size));
         time_str = apr_palloc(r->pool, APR_RFC822_DATE_LEN);
         apr_rfc822_date(time_str, r->finfo.mtime);
-        ap_rprintf(r, "  <li>Last modified: %s (Unix time: %lld)</li>\n", time_str, r->finfo.mtime / 1000000);
+        ap_rprintf(r, "  <li>Last modified: %s (Unix time: %lld)</li>\n", time_str, apr_time_sec(r->finfo.mtime));
 
         if (hashbag != NULL) {
-            if (hashbag->sha256)
+            if (hashbag->sha256hex)
                 ap_rprintf(r, "  <li><a href=\"http://%s%s.sha256\">SHA-256 Hash</a>: <tt>%s</tt> "
-                              "</li>\n", r->hostname, r->uri, hashbag->sha256);
-            if (hashbag->sha1)
+                              "</li>\n", r->hostname, r->uri, hashbag->sha256hex);
+            if (hashbag->sha1hex)
                 ap_rprintf(r, "  <li><a href=\"http://%s%s.sha1\">SHA-1 Hash</a>: <tt>%s</tt> "
-                              "</li>\n", r->hostname, r->uri, hashbag->sha1);
-            if (hashbag->md5)
+                              "</li>\n", r->hostname, r->uri, hashbag->sha1hex);
+            if (hashbag->md5hex)
                 ap_rprintf(r, "  <li><a href=\"http://%s%s.md5\">MD5 Hash</a>: <tt>%s</tt> "
-                              "</li>\n", r->hostname, r->uri, hashbag->md5);
+                              "</li>\n", r->hostname, r->uri, hashbag->md5hex);
 
             if (hashbag->pgp) {
                 /* contrary to the hashes, we don't have a handler for .asc files, because
@@ -2402,6 +2521,61 @@ static int mb_handler(request_rec *r)
         ap_rputs("</body>\n", r);
         ap_rputs("</html>\n", r);
         return OK;
+
+    case TORRENT:
+
+        if (!hashbag || (hashbag->sha1piecesize <= 0) || apr_is_empty_array(hashbag->sha1pieceshex) || !scfg->tracker_url) {
+            debugLog(r, cfg, "Torrent requested, but required data is missing");
+            break;
+        }
+
+        debugLog(r, cfg, "Sending torrent");
+        ap_set_content_type(r, "application/x-bittorrent");
+
+        ap_rprintf(r, "d"
+                          "8:announce"
+                          "%d:%s", strlen(scfg->tracker_url), scfg->tracker_url);
+
+        ap_rprintf(r,     "7:comment"
+                          "%d:%s", strlen(basename), basename);
+
+        ap_rprintf(r,     "13:creation date"
+                          "i%se", apr_itoa(r->pool, apr_time_sec(r->finfo.mtime)));
+
+        ap_rprintf(r,     "4:info"
+                          "d"
+                              "5:files"
+                              "l"
+                                  "d"
+                                      "6:length"
+                                      "i%se" 
+                                      "4:path"
+                                      "l"
+                                          "%d:%s"
+                                      "e"
+                                  "e"
+                              "e", apr_off_t_toa(r->pool, r->finfo.size),
+                                   strlen(basename), basename);
+
+        ap_rprintf(r,     "4:name"
+                          "%d:%s", strlen(basename), basename);
+        ap_rprintf(r,     "12:piece length"
+                          "i%de", hashbag->sha1piecesize);
+        ap_rprintf(r,     "6:pieces"
+                          "%d:", (hashbag->sha1pieceshex->nelts * SHA1_DIGESTSIZE));
+
+        char **p = (char **)hashbag->sha1pieceshex->elts;
+        for (i = 0; i < hashbag->sha1pieceshex->nelts; i++) {
+            ap_rwrite(hex_decode(r, p[i], SHA1_DIGESTSIZE), SHA1_DIGESTSIZE, r);
+        }
+
+        ap_rputs(         "e"
+                      "e", r);
+
+        return OK;
+
+
+        
     } /* end switch representation */
 
 
