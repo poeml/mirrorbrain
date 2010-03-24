@@ -267,7 +267,7 @@ def main():
 
         t = threading.Thread(target=probe_http, 
                              args=[mirrors[i]], 
-                             name="probeThread-%s" % mirror.id)
+                             name="probeThread-%s (%s)" % (mirror.id, mirror.identifier))
         # thread will keep the program from terminating.
         t.setDaemon(0)
         t.start()
