@@ -891,13 +891,15 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
 
     /* we care only about the 1st row, because our query uses 'limit 1' */
     rv = apr_dbd_get_row(dbd->driver, r->pool, res, &row, DBD_FIRST_ROW);
-    if (rv != 0) {
+    if (rv != APR_SUCCESS) {
+        const char *errmsg = apr_dbd_error(dbd->driver, dbd->handle, rv);
         ap_log_rerror(APLOG_MARK, APLOG_WARNING, rv, r,
-                      "[mod_mirrorbrain] Error retrieving row from database for %s "
-                      "(size: %s, mtime %s)",
+                      "[mod_mirrorbrain] Could not retrieve row from database for %s "
+                      "(size: %s, mtime %s): %s",
                       filename,
                       apr_off_t_toa(r->pool, r->finfo.size),
-                      apr_itoa(r->pool, apr_time_sec(r->finfo.mtime)));
+                      apr_itoa(r->pool, apr_time_sec(r->finfo.mtime)),
+                      (errmsg ? errmsg : "[???]"));
         return NULL;
     }
 
@@ -990,7 +992,7 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
     rv = apr_dbd_get_row(dbd->driver, r->pool, res, &row, DBD_FIRST_ROW + 1);
     if (rv != -1) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r,
-                      "[mod_mirrorbrain] found one row too much looking up hashes for %s",
+                      "[mod_mirrorbrain] found too many rows when looking up hashes for %s",
                       filename);
         return NULL;
     }
@@ -1610,9 +1612,11 @@ static int mb_handler(request_rec *r)
                              );
 
 
-        if (rv != 0) {
+        if (rv != APR_SUCCESS) {
+            const char *errmsg = apr_dbd_error(dbd->driver, dbd->handle, rv);
             ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r,
-                      "[mod_mirrorbrain] Error looking up %s in database", filename);
+                      "[mod_mirrorbrain] Error looking up %s in database: %s", 
+                      filename, (errmsg ? errmsg : "[???]"));
             return DECLINED;
         }
 
