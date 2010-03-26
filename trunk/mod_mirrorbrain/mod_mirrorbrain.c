@@ -135,7 +135,8 @@
                            "WHERE path = %s)::smallint[]) " \
                       "AND enabled AND status_baseurl AND score > 0"
 #define DEFAULT_QUERY_HASH "SELECT file_id, md5hex, sha1hex, sha256hex, " \
-                                  "sha1piecesize, sha1pieceshex, pgp " \
+                                  "sha1piecesize, sha1pieceshex, pgp, " \
+                                  "zblocksize, zhashlens, zsumshex " \
                            "FROM hexhash " \
                            "WHERE file_id = (SELECT id " \
                                             "FROM filearr " \
@@ -154,7 +155,7 @@
 module AP_MODULE_DECLARE_DATA mirrorbrain_module;
 
 /* (meta) representations of a requested file */
-enum { REDIRECT, META4, METALINK, MIRRORLIST, TORRENT, MD5, SHA1, SHA256, UNKNOWN };
+enum { REDIRECT, META4, METALINK, MIRRORLIST, TORRENT, ZSYNC, MD5, SHA1, SHA256, UNKNOWN };
 static struct {
         int     id;
         char    *ext;
@@ -164,6 +165,7 @@ static struct {
         { METALINK,      "metalink" },
         { MIRRORLIST,    "mirrorlist" },
         { TORRENT,       "torrent" },
+        { ZSYNC,         "zsync" },
         { MD5,           "md5" },
         { SHA1,          "sha1" },
         { SHA256,        "sha256" },
@@ -203,6 +205,9 @@ struct hashbag {
     int sha1piecesize;
     apr_array_header_t *sha1pieceshex;
     const char *pgp;
+    int zblocksize;
+    const char *zhashlens;
+    const char *zsumshex;
 };
 
 /* per-dir configuration */
@@ -865,6 +870,9 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
     h->sha1piecesize = 0;
     h->sha1pieceshex = NULL;
     h->pgp = NULL;
+    h->zblocksize = 0;
+    h->zhashlens = NULL;
+    h->zsumshex = NULL;
 
 
     apr_status_t rv;
@@ -956,6 +964,27 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
         if (val[0])
             h->pgp = apr_pstrdup(r->pool, val);
     }
+
+    if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL) 
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] dbd: got NULL for zblocksize");
+    else
+        h->zblocksize = atoi(val);
+
+    if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] dbd: got NULL for zhashlens");
+    } else {
+        if (val[0])
+            h->zhashlens = apr_pstrdup(r->pool, val);
+    }
+
+    if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] dbd: got NULL for zsums");
+    } else {
+        if (val[0])
+            h->zsumshex = apr_pstrdup(r->pool, val);
+    }
+
+
         
     /* clear the cursor by accessing invalid row */
     rv = apr_dbd_get_row(dbd->driver, r->pool, res, &row, DBD_FIRST_ROW + 1);
@@ -1082,6 +1111,7 @@ static int mb_handler(request_rec *r)
             rep_ext = reps[MIRRORLIST].ext;
         }
         if (form_lookup(r, "torrent")) { rep = TORRENT; rep_ext = reps[TORRENT].ext; }
+        if (form_lookup(r, "zsync"))   { rep = ZSYNC;   rep_ext = reps[ZSYNC].ext; }
         if (form_lookup(r, "md5"))     { rep = MD5;     rep_ext = reps[MD5].ext; };
         if (form_lookup(r, "sha1"))    { rep = SHA1;    rep_ext = reps[SHA1].ext; };
         if (form_lookup(r, "sha256"))  { rep = SHA256;  rep_ext = reps[SHA256].ext; };
@@ -1176,6 +1206,7 @@ static int mb_handler(request_rec *r)
                 case METALINK:
                 case MIRRORLIST:
                 case TORRENT:
+                case ZSYNC:
                 case MD5:
                 case SHA1:
                 case SHA256:
@@ -1406,6 +1437,7 @@ static int mb_handler(request_rec *r)
     case SHA1:
     case SHA256:
     case TORRENT:
+    case ZSYNC:
         hashbag = hashbag_fill(r, dbd, filename);
         if (!hashbag) {
             debugLog(r, cfg, "no hashes found in database, but needed "
@@ -2581,10 +2613,37 @@ static int mb_handler(request_rec *r)
 
         ap_rputs(         "e"
                       "e", r);
-
         return OK;
 
 
+    case ZSYNC:
+
+        if (!hashbag || (hashbag->sha1hex <= 0) || !hashbag->zhashlens 
+                || (hashbag->zblocksize == 0) || !hashbag->zhashlens) {
+            debugLog(r, cfg, "zsync requested, but required data is missing");
+            break;
+        }
+    
+        debugLog(r, cfg, "Sending zsync");
+        ap_set_content_type(r, "application/x-zsync");
+
+        ap_rputs("zsync: 0.6.1\n", r);
+        ap_rprintf(r, "Filename: %s\n", basename);
+
+        time_str = apr_palloc(r->pool, APR_RFC822_DATE_LEN);
+        apr_rfc822_date(time_str, r->finfo.mtime);
+        ap_rprintf(r, "MTime: %s\n", time_str);
+
+        ap_rprintf(r, "Blocksize: %d\n", hashbag->zblocksize);
+        ap_rprintf(r, "Length: %s\n", apr_off_t_toa(r->pool, r->finfo.size));
+        ap_rprintf(r, "Hash-Lengths: %s\n", hashbag->zhashlens);
+        ap_rprintf(r, "URL: http://%s%s\n", r->hostname, r->uri);
+        ap_rprintf(r, "SHA-1: %s\n\n", hashbag->sha1hex);
+
+        int l = strlen(hashbag->zsumshex);
+        ap_rwrite(hex_decode(r, hashbag->zsumshex, l/2), 
+                  l/2, r);
+        return OK;
         
     } /* end switch representation */
 
