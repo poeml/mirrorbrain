@@ -1498,39 +1498,49 @@ static int mb_handler(request_rec *r)
         /* can be used with a CustomLog directive, conditionally logging these requests */
         apr_table_setn(r->subprocess_env, "MB_NOMIRROR", "1");
 
-        /* FIXME: there is an unhandled case I think: a metalink was requested,
-         * but no mirror could be found. It should probably be handled with
-         * fallback mirrors. */
+        if (apr_is_empty_array(cfg->fallbacks)) {
 
-        if ((rep == MIRRORLIST) && apr_is_empty_array(cfg->fallbacks)) {
-            debugLog(r, cfg, "empty mirrorlist");
-            ap_set_content_type(r, "text/html; charset=ISO-8859-1");
-            ap_rputs(DOCTYPE_XHTML_1_0T
-                     "<html xmlns=\"http://www.w3.org/1999/xhtml\">\n"
-                     "<head>\n"
-                     "  <title>Mirror List</title>\n", r);
-            if (scfg->mirrorlist_stylesheet) {
-                ap_rprintf(r, "  <link type=\"text/css\" rel=\"stylesheet\" href=\"%s\" />\n",
-                           scfg->mirrorlist_stylesheet);
+            switch (rep) {
+            case MIRRORLIST:
+                debugLog(r, cfg, "empty mirrorlist");
+                ap_set_content_type(r, "text/html; charset=ISO-8859-1");
+                ap_rputs(DOCTYPE_XHTML_1_0T
+                         "<html xmlns=\"http://www.w3.org/1999/xhtml\">\n"
+                         "<head>\n"
+                         "  <title>Mirror List</title>\n", r);
+                if (scfg->mirrorlist_stylesheet) {
+                    ap_rprintf(r, "  <link type=\"text/css\" rel=\"stylesheet\" href=\"%s\" />\n",
+                               scfg->mirrorlist_stylesheet);
+                }
+                ap_rputs("</head>\n\n" "<body>\n", r);
+
+                ap_rprintf(r, "  <h2>Mirrors for <a href=\"http://%s%s\">http://%s%s</a></h2>\n" 
+                           "  <br/>\n", 
+                           r->hostname, r->uri, r->hostname, r->uri);
+                /* ap_rprintf(r, "Client IP address: %s<br/>\n", clientip); */
+
+                ap_rprintf(r, "I am very sorry, but no mirror was found. <br/>\n");
+                ap_rprintf(r, "Feel free to download from the above URL.\n");
+
+                ap_rputs("</body></html>\n", r);
+                return OK;
+            case TORRENT:
+            case ZSYNC:
+                break;
+            case META4:
+            case METALINK:
+                debugLog(r, cfg, "would have to send empty metalink... -> 404");
+                ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, 
+                        "[mod_mirrorbrain] Can't send metalink for %s (no mirrors)", filename);
+                return HTTP_NOT_FOUND;
+            default:
+                /* deliver the file ourselves */
+                debugLog(r, cfg, "have to deliver directly");
+                return DECLINED;
             }
-            ap_rputs("</head>\n\n" "<body>\n", r);
 
-            ap_rprintf(r, "  <h2>Mirrors for <a href=\"http://%s%s\">http://%s%s</a></h2>\n" 
-                       "  <br/>\n", 
-                       r->hostname, r->uri, r->hostname, r->uri);
-            /* ap_rprintf(r, "Client IP address: %s<br/>\n", clientip); */
-
-            ap_rprintf(r, "I am very sorry, but no mirror was found. <br/>\n");
-            ap_rprintf(r, "Feel free to download from the above URL.\n");
-
-            ap_rputs("</body></html>\n", r);
-            return OK;
-        } 
-        if ((rep != MIRRORLIST) && apr_is_empty_array(cfg->fallbacks)) {
-            /* deliver the file ourselves */
-            debugLog(r, cfg, "have to deliver directly");
-            return DECLINED;
         }
+
     }
 
 
