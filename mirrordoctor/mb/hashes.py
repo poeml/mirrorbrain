@@ -4,6 +4,8 @@ import sys
 import os
 import os.path
 import stat
+import zsync
+import binascii
 
 try:
     import hashlib
@@ -20,6 +22,9 @@ except ImportError:
     sha256 = None
 
 PIECESIZE = 262144
+
+# must be a multiple of 2048 and 4096 for zsync checksumming
+assert PIECESIZE % 4096 == 0
 
 
 class Hasheable:
@@ -48,7 +53,7 @@ class Hasheable:
         self.dst_basename = '%s.size_%s' % (self.basename, self.size)
         self.dst = os.path.join(self.dst_dir, self.dst_basename)
 
-        self.hb = HashBag(src = self.src)
+        self.hb = HashBag(src=self.src, parent=self)
 
     def islink(self):
         return stat.S_ISLNK(self.mode)
@@ -105,6 +110,7 @@ class Hasheable:
             conn.mycursor = conn.Hash._connection.getConnection().cursor()
         c = conn.mycursor
 
+
         c.execute("SELECT id FROM filearr WHERE path = %s LIMIT 1",
                   [self.src_rel])
         res = c.fetchone()
@@ -134,18 +140,23 @@ class Hasheable:
 
             c.execute("""INSERT INTO hash (file_id, mtime, size, md5, 
                                            sha1, sha256, sha1piecesize, 
-                                           sha1pieces, pgp) 
+                                           sha1pieces, pgp, zblocksize,
+                                           zhashlens, zsums) 
                          VALUES (%s, %s, %s, 
                                  decode(%s, 'hex'), decode(%s, 'hex'), 
                                  decode(%s, 'hex'), %s, decode(%s, 'hex'),
-                                 %s )""",
+                                 %s, %s, %s, decode(%s, 'hex'))""",
                       [file_id, int(self.mtime), self.size,
                        self.hb.md5hex,
                        self.hb.sha1hex,
                        self.hb.sha256hex or '',
                        PIECESIZE,
                        ''.join(self.hb.pieceshex),
-                       self.hb.pgp or ''])
+                       self.hb.pgp or '',
+                       self.hb.zblocksize,
+                       '%s,%s,%s' % (self.hb.zseq_matches, self.hb.zrsum_len, self.hb.zchecksum_len),
+                       binascii.hexlify(''.join(self.hb.zsums))]
+                      )
             if verbose:
                 print 'Hash was not present yet in database - inserted'
         else:
@@ -165,25 +176,24 @@ class Hasheable:
                                          sha256 = decode(%s, 'hex'), 
                                          sha1piecesize = %s,
                                          sha1pieces = decode(%s, 'hex'), 
-                                         pgp = %s
+                                         pgp = %s,
+                                         zblocksize = %s,
+                                         zhashlens = %s,
+                                         zsums = decode(%s, 'hex')
                          WHERE file_id = %s""",
                       [int(self.mtime), self.size,
                        self.hb.md5hex, self.hb.sha1hex, self.hb.sha256hex or '',
                        PIECESIZE, ''.join(self.hb.pieceshex),
                        self.hb.pgp or '', 
+                       self.hb.zblocksize,
+                       '%s,%s,%s' % (self.hb.zseq_matches, self.hb.zrsum_len, self.hb.zchecksum_len),
+                       binascii.hexlify(''.join(self.hb.zsums)),
                        file_id])
             if verbose:
                 print 'Hash updated in database for %r' % self.src_rel
 
         c.execute('commit')
 
-
-
-    #def __eq__(self, other):
-    #    return self.basename == other.basename
-    #def __eq__(self, basename):
-    #    return self.basename == basename
-        
     def __str__(self):
         return self.basename
 
@@ -191,9 +201,10 @@ class Hasheable:
 
 class HashBag():
 
-    def __init__(self, src):
+    def __init__(self, src, parent=None):
         self.src = src
         self.basename = os.path.basename(src)
+        self.h = parent
 
         self.md5 = None
         self.sha1 = None
@@ -207,6 +218,8 @@ class HashBag():
         self.pieces = []
         self.pieceshex = []
 
+        self.zsums = []
+
         self.empty = True
 
     def fill(self, verbose=False):
@@ -214,6 +227,8 @@ class HashBag():
         if verbose:
             sys.stdout.write('Hashing %r... ' % self.src)
             sys.stdout.flush()
+
+        self.zs_guess_zsync_params()
 
         m = md5.md5()
         s1 = sha1.sha1()
@@ -242,6 +257,8 @@ class HashBag():
             self.pieces.append(sha1.sha1(buf).digest())
             self.pieceshex.append(sha1.sha1(buf).hexdigest())
 
+            self.zs_get_block_sums(buf)
+
         f.close()
 
         self.md5 = m.digest()
@@ -255,6 +272,8 @@ class HashBag():
         # if present, grab PGP signature
         if os.path.exists(self.src + '.asc'):
             self.pgp = open(self.src + '.asc').read()
+
+        #print len(self.zsums)
 
         self.empty = False
 
@@ -304,5 +323,70 @@ class HashBag():
         r.append('        </pieces>\n      </verification>\n')
 
         return '\n'.join(r)
+
+
+    def zs_guess_zsync_params(self):
+        import math
+
+        size = self.h.size
+        if size < 100000000:
+            blocksize = 2048
+        else:
+            blocksize = 4096
+
+        # Decide how long a rsum hash and checksum hash per block we need for this file
+        if size > blocksize:
+            seq_matches = 2
+        else:
+            seq_matches = 1
+
+        rsum_len = math.ceil(((math.log(size) + math.log(blocksize)) / math.log(2) - 8.6) / seq_matches / 8)
+
+        # min and max lengths of rsums to store
+        if rsum_len > 4:
+            rsum_len = 4
+        if rsum_len < 2:
+            rsum_len = 2
+
+        # Now the checksum length; min of two calculations
+        checksum_len = math.ceil(
+                (20 + (math.log(size) + math.log(1 + size / blocksize)) / math.log(2))
+                / seq_matches / 8)
+        checksum_len2 = (7.9 + (20 + math.log(1 + size / blocksize) / math.log(2))) / 8
+
+        if checksum_len < checksum_len2:
+                checksum_len = checksum_len2
+
+        self.zblocksize = blocksize
+        self.zseq_matches = seq_matches
+        self.zrsum_len = int(rsum_len)
+        self.zchecksum_len = int(checksum_len)
+
+        #print '%s: %s,%s,%s' % (self.zblocksize, self.zseq_matches, self.zrsum_len, self.zchecksum_len)
+
+
+
+    def zs_get_block_sums(self, buf):
+
+        offset = 0
+        while 1:
+            block = buf[ offset : offset + self.zblocksize ]
+            offset += self.zblocksize
+            if not block:
+                #print 'last.'
+                break
+
+            # padding
+            if len(block) < self.zblocksize:
+                block = block + ( '\x00' * ( self.zblocksize - len(block) ) )
+
+            md4 = hashlib.new('md4')
+            md4.update(block)
+            c = md4.digest()
+
+            r = zsync.rsum06(block)
+
+            self.zsums.append( r[-self.zrsum_len:] )      # save only some trailing bytes
+            self.zsums.append( c[0:self.zchecksum_len] )  # save only some leading bytes
 
 
