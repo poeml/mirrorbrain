@@ -1897,6 +1897,7 @@ static int mb_handler(request_rec *r)
     case META4:
     case METALINK:
     case MIRRORLIST:
+    case ZSYNC:
         qsort(mirrors_same_prefix->elts, mirrors_same_prefix->nelts, 
               mirrors_same_prefix->elt_size, cmp_mirror_rank);
         qsort(mirrors_same_as->elts, mirrors_same_as->nelts, 
@@ -2245,7 +2246,7 @@ static int mb_handler(request_rec *r)
         case META4:
             /* inclusion of torrents and other metaurls should probably happen here 
              *
-             * for safety, restrict the use of the new metaurl element to new metalinks */
+             * restrict the use of the new metaurl element to new metalinks */
 
             /* <metaurl mediatype="torrent">http://example.com/example.ext.torrent</metaurl> */
             ap_rputs("\n\n    <!-- Meta URLs -->\n", r);
@@ -2584,6 +2585,9 @@ static int mb_handler(request_rec *r)
         ap_rprintf(r,     "7:comment"
                           "%d:%s", strlen(basename), basename);
 
+                          /* This is meant to be the creation time of the torrent, 
+                           * but let's take the mtime of the file since we can generate the
+                           * torrent any time */
         ap_rprintf(r,     "13:creation date"
                           "i%se", apr_itoa(r->pool, apr_time_sec(r->finfo.mtime)));
 
@@ -2618,7 +2622,6 @@ static int mb_handler(request_rec *r)
                       "e", r);
         return OK;
 
-
     case ZSYNC:
 
         if (!hashbag || (hashbag->sha1hex <= 0) || !hashbag->zhashlens 
@@ -2642,31 +2645,48 @@ static int mb_handler(request_rec *r)
         ap_rprintf(r, "Hash-Lengths: %s\n", hashbag->zhashlens);
 
         /* URLs */
+        /* The zsync client (as of 0.6.1) tries the provided URLs in random order.
+         * Thus, we need to restrict the list of URLs to the ones that are
+         * closest; otherwise, it will download from anywhere in the world. */
+        int found_urls = 0;
         mirrorp = (mirror_entry_t **)mirrors_same_prefix->elts;
-        for (i = 0; i < mirrors_same_prefix->nelts; i++) {
+        for (i = 0; i < mirrors_same_prefix->nelts; i++, found_urls++) {
             mirror = mirrorp[i];
             ap_rprintf(r, "URL: %s%s\n", mirror->baseurl, filename);
         }
-        mirrorp = (mirror_entry_t **)mirrors_same_as->elts;
-        for (i = 0; i < mirrors_same_as->nelts; i++) {
-            mirror = mirrorp[i];
-            ap_rprintf(r, "URL: %s%s\n", mirror->baseurl, filename);
+        if (!found_urls) {
+            mirrorp = (mirror_entry_t **)mirrors_same_as->elts;
+            for (i = 0; i < mirrors_same_as->nelts; i++, found_urls++) {
+                mirror = mirrorp[i];
+                ap_rprintf(r, "URL: %s%s\n", mirror->baseurl, filename);
+            }
         }
-        mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
-        for (i = 0; i < mirrors_same_country->nelts; i++) {
-            mirror = mirrorp[i];
-            ap_rprintf(r, "URL: %s%s\n", mirror->baseurl, filename);
+        if (!found_urls) {
+            mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
+            for (i = 0; i < mirrors_same_country->nelts; i++, found_urls++) {
+                mirror = mirrorp[i];
+                ap_rprintf(r, "URL: %s%s\n", mirror->baseurl, filename);
+            }
         }
-        mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
-        for (i = 0; i < mirrors_same_region->nelts; i++) {
-            mirror = mirrorp[i];
-            ap_rprintf(r, "URL: %s%s\n", mirror->baseurl, filename);
+        if (!found_urls) {
+            mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
+            for (i = 0; i < mirrors_same_region->nelts; i++, found_urls++) {
+                mirror = mirrorp[i];
+                ap_rprintf(r, "URL: %s%s\n", mirror->baseurl, filename);
+            }
         }
-        mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
-        for (i = 0; i < mirrors_elsewhere->nelts; i++) {
-            mirror = mirrorp[i];
-            ap_rprintf(r, "URL: %s%s\n", mirror->baseurl, filename);
+        if (!found_urls) {
+            mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
+            for (i = 0; i < mirrors_elsewhere->nelts; i++, found_urls++) {
+                mirror = mirrorp[i];
+                ap_rprintf(r, "URL: %s%s\n", mirror->baseurl, filename);
+            }
         }
+        /* add the redirector, in case there wasn't any mirror */
+        if (!found_urls) {
+            ap_rprintf(r, "URL: http://%s%s\n", r->hostname, r->uri);
+        }
+
 
         ap_rprintf(r, "SHA-1: %s\n\n", hashbag->sha1hex);
 
@@ -2678,6 +2698,7 @@ static int mb_handler(request_rec *r)
         ap_rwrite(hex_decode(r, hashbag->zsumshex, l/2), 
                   l/2, r);
         return OK;
+
         
     } /* end switch representation */
 
@@ -2717,8 +2738,9 @@ static int mb_handler(request_rec *r)
             "[mod_mirrorbrain] could not chose a server. Shouldn't have happened.");
         return DECLINED;
     }
-
     debugLog(r, cfg, "Chose server %s", chosen->identifier);
+
+
 
     /* Send it away: set a "Location:" header and 302 redirect. */
     uri = apr_pstrcat(r->pool, chosen->baseurl, filename, NULL);
