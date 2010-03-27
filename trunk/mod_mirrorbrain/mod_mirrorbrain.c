@@ -738,7 +738,7 @@ static const char *url_scheme(apr_pool_t *p, const char *url)
 }
 
 /*
- * This routine out an URL in the format needed for old (v3) or newer (IETF)
+ * This routine returns an URL in the format needed for old (v3) or newer (IETF)
  * Metalinks.
  */
 static void emit_metalink_url(request_rec *r, int rep, 
@@ -1559,7 +1559,6 @@ static int mb_handler(request_rec *r)
                 ap_rputs("</body></html>\n", r);
                 return OK;
             case TORRENT:
-            case ZSYNC:
                 break;
             case META4:
             case METALINK:
@@ -2641,7 +2640,34 @@ static int mb_handler(request_rec *r)
         ap_rprintf(r, "Blocksize: %d\n", hashbag->zblocksize);
         ap_rprintf(r, "Length: %s\n", apr_off_t_toa(r->pool, r->finfo.size));
         ap_rprintf(r, "Hash-Lengths: %s\n", hashbag->zhashlens);
-        ap_rprintf(r, "URL: http://%s%s\n", r->hostname, r->uri);
+
+        /* URLs */
+        mirrorp = (mirror_entry_t **)mirrors_same_prefix->elts;
+        for (i = 0; i < mirrors_same_prefix->nelts; i++) {
+            mirror = mirrorp[i];
+            ap_rprintf(r, "URL: %s%s\n", mirror->baseurl, filename);
+        }
+        mirrorp = (mirror_entry_t **)mirrors_same_as->elts;
+        for (i = 0; i < mirrors_same_as->nelts; i++) {
+            mirror = mirrorp[i];
+            ap_rprintf(r, "URL: %s%s\n", mirror->baseurl, filename);
+        }
+        mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
+        for (i = 0; i < mirrors_same_country->nelts; i++) {
+            mirror = mirrorp[i];
+            ap_rprintf(r, "URL: %s%s\n", mirror->baseurl, filename);
+        }
+        mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
+        for (i = 0; i < mirrors_same_region->nelts; i++) {
+            mirror = mirrorp[i];
+            ap_rprintf(r, "URL: %s%s\n", mirror->baseurl, filename);
+        }
+        mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
+        for (i = 0; i < mirrors_elsewhere->nelts; i++) {
+            mirror = mirrorp[i];
+            ap_rprintf(r, "URL: %s%s\n", mirror->baseurl, filename);
+        }
+
         ap_rprintf(r, "SHA-1: %s\n\n", hashbag->sha1hex);
 
         if (!hashbag->zsumshex || !hashbag->zsumshex[0]) {
