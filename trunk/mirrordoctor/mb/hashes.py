@@ -340,7 +340,7 @@ class HashBag():
         else:
             seq_matches = 1
 
-        rsum_len = math.ceil(((math.log(size) + math.log(blocksize)) / math.log(2) - 8.6) / seq_matches / 8)
+        rsum_len = math.ceil(((math.log(size or 1) + math.log(blocksize)) / math.log(2) - 8.6) / seq_matches / 8)
 
         # min and max lengths of rsums to store
         if rsum_len > 4:
@@ -350,7 +350,7 @@ class HashBag():
 
         # Now the checksum length; min of two calculations
         checksum_len = math.ceil(
-                (20 + (math.log(size) + math.log(1 + size / blocksize)) / math.log(2))
+                (20 + (math.log(size or 1) + math.log(1 + size / blocksize)) / math.log(2))
                 / seq_matches / 8)
         checksum_len2 = (7.9 + (20 + math.log(1 + size / blocksize) / math.log(2))) / 8
 
