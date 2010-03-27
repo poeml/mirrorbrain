@@ -14,6 +14,9 @@ Release Notes/Change History
 
   Need to describe the "failure case" when the hash table doesn't exist yet, but
   mod_mirrorbrain can't prepare its statements then. Or: fix it.
+  => the problem is that when mod_mirrorbrain is already upgraded and reloaded, but no script has 
+     created the missing hash table yet
+
 
 * The requirement on the metalink package has been removed.
 
