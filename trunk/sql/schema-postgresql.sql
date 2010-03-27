@@ -23,15 +23,18 @@ CREATE TABLE "filearr" (
 
 
 CREATE TABLE "hash" (
-        "id" INTEGER REFERENCES filearr PRIMARY KEY,
+        "file_id" INTEGER REFERENCES filearr PRIMARY KEY,
         "mtime" INTEGER NOT NULL,
         "size" BIGINT NOT NULL,
         "md5"    BYTEA NOT NULL,
         "sha1"   BYTEA NOT NULL,
         "sha256" BYTEA NOT NULL,
         "sha1piecesize" INTEGER NOT NULL,
-        "sha1pieces" BYTEA,
-        "pgp" TEXT NOT NULL
+        "sha1pieces" BYTEA NOT NULL,
+        "pgp" TEXT NOT NULL,
+        "zblocksize" SMALLINT NOT NULL,
+        "zhashlens" VARCHAR(8),
+        "zsums" BYTEA NOT NULL
 );
 
 -- For conveniency, this view provides the binary columns from the "hash" table
@@ -55,7 +58,11 @@ CREATE VIEW hexhash AS
          sha1piecesize, 
          sha1pieces,
          encode(sha1pieces, 'hex') AS sha1pieceshex,
-         pgp 
+         pgp,
+         zblocksize,
+         zhashlens,
+         zsums,
+         encode(zsums, 'hex') AS zsumshex
   FROM hash;
 
 -- --------------------------------------------------------
