@@ -40,81 +40,88 @@ def probe_http(mirror):
     """Try to reach host at baseurl. 
     Set status_baseurl_new."""
 
-    logging.debug("%s probing %s" % (threading.currentThread().getName(), mirror.identifier))
-
-    #req = urllib2.Request('http://old-cherry.suse.de') # never works
-    #req = urllib2.Request('http://doozer.poeml.de/')   # always works
-    req = urllib2.Request(mirror.baseurl)
-
-    req.add_header('User-Agent', USER_AGENT)
-    #req.get_method = lambda: "HEAD"
-
-    mirror.status_baseurl_new = False
-    mirror.timed_out = True
-    mirror.response_code = None
-    mirror.response = None
-
-    if mirror.baseurl == '':
-        return None
-
     try:
-        response = urllib2.urlopen(req)
 
-        try:
-            mirror.response_code = response.code
-            # if the web server redirects to an ftp:// URL, our response won't have a code attribute
-            # (except we are going via a proxy)
-        except AttributeError:
-            if response.url.startswith('ftp://'):
-                # count as success
-                mirror.response_code = 200
-            logging.debug('mirror %s redirects to ftp:// URL' % mirror.identifier)
+        logging.debug("%s probing %s" % (threading.currentThread().getName(), mirror.identifier))
 
-        logging.debug('%s got response for %s: %s' % (threading.currentThread().getName(), mirror.identifier, getattr(response, 'code', None)))
+        #req = urllib2.Request('http://old-cherry.suse.de') # never works
+        #req = urllib2.Request('http://doozer.poeml.de/')   # always works
+        req = urllib2.Request(mirror.baseurl)
 
-        mirror.response = response.read()
-        mirror.status_baseurl_new = True
+        req.add_header('User-Agent', USER_AGENT)
+        #req.get_method = lambda: "HEAD"
 
-
-    except ValueError, e:
-        if str(e).startswith('invalid literal for int()'):
-            mirror.response = 'response not read due to http://bugs.python.org/issue1205'
-            logging.info('mirror %s sends broken chunked reply, see http://bugs.python.org/issue1205' % mirror.identifier)
-
-    except socket.timeout, e:
-        mirror.response = 'socket timeout in reading response: %s' % e
-
-    except socket.error, e:
-        #errno, errstr = sys.exc_info()[:2]
-        mirror.response = "socket error: %s" % e
-
-    except httplib.BadStatusLine:
+        mirror.status_baseurl_new = False
+        mirror.timed_out = True
         mirror.response_code = None
         mirror.response = None
-        
-    except urllib2.HTTPError, e:
-        mirror.response_code = e.code
-        mirror.response = e.read()
 
-    except urllib2.URLError, e:
-        mirror.response_code = 0
-        mirror.response = "%s" % e.reason
+        if mirror.baseurl == '':
+            return None
 
-    except IOError, e:
-        # IOError: [Errno ftp error] (111, 'Connection refused')
-        if e.errno == 'ftp error':
+        try:
+            response = urllib2.urlopen(req)
+
+            try:
+                mirror.response_code = response.code
+                # if the web server redirects to an ftp:// URL, our response won't have a code attribute
+                # (except we are going via a proxy)
+            except AttributeError:
+                if response.url.startswith('ftp://'):
+                    # count as success
+                    mirror.response_code = 200
+                logging.debug('mirror %s redirects to ftp:// URL' % mirror.identifier)
+
+            logging.debug('%s got response for %s: %s' % (threading.currentThread().getName(), mirror.identifier, getattr(response, 'code', None)))
+
+            mirror.response = response.read()
+            mirror.status_baseurl_new = True
+
+
+        except ValueError, e:
+            if str(e).startswith('invalid literal for int()'):
+                mirror.response = 'response not read due to http://bugs.python.org/issue1205'
+                logging.info('mirror %s sends broken chunked reply, see http://bugs.python.org/issue1205' % mirror.identifier)
+
+        except socket.timeout, e:
+            mirror.response = 'socket timeout in reading response: %s' % e
+
+        except socket.error, e:
+            #errno, errstr = sys.exc_info()[:2]
+            mirror.response = "socket error: %s" % e
+
+        except httplib.BadStatusLine:
+            mirror.response_code = None
+            mirror.response = None
+            
+        except urllib2.HTTPError, e:
+            mirror.response_code = e.code
+            mirror.response = e.read()
+
+        except urllib2.URLError, e:
             mirror.response_code = 0
-            mirror.response = "%s: %s" % (e.errno, e.strerror)
-        else:
-            print mirror.identifier, mirror.baseurl, 'errno:', e.errno
+            mirror.response = "%s" % e.reason
+
+        except IOError, e:
+            # IOError: [Errno ftp error] (111, 'Connection refused')
+            if e.errno == 'ftp error':
+                mirror.response_code = 0
+                mirror.response = "%s: %s" % (e.errno, e.strerror)
+            else:
+                print mirror.identifier, mirror.baseurl, 'errno:', e.errno
+                raise
+
+        except:
+            print mirror.identifier, mirror.baseurl
             raise
 
     except:
-        print mirror.identifier, mirror.baseurl
-        raise
+        mirror.response_code = None
+        mirror.response = 'unknown error'
 
     # not reached, if the timeout goes off
     mirror.timed_out = False
+
 
 
 def main():
