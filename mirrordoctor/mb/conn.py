@@ -186,20 +186,31 @@ class Conn:
                     "sha1"   BYTEA NOT NULL,
                     "sha256" BYTEA NOT NULL,
                     "sha1piecesize" INTEGER NOT NULL,
-                    "sha1pieces" BYTEA,
-                    "pgp" TEXT NOT NULL
+                    "sha1pieces" BYTEA NOT NULL,
+                    "pgp" TEXT NOT NULL,
+                    "zblocksize" SMALLINT NOT NULL,
+                    "zhashlens" VARCHAR(8),
+                    "zsums" BYTEA NOT NULL
             );
             """
             Filearr._connection.query(query)
             query = """
-            CREATE VIEW hexhash AS
-              SELECT file_id, mtime, size,
-                     encode(md5, 'hex') AS md5,
-                     encode(sha1, 'hex') AS sha1,
-                     encode(sha256, 'hex') AS sha256,
-                     sha1piecesize,
-                     encode(sha1pieces, 'hex') AS sha1pieces,
-                     pgp
+            CREATE VIEW hexhash AS 
+              SELECT file_id, mtime, size, 
+                     md5,
+                     encode(md5, 'hex') AS md5hex, 
+                     sha1,
+                     encode(sha1, 'hex') AS sha1hex, 
+                     sha256,
+                     encode(sha256, 'hex') AS sha256hex, 
+                     sha1piecesize, 
+                     sha1pieces,
+                     encode(sha1pieces, 'hex') AS sha1pieceshex,
+                     pgp,
+                     zblocksize,
+                     zhashlens,
+                     zsums,
+                     encode(zsums, 'hex') AS zsumshex
               FROM hash;
             """
             Filearr._connection.query(query)
