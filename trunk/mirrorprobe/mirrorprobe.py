@@ -112,6 +112,7 @@ def probe_http(mirror):
                 raise
 
         except:
+            print 'unhandled exception'
             print mirror.identifier, mirror.baseurl
             raise
 
