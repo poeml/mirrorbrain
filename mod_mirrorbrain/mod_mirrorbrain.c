@@ -2644,6 +2644,10 @@ static int mb_handler(request_rec *r)
         ap_rprintf(r, "URL: http://%s%s\n", r->hostname, r->uri);
         ap_rprintf(r, "SHA-1: %s\n\n", hashbag->sha1hex);
 
+        if (!hashbag->zsumshex || !hashbag->zsumshex[0]) {
+            /* A zero-length file will correctly have zero zsync checksums */
+            return OK;
+        }
         int l = strlen(hashbag->zsumshex);
         ap_rwrite(hex_decode(r, hashbag->zsumshex, l/2), 
                   l/2, r);
