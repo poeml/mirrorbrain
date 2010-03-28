@@ -238,7 +238,7 @@ typedef struct
     const char *metalink_hashes_prefix;
     const char *metalink_publisher_name;
     const char *metalink_publisher_url;
-    const char *tracker_url;
+    apr_array_header_t *tracker_urls;
     const char *metalink_broken_test_mirrors;
     const char *mirrorlist_stylesheet;
     const char *query;
@@ -396,7 +396,7 @@ static void *create_mb_server_config(apr_pool_t *p, server_rec *s)
     new->metalink_hashes_prefix = NULL;
     new->metalink_publisher_name = NULL;
     new->metalink_publisher_url = NULL;
-    new->tracker_url = NULL;
+    new->tracker_urls = apr_array_make(p, 5, sizeof (char *));
     new->metalink_broken_test_mirrors = NULL;
     new->mirrorlist_stylesheet = NULL;
     new->query = DEFAULT_QUERY;
@@ -424,7 +424,7 @@ static void *merge_mb_server_config(apr_pool_t *p, void *basev, void *addv)
     cfgMergeString(metalink_hashes_prefix);
     cfgMergeString(metalink_publisher_name);
     cfgMergeString(metalink_publisher_url);
-    cfgMergeString(tracker_url);
+    mrg->tracker_urls = apr_array_append(p, base->tracker_urls, add->tracker_urls);
     cfgMergeString(metalink_broken_test_mirrors);
     cfgMergeString(mirrorlist_stylesheet);
     mrg->query = (add->query != (char *) DEFAULT_QUERY) ? add->query : base->query;
@@ -629,14 +629,15 @@ static const char *mb_cmd_metalink_publisher(cmd_parms *cmd, void *config,
     return NULL;
 }
 
-static const char *mb_cmd_tracker_url(cmd_parms *cmd, void *config, 
-                                      const char *arg1)
+static const char *mb_cmd_tracker_url(cmd_parms *cmd, void *config,
+                                    const char *arg1)
 {
     server_rec *s = cmd->server;
     mb_server_conf *cfg = 
         ap_get_module_config(s->module_config, &mirrorbrain_module);
 
-    cfg->tracker_url = arg1;
+    char **url = (char **) apr_array_push(cfg->tracker_urls);
+    *url = apr_pstrdup(cmd->pool, arg1);
     return NULL;
 }
 
@@ -2014,9 +2015,12 @@ static int mb_handler(request_rec *r)
                 apr_psprintf(r->pool, "&amp;as=http://%s%s", ap_escape_uri(r->pool, r->hostname), 
                                                              ap_escape_uri(r->pool, r->uri));
 
-            if (scfg->tracker_url) {
-                APR_ARRAY_PUSH(m, char *) = 
-                    apr_psprintf(r->pool, "&amp;tr=%s", ap_escape_uri(r->pool, scfg->tracker_url));
+            if (scfg->tracker_urls->nelts) {
+                for (i = 0; i < scfg->tracker_urls->nelts; i++) {
+                    char *url = ((char **) scfg->tracker_urls->elts)[i];
+                    APR_ARRAY_PUSH(m, char *) = 
+                        apr_psprintf(r->pool, "&amp;tr=%s", ap_escape_uri(r->pool, url));
+                }
             }
 
             magnet = apr_array_pstrcat(r->pool, m, '\0');
@@ -2568,17 +2572,30 @@ static int mb_handler(request_rec *r)
 
     case TORRENT:
 
-        if (!hashbag || (hashbag->sha1piecesize <= 0) || apr_is_empty_array(hashbag->sha1pieceshex) || !scfg->tracker_url) {
-            debugLog(r, cfg, "Torrent requested, but required data is missing");
+        if (!hashbag || (hashbag->sha1piecesize <= 0) || apr_is_empty_array(hashbag->sha1pieceshex)) {
+            debugLog(r, cfg, "Torrent requested, but no hashes found");
+            break;
+        }
+
+        if (!scfg->tracker_urls->nelts) {
+            debugLog(r, cfg, "Torrent requested, but at least one MirrorBrainTorrentTrackerURL must configured");
             break;
         }
 
         debugLog(r, cfg, "Sending torrent");
         ap_set_content_type(r, "application/x-bittorrent");
 
+        char *tracker = ((char **) scfg->tracker_urls->elts)[0];
         ap_rprintf(r, "d"
                           "8:announce"
-                          "%d:%s", strlen(scfg->tracker_url), scfg->tracker_url);
+                          "%d:%s", strlen(tracker), tracker);
+
+        ap_rputs(         "13:announce-listll", r);
+        for (i = 0; i < scfg->tracker_urls->nelts; i++) {
+            tracker = ((char **) scfg->tracker_urls->elts)[i];
+            ap_rprintf(r, "%d:%s", strlen(tracker), tracker);
+        }
+        ap_rputs(         "e", r);
 
         ap_rprintf(r,     "7:comment"
                           "%d:%s", strlen(basename), basename);
@@ -2929,9 +2946,10 @@ static const command_rec mb_cmds[] =
                   RSRC_CONF, 
                   "Name and URL for the metalinks publisher elements"),
 
-    AP_INIT_TAKE1("MirrorBrainTrackerURL", mb_cmd_tracker_url, NULL, 
+    AP_INIT_TAKE1("MirrorBrainTorrentTrackerURL", mb_cmd_tracker_url, NULL, 
                   RSRC_CONF, 
-                  "Define a Tracker URL to be included in Magnet links"),
+                  "Define the URL a Bittorrent Tracker be included in Torrents and in Magnet "
+                  "links. Directive can be repeated to specify multiple URLs."),
 
     AP_INIT_TAKE1("MirrorBrainMetalinkBrokenTestMirrors", mb_cmd_metalink_broken_test_mirrors, NULL, 
                   RSRC_CONF, 
