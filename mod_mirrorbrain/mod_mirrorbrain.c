@@ -2450,14 +2450,12 @@ static int mb_handler(request_rec *r)
 
         /* Metalink info */
         ap_rputs("  <br/>\n" 
-                 "  <blockquote>Use one of the following links for easier, more reliable, self healing downloads:\n"
+                 "  <blockquote>Use a Metalink for easier, more reliable, self healing downloads:\n"
                  "  <br/>\n", r);
-        ap_rprintf(r, "  IETF Metalink: "
-                   "<a href=\"http://%s%s.meta4\">http://%s%s.meta4</a>"
+        ap_rprintf(r, "  <a href=\"http://%s%s.meta4\">http://%s%s.meta4</a> (IETF Metalink)"
                    "  <br/>\n", 
                 r->hostname, r->uri, r->hostname, r->uri);
-        ap_rprintf(r, "  Old (v3) Metalink: "
-                   "<a href=\"http://%s%s.metalink\">http://%s%s.metalink</a>"
+        ap_rprintf(r, "  <a href=\"http://%s%s.metalink\">http://%s%s.metalink</a> (old (v3) Metalink)"
                    "  <br/>\n", 
                 r->hostname, r->uri, r->hostname, r->uri);
         if (magnet) {
