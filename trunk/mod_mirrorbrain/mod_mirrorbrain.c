@@ -2595,7 +2595,8 @@ static int mb_handler(request_rec *r)
             tracker = ((char **) scfg->tracker_urls->elts)[i];
             ap_rprintf(r,     "%d:%s", strlen(tracker), tracker);
         }
-        ap_rputs(         "e", r);
+        ap_rputs(             "e"
+                          "e", r);
 
         ap_rprintf(r,     "7:comment"
                               "%d:%s", strlen(basename), basename);
