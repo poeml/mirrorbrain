@@ -2627,6 +2627,10 @@ static int mb_handler(request_rec *r)
         }
         ap_rputs(             "e"
                       "e", r);
+
+        /* if there's no announce key (trackerless torrent), we should add a "nodes" key. 
+         * TODO: find out what it should contain. See http://www.bittorrent.org/beps/bep_0005.html */
+
         return OK;
 
     case ZSYNC:
