@@ -2588,52 +2588,44 @@ static int mb_handler(request_rec *r)
         char *tracker = ((char **) scfg->tracker_urls->elts)[0];
         ap_rprintf(r, "d"
                           "8:announce"
-                          "%d:%s", strlen(tracker), tracker);
+                              "%d:%s", strlen(tracker), tracker);
 
         ap_rputs(         "13:announce-listll", r);
         for (i = 0; i < scfg->tracker_urls->nelts; i++) {
             tracker = ((char **) scfg->tracker_urls->elts)[i];
-            ap_rprintf(r, "%d:%s", strlen(tracker), tracker);
+            ap_rprintf(r,     "%d:%s", strlen(tracker), tracker);
         }
         ap_rputs(         "e", r);
 
         ap_rprintf(r,     "7:comment"
-                          "%d:%s", strlen(basename), basename);
+                              "%d:%s", strlen(basename), basename);
 
                           /* This is meant to be the creation time of the torrent, 
                            * but let's take the mtime of the file since we can generate the
                            * torrent any time */
         ap_rprintf(r,     "13:creation date"
-                          "i%se", apr_itoa(r->pool, apr_time_sec(r->finfo.mtime)));
+                              "i%se", apr_itoa(r->pool, apr_time_sec(r->finfo.mtime)));
 
         ap_rprintf(r,     "4:info"
-                          "d"
-                              "5:files"
-                              "l"
-                                  "d"
-                                      "6:length"
+                              "d"
+                                  "6:length"
                                       "i%se" 
-                                      "4:path"
-                                      "l"
-                                          "%d:%s"
-                                      "e"
-                                  "e"
-                              "e", apr_off_t_toa(r->pool, r->finfo.size),
-                                   strlen(basename), basename);
-
-        ap_rprintf(r,     "4:name"
-                          "%d:%s", strlen(basename), basename);
-        ap_rprintf(r,     "12:piece length"
-                          "i%de", hashbag->sha1piecesize);
-        ap_rprintf(r,     "6:pieces"
-                          "%d:", (hashbag->sha1pieceshex->nelts * SHA1_DIGESTSIZE));
+                                  "4:name"
+                                      "%d:%s"
+                                  "12:piece length"
+                                      "i%de"
+                                  "6:pieces"
+                                      "%d:", apr_off_t_toa(r->pool, r->finfo.size),
+                                                           strlen(basename), 
+                                             basename,
+                                             hashbag->sha1piecesize,
+                                             (hashbag->sha1pieceshex->nelts * SHA1_DIGESTSIZE));
 
         char **p = (char **)hashbag->sha1pieceshex->elts;
         for (i = 0; i < hashbag->sha1pieceshex->nelts; i++) {
             ap_rwrite(hex_decode(r, p[i], SHA1_DIGESTSIZE), SHA1_DIGESTSIZE, r);
         }
-
-        ap_rputs(         "e"
+        ap_rputs(             "e"
                       "e", r);
         return OK;
 
