@@ -2571,7 +2571,7 @@ static int mb_handler(request_rec *r)
         return OK;
 
     case TORRENT:
-
+    {
         if (!hashbag || (hashbag->sha1piecesize <= 0) || apr_is_empty_array(hashbag->sha1pieceshex)) {
             debugLog(r, cfg, "Torrent requested, but no hashes found");
             break;
@@ -2607,6 +2607,69 @@ static int mb_handler(request_rec *r)
         ap_rprintf(r,     "13:creation date"
                               "i%se", apr_itoa(r->pool, apr_time_sec(r->finfo.mtime)));
 
+        /* Web seeds */
+        ap_rputs(         "8:url-listl", r);
+        int found_urls = 0;
+        mirrorp = (mirror_entry_t **)mirrors_same_prefix->elts;
+        for (i = 0; i < mirrors_same_prefix->nelts; i++, found_urls++) {
+            mirror = mirrorp[i];
+            ap_rprintf(r,     "%d:%s%s", (strlen(mirror->baseurl) + strlen(filename)),
+                                           mirror->baseurl, filename);
+        }
+        if (!found_urls) {
+            mirrorp = (mirror_entry_t **)mirrors_same_as->elts;
+            for (i = 0; i < mirrors_same_as->nelts; i++, found_urls++) {
+                mirror = mirrorp[i];
+                ap_rprintf(r, "%d:%s%s", (strlen(mirror->baseurl) + strlen(filename)),
+                                               mirror->baseurl, filename);
+            }
+        }
+        if (!found_urls) {
+            mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
+            for (i = 0; i < mirrors_same_country->nelts; i++, found_urls++) {
+                mirror = mirrorp[i];
+                ap_rprintf(r, "%d:%s%s", (strlen(mirror->baseurl) + strlen(filename)),
+                                               mirror->baseurl, filename);
+            }
+        }
+        if (!found_urls) {
+            mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
+            for (i = 0; i < mirrors_same_region->nelts; i++, found_urls++) {
+                mirror = mirrorp[i];
+                ap_rprintf(r, "%d:%s%s", (strlen(mirror->baseurl) + strlen(filename)),
+                                               mirror->baseurl, filename);
+            }
+        }
+        if (!found_urls) {
+            mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
+            for (i = 0; i < mirrors_elsewhere->nelts; i++, found_urls++) {
+                mirror = mirrorp[i];
+                ap_rprintf(r, "%d:%s%s", (strlen(mirror->baseurl) + strlen(filename)),
+                                               mirror->baseurl, filename);
+            }
+        }
+        /* add the redirector, in case there wasn't any mirror */
+        if (!found_urls) {
+            ap_rprintf(r,     "%d:http://%s%s", (7 + strlen(r->hostname) + strlen(r->uri)), 
+                                                r->hostname, r->uri);
+        }
+        ap_rputs(         "e", r);
+
+#if 0
+        /* it would be simple to just list the URL of the redirector itself, but aria2c
+         * retrieves a Metalink then and doesn't expect it in that situation. Maybe later */
+        ap_rprintf(r,     "8:url-list"
+                              "%d:http://%s%s", (7 + strlen(r->hostname) + strlen(r->uri)), 
+                                                r->hostname, r->uri);
+#endif
+
+#if 0
+        /* I can't find info about this element which could possibly also list mirrors */
+        ap_rprintf(r,     "7:sourcesl"
+                              "%d:http://%s%s" "e", (7 + strlen(r->hostname) + strlen(r->uri)), 
+                                                r->hostname, r->uri);
+#endif
+
         ap_rprintf(r,     "4:info"
                               "d"
                                   "6:length"
@@ -2633,6 +2696,7 @@ static int mb_handler(request_rec *r)
          * TODO: find out what it should contain. See http://www.bittorrent.org/beps/bep_0005.html */
 
         return OK;
+    }
 
     case ZSYNC:
 
