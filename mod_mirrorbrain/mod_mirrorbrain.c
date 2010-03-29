@@ -2607,7 +2607,35 @@ static int mb_handler(request_rec *r)
         ap_rprintf(r,     "13:creation date"
                               "i%se", apr_itoa(r->pool, apr_time_sec(r->finfo.mtime)));
 
-        /* Web seeds */
+        ap_rprintf(r,     "4:info"
+                              "d"
+                                  "6:length"
+                                      "i%se" 
+                                  "4:name"
+                                      "%d:%s"
+                                  "12:piece length"
+                                      "i%de"
+                                  "6:pieces"
+                                      "%d:", apr_off_t_toa(r->pool, r->finfo.size),
+                                                           strlen(basename), 
+                                             basename,
+                                             hashbag->sha1piecesize,
+                                             (hashbag->sha1pieceshex->nelts * SHA1_DIGESTSIZE));
+
+        char **p = (char **)hashbag->sha1pieceshex->elts;
+        for (i = 0; i < hashbag->sha1pieceshex->nelts; i++) {
+            ap_rwrite(hex_decode(r, p[i], SHA1_DIGESTSIZE), SHA1_DIGESTSIZE, r);
+        }
+        ap_rputs(             "e", r);
+
+        /* Web seeds
+         *
+         * There's a trick: send this stuff _after_ the sha1 pieces. 
+         * The original BitTorrent client doesn't ignore unknown keys, but
+         * refuses to grok the torrent and says "is not a valid torrent file
+         * (not a valid bencoded string)". (Which is wrong.) However, it does
+         * _not_ seam to read past the pieces; at least it doesn't complain
+         * about stuff occurring afterwards. */
         ap_rputs(         "8:url-listl", r);
         int found_urls = 0;
         mirrorp = (mirror_entry_t **)mirrors_same_prefix->elts;
@@ -2670,27 +2698,7 @@ static int mb_handler(request_rec *r)
                                                 r->hostname, r->uri);
 #endif
 
-        ap_rprintf(r,     "4:info"
-                              "d"
-                                  "6:length"
-                                      "i%se" 
-                                  "4:name"
-                                      "%d:%s"
-                                  "12:piece length"
-                                      "i%de"
-                                  "6:pieces"
-                                      "%d:", apr_off_t_toa(r->pool, r->finfo.size),
-                                                           strlen(basename), 
-                                             basename,
-                                             hashbag->sha1piecesize,
-                                             (hashbag->sha1pieceshex->nelts * SHA1_DIGESTSIZE));
-
-        char **p = (char **)hashbag->sha1pieceshex->elts;
-        for (i = 0; i < hashbag->sha1pieceshex->nelts; i++) {
-            ap_rwrite(hex_decode(r, p[i], SHA1_DIGESTSIZE), SHA1_DIGESTSIZE, r);
-        }
-        ap_rputs(             "e"
-                      "e", r);
+        ap_rputs(     "e", r);
 
         /* if there's no announce key (trackerless torrent), we should add a "nodes" key. 
          * TODO: find out what it should contain. See http://www.bittorrent.org/beps/bep_0005.html */
