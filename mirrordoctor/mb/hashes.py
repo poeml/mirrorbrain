@@ -194,6 +194,8 @@ class Hasheable:
 
         c.execute('commit')
 
+        self.hb = None
+
     def __str__(self):
         return self.basename
 
