@@ -155,7 +155,8 @@
 module AP_MODULE_DECLARE_DATA mirrorbrain_module;
 
 /* (meta) representations of a requested file */
-enum { REDIRECT, META4, METALINK, MIRRORLIST, TORRENT, ZSYNC, MD5, SHA1, SHA256, UNKNOWN };
+enum { REDIRECT, META4, METALINK, MIRRORLIST, TORRENT, 
+       ZSYNC, MAGNET, MD5, SHA1, SHA256, UNKNOWN };
 static struct {
         int     id;
         char    *ext;
@@ -166,6 +167,7 @@ static struct {
         { MIRRORLIST,    "mirrorlist" },
         { TORRENT,       "torrent" },
         { ZSYNC,         "zsync" },
+        { MAGNET,        "magnet" },
         { MD5,           "md5" },
         { SHA1,          "sha1" },
         { SHA256,        "sha256" },
@@ -1115,6 +1117,7 @@ static int mb_handler(request_rec *r)
         }
         if (form_lookup(r, "torrent")) { rep = TORRENT; rep_ext = reps[TORRENT].ext; }
         if (form_lookup(r, "zsync"))   { rep = ZSYNC;   rep_ext = reps[ZSYNC].ext; }
+        if (form_lookup(r, "magnet"))  { rep = MAGNET;  rep_ext = reps[MAGNET].ext; }
         if (form_lookup(r, "md5"))     { rep = MD5;     rep_ext = reps[MD5].ext; };
         if (form_lookup(r, "sha1"))    { rep = SHA1;    rep_ext = reps[SHA1].ext; };
         if (form_lookup(r, "sha256"))  { rep = SHA256;  rep_ext = reps[SHA256].ext; };
@@ -1210,6 +1213,7 @@ static int mb_handler(request_rec *r)
                 case MIRRORLIST:
                 case TORRENT:
                 case ZSYNC:
+                case MAGNET:
                 case MD5:
                 case SHA1:
                 case SHA256:
@@ -1441,6 +1445,7 @@ static int mb_handler(request_rec *r)
     case SHA256:
     case TORRENT:
     case ZSYNC:
+    case MAGNET:
         hashbag = hashbag_fill(r, dbd, filename);
         if (!hashbag) {
             debugLog(r, cfg, "no hashes found in database, but needed "
@@ -1982,7 +1987,7 @@ static int mb_handler(request_rec *r)
         switch (rep) {
         case META4:
         case METALINK:
-        case MIRRORLIST: {
+        case MAGNET: {
 
             apr_array_header_t *m;
             m = apr_array_make(r->pool, 7, sizeof(char *));
@@ -2454,16 +2459,20 @@ static int mb_handler(request_rec *r)
 
         /* Metalink info */
         ap_rputs("  <br/>\n" 
-                 "  <blockquote>Use a Metalink for easier, more reliable, self healing downloads:\n"
+                 "  <blockquote>Metalinks for easier, more reliable, self healing downloads:\n"
                  "  <br/>\n", r);
         ap_rprintf(r, "  <a href=\"http://%s%s.meta4\">http://%s%s.meta4</a> (IETF Metalink)"
-                   "  <br/>\n", 
+                      "  <br/>\n", 
                 r->hostname, r->uri, r->hostname, r->uri);
         ap_rprintf(r, "  <a href=\"http://%s%s.metalink\">http://%s%s.metalink</a> (old (v3) Metalink)"
-                   "  <br/>\n", 
+                      "  <br/>\n", 
                 r->hostname, r->uri, r->hostname, r->uri);
-        if (magnet) {
-            ap_rprintf(r, "  <a href=\"%s\">Magnet Link</a> for P2P software</a>\n", magnet);
+        if (hashbag) {
+            ap_rprintf(r, "  P2P Links:\n<br/>"
+                          "  <a href=\"http://%s%s.torrent\">http://%s%s.torrent</a> (BitTorrent)\n", 
+                          r->hostname, r->uri, r->hostname, r->uri);
+            ap_rprintf(r, "  <br/><a href=\"http://%s%s.magnet\">http://%s%s.magnet</a> (Magnet)\n", 
+                          r->hostname, r->uri, r->hostname, r->uri);
         }
         ap_rputs("  </blockquote>", r);
 
@@ -2783,6 +2792,14 @@ static int mb_handler(request_rec *r)
                   l/2, r);
         return OK;
 
+
+    case MAGNET:
+        if (!hashbag || !magnet) {
+            return HTTP_NOT_FOUND;
+        }
+        ap_set_content_type(r, "text/plain; charset=UTF-8");
+        ap_rprintf(r, "%s\n", magnet);
+        return OK;
         
     } /* end switch representation */
 
