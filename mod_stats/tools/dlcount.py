@@ -324,7 +324,8 @@ def gen_processreqs(reqs, conf):
         rq.ua = ua
         rq.country = country.lower()
 
-        rq.tstamp = time.strptime(tstamp_raw, '%d/%b/%Y:%H:%M:%S +0100')
+        tstamp_raw = tstamp_raw.split()[0] # split off timezone offset - we ignore it
+        rq.tstamp = time.strptime(tstamp_raw, '%d/%b/%Y:%H:%M:%S')
         rq.tstamp_raw = tstamp_raw
 
         # apply the prefiltering rules
