@@ -175,6 +175,7 @@ class Conn:
             # XXX This feels like being totally the wrong place for a database migration.
             #     maybe a separate module with upgrade procedures to be run would be better.
             #     The main point is that this is a migration that we want to happen fully automatically.
+            # added 2.12.x -> 2.13.0
             print >>sys.stderr
             print >>sys.stderr, '>>> A database table for hashes does not exit. Creating...'
             query = """
@@ -212,6 +213,19 @@ class Conn:
                      zsums,
                      encode(zsums, 'hex') AS zsumshex
               FROM hash;
+            """
+            Filearr._connection.query(query)
+            # XXX and another thing that should not happen here, but in an
+            # "upgrade" module (that can be called at will)
+            # added 2.12.x -> 2.13.0
+            query = """
+            CREATE OR REPLACE FUNCTION mirr_get_nfiles(integer) RETURNS bigint AS '
+                SELECT count(*) FROM filearr WHERE $1 = ANY(mirrors)
+            ' LANGUAGE 'SQL';
+
+            CREATE OR REPLACE FUNCTION mirr_get_nfiles(text) RETURNS bigint AS '
+                SELECT count(*) FROM filearr WHERE (SELECT id from server where identifier = $1) = ANY(mirrors)
+            ' LANGUAGE 'SQL';
             """
             Filearr._connection.query(query)
             print >>sys.stderr, '>>> Done.'

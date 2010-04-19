@@ -212,6 +212,8 @@ class MirrorDoctor(cmdln.Cmdln):
             print s
 
 
+    @cmdln.option('--number-of-files', '-N', action='store_true',
+                        help='display number of files the mirror is known to have')
     @cmdln.option('--prefix-only', action='store_true',
                         help='display whether the mirror is configured to handle only its network prefix')
     @cmdln.option('--as-only', action='store_true',
@@ -295,6 +297,9 @@ class MirrorDoctor(cmdln.Cmdln):
                 s.append('as_only=%s' % mirror.asOnly)
             if opts.prefix_only:
                 s.append('prefix_only=%s' % mirror.prefixOnly)
+            if opts.number_of_files:
+                import mb.core
+                s.append('nfiles=%s' % mb.core.mirror_get_nfiles(self.conn, mirror))
             s = ' '.join(s)
 
             if opts.show_disabled:

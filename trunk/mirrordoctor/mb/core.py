@@ -11,6 +11,7 @@ class Directory:
 
 
 def delete_mirror(conn, mirror):
+    """delete a mirror by specifying its (exact) identifier string)"""
     try:
         m = conn.Server.select(conn.Server.q.identifier == mirror)[0]
     except IndexError:
@@ -21,4 +22,9 @@ def delete_mirror(conn, mirror):
     conn.Server._connection.queryAll(query)
 
     conn.Server.delete(m.id)
+
+
+def mirror_get_nfiles(conn, mirror):
+    query = """SELECT mirr_get_nfiles(%d)""" % (mirror.id)
+    return conn.Server._connection.queryAll(query)[0]
 
