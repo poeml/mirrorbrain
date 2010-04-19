@@ -258,7 +258,13 @@ END;
 $$ LANGUAGE 'plpgsql';
 
 
+CREATE OR REPLACE FUNCTION mirr_get_nfiles(integer) RETURNS bigint AS '
+    SELECT count(*) FROM filearr WHERE $1 = ANY(mirrors)
+' LANGUAGE 'SQL';
 
+CREATE OR REPLACE FUNCTION mirr_get_nfiles(text) RETURNS bigint AS '
+    SELECT count(*) FROM filearr WHERE (SELECT id from server where identifier = $1) = ANY(mirrors)
+' LANGUAGE 'SQL';
 
 
 -- --------------------------------------------------------
