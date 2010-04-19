@@ -263,6 +263,7 @@ class MirrorDoctor(cmdln.Cmdln):
         elif opts.r:
             mirrors = self.conn.Server.select("""region LIKE '%%%s%%'""" % opts.r)
         elif args:
+            import mb.conn
             mirrors = mb.conn.servers_match(self.conn.Server, args[0])
         else:
             mirrors = self.conn.Server.select()
