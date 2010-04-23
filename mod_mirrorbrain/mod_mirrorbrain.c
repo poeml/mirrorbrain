@@ -898,7 +898,7 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
         const char *errmsg = apr_dbd_error(dbd->driver, dbd->handle, rv);
         ap_log_rerror(APLOG_MARK, APLOG_WARNING, rv, r,
                       "[mod_mirrorbrain] Could not retrieve row from database for %s "
-                      "(size: %s, mtime %s): %s. Likely cause: there are no hashes in "
+                      "(size: %s, mtime %s): %s Likely cause: there are no hashes in "
                       "the database (yet).",
                       filename,
                       apr_off_t_toa(r->pool, r->finfo.size),
@@ -1468,7 +1468,7 @@ static int mb_handler(request_rec *r)
 
         if (h && h[0]) {
             ap_set_content_type(r, "text/plain; charset=UTF-8");
-            ap_rprintf(r, "%s  %s\n", h, basename);
+            ap_rprintf(r, "%s %s\n", h, basename);
             return OK;
         }
         return HTTP_NOT_FOUND;
@@ -2474,6 +2474,12 @@ static int mb_handler(request_rec *r)
                           r->hostname, r->uri, r->hostname, r->uri);
             ap_rprintf(r, "  <br/><a href=\"http://%s%s.magnet\">http://%s%s.magnet</a> (Magnet)\n", 
                           r->hostname, r->uri, r->hostname, r->uri);
+            if (hashbag->sha1hex && (hashbag->zblocksize > 0) 
+                    && hashbag->zhashlens && hashbag->zsumshex) {
+                ap_rprintf(r, "  <br/>zsync Link:\n<br/>"
+                              "  <a href=\"http://%s%s.zsync\">http://%s%s.zsync</a>\n", 
+                              r->hostname, r->uri, r->hostname, r->uri);
+            }
         }
         ap_rputs("  </blockquote>", r);
 
@@ -2718,10 +2724,11 @@ static int mb_handler(request_rec *r)
 
     case ZSYNC:
 
-        if (!hashbag || (hashbag->sha1hex <= 0) || !hashbag->zhashlens 
-                || (hashbag->zblocksize == 0) || !hashbag->zhashlens) {
+        if (!hashbag || !hashbag->sha1hex || (hashbag->zblocksize == 0) 
+                || !hashbag->zhashlens || !hashbag->zsumshex) {
             debugLog(r, cfg, "zsync requested, but required data is missing");
             break;
+            /* FIXME: we should return a 404 here maybe, no? */
         }
     
         debugLog(r, cfg, "Sending zsync");
