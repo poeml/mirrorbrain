@@ -3020,7 +3020,7 @@ static const command_rec mb_cmds[] =
                   ACCESS_CONF, 
                   "region code, country code and base URL of a mirror that is used when no "
                   "mirror can be found in the database. These mirrors are assumed to have "
-                  "*all* files."),
+                  "*all* files. (Or they could be configured per directory.)"),
 
     /* to be used only in server context */
     AP_INIT_TAKE1("MirrorBrainDBDQuery", mb_cmd_dbd_query, NULL,
