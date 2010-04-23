@@ -2744,8 +2744,7 @@ static int mb_handler(request_rec *r)
         if (!hashbag || !hashbag->sha1hex || (hashbag->zblocksize == 0) 
                 || !hashbag->zhashlens || !hashbag->zsumshex) {
             debugLog(r, cfg, "zsync requested, but required data is missing");
-            break;
-            /* FIXME: we should return a 404 here maybe, no? */
+            return HTTP_NOT_FOUND;
         }
     
         debugLog(r, cfg, "Sending zsync");
