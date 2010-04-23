@@ -186,6 +186,7 @@ struct mirror_entry {
     const char *country_code; /* 2-letter-string */
     const char *as;           /* autonomous system number as string */
     const char *prefix;       /* network prefix xxx.xxx.xxx.xxx/yy */
+    apr_ipsubnet_t *ipsub;   /* ip-subnet representation of the network prefix  */
     unsigned char region_only;
     unsigned char country_only;
     unsigned char as_only;
@@ -483,6 +484,7 @@ static const char *mb_cmd_fallback(cmd_parms *cmd, void *config,
     new->other_countries = NULL;
     new->as = NULL;
     new->prefix = NULL;
+    new->ipsub = NULL;
     new->region_only = 0;
     new->country_only = 0;
     new->as_only = 0;
@@ -1634,6 +1636,7 @@ static int mb_handler(request_rec *r)
         new->other_countries = NULL;
         new->as = NULL;
         new->prefix = NULL;
+        new->ipsub = NULL;
         new->region_only = 0;
         new->country_only = 0;
         new->as_only = 0;
@@ -1675,8 +1678,21 @@ static int mb_handler(request_rec *r)
         /* network prefix */
         if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL)
             ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] apr_dbd_get_entry found NULL for network prefix");
-        else
+        else {
+            char *s;
             new->prefix = apr_pstrdup(r->pool, val);
+            if ((s = ap_strchr(val, '/'))) {
+                *s++ = '\0';
+                rv = apr_ipsubnet_create(&new->ipsub, val, s, r->pool);
+                if(APR_STATUS_IS_EINVAL(rv) || (rv != APR_SUCCESS)) {
+                    /* looked nothing like an IP address, or could not be converted */
+                    new->ipsub = NULL;
+                    ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] "
+                            "Error in parsing network prefix of %s: %s/%s", 
+                            new->identifier, val, s);
+                }
+            }
+        }
 
         /* score */
         if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL) {
@@ -1772,7 +1788,8 @@ static int mb_handler(request_rec *r)
         }
 
         /* same prefix? */
-        else if (strcmp(new->prefix, prefix) == 0) {
+        else if (new->ipsub 
+                && apr_ipsubnet_test(new->ipsub, r->connection->remote_addr)) {
             *(void **)apr_array_push(mirrors_same_prefix) = new;
         }
 
@@ -2490,7 +2507,7 @@ static int mb_handler(request_rec *r)
 
         /* prefix */
         if (mirrors_same_prefix->nelts) {
-            ap_rprintf(r, "\n  <h3>Found %d mirror%s within the same network prefix :-) (%s):</h3>\n", 
+            ap_rprintf(r, "\n  <h3>Found %d mirror%s directly nearby (within the same network prefix: %s :-)</h3>\n", 
                        mirrors_same_prefix->nelts, 
                        (mirrors_same_prefix->nelts == 1) ? "" : "s",
                        prefix);
@@ -2509,7 +2526,7 @@ static int mb_handler(request_rec *r)
 
         /* AS */
         if (mirrors_same_as->nelts) {
-            ap_rprintf(r, "\n  <h3>Found %d mirror%s within the same autonomous system :-) (AS%s):</h3>\n", 
+            ap_rprintf(r, "\n  <h3>Found %d mirror%s very close (within the same autonomous system (AS%s):</h3>\n", 
                        mirrors_same_as->nelts, 
                        (mirrors_same_as->nelts == 1) ? "" : "s",
                        as);
