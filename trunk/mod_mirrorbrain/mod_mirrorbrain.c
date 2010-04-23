@@ -1092,6 +1092,12 @@ static int mb_handler(request_rec *r)
         return DECLINED;
     }
 
+    /* is there PATH_INFO, and are we supposed to accept it? */
+    if ((r->path_info && *r->path_info)
+            && (r->used_path_info != AP_REQ_ACCEPT_PATH_INFO)) {
+        debugLog(r, cfg, "ignoring request with PATH_INFO");
+        return DECLINED;
+    }
 
     debugLog(r, cfg, "URI: '%s'", r->unparsed_uri);
     debugLog(r, cfg, "filename: '%s'", r->filename);
