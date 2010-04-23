@@ -898,7 +898,8 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
         const char *errmsg = apr_dbd_error(dbd->driver, dbd->handle, rv);
         ap_log_rerror(APLOG_MARK, APLOG_WARNING, rv, r,
                       "[mod_mirrorbrain] Could not retrieve row from database for %s "
-                      "(size: %s, mtime %s): %s",
+                      "(size: %s, mtime %s): %s. Likely cause: there are no hashes in "
+                      "the database (yet).",
                       filename,
                       apr_off_t_toa(r->pool, r->finfo.size),
                       apr_itoa(r->pool, apr_time_sec(r->finfo.mtime)),
