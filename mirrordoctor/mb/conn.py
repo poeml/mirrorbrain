@@ -255,6 +255,8 @@ def servertext2dict(s):
                 new_attrs[a] = m.group(1).rstrip()
             else:
                 new_attrs[a] = None
+        else:
+            new_attrs[a] = None
 
     # the comment field is formatted differently
     comment_delim = '---------- comments ----------'
