@@ -359,12 +359,20 @@ class MirrorDoctor(cmdln.Cmdln):
 
     @cmdln.option('--all-mirrors', action='store_true',
                         help='update *all* mirrors (also disabled ones)')
+    @cmdln.option('-A', '--all', action='store_true',
+                        help='update all metadata (same as "-c -a -p --country --region")')
+    @cmdln.option('--region', action='store_true',
+                        help='update the region setting with a fresh GeoIP lookup')
+    @cmdln.option('--country', action='store_true',
+                        help='update the country setting with a fresh GeoIP lookup')
     @cmdln.option('-p', '--prefix', action='store_true',
                         help='update the network prefix')
     @cmdln.option('-a', '--asn', action='store_true',
                         help='update the AS number')
     @cmdln.option('-c', '--coordinates', action='store_true',
                         help='update the geographical coordinates')
+    @cmdln.option('-n', '--dry-run', action='store_true',
+                        help='don\'t actually do anything, just show what would be done')
     def do_update(self, subcmd, opts, *args):
         """${cmd_name}: update mirrors network data in the database
 
@@ -380,10 +388,14 @@ class MirrorDoctor(cmdln.Cmdln):
         """
         from mb.asn import iplookup
         from mb.util import hostname_from_url
+        import mb.mberr
         from sqlobject.sqlbuilder import AND
 
-        if not (opts.asn or opts.prefix or opts.coordinates):
-            sys.exit('At least one of -c, -a or -p must be given as option.')
+        if opts.all:
+            opts.asn = opts.prefix = opts.coordinates = opts.country = opts.region = True
+
+        if not (opts.asn or opts.prefix or opts.coordinates or opts.country or opts.region):
+            sys.exit('At least one of -c, -a, -p, --country, --region must be given as option.')
 
         #r = mb.asn.iplookup(self.conn, ip)
 
@@ -407,29 +419,54 @@ class MirrorDoctor(cmdln.Cmdln):
                                  self.conn.Server.q.enabled))
 
         for mirror in mirrors:
-            #print mirror.identifier, 
             hostname = hostname_from_url(mirror.baseurl)
 
-            if opts.prefix or opts.asn:
+            #if opts.prefix or opts.asn:
+            try:
                 res = iplookup(self.conn, hostname)
-                #if res: print res
+            except mb.mberr.NameOrServiceNotKnown, e:
+                print '%s:' % mirror.identifier, e
+                #print '%s: without DNS lookup, no further lookups are possible' % mirror.identifier
+                continue
+
+
             if opts.prefix and res:
                 if mirror.prefix != res.prefix:
-                    print 'updating network prefix for %s (%s -> %s)' \
+                    print '%s: updating network prefix (%s -> %s)' \
                         % (mirror.identifier, mirror.prefix, res.prefix)
-                    mirror.prefix = res.prefix
+                    if not opts.dry_run:
+                        mirror.prefix = res.prefix
             if opts.asn and res:
                 if mirror.asn != res.asn:
-                    print 'updating autonomous system number for %s (%s -> %s)' \
+                    print '%s: updating autonomous system number (%s -> %s)' \
                         % (mirror.identifier, mirror.asn, res.asn)
-                    mirror.asn = res.asn
+                    if not opts.dry_run:
+                        mirror.asn = res.asn
 
             if opts.coordinates:
                 lat, lng = mb.geoip.lookup_coordinates(hostname)
                 if float(mirror.lat or 0) != lat or float(mirror.lng or 0) != lng:
-                    print 'updating geographical coordinates for %s (%s %s -> %s %s)' \
+                    print '%s: updating geographical coordinates (%s %s -> %s %s)' \
                         % (mirror.identifier, mirror.lat, mirror.lng, lat, lng)
-                    mirror.lat, mirror.lng = lat, lng
+                    if not opts.dry_run:
+                        mirror.lat, mirror.lng = lat, lng
+
+            if opts.region:
+                region = mb.geoip.lookup_region_code(hostname)
+                if mirror.region != region:
+                    print '%s: updating region (%s -> %s)' \
+                        % (mirror.identifier, mirror.region, region)
+                    if not opts.dry_run:
+                        mirror.region = region
+
+            if opts.country:
+                country = mb.geoip.lookup_country_code(hostname)
+                if mirror.country != country:
+                    print '%s: updating country (%s -> %s)' \
+                        % (mirror.identifier, mirror.country, country)
+                    if not opts.dry_run:
+                        mirror.country = country
+
 
 
     def do_test(self, subcmd, opts, identifier):
