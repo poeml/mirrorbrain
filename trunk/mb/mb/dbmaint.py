@@ -4,7 +4,6 @@ def stale(conn):
 
     n_file_total = conn.Filearr.select().count()
 
-    query = "SELECT count(*) FROM filearr WHERE mirrors = '{}'"
     query = """SELECT count(*) FROM filearr 
                    LEFT OUTER JOIN hash ON filearr.id = hash.file_id 
                WHERE mirrors = '{}' AND hash.file_id IS NULL"""
