@@ -1577,10 +1577,15 @@ static int mb_handler(request_rec *r)
                 break;
             case META4:
             case METALINK:
-                debugLog(r, cfg, "would have to send empty metalink... -> 404");
-                ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, 
-                        "[mod_mirrorbrain] Can't send metalink for %s (no mirrors)", filename);
-                return HTTP_NOT_FOUND;
+                if (meta_negotiated) {
+                    debugLog(r, cfg, "would have to send empty metalink... -> deliver directly");
+                    return DECLINED;
+                } else {
+                    debugLog(r, cfg, "would have to send empty metalink... -> 404");
+                    ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, 
+                            "[mod_mirrorbrain] Can't send metalink for %s (no mirrors)", filename);
+                    return HTTP_NOT_FOUND;
+                }
             default:
                 /* deliver the file ourselves */
                 debugLog(r, cfg, "have to deliver directly");
@@ -2866,7 +2871,7 @@ static int mb_handler(request_rec *r)
 
     if (!chosen) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-            "[mod_mirrorbrain] could not chose a server. Shouldn't have happened.");
+            "[mod_mirrorbrain] could not choose a server. Shouldn't have happened.");
         return DECLINED;
     }
     debugLog(r, cfg, "Chose server %s", chosen->identifier);
