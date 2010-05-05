@@ -53,5 +53,11 @@ class SocketError(Error):
         self.url = url
         self.msg = msg
 
+class NameOrServiceNotKnown(Error):
+    """Raised when a hostname could not be looked up in the DNS"""
+
+    def __init__(self, msg):
+        Error.__init__(self, 'DNS lookup for hostname %r failed: Name or service not known' % (msg,))
+        self.msg = msg
 
 

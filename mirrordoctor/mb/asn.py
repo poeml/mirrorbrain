@@ -2,6 +2,7 @@
 def iplookup(conn, s):
 
     from mb.util import IpAddress
+    import mb.mberr
 
 
     if s[0].isdigit():
@@ -14,17 +15,20 @@ def iplookup(conn, s):
         try:
             host, aliases, ips = socket.gethostbyname_ex(s)
         except socket.error, e:
-            print str(e)
-            return None
+            if e[0] == socket.EAI_NONAME:
+                raise mb.mberr.NameOrServiceNotKnown(s)
+            else:
+                print 'socket error msg:', str(e)
+                return None
 
 
         #print host, aliases, ips
         if len(ips) != 1:
             print >>sys.stderr, \
-                    'warning: %r resolves to a multiple IP addresses: %s' \
+                    '>>> warning: %r resolves to a multiple IP addresses: %s' \
                     % (s, ', '.join(ips))
-            print >>sys.stderr, '   see http://mirrorbrain.org/archive/mirrorbrain/0042.html why this could\n' \
-                                '   could be a problem, and what to do about it.\n'
+            print >>sys.stderr, '>>> see http://mirrorbrain.org/archive/mirrorbrain/0042.html why this could' \
+                                ' could be a problem, and what to do about it.\n'
         a = IpAddress(ips[0])
         
 
