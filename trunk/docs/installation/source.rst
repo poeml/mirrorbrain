@@ -196,10 +196,10 @@ be provided later::
   install -m 755 mirrorprobe/mirrorprobe.py  /usr/bin/mirrorprobe
 
 
-The following command should build and install the :program:`mb` admin tool (a.k.a. :program:`mirrordoctor`)::
+The following command should build and install the :program:`mb` admin tool::
 
   setup.py install [--prefix=...]
-  ln -s mirrordoctor.py /usr/bin/mb
+  ln -s mb.py /usr/bin/mb
 
 
 
