@@ -1272,7 +1272,7 @@ static int mb_handler(request_rec *r)
         }
 
         /* is the request originating from an ip address excluded from redirecting? */
-        if (cfg->exclude_ips->nelts) {
+        if (!apr_is_empty_array(cfg->exclude_ips)) {
             for (i = 0; i < cfg->exclude_ips->nelts; i++) {
                 char *ip = ((char **) cfg->exclude_ips->elts)[i];
                 if (strcmp(ip, clientip) == 0) {
@@ -1286,7 +1286,7 @@ static int mb_handler(request_rec *r)
         }
 
         /* is the request originating from a network excluded from redirecting? */
-        if (cfg->exclude_networks->nelts) {
+        if (!apr_is_empty_array(cfg->exclude_networks)) {
             for (i = 0; i < cfg->exclude_networks->nelts; i++) {
                 char *network = ((char **) cfg->exclude_networks->elts)[i];
                 if (strncmp(network, clientip, strlen(network)) == 0) {
@@ -1301,7 +1301,7 @@ static int mb_handler(request_rec *r)
 
 
         /* is the file in the list of mimetypes to never mirror? */
-        if ((r->content_type) && (cfg->exclude_mime->nelts)) {
+        if ((r->content_type) && !apr_is_empty_array(cfg->exclude_mime)) {
             for (i = 0; i < cfg->exclude_mime->nelts; i++) {
                 char *mimetype = ((char **) cfg->exclude_mime->elts)[i];
                 if (wild_match(mimetype, r->content_type)) {
@@ -1317,7 +1317,7 @@ static int mb_handler(request_rec *r)
         /* is this User-Agent excluded from redirecting? */
         const char *user_agent = 
             (const char *) apr_table_get(r->headers_in, "User-Agent");
-        if (user_agent && (cfg->exclude_agents->nelts)) {
+        if (user_agent && !apr_is_empty_array(cfg->exclude_agents)) {
             for (i = 0; i < cfg->exclude_agents->nelts; i++) {
                 char *agent = ((char **) cfg->exclude_agents->elts)[i];
                 if (wild_match(agent, user_agent)) {
@@ -2044,7 +2044,7 @@ static int mb_handler(request_rec *r)
                 apr_psprintf(r->pool, "&amp;as=http://%s%s", ap_escape_uri(r->pool, r->hostname), 
                                                              ap_escape_uri(r->pool, r->uri));
 
-            if (scfg->tracker_urls->nelts) {
+            if (!apr_is_empty_array(scfg->tracker_urls)) {
                 for (i = 0; i < scfg->tracker_urls->nelts; i++) {
                     char *url = ((char **) scfg->tracker_urls->elts)[i];
                     APR_ARRAY_PUSH(m, char *) = 
@@ -2512,7 +2512,7 @@ static int mb_handler(request_rec *r)
 
 
         /* prefix */
-        if (mirrors_same_prefix->nelts) {
+        if (!apr_is_empty_array(mirrors_same_prefix)) {
             ap_rprintf(r, "\n  <h3>Found %d mirror%s directly nearby (within the same network prefix: %s :-)</h3>\n", 
                        mirrors_same_prefix->nelts, 
                        (mirrors_same_prefix->nelts == 1) ? "" : "s",
@@ -2531,7 +2531,7 @@ static int mb_handler(request_rec *r)
         }
 
         /* AS */
-        if (mirrors_same_as->nelts) {
+        if (!apr_is_empty_array(mirrors_same_as)) {
             ap_rprintf(r, "\n  <h3>Found %d mirror%s very close (within the same autonomous system (AS%s):</h3>\n", 
                        mirrors_same_as->nelts, 
                        (mirrors_same_as->nelts == 1) ? "" : "s",
@@ -2550,7 +2550,7 @@ static int mb_handler(request_rec *r)
         }
 
         /* country */
-        if (mirrors_same_country->nelts) {
+        if (!apr_is_empty_array(mirrors_same_country)) {
             ap_rprintf(r, "\n  <h3>Found %d mirror%s which handle this country (%s):</h3>\n", 
                        mirrors_same_country->nelts, 
                        (mirrors_same_country->nelts == 1) ? "" : "s",
@@ -2569,7 +2569,7 @@ static int mb_handler(request_rec *r)
         }
 
         /* region */
-        if (mirrors_same_region->nelts) {
+        if (!apr_is_empty_array(mirrors_same_region)) {
             ap_rprintf(r, "\n  <h3>Found %d mirror%s in other countries, but same continent (%s):</h3>\n", 
                        mirrors_same_region->nelts,
                        (mirrors_same_region->nelts == 1) ? "" : "s",
@@ -2588,7 +2588,7 @@ static int mb_handler(request_rec *r)
         }
 
         /* elsewhere */
-        if (mirrors_elsewhere->nelts) {
+        if (!apr_is_empty_array(mirrors_elsewhere)) {
             ap_rprintf(r, "\n   <h3>Found %d mirror%s in other parts of the world:</h3>\n", 
                        mirrors_elsewhere->nelts,
                        (mirrors_elsewhere->nelts == 1) ? "" : "s");
@@ -2616,7 +2616,7 @@ static int mb_handler(request_rec *r)
             break;
         }
 
-        if (!scfg->tracker_urls->nelts) {
+        if (apr_is_empty_array(scfg->tracker_urls)) {
             debugLog(r, cfg, "Torrent requested, but at least one MirrorBrainTorrentTrackerURL must configured");
             break;
         }
@@ -2837,15 +2837,15 @@ static int mb_handler(request_rec *r)
     const char *found_in;
     /* choose from country, then from region, then from elsewhere */
     if (!chosen) {
-        if (mirrors_same_prefix->nelts) {
+        if (!apr_is_empty_array(mirrors_same_prefix)) {
             mirrorp = (mirror_entry_t **)mirrors_same_prefix->elts;
             chosen = mirrorp[find_lowest_rank(mirrors_same_prefix)];
             found_in = "prefix";
-        } else if (mirrors_same_as->nelts) {
+        } else if (!apr_is_empty_array(mirrors_same_as)) {
             mirrorp = (mirror_entry_t **)mirrors_same_as->elts;
             chosen = mirrorp[find_lowest_rank(mirrors_same_as)];
             found_in = "AS";
-        } else if (mirrors_same_country->nelts) {
+        } else if (!apr_is_empty_array(mirrors_same_country)) {
             mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
             chosen = mirrorp[find_lowest_rank(mirrors_same_country)];
             if (strcasecmp(chosen->country_code, country_code) == 0) {
@@ -2853,11 +2853,11 @@ static int mb_handler(request_rec *r)
             } else {
                 found_in = "other_country";
             }
-        } else if (mirrors_same_region->nelts) {
+        } else if (!apr_is_empty_array(mirrors_same_region)) {
             mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
             chosen = mirrorp[find_lowest_rank(mirrors_same_region)];
             found_in = "region";
-        } else if (mirrors_elsewhere->nelts) {
+        } else if (!apr_is_empty_array(mirrors_elsewhere)) {
             mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
             chosen = mirrorp[find_lowest_rank(mirrors_elsewhere)];
             found_in = "other";
