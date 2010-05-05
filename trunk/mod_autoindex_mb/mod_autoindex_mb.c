@@ -1799,7 +1799,7 @@ static void output_directories(struct ent **ar, int n,
             if (autoindex_opts & MIRRORLIST) {
                 if (anchor[strlen(anchor)-1] != '/') { /* not for directories */
                         ap_rvputs(r, " </td><td><a href=\"", anchor, 
-                                  "?mirrorlist\">Mirrors</a>", NULL);
+                                  ".mirrorlist\">Mirrors</a>", NULL);
                 }
                 else {
                     ap_rputs("</td><td>&nbsp;", r);
@@ -1903,7 +1903,7 @@ static void output_directories(struct ent **ar, int n,
             if (anchor[strlen(anchor)-1] != '/') { /* not for directories */
                     if (autoindex_opts & MIRRORLIST) {
                             ap_rvputs(r, " <a href=\"", anchor, 
-                                      "?mirrorlist\">Mirrors</a>", NULL);
+                                      ".mirrorlist\">Mirrors</a>", NULL);
                     }
                     if (autoindex_opts & METALINK) {
                             ap_rvputs(r, " <a href=\"", anchor, 
