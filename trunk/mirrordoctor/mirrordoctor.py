@@ -1490,7 +1490,7 @@ class MirrorDoctor(cmdln.Cmdln):
                 os.makedirs(opts.target_dir, 0750)
             os.chdir(opts.target_dir)
             if not os.path.isdir('.svn'):
-                sys.exit('%r doesn\'t seem to be a Subversion working copy')
+                sys.exit('%r doesn\'t seem to be a Subversion working copy' % opts.target_dir)
             for i in os.listdir('.'):
                 if i.startswith('.'): continue
                 os.unlink(i)
