@@ -12,7 +12,7 @@ easy_install http://trentm.com/downloads/cmdln/1.1.1/cmdln-1.1.1.zip
 (it is not in the Python CheeseShop so far)
 """
 
-__version__ = '2.12.0'
+__version__ = '2.13.0'
 __author__ = 'Peter Poeml <poeml@cmdline.net>'
 __copyright__ = 'Novell / SUSE Linux Products GmbH'
 __license__ = 'GPL'
@@ -22,21 +22,16 @@ __url__ = 'http://mirrorbrain.org'
 
 import cmdln
 import mb.geoip
+import mb.mberr
+import signal
 
 
+def catchterm(*args):
+    raise mb.mberr.SignalInterrupt
 
-# todo: 
-
-# abstractions:
-# - append a comment
-#   - with timestamp
-#
-# - select a server from the database
-
-# table changes;
-# identifier MUST be unique (schema change required)
-# baseurlFtp could be empty, no problem.
-# baseurlHttp must not be empty
+for name in 'SIGBREAK', 'SIGHUP', 'SIGTERM':
+    num = getattr(signal, name, None)
+    if num: signal.signal(num, catchterm)
 
 
 
@@ -388,7 +383,6 @@ class MirrorDoctor(cmdln.Cmdln):
         """
         from mb.asn import iplookup
         from mb.util import hostname_from_url
-        import mb.mberr
         from sqlobject.sqlbuilder import AND
 
         if opts.all:
@@ -425,7 +419,7 @@ class MirrorDoctor(cmdln.Cmdln):
             try:
                 res = iplookup(self.conn, hostname)
             except mb.mberr.NameOrServiceNotKnown, e:
-                print '%s:' % mirror.identifier, e
+                print '%s:' % mirror.identifier, e.msg
                 #print '%s: without DNS lookup, no further lookups are possible' % mirror.identifier
                 continue
 
@@ -1043,7 +1037,8 @@ class MirrorDoctor(cmdln.Cmdln):
                     hasheable = mb.hashes.Hasheable(src_basename, 
                                                     src_dir=src_dir, 
                                                     dst_dir=dst_dir,
-                                                    base_dir=opts.base_dir)
+                                                    base_dir=opts.base_dir,
+                                                    do_zsync=self.config.dbconfig.get('zsync_hashes'))
                 except OSError, e:
                     if e.errno == errno.ENOENT:
                         sys.stderr.write('File vanished: %r\n' % src)
@@ -1591,5 +1586,27 @@ class MirrorDoctor(cmdln.Cmdln):
 if __name__ == '__main__':
     import sys
     mirrordoctor = MirrorDoctor()
-    sys.exit( mirrordoctor.main() )
+    try:
+        r = mirrordoctor.main()
+
+    except mb.mberr.SignalInterrupt:
+        print >>sys.stderr, 'killed!'
+        r = 1
+
+    except KeyboardInterrupt:
+        print >>sys.stderr, 'interrupted!'
+        r = 1
+
+    except mb.mberr.UserAbort:
+        print >>sys.stderr, 'aborted.'
+        r = 1
+
+    except (mb.mberr.ConfigError, 
+            mb.mberr.NoConfigfile,
+            mb.mberr.MirrorNotFoundError,
+            mb.mberr.SocketError), e:
+        print >>sys.stderr, e.msg
+        r = 1
+
+    sys.exit(r)
 
