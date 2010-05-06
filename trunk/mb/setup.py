@@ -22,8 +22,12 @@ s = setup(name='mb',
 # Therefore, we remove mb.py and only leave mb.
 # Don't know if there's a better way to achieve this...
 from distutils.command.install_scripts import install_scripts
+from os.path import join, exists
+from os import unlink, rename
 script_install_dir = s.get_command_obj('install_scripts').install_dir
 
-from os.path import join
-from os import unlink
-unlink(join(script_install_dir, 'mb.py'))
+if script_install_dir:
+    if exists(join(script_install_dir, 'mb')):
+        unlink(join(script_install_dir, 'mb.py'))
+    else:
+        rename(join(script_install_dir, 'mb.py'), join(script_install_dir, 'mb'))
