@@ -199,7 +199,6 @@ be provided later::
 The following command should build and install the :program:`mb` admin tool::
 
   setup.py install [--prefix=...]
-  ln -s mb.py /usr/bin/mb
 
 
 
