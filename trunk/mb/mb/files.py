@@ -42,6 +42,15 @@ def check_for_marker_files(conn, markers, mirror_id):
 
 
 def ls(conn, path):
+    """If path contains a wildcard (* or %): 
+    
+    Return all paths known to the database that start match the given path
+    argument (containing wildcards).
+
+    If path doesn't contain wildcards:
+
+    Return the exact match on the path argument."""
+
     if path.find('*') >= 0 or path.find('%') >= 0:
         pattern = True
         oprtr = 'like'
@@ -136,3 +145,29 @@ def dir_show_mirrors(conn, path):
 
     return result
 
+
+def dir_filelist(conn, path):
+    """Returns tuples of (id, name) for all files that reside in a directory
+    
+    The returned filenames include their path."""
+
+    query = """SELECT filearr.path, hash.file_id
+                   FROM filearr 
+               LEFT JOIN hash 
+                   ON hash.file_id = filearr.id 
+               WHERE filearr.path ~ '^%s/[^/]*$'""" % path
+
+    result = conn.Server._connection.queryAll(query)
+    return result
+
+def hash_list_delete(conn, idlist):
+    """deletes all rows from the hash table with ids contained in the id list
+    which is passed as argument"""
+
+    if not len(idlist):
+        return
+
+    query = """BEGIN; DELETE FROM hash 
+               WHERE file_id IN ( %s ); COMMIT""" % ', '.join([ str(i) for i in idlist])
+    print query
+    conn.Filearr._connection.query(query)
