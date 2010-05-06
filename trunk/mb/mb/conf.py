@@ -1,8 +1,12 @@
 
 import sys
+import os
 import ConfigParser
 import re
+import mb.mberr
 
+
+boolean_opts = ['zsync_hashes']
 
 class Config:
     """this class sets up a number dictionaries that contain configuration 
@@ -22,6 +26,10 @@ class Config:
         self.dbconfig = {}
         self.mirrorprobe = {}
 
+        if not os.path.exists(conffile):
+            raise mb.mberr.NoConfigfile(conffile, 'No config file found. Please refer to:\n'
+                    'http://mirrorbrain.org/docs/installation/initial_config/#create-mirrorbrain-conf')
+
         cp = ConfigParser.SafeConfigParser()
         try:
             cp.read(conffile)
@@ -33,7 +41,6 @@ class Config:
         # take care of the [general] section
         #
         self.general = dict(cp.items('general'))
-        #print self.general
 
         # transform 'str1, str2, str3' form into a list
         re_clist = re.compile('[, ]+')
@@ -54,6 +61,14 @@ class Config:
                 raise KeyError('The config does not have a section named [%s] '
                                'for the instance %r' % (i, i))
             self.general[i] = dict(cp.items(i))
+            for b in boolean_opts:
+                try:
+                    self.general[i][b] = cp.getboolean(i, b)
+                except ValueError, e:
+                    raise mb.mberr.ConfigError('cannot parse setting in [%s] section: %r' % (i, b + str(e)), conffile)
+                except ConfigParser.NoOptionError, e:
+                    pass
+
 
 
         # all database configs are accessible via self.general, but 
@@ -65,10 +80,5 @@ class Config:
         # take care of the [mirrorprobe] section
         #
         self.mirrorprobe = dict(cp.items('mirrorprobe'))
-
-        #print self.general
-        #print self.instance
-        #print self.dbconfig
-        #print self.mirrorprobe
 
 
