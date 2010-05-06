@@ -30,7 +30,7 @@ assert PIECESIZE % 4096 == 0
 class Hasheable:
     """represent a file and its metadata"""
     def __init__(self, basename, src_dir=None, dst_dir=None,
-                 base_dir=None):
+                 base_dir=None, do_zsync=False):
         self.basename = basename
         if src_dir:
             self.src_dir = src_dir
@@ -54,6 +54,7 @@ class Hasheable:
         self.dst = os.path.join(self.dst_dir, self.dst_basename)
 
         self.hb = HashBag(src=self.src, parent=self)
+        self.hb.do_zsync = do_zsync
 
     def islink(self):
         return stat.S_ISLNK(self.mode)
@@ -154,7 +155,7 @@ class Hasheable:
                        ''.join(self.hb.pieceshex),
                        self.hb.pgp or '',
                        self.hb.zblocksize,
-                       '%s,%s,%s' % (self.hb.zseq_matches, self.hb.zrsum_len, self.hb.zchecksum_len),
+                       self.hb.get_zparams(),
                        binascii.hexlify(''.join(self.hb.zsums))]
                       )
             if verbose:
@@ -186,7 +187,7 @@ class Hasheable:
                        PIECESIZE, ''.join(self.hb.pieceshex),
                        self.hb.pgp or '', 
                        self.hb.zblocksize,
-                       '%s,%s,%s' % (self.hb.zseq_matches, self.hb.zrsum_len, self.hb.zchecksum_len),
+                       self.hb.get_zparams(),
                        binascii.hexlify(''.join(self.hb.zsums)),
                        file_id])
             if verbose:
@@ -220,7 +221,12 @@ class HashBag():
         self.pieces = []
         self.pieceshex = []
 
+        self.do_zsync = False
         self.zsums = []
+        self.zblocksize = 0
+        self.zseq_matches = None
+        self.zrsum_len = None
+        self.zchecksum_len = None
 
         self.empty = True
 
@@ -230,7 +236,8 @@ class HashBag():
             sys.stdout.write('Hashing %r... ' % self.src)
             sys.stdout.flush()
 
-        self.zs_guess_zsync_params()
+        if self.do_zsync:
+            self.zs_guess_zsync_params()
 
         m = md5.md5()
         s1 = sha1.sha1()
@@ -292,6 +299,17 @@ class HashBag():
         if sha256:
             r.append('sha256 %s' % self.sha256hex)
         return '\n'.join(r)
+
+
+    def get_zparams(self):
+        if self.zseq_matches and \
+           self.zrsum_len and \
+           self.zchecksum_len:
+            return '%s,%s,%s' % (self.zseq_matches, 
+                                 self.zrsum_len, 
+                                 self.zchecksum_len)
+        else:
+            return ''
 
 
     def __str__(self):
@@ -386,9 +404,10 @@ class HashBag():
             md4.update(block)
             c = md4.digest()
 
-            r = zsync.rsum06(block)
+            if self.do_zsync:
+                r = zsync.rsum06(block)
 
-            self.zsums.append( r[-self.zrsum_len:] )      # save only some trailing bytes
-            self.zsums.append( c[0:self.zchecksum_len] )  # save only some leading bytes
+                self.zsums.append( r[-self.zrsum_len:] )      # save only some trailing bytes
+                self.zsums.append( c[0:self.zchecksum_len] )  # save only some leading bytes
 
 
