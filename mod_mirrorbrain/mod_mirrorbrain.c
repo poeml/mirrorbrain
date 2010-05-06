@@ -1574,6 +1574,7 @@ static int mb_handler(request_rec *r)
                 ap_rputs("</body></html>\n", r);
                 return OK;
             case TORRENT:
+            case ZSYNC:
                 break;
             case META4:
             case METALINK:
