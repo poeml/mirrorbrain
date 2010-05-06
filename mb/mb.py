@@ -932,6 +932,7 @@ class MirrorDoctor(cmdln.Cmdln):
         import re
         import shutil
         import mb.hashes
+        import mb.files
 
         if not opts.target_dir:
             sys.exit('You must specify the target directory (-t)')
@@ -971,6 +972,8 @@ class MirrorDoctor(cmdln.Cmdln):
                     continue
 
             dst_dir = os.path.join(opts.target_dir, src_dir[len(opts.base_dir):].lstrip('/'))
+            dst_dir_db = src_dir[len(opts.base_dir):].lstrip('/')
+            #print dst_dir_db
 
             if not opts.dry_run:
                 if not os.path.isdir(dst_dir):
@@ -983,6 +986,11 @@ class MirrorDoctor(cmdln.Cmdln):
             try:
                 dst_names = os.listdir(dst_dir)
                 dst_names.sort()
+                dst_names_db = [ (os.path.basename(i), j) 
+                                 for i, j in mb.files.dir_filelist(self.conn, dst_dir_db)]
+                dst_names_db_dict = dict(dst_names_db)
+                dst_names_db_keys = dst_names_db_dict.keys()
+                #print dst_names_db_keys
             except OSError, e:
                 if e.errno == errno.ENOENT:
                     sys.exit('\nSorry, cannot really continue in dry-run mode, because directory %r does not exist.\n'
@@ -996,9 +1004,11 @@ class MirrorDoctor(cmdln.Cmdln):
             if opts.verbose:
                 print 'Examining directory', src_dir
 
+            dst_keep_db = set()
             dst_keep = set()
             dst_keep.add('LOCK')
 
+            # FIXME: given that we don't need -t parameter anymore... can we create a lock hierarchy in /tmp instead??
             lockfile = os.path.join(dst_dir, 'LOCK')
             try:
                 if not opts.dry_run:
@@ -1057,13 +1067,18 @@ class MirrorDoctor(cmdln.Cmdln):
                                            dry_run=opts.dry_run,
                                            force=opts.force)
                         dst_keep.add(hasheable.dst_basename)
+                        dst_keep_db.add(hasheable.basename)
 
                 elif hasheable.isdir():
                     directories_todo.append(src)  # It's a directory, store it.
                     dst_keep.add(hasheable.basename)
+                    dst_keep_db.add(hasheable.basename)
 
 
             dst_remove = set(dst_names) - dst_keep
+            #print 'old', dst_remove
+            dst_remove_db = set(dst_names_db_keys) - dst_keep_db
+            #print 'new', dst_remove_db
 
             # print 'files to keep:'
             # print dst_keep
@@ -1104,6 +1119,19 @@ class MirrorDoctor(cmdln.Cmdln):
                                 sys.stderr.write('Unlink failed for %r: %s\n' \
                                                     % (i_path, os.strerror(e.errno)))
                     unlinked_files += 1
+            ids_to_delete = []
+            for i in sorted(dst_remove_db):
+                relpath = os.path.join(dst_dir_db, i)
+                dbid = dst_names_db_dict.get(i)
+                if dbid:
+                    print 'Obsolete hash in db: %r (id %s)' % (relpath, dbid)
+                    ids_to_delete.append(dbid)
+                else:
+                    print 'hm:', relpath
+            if len(ids_to_delete):
+                print 'Deleting %s obsolete hashes from hash table' % len(ids_to_delete)
+                if not opts.dry_run:
+                    mb.files.hash_list_delete(self.conn, ids_to_delete)
 
             if opts.verbose:
                 print 'unlocking', lockfile 

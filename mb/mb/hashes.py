@@ -78,7 +78,7 @@ class Hasheable:
             return 
 
         if dry_run: 
-            print 'Would make hash file', self.dst
+            print 'Would create hash file', self.dst
             return
 
         if self.hb.empty:
@@ -117,7 +117,7 @@ class Hasheable:
         if res:
             file_id = res[0]
         else:
-            print 'File %r not found. Not on mirrors yet? Inserting.' % self.src_rel
+            print 'File %r not in database. Not on mirrors yet? Inserting.' % self.src_rel
             c.execute("INSERT INTO filearr (path, mirrors) VALUES (%s, '{}')",
                       [self.src_rel])
             c.execute("SELECT currval('filearr_id_seq')")
