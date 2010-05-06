@@ -1107,6 +1107,11 @@ class MirrorDoctor(cmdln.Cmdln):
                             else:
                                 sys.exit('Recursive removing failed for %r: %s\n' \
                                                     % (i_path, os.strerror(e.errno)))
+
+                        relpath = os.path.join(dst_dir_db, i)
+                        print 'Recursively removing hashes in database: %s/*' % relpath
+                        mb.files.hashes_dir_delete(self.conn, relpath)
+
                     unlinked_dirs += 1
                     
                 else:
@@ -1127,11 +1132,12 @@ class MirrorDoctor(cmdln.Cmdln):
                     print 'Obsolete hash in db: %r (id %s)' % (relpath, dbid)
                     ids_to_delete.append(dbid)
                 else:
-                    print 'hm:', relpath
+                    pass # not in the hash table
+
             if len(ids_to_delete):
                 print 'Deleting %s obsolete hashes from hash table' % len(ids_to_delete)
                 if not opts.dry_run:
-                    mb.files.hash_list_delete(self.conn, ids_to_delete)
+                    mb.files.hashes_list_delete(self.conn, ids_to_delete)
 
             if opts.verbose:
                 print 'unlocking', lockfile 

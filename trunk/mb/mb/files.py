@@ -160,14 +160,39 @@ def dir_filelist(conn, path):
     result = conn.Server._connection.queryAll(query)
     return result
 
-def hash_list_delete(conn, idlist):
-    """deletes all rows from the hash table with ids contained in the id list
+
+def hashes_list_delete(conn, idlist):
+    """Deletes all rows from the hash table with ids contained in the id list
     which is passed as argument"""
 
     if not len(idlist):
         return
 
-    query = """BEGIN; DELETE FROM hash 
-               WHERE file_id IN ( %s ); COMMIT""" % ', '.join([ str(i) for i in idlist])
-    print query
+    query = """BEGIN; 
+               DELETE FROM hash 
+               WHERE file_id IN ( %s ); 
+               COMMIT""" % ', '.join([ str(i) for i in idlist])
+    conn.Filearr._connection.query(query)
+
+
+#def hashdir_add(conn, d):
+#    """Adds a directory to the hashdir table"""
+#
+#    query = """INSERT INTO hashdir (path)
+#               VALUES ('%s')""" % d
+#    try:
+#        conn.Filearr._connection.query(query)
+#    except:
+#        pass
+
+def hashes_dir_delete(conn, base):
+    """Deletes all rows from the hash table which correspond to paths in the
+    filearr table starting with 'base'.
+    This means we recursively delete hashes below a given directory."""
+
+    query = """DELETE FROM hash 
+               WHERE file_id IN (
+                   SELECT filearr.id FROM filearr 
+                   WHERE path LIKE '%s/%%'
+               )""" % base
     conn.Filearr._connection.query(query)
