@@ -2618,13 +2618,14 @@ static int mb_handler(request_rec *r)
     case TORRENT:
     {
         if (!hashbag || (hashbag->sha1piecesize <= 0) || apr_is_empty_array(hashbag->sha1pieceshex)) {
-            debugLog(r, cfg, "Torrent requested, but no hashes found");
-            break;
+            debugLog(r, cfg, "Torrent requested, but no hashes found for %s", filename);
+            return HTTP_NOT_FOUND;
         }
 
         if (apr_is_empty_array(scfg->tracker_urls)) {
-            debugLog(r, cfg, "Torrent requested, but at least one MirrorBrainTorrentTrackerURL must configured");
-            break;
+            ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, 
+                    "[mod_mirrorbrain] Cannot create torrent: at least one MirrorBrainTorrentTrackerURL must configured");
+            return HTTP_NOT_FOUND;
         }
 
         debugLog(r, cfg, "Sending torrent");
