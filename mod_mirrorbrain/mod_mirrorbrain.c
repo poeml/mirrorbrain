@@ -2672,6 +2672,11 @@ static int mb_handler(request_rec *r)
         for (i = 0; i < hashbag->sha1pieceshex->nelts; i++) {
             ap_rwrite(hex_decode(r, p[i], SHA1_DIGESTSIZE), SHA1_DIGESTSIZE, r);
         }
+        ap_rprintf(r,             "4:sha1"
+                                      "%d:", SHA1_DIGESTSIZE);
+        ap_rwrite(                    hex_decode(r, hashbag->sha1hex, SHA1_DIGESTSIZE), 
+                SHA1_DIGESTSIZE, r);
+
         ap_rputs(             "e", r);
 
         /* Web seeds
