@@ -84,6 +84,9 @@ class Hasheable:
 
         if self.hb.empty:
             self.hb.fill(verbose=verbose)
+        if self.hb.empty:
+            sys.stderr.write('skipping hash (file) generation\n')
+            return
 
         d = open(self.dst, 'wb')
         d.write(self.hb.dump_2_12_template())
@@ -114,23 +117,19 @@ class Hasheable:
 
         c.execute("SELECT id FROM filearr WHERE path = %s LIMIT 1",
                   [self.src_rel])
-        res = c.fetchone()
-        if res:
-            file_id = res[0]
+        res_filearr = c.fetchone()
+        if res_filearr:
+            # file already present in the file array table. Is it also known in the hash table?
+            file_id = res_filearr[0]
+            c.execute("SELECT file_id, mtime, size FROM hash WHERE file_id = %s LIMIT 1",
+                      [file_id])
+            res_hash = c.fetchone()
         else:
-            print 'File %r not in database. Not on mirrors yet? Inserting.' % self.src_rel
-            c.execute("INSERT INTO filearr (path, mirrors) VALUES (%s, '{}')",
-                      [self.src_rel])
-            c.execute("SELECT currval('filearr_id_seq')")
-            file_id =  c.fetchone()[0]
-            c.execute("commit")
-            
+            print 'File %r not in database. Not on mirrors yet? Will be inserted.' % self.src_rel
+            file_id = None
+            res_hash = None
 
-        c.execute("SELECT file_id, mtime, size FROM hash WHERE file_id = %s LIMIT 1",
-                  [file_id])
-        res = c.fetchone()
-
-        if not res:
+        if not res_hash:
 
             if dry_run: 
                 print 'Would create hashes in db for: ', self.src_rel
@@ -138,6 +137,15 @@ class Hasheable:
 
             if self.hb.empty:
                 self.hb.fill(verbose=verbose)
+            if self.hb.empty:
+                sys.stderr.write('skipping db hash generation\n')
+                return
+
+            c.execute("BEGIN")
+            c.execute("INSERT INTO filearr (path, mirrors) VALUES (%s, '{}')",
+                      [self.src_rel])
+            c.execute("SELECT currval('filearr_id_seq')")
+            file_id =  c.fetchone()[0]
 
             c.execute("""INSERT INTO hash (file_id, mtime, size, md5, 
                                            sha1, sha256, sha1piecesize, 
@@ -158,10 +166,11 @@ class Hasheable:
                        self.hb.get_zparams(),
                        binascii.hexlify(''.join(self.hb.zsums))]
                       )
+            c.execute("COMMIT")
             if verbose:
                 print 'Hash was not present yet in database - inserted'
         else:
-            mtime, size = res[1], res[2]
+            mtime, size = res_hash[1], res_hash[2]
             
             if int(self.mtime) == mtime and self.size == size and not force:
                 if verbose:
@@ -170,6 +179,9 @@ class Hasheable:
 
             if self.hb.empty:
                 self.hb.fill(verbose=verbose)
+            if self.hb.empty:
+                sys.stderr.write('skipping db hash generation\n')
+                return
 
             c.execute("""UPDATE hash set mtime = %s, size = %s, 
                                          md5 = decode(%s, 'hex'), 
@@ -245,7 +257,11 @@ class HashBag():
             s256 = sha256.sha256()
         short_read_before = False
 
-        f = open(self.src, 'rb')
+        try:
+            f = open(self.src, 'rb')
+        except IOError, e:
+            sys.stderr.write('%s\n' % e)
+            return None
 
         while 1 + 1 == 2:
             buf = f.read(PIECESIZE)
