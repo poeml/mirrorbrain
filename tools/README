@@ -49,3 +49,7 @@ install:
        Tool to assess the size of rsync modules on a remote server, or a
        subdirectory
 
+    bdecode.py
+       Parse a Torrent file (or other BEncoded input), and pretty-print it.
+       Can read from standard input: curl -s <url> | bdecode.py
+       Useful to work on the Torrent generator in mod_mirrorbrain.
