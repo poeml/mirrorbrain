@@ -242,6 +242,7 @@ typedef struct
     const char *metalink_publisher_name;
     const char *metalink_publisher_url;
     apr_array_header_t *tracker_urls;
+    apr_array_header_t *dhtnodes;
     const char *metalink_broken_test_mirrors;
     const char *mirrorlist_stylesheet;
     const char *query;
@@ -249,6 +250,12 @@ typedef struct
     const char *query_hash;
     const char *query_hash_label;
 } mb_server_conf;
+
+typedef struct dhtnode dhtnode_t;
+struct dhtnode {
+    char *name;
+    int port;
+};
 
 
 static ap_dbd_t *(*mb_dbd_acquire_fn)(request_rec*) = NULL;
@@ -400,6 +407,7 @@ static void *create_mb_server_config(apr_pool_t *p, server_rec *s)
     new->metalink_publisher_name = NULL;
     new->metalink_publisher_url = NULL;
     new->tracker_urls = apr_array_make(p, 5, sizeof (char *));
+    new->dhtnodes = apr_array_make(p, 5, sizeof (dhtnode_t));
     new->metalink_broken_test_mirrors = NULL;
     new->mirrorlist_stylesheet = NULL;
     new->query = DEFAULT_QUERY;
@@ -428,6 +436,7 @@ static void *merge_mb_server_config(apr_pool_t *p, void *basev, void *addv)
     cfgMergeString(metalink_publisher_name);
     cfgMergeString(metalink_publisher_url);
     mrg->tracker_urls = apr_array_append(p, base->tracker_urls, add->tracker_urls);
+    mrg->dhtnodes = apr_array_append(p, base->dhtnodes, add->dhtnodes);
     cfgMergeString(metalink_broken_test_mirrors);
     cfgMergeString(mirrorlist_stylesheet);
     mrg->query = (add->query != (char *) DEFAULT_QUERY) ? add->query : base->query;
@@ -642,6 +651,21 @@ static const char *mb_cmd_tracker_url(cmd_parms *cmd, void *config,
 
     char **url = (char **) apr_array_push(cfg->tracker_urls);
     *url = apr_pstrdup(cmd->pool, arg1);
+    return NULL;
+}
+
+static const char *mb_cmd_dht_node(cmd_parms *cmd, void *config,
+                                    const char *arg1, const char *arg2)
+{
+    server_rec *s = cmd->server;
+    mb_server_conf *cfg = 
+        ap_get_module_config(s->module_config, &mirrorbrain_module);
+
+    dhtnode_t *new = apr_array_push(cfg->dhtnodes);
+    new->name = apr_pstrdup(cmd->pool, arg1);
+    new->port = atoi(apr_pstrdup(cmd->pool, arg2));
+    if (new->port <= 0)
+        return "MirrorBrainDHTNode requires a positive integer as second argument (server port).";
     return NULL;
 }
 
@@ -2732,7 +2756,6 @@ static int mb_handler(request_rec *r)
             ap_rprintf(r,     "%d:http://%s%s", (7 + strlen(r->hostname) + strlen(r->uri)), 
                                                 r->hostname, r->uri);
         }
-        ap_rputs(         "e", r);
 
 #if 0
         /* it would be simple to just list the URL of the redirector itself, but aria2c
@@ -2749,10 +2772,20 @@ static int mb_handler(request_rec *r)
                                                 r->hostname, r->uri);
 #endif
 
-        ap_rputs(     "e", r);
+        if (!apr_is_empty_array(scfg->dhtnodes)) {
 
-        /* if there's no announce key (trackerless torrent), we should add a "nodes" key. 
-         * TODO: find out what it should contain. See http://www.bittorrent.org/beps/bep_0005.html */
+            ap_rputs(     "e"
+                          "5:nodes"
+                              "l", r);
+            for (i = 0; i < scfg->dhtnodes->nelts; i++) {
+                dhtnode_t node = ((dhtnode_t *) scfg->dhtnodes->elts)[i];
+                ap_rprintf(r,     "l" "%d:%s" "i%de" "e", strlen(node.name), node.name, 
+                                                         node.port);
+            }
+        }
+        ap_rputs(         "e", r);
+
+        ap_rputs(     "e", r);
 
         return OK;
     }
@@ -3078,6 +3111,12 @@ static const command_rec mb_cmds[] =
                   RSRC_CONF, 
                   "Define the URL a Bittorrent Tracker be included in Torrents and in Magnet "
                   "links. Directive can be repeated to specify multiple URLs."),
+
+    AP_INIT_TAKE2("MirrorBrainDHTNode", mb_cmd_dht_node, NULL, 
+                  RSRC_CONF, 
+                  "Define a DHT node to be included in Torrents "
+                  "links. Directive can be repeated to specify multiple nodes, and takes "
+                  "two arguments (hostname, port)."),
 
     AP_INIT_TAKE1("MirrorBrainMetalinkBrokenTestMirrors", mb_cmd_metalink_broken_test_mirrors, NULL, 
                   RSRC_CONF, 
