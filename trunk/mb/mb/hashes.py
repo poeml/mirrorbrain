@@ -142,10 +142,11 @@ class Hasheable:
                 return
 
             c.execute("BEGIN")
-            c.execute("INSERT INTO filearr (path, mirrors) VALUES (%s, '{}')",
-                      [self.src_rel])
-            c.execute("SELECT currval('filearr_id_seq')")
-            file_id =  c.fetchone()[0]
+            if not res_filearr: 
+                c.execute("INSERT INTO filearr (path, mirrors) VALUES (%s, '{}')",
+                          [self.src_rel])
+                c.execute("SELECT currval('filearr_id_seq')")
+                file_id =  c.fetchone()[0]
 
             c.execute("""INSERT INTO hash (file_id, mtime, size, md5, 
                                            sha1, sha256, sha1piecesize, 
