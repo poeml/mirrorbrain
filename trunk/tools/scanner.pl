@@ -1226,7 +1226,7 @@ sub ftp_close
 sub ftp_cont
 {
   my ($ftp, $path) = @_;
-  $path =~ s{^\w+://[^/:]+(:\d+)?/}{/};	# no proto host port prefix, please.
+  $path =~ s{^\w+://([^@]+@)?[^/:]+(:\d+)?/}{/};	# no proto/auth/host/port/prefix, please.
   $ftp->cwd($path) or return "550 failed: ftp-cwd($path): $! $@";
 
   $ftp->dir();
