@@ -2049,6 +2049,8 @@ static int mb_handler(request_rec *r)
             /* Bittorrent info hash */
             APR_ARRAY_PUSH(m, char *) = 
                 apr_psprintf(r->pool, "magnet:?xt=urn:btih:%s", hashbag->sha1hex);
+                                                /* FIXME this is wrong. See
+                                                 * http://mirrorbrain.org/issues/issue56 */
 #if 0
             /* SHA-1 */
             /* As far as I can see, this hash would actually need to be Base32
