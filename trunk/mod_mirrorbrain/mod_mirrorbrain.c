@@ -135,7 +135,7 @@
                            "WHERE path = %s)::smallint[]) " \
                       "AND enabled AND status_baseurl AND score > 0"
 #define DEFAULT_QUERY_HASH "SELECT file_id, md5hex, sha1hex, sha256hex, " \
-                                  "sha1piecesize, sha1pieceshex, pgp, " \
+                                  "sha1piecesize, sha1pieceshex, btihhex, pgp, " \
                                   "zblocksize, zhashlens, zsumshex " \
                            "FROM hexhash " \
                            "WHERE file_id = (SELECT id " \
@@ -156,7 +156,7 @@ module AP_MODULE_DECLARE_DATA mirrorbrain_module;
 
 /* (meta) representations of a requested file */
 enum { REDIRECT, META4, METALINK, MIRRORLIST, TORRENT, 
-       ZSYNC, MAGNET, MD5, SHA1, SHA256, UNKNOWN };
+       ZSYNC, MAGNET, MD5, SHA1, SHA256, BTIH, UNKNOWN };
 static struct {
         int     id;
         char    *ext;
@@ -171,6 +171,7 @@ static struct {
         { MD5,           "md5" },
         { SHA1,          "sha1" },
         { SHA256,        "sha256" },
+        { BTIH,          "btih" },
         { UNKNOWN,       NULL }
 };
 
@@ -207,6 +208,7 @@ struct hashbag {
     const char *sha256hex;
     int sha1piecesize;
     apr_array_header_t *sha1pieceshex;
+    const char *btihhex;
     const char *pgp;
     int zblocksize;
     const char *zhashlens;
@@ -898,6 +900,7 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
     h->sha256hex = NULL;
     h->sha1piecesize = 0;
     h->sha1pieceshex = NULL;
+    h->btihhex = NULL;
     h->pgp = NULL;
     h->zblocksize = 0;
     h->zhashlens = NULL;
@@ -988,6 +991,13 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
                         val + (i * SHA1_DIGESTSIZE * 2), (SHA1_DIGESTSIZE * 2));
             }
         }
+    }
+
+    if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] dbd: got NULL for btih");
+    } else {
+        if (val[0])
+            h->btihhex = apr_pstrdup(r->pool, val);
     }
 
     if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL) {
@@ -1154,6 +1164,7 @@ static int mb_handler(request_rec *r)
         if (form_lookup(r, "md5"))     { rep = MD5;     rep_ext = reps[MD5].ext; };
         if (form_lookup(r, "sha1"))    { rep = SHA1;    rep_ext = reps[SHA1].ext; };
         if (form_lookup(r, "sha256"))  { rep = SHA256;  rep_ext = reps[SHA256].ext; };
+        if (form_lookup(r, "btih"))    { rep = BTIH;    rep_ext = reps[BTIH].ext; };
     }
     
     if (!query_country 
@@ -1250,6 +1261,7 @@ static int mb_handler(request_rec *r)
                 case MD5:
                 case SHA1:
                 case SHA256:
+                case BTIH:
                     debugLog(r, cfg, "Representation chosen by .%s extension", rep_ext);
                     /* note this actually modifies r->filename. */
                     ext[0] = '\0';
@@ -1476,6 +1488,7 @@ static int mb_handler(request_rec *r)
     case MD5:
     case SHA1:
     case SHA256:
+    case BTIH:
     case TORRENT:
     case ZSYNC:
     case MAGNET:
@@ -1490,12 +1503,14 @@ static int mb_handler(request_rec *r)
     switch (rep) {
     case MD5:
     case SHA1:
-    case SHA256: {
+    case SHA256:
+    case BTIH: {
         const char *h = NULL;
         switch (rep) {
         case MD5: h = hashbag->md5hex; break;
         case SHA1: h = hashbag->sha1hex; break;
         case SHA256: h = hashbag->sha256hex; break;
+        case BTIH: h = hashbag->btihhex; break;
         }
 
         if (h && h[0]) {
@@ -2048,9 +2063,7 @@ static int mb_handler(request_rec *r)
 
             /* Bittorrent info hash */
             APR_ARRAY_PUSH(m, char *) = 
-                apr_psprintf(r->pool, "magnet:?xt=urn:btih:%s", hashbag->sha1hex);
-                                                /* FIXME this is wrong. See
-                                                 * http://mirrorbrain.org/issues/issue56 */
+                apr_psprintf(r->pool, "magnet:?xt=urn:btih:%s", hashbag->btihhex);
 #if 0
             /* SHA-1 */
             /* As far as I can see, this hash would actually need to be Base32
@@ -2502,6 +2515,9 @@ static int mb_handler(request_rec *r)
             if (hashbag->md5hex)
                 ap_rprintf(r, "  <li><a href=\"http://%s%s.md5\">MD5 Hash</a>: <tt>%s</tt> "
                               "</li>\n", r->hostname, r->uri, hashbag->md5hex);
+            if (hashbag->btihhex)
+                ap_rprintf(r, "  <li><a href=\"http://%s%s.btih\">BitTorrent Information Hash</a>: <tt>%s</tt> "
+                              "</li>\n", r->hostname, r->uri, hashbag->btihhex);
 
             if (hashbag->pgp) {
                 /* contrary to the hashes, we don't have a handler for .asc files, because
