@@ -22,6 +22,7 @@ except ImportError:
     sha256 = None
 
 PIECESIZE = 262144
+SHA1_DIGESTSIZE = 20
 
 # must be a multiple of 2048 and 4096 for zsync checksumming
 assert PIECESIZE % 4096 == 0
@@ -150,11 +151,12 @@ class Hasheable:
 
             c.execute("""INSERT INTO hash (file_id, mtime, size, md5, 
                                            sha1, sha256, sha1piecesize, 
-                                           sha1pieces, pgp, zblocksize,
+                                           sha1pieces, btih, pgp, zblocksize,
                                            zhashlens, zsums) 
                          VALUES (%s, %s, %s, 
                                  decode(%s, 'hex'), decode(%s, 'hex'), 
                                  decode(%s, 'hex'), %s, decode(%s, 'hex'),
+                                 decode(%s, 'hex'),
                                  %s, %s, %s, decode(%s, 'hex'))""",
                       [file_id, int(self.mtime), self.size,
                        self.hb.md5hex or '',
@@ -162,6 +164,7 @@ class Hasheable:
                        self.hb.sha256hex or '',
                        PIECESIZE,
                        ''.join(self.hb.pieceshex),
+                       self.hb.btihhex or '',
                        self.hb.pgp or '',
                        self.hb.zblocksize,
                        self.hb.get_zparams(),
@@ -190,6 +193,7 @@ class Hasheable:
                                          sha256 = decode(%s, 'hex'), 
                                          sha1piecesize = %s,
                                          sha1pieces = decode(%s, 'hex'), 
+                                         btih = decode(%s, 'hex'),
                                          pgp = %s,
                                          zblocksize = %s,
                                          zhashlens = %s,
@@ -198,6 +202,7 @@ class Hasheable:
                       [int(self.mtime), self.size,
                        self.hb.md5hex or '', self.hb.sha1hex or '', self.hb.sha256hex or '',
                        PIECESIZE, ''.join(self.hb.pieceshex),
+                       self.hb.btihhex or '',
                        self.hb.pgp or '', 
                        self.hb.zblocksize,
                        self.hb.get_zparams(),
@@ -233,6 +238,8 @@ class HashBag():
         self.npieces = 0
         self.pieces = []
         self.pieceshex = []
+        self.btih = None
+        self.btihhex = None
 
         self.do_zsync = False
         self.zsums = []
@@ -295,6 +302,8 @@ class HashBag():
             self.sha256 = s256.digest()
             self.sha256hex = s256.hexdigest()
 
+        self.calc_btih()
+
         # if present, grab PGP signature
         if os.path.exists(self.src + '.asc'):
             self.pgp = open(self.src + '.asc').read()
@@ -315,6 +324,7 @@ class HashBag():
         r.append('sha1 %s' % self.sha1hex)
         if sha256:
             r.append('sha256 %s' % self.sha256hex)
+        r.append('btih %s' % self.btihhex)
         return '\n'.join(r)
 
 
@@ -427,4 +437,19 @@ class HashBag():
                 self.zsums.append( r[-self.zrsum_len:] )      # save only some trailing bytes
                 self.zsums.append( c[0:self.zchecksum_len] )  # save only some leading bytes
 
+
+    def calc_btih(self):
+        """ calculate a bittorrent information hash (btih) """
+
+        buf = ['d', 
+                 '6:length', 'i', str(self.h.size), 'e',
+                 '4:name', str(len(self.basename)), ':', self.basename, 
+                 '12:piece length', 'i', str(PIECESIZE), 'e',
+                 '6:pieces', str(len(self.pieces) * SHA1_DIGESTSIZE), ':', ''.join(self.pieces),
+               'e']
+
+        h = sha1.sha1()
+        h.update(''.join(buf))
+        self.btih = h.digest()
+        self.btihhex = h.hexdigest()
 
