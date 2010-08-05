@@ -1808,7 +1808,7 @@ static void output_directories(struct ent **ar, int n,
             if (autoindex_opts & METALINK) {
                 if (anchor[strlen(anchor)-1] != '/') { /* not for directories */
                         ap_rvputs(r, " </td><td><a href=\"", anchor, 
-                                  ".metalink\">Metalink</a>", NULL);
+                                  ".meta4\">Metalink</a>", NULL);
                 }
                 else {
                         ap_rputs("</td><td>&nbsp;", r);
@@ -1907,7 +1907,7 @@ static void output_directories(struct ent **ar, int n,
                     }
                     if (autoindex_opts & METALINK) {
                             ap_rvputs(r, " <a href=\"", anchor, 
-                                      ".metalink\">Metalink</a>", NULL);
+                                      ".meta4\">Metalink</a>", NULL);
                     }
             }
             ap_rputc('\n', r);
