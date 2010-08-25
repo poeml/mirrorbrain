@@ -485,7 +485,7 @@ class MirrorDoctor(cmdln.Cmdln):
     @cmdln.option('--md5', action='store_true',
                         help='download and show the md5 sum')
     @cmdln.option('--urls', dest='url_type', metavar='TYPE', default='scan',
-                        help='type of URLs to be probed (scan|http|all). Default: scam.')
+                        help='type of URLs to be probed (scan|http|all). Default: scan.')
     @cmdln.option('-m', '--mirror', 
                         help='probe only on this mirror')
     @cmdln.option('-a', '--all-mirrors', action='store_true',
