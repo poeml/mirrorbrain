@@ -6,7 +6,11 @@ import re
 import mb.mberr
 
 
-boolean_opts = ['zsync_hashes']
+boolean_opts = [ 'zsync_hashes', 'chunked_hashes' ]
+
+DEFAULTS = { 'zsync_hashes': False,
+             'chunked_hashes': True,
+             'chunk_size': 262144 }
 
 class Config:
     """this class sets up a number dictionaries that contain configuration 
@@ -68,6 +72,18 @@ class Config:
                     raise mb.mberr.ConfigError('cannot parse setting in [%s] section: %r' % (i, b + str(e)), conffile)
                 except ConfigParser.NoOptionError, e:
                     pass
+            # set default values where the config didn't define anything
+            for d in DEFAULTS:
+                try: 
+                    self.general[i][d]
+                except:
+                    self.general[i][d] = DEFAULTS[d]
+
+            self.general[i]['chunk_size'] = int(self.general[i]['chunk_size'])
+            if self.general[i]['zsync_hashes']:
+                # must be a multiple of 2048 and 4096 for zsync checksumming
+                assert self.general[i]['chunk_size'] % 4096 == 0
+
 
 
 

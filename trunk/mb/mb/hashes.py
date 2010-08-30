@@ -24,14 +24,12 @@ except ImportError:
 PIECESIZE = 262144
 SHA1_DIGESTSIZE = 20
 
-# must be a multiple of 2048 and 4096 for zsync checksumming
-assert PIECESIZE % 4096 == 0
-
 
 class Hasheable:
     """represent a file and its metadata"""
     def __init__(self, basename, src_dir=None, dst_dir=None,
-                 base_dir=None, do_zsync_hashes=False):
+                 base_dir=None, do_zsync_hashes=False,
+                 do_chunked_hashes=True, chunk_size=PIECESIZE):
         self.basename = basename
         if src_dir:
             self.src_dir = src_dir
@@ -56,6 +54,8 @@ class Hasheable:
 
         self.hb = HashBag(src=self.src, parent=self)
         self.hb.do_zsync_hashes = do_zsync_hashes
+        self.hb.do_chunked_hashes = do_chunked_hashes
+        self.hb.chunk_size = chunk_size
 
     def islink(self):
         return stat.S_ISLNK(self.mode)
@@ -162,7 +162,7 @@ class Hasheable:
                        self.hb.md5hex or '',
                        self.hb.sha1hex or '',
                        self.hb.sha256hex or '',
-                       PIECESIZE,
+                       self.hb.chunk_size,
                        ''.join(self.hb.pieceshex),
                        self.hb.btihhex or '',
                        self.hb.pgp or '',
@@ -201,7 +201,7 @@ class Hasheable:
                          WHERE file_id = %s""",
                       [int(self.mtime), self.size,
                        self.hb.md5hex or '', self.hb.sha1hex or '', self.hb.sha256hex or '',
-                       PIECESIZE, ''.join(self.hb.pieceshex),
+                       self.hb.chunk_size, ''.join(self.hb.pieceshex),
                        self.hb.btihhex or '',
                        self.hb.pgp or '', 
                        self.hb.zblocksize,
@@ -272,10 +272,10 @@ class HashBag():
             return None
 
         while 1 + 1 == 2:
-            buf = f.read(PIECESIZE)
+            buf = f.read(self.chunk_size)
             if not buf: break
 
-            if len(buf) != PIECESIZE:
+            if len(buf) != self.chunk_size:
                 if not short_read_before:
                     short_read_before = True
                 else:
@@ -287,10 +287,12 @@ class HashBag():
                 s256.update(buf)
 
             self.npieces += 1
-            self.pieces.append(sha1.sha1(buf).digest())
-            self.pieceshex.append(sha1.sha1(buf).hexdigest())
+            if self.do_chunked_hashes:
+                self.pieces.append(sha1.sha1(buf).digest())
+                self.pieceshex.append(sha1.sha1(buf).hexdigest())
 
-            self.zs_get_block_sums(buf)
+            if self.do_zsync_hashes:
+                self.zs_get_block_sums(buf)
 
         f.close()
 
@@ -302,7 +304,8 @@ class HashBag():
             self.sha256 = s256.digest()
             self.sha256hex = s256.hexdigest()
 
-        self.calc_btih()
+        if self.do_chunked_hashes:
+            self.calc_btih()
 
         # if present, grab PGP signature
         if os.path.exists(self.src + '.asc'):
@@ -360,14 +363,15 @@ class HashBag():
             r.append(self.pgp)
             r.append('        </signature>')
 
-        r.append('        <pieces length="%s" type="sha1">' % (PIECESIZE))
+        if self.do_chunked_hashes:
+            r.append('        <pieces length="%s" type="sha1">' % (self.chunk_size))
 
-        n = 0
-        for piece in self.pieceshex:
-            r.append('            <hash piece="%s">%s</hash>' % (n, piece))
-            n += 1
+            n = 0
+            for piece in self.pieceshex:
+                r.append('            <hash piece="%s">%s</hash>' % (n, piece))
+                n += 1
 
-        r.append('        </pieces>\n      </verification>\n')
+            r.append('        </pieces>\n      </verification>\n')
 
         return '\n'.join(r)
 
@@ -444,7 +448,7 @@ class HashBag():
         buf = ['d', 
                  '6:length', 'i', str(self.h.size), 'e',
                  '4:name', str(len(self.basename)), ':', self.basename, 
-                 '12:piece length', 'i', str(PIECESIZE), 'e',
+                 '12:piece length', 'i', str(self.chunk_size), 'e',
                  '6:pieces', str(len(self.pieces) * SHA1_DIGESTSIZE), ':', ''.join(self.pieces),
                'e']
 
