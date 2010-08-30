@@ -1039,6 +1039,8 @@ class MirrorDoctor(cmdln.Cmdln):
                                                     dst_dir=dst_dir,
                                                     base_dir=opts.base_dir,
                                                     do_zsync_hashes=self.config.dbconfig.get('zsync_hashes'),
+                                                    do_chunked_hashes=self.config.dbconfig.get('chunked_hashes'),
+                                                    chunk_size=self.config.dbconfig.get('chunk_size'))
                 except OSError, e:
                     if e.errno == errno.ENOENT:
                         sys.stderr.write('File vanished: %r\n' % src)
