@@ -31,7 +31,7 @@ assert PIECESIZE % 4096 == 0
 class Hasheable:
     """represent a file and its metadata"""
     def __init__(self, basename, src_dir=None, dst_dir=None,
-                 base_dir=None, do_zsync=False):
+                 base_dir=None, do_zsync_hashes=False):
         self.basename = basename
         if src_dir:
             self.src_dir = src_dir
@@ -55,7 +55,7 @@ class Hasheable:
         self.dst = os.path.join(self.dst_dir, self.dst_basename)
 
         self.hb = HashBag(src=self.src, parent=self)
-        self.hb.do_zsync = do_zsync
+        self.hb.do_zsync_hashes = do_zsync_hashes
 
     def islink(self):
         return stat.S_ISLNK(self.mode)
@@ -241,7 +241,7 @@ class HashBag():
         self.btih = None
         self.btihhex = None
 
-        self.do_zsync = False
+        self.do_zsync_hashes = False
         self.zsums = []
         self.zblocksize = 0
         self.zseq_matches = None
@@ -256,7 +256,7 @@ class HashBag():
             sys.stdout.write('Hashing %r... ' % self.src)
             sys.stdout.flush()
 
-        if self.do_zsync:
+        if self.do_zsync_hashes:
             self.zs_guess_zsync_params()
 
         m = md5.md5()
@@ -431,7 +431,7 @@ class HashBag():
             md4.update(block)
             c = md4.digest()
 
-            if self.do_zsync:
+            if self.do_zsync_hashes:
                 r = zsync.rsum06(block)
 
                 self.zsums.append( r[-self.zrsum_len:] )      # save only some trailing bytes
