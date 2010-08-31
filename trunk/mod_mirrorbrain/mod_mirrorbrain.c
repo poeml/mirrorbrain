@@ -74,6 +74,7 @@
 #include "apr_strings.h"
 #include "apr_lib.h"
 #include "apr_fnmatch.h"
+#include "apr_hash.h"
 #include "apr_dbd.h"
 #include "mod_dbd.h"
 
