@@ -97,6 +97,9 @@ class RsyncInfo(cmdln.Cmdln):
         Specify the name of the rsync modules with --modules, or with
         --all-modules.
 
+        If the argument is a hostname, --modules or --all-modules is needed.
+        If it is an rsync URL, you can omit those options.
+
         ${cmd_usage}
         ${cmd_option_list}
         """
@@ -125,7 +128,6 @@ class RsyncInfo(cmdln.Cmdln):
                 host = host[:host.find('/')]
             else:
                 sys.exit('if -m is not used, the host string must contain a path (e.g. rsync URL)')
-            print host, mod
 
             opts.modules = [mod]
             mod_maxlen = len(mod)
