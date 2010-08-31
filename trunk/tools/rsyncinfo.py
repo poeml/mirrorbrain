@@ -107,9 +107,29 @@ class RsyncInfo(cmdln.Cmdln):
             opts.modules = self.read_module_list(host)
 
         mod_maxlen = 0
-        for mod in opts.modules:
-            if len(mod) > mod_maxlen:
-                mod_maxlen = len(mod)
+        if opts.modules:
+            for mod in opts.modules:
+                if len(mod) > mod_maxlen:
+                    mod_maxlen = len(mod)
+        else:
+            if host.startswith('rsync://'):
+                host = host[8:]
+
+
+            # note: this parsing doesn't cater for embedded credentials
+            if '::' in host:
+                mod = host[host.find('::')+2 :]
+                host = host[:host.find('::')]
+            elif '/' in host:
+                mod = host[host.find('/')+1 :]
+                host = host[:host.find('/')]
+            else:
+                sys.exit('if -m is not used, the host string must contain a path (e.g. rsync URL)')
+            print host, mod
+
+            opts.modules = [mod]
+            mod_maxlen = len(mod)
+
         template = '%%-%ds %%10s' % mod_maxlen
 
         for mod in opts.modules:
