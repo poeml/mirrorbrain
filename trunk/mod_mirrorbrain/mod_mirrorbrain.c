@@ -2714,11 +2714,20 @@ static int mb_handler(request_rec *r)
         for (i = 0; i < hashbag->sha1pieceshex->nelts; i++) {
             ap_rwrite(hex_decode(r, p[i], SHA1_DIGESTSIZE), SHA1_DIGESTSIZE, r);
         }
+        ap_rprintf(r,             "3:md5"
+                                      "%d:", MD5_DIGESTSIZE);
+        ap_rwrite(                    hex_decode(r, hashbag->md5hex, MD5_DIGESTSIZE), 
+                MD5_DIGESTSIZE, r);
         ap_rprintf(r,             "4:sha1"
                                       "%d:", SHA1_DIGESTSIZE);
         ap_rwrite(                    hex_decode(r, hashbag->sha1hex, SHA1_DIGESTSIZE), 
                 SHA1_DIGESTSIZE, r);
+        ap_rprintf(r,             "6:sha256"
+                                      "%d:", SHA256_DIGESTSIZE);
+        ap_rwrite(                    hex_decode(r, hashbag->sha256hex, SHA256_DIGESTSIZE), 
+                SHA256_DIGESTSIZE, r);
 
+        /* end of info hash: */
         ap_rputs(             "e", r);
 
         /* Web seeds
@@ -2729,66 +2738,84 @@ static int mb_handler(request_rec *r)
          * (not a valid bencoded string)". (Which is wrong.) However, it does
          * _not_ seam to read past the pieces; at least it doesn't complain
          * about stuff occurring afterwards. */
-        ap_rputs(         "8:url-listl", r);
-        int found_urls = 0;
-        mirrorp = (mirror_entry_t **)mirrors_same_prefix->elts;
-        for (i = 0; i < mirrors_same_prefix->nelts; i++, found_urls++) {
-            mirror = mirrorp[i];
-            ap_rprintf(r,     "%d:%s%s", (strlen(mirror->baseurl) + strlen(filename)),
-                                           mirror->baseurl, filename);
-        }
-        if (!found_urls) {
-            mirrorp = (mirror_entry_t **)mirrors_same_as->elts;
-            for (i = 0; i < mirrors_same_as->nelts; i++, found_urls++) {
+
+        {
+            apr_array_header_t *m;
+            m = apr_array_make(r->pool, 11, sizeof(char *));
+            int found_urls = 0;
+
+            mirrorp = (mirror_entry_t **)mirrors_same_prefix->elts;
+            for (i = 0; i < mirrors_same_prefix->nelts; i++, found_urls++) {
                 mirror = mirrorp[i];
-                ap_rprintf(r, "%d:%s%s", (strlen(mirror->baseurl) + strlen(filename)),
-                                               mirror->baseurl, filename);
+                APR_ARRAY_PUSH(m, char *) = 
+                    apr_psprintf(r->pool, "%d:%s%s", (strlen(mirror->baseurl) + strlen(filename)),
+                                                     mirror->baseurl, filename);
             }
-        }
-        if (!found_urls) {
-            mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
-            for (i = 0; i < mirrors_same_country->nelts; i++, found_urls++) {
-                mirror = mirrorp[i];
-                ap_rprintf(r, "%d:%s%s", (strlen(mirror->baseurl) + strlen(filename)),
-                                               mirror->baseurl, filename);
+            if (!found_urls) {
+                mirrorp = (mirror_entry_t **)mirrors_same_as->elts;
+                for (i = 0; i < mirrors_same_as->nelts; i++, found_urls++) {
+                    mirror = mirrorp[i];
+                    APR_ARRAY_PUSH(m, char *) = 
+                        apr_psprintf(r->pool, "%d:%s%s", (strlen(mirror->baseurl) + strlen(filename)),
+                                                         mirror->baseurl, filename);
+                }
             }
-        }
-        if (!found_urls) {
-            mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
-            for (i = 0; i < mirrors_same_region->nelts; i++, found_urls++) {
-                mirror = mirrorp[i];
-                ap_rprintf(r, "%d:%s%s", (strlen(mirror->baseurl) + strlen(filename)),
-                                               mirror->baseurl, filename);
+            if (!found_urls) {
+                mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
+                for (i = 0; i < mirrors_same_country->nelts; i++, found_urls++) {
+                    mirror = mirrorp[i];
+                    APR_ARRAY_PUSH(m, char *) = 
+                        apr_psprintf(r->pool, "%d:%s%s", (strlen(mirror->baseurl) + strlen(filename)),
+                                                         mirror->baseurl, filename);
+                }
             }
-        }
-        if (!found_urls) {
-            mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
-            for (i = 0; i < mirrors_elsewhere->nelts; i++, found_urls++) {
-                mirror = mirrorp[i];
-                ap_rprintf(r, "%d:%s%s", (strlen(mirror->baseurl) + strlen(filename)),
-                                               mirror->baseurl, filename);
+            if (!found_urls) {
+                mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
+                for (i = 0; i < mirrors_same_region->nelts; i++, found_urls++) {
+                    mirror = mirrorp[i];
+                    APR_ARRAY_PUSH(m, char *) = 
+                        apr_psprintf(r->pool, "%d:%s%s", (strlen(mirror->baseurl) + strlen(filename)),
+                                                         mirror->baseurl, filename);
+                }
             }
-        }
-        /* add the redirector, in case there wasn't any mirror */
-        if (!found_urls) {
-            ap_rprintf(r,     "%d:http://%s%s", (7 + strlen(r->hostname) + strlen(r->uri)), 
-                                                r->hostname, r->uri);
-        }
+            if (!found_urls) {
+                mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
+                for (i = 0; i < mirrors_elsewhere->nelts; i++, found_urls++) {
+                    mirror = mirrorp[i];
+                    APR_ARRAY_PUSH(m, char *) = 
+                        apr_psprintf(r->pool, "%d:%s%s", (strlen(mirror->baseurl) + strlen(filename)),
+                                                         mirror->baseurl, filename);
+                }
+            }
+            /* add the redirector, in case there wasn't any mirror */
+            if (!found_urls) {
+                APR_ARRAY_PUSH(m, char *) = 
+                    apr_psprintf(r->pool, "%d:http://%s%s", (7 + strlen(r->hostname) + strlen(r->uri)), 
+                                                            r->hostname, r->uri);
+            }
 
 #if 0
-        /* it would be simple to just list the URL of the redirector itself, but aria2c
-         * retrieves a Metalink then and doesn't expect it in that situation. Maybe later */
-        ap_rprintf(r,     "8:url-list"
-                              "%d:http://%s%s", (7 + strlen(r->hostname) + strlen(r->uri)), 
-                                                r->hostname, r->uri);
+            /* it would be simple to just list the URL of the redirector itself, but aria2c
+             * retrieves a Metalink then and doesn't expect it in that situation. Maybe later */
+            APR_ARRAY_PUSH(m, char *) = 
+                apr_psprintf(r->pool,     "8:url-list"
+                                          "%d:http://%s%s", (7 + strlen(r->hostname) + strlen(r->uri)), 
+                                                            r->hostname, r->uri);
 #endif
 
-#if 0
-        /* I can't find info about this element which could possibly also list mirrors */
-        ap_rprintf(r,     "7:sourcesl"
-                              "%d:http://%s%s" "e", (7 + strlen(r->hostname) + strlen(r->uri)), 
-                                                r->hostname, r->uri);
-#endif
+            if (!apr_is_empty_array(m)) {
+                ap_rputs(         "8:url-listl", r);
+                for (i = 0; i < m->nelts; i++) {
+                    char *e = ((char **) m->elts)[i];
+                    ap_rputs(e, r);
+                }
+                ap_rputs(         "e7:sourcesl", r);
+                for (i = 0; i < m->nelts; i++) {
+                    char *e = ((char **) m->elts)[i];
+                    ap_rputs(e, r);
+                }
+            }
+        }
 
         if (!apr_is_empty_array(scfg->dhtnodes)) {
 
