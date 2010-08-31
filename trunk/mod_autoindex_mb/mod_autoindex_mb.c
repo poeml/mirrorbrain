@@ -1617,11 +1617,7 @@ static void output_directories(struct ent **ar, int n,
             ++cols;
         }
         if (autoindex_opts & MIRRORLIST) {
-            ap_rputs("</th><th>Mirrors", r);
-            ++cols;
-        }
-        if (autoindex_opts & METALINK) {
-            ap_rputs("</th><th>Metalinks", r);
+            ap_rputs("</th><th>Metadata", r);
             ++cols;
         }
         if (!(autoindex_opts & SUPPRESS_RULES)) {
@@ -1799,19 +1795,10 @@ static void output_directories(struct ent **ar, int n,
             if (autoindex_opts & MIRRORLIST) {
                 if (anchor[strlen(anchor)-1] != '/') { /* not for directories */
                         ap_rvputs(r, " </td><td><a href=\"", anchor, 
-                                  ".mirrorlist\">Mirrors</a>", NULL);
+                                  ".mirrorlist\">Details</a>", NULL);
                 }
                 else {
                     ap_rputs("</td><td>&nbsp;", r);
-                }
-            }
-            if (autoindex_opts & METALINK) {
-                if (anchor[strlen(anchor)-1] != '/') { /* not for directories */
-                        ap_rvputs(r, " </td><td><a href=\"", anchor, 
-                                  ".meta4\">Metalink</a>", NULL);
-                }
-                else {
-                        ap_rputs("</td><td>&nbsp;", r);
                 }
             }
             ap_rputs("</td></tr>\n", r);
@@ -1903,11 +1890,7 @@ static void output_directories(struct ent **ar, int n,
             if (anchor[strlen(anchor)-1] != '/') { /* not for directories */
                     if (autoindex_opts & MIRRORLIST) {
                             ap_rvputs(r, " <a href=\"", anchor, 
-                                      ".mirrorlist\">Mirrors</a>", NULL);
-                    }
-                    if (autoindex_opts & METALINK) {
-                            ap_rvputs(r, " <a href=\"", anchor, 
-                                      ".meta4\">Metalink</a>", NULL);
+                                      ".mirrorlist\">Details</a>", NULL);
                     }
             }
             ap_rputc('\n', r);
