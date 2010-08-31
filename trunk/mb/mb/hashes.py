@@ -21,15 +21,18 @@ except ImportError:
     # I think Python 2.4 didn't have a sha256 counterpart
     sha256 = None
 
-PIECESIZE = 262144
-SHA1_DIGESTSIZE = 20
+DEFAULT_PIECESIZE = 262144
+MD5_DIGESTSIZE    = 16
+SHA1_DIGESTSIZE   = 20
+SHA256_DIGESTSIZE = 32
+
 
 
 class Hasheable:
     """represent a file and its metadata"""
     def __init__(self, basename, src_dir=None, dst_dir=None,
                  base_dir=None, do_zsync_hashes=False,
-                 do_chunked_hashes=True, chunk_size=PIECESIZE):
+                 do_chunked_hashes=True, chunk_size=DEFAULT_PIECESIZE):
         self.basename = basename
         if src_dir:
             self.src_dir = src_dir
@@ -450,6 +453,9 @@ class HashBag():
                  '4:name', str(len(self.basename)), ':', self.basename, 
                  '12:piece length', 'i', str(self.chunk_size), 'e',
                  '6:pieces', str(len(self.pieces) * SHA1_DIGESTSIZE), ':', ''.join(self.pieces),
+                 '3:md5', str(MD5_DIGESTSIZE), ':', self.md5,
+                 '4:sha1', str(SHA1_DIGESTSIZE), ':', self.sha1,
+                 '6:sha256', str(SHA256_DIGESTSIZE), ':', self.sha256,
                'e']
 
         h = sha1.sha1()
