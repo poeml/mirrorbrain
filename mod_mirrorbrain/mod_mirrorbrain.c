@@ -195,7 +195,7 @@ struct mirror_entry {
     unsigned char prefix_only;
     int score;
     const char *baseurl;
-    int file_maxsize;
+    apr_off_t file_maxsize;
     char *other_countries;    /* comma-separated 2-letter strings */
     int rank;
 };
@@ -203,7 +203,7 @@ struct mirror_entry {
 /* verification hashes of a file */
 typedef struct hashbag hashbag_t;
 struct hashbag {
-    int id;
+    apr_off_t id;
     const char *md5hex;
     const char *sha1hex;
     const char *sha256hex;
@@ -221,7 +221,7 @@ typedef struct
 {
     int engine_on;
     int debug;
-    int min_size;
+    apr_off_t min_size;
     int handle_headrequest_locally;
     const char *mirror_base;
     apr_array_header_t *fallbacks;
@@ -470,7 +470,7 @@ static const char *mb_cmd_minsize(cmd_parms *cmd, void *config,
                                   const char *arg1)
 {
     mb_dir_conf *cfg = (mb_dir_conf *) config;
-    cfg->min_size = atoi(arg1);
+    cfg->min_size = apr_atoi64(arg1);
     if (cfg->min_size < 0)
         return "MirrorBrainMinSize requires a non-negative integer.";
     return NULL;
@@ -943,7 +943,7 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
     if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL) 
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] dbd: got NULL for file_id");
     else
-        h->id = atoi(val);
+        h->id = apr_atoi64(val);
 
     if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] dbd: got NULL for md5");
@@ -1296,8 +1296,9 @@ static int mb_handler(request_rec *r)
 
         /* is the requested file too small to be worth a redirect? */
         if (!fakefile && (r->finfo.size < cfg->min_size)) {
-            debugLog(r, cfg, "File '%s' too small (%lld bytes, less than %lld)", 
-                    r->filename, r->finfo.size, cfg->min_size);
+            debugLog(r, cfg, "File '%s' too small (%s bytes, less than %s)", 
+                    r->filename, apr_off_t_toa(r->pool, r->finfo.size), 
+                    apr_off_t_toa(r->pool, cfg->min_size));
             return DECLINED;
         }
 
@@ -1743,7 +1744,7 @@ static int mb_handler(request_rec *r)
             ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] apr_dbd_get_entry found NULL for file_maxsize");
             unusable = 1;
         } else
-            new->file_maxsize = atoi(val);
+            new->file_maxsize = apr_atoi64(val);
 
 
 
@@ -1760,7 +1761,6 @@ static int mb_handler(request_rec *r)
         /* not using thread-safe rand_r() here, because it shouldn't make 
          * a real difference here */
         new->rank = (rand()>>16) * ((RAND_MAX>>16) / new->score);
-        /* debugLog(r, cfg, "Found mirror #%d '%s'", new->id, new->identifier); */
         
 
 #ifdef WITH_MEMCACHE
@@ -2177,7 +2177,8 @@ static int mb_handler(request_rec *r)
 
         if (hashbag != NULL) {
             if (hashbag->id) {
-                ap_rprintf(r, "    <!-- internal id: %d -->\n", hashbag->id);
+                ap_rprintf(r, "    <!-- internal id: %s -->\n", 
+                           apr_off_t_toa(r->pool, hashbag->id));
             }
 
             switch (rep) {
@@ -2695,7 +2696,7 @@ static int mb_handler(request_rec *r)
                                       "i%de"
                                   "6:pieces"
                                       "%d:", apr_off_t_toa(r->pool, r->finfo.size),
-                                                           strlen(basename), 
+                                             strlen(basename), 
                                              basename,
                                              hashbag->sha1piecesize,
                                              (hashbag->sha1pieceshex->nelts * SHA1_DIGESTSIZE));
