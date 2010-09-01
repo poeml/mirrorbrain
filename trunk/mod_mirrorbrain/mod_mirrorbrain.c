@@ -790,6 +790,17 @@ static void emit_metalink_url(request_rec *r, int rep,
     }
 }
 
+/* set variables in the subprocess environment, to make it available for 
+ * logging via the CustomLog directive */
+static void setenv_give(request_rec *r, const char *rep)
+{
+    apr_table_setn(r->subprocess_env, "GIVE", rep);
+}
+static void setenv_want(request_rec *r, const char *rep)
+{
+    apr_table_setn(r->subprocess_env, "WANT", rep);
+}
+
 
 /* Fast hex decoding function from PostgreSQL, src/backend/utils/adt/encode.c
  * 
@@ -1137,6 +1148,7 @@ static int mb_handler(request_rec *r)
     debugLog(r, cfg, "URI: '%s'", r->unparsed_uri);
     debugLog(r, cfg, "filename: '%s'", r->filename);
     //debugLog(r, cfg, "server_hostname: '%s'", r->server->server_hostname);
+    setenv_want(r, "file");
 
     /* parse query arguments if present, */
     /* using mod_form's form_value() */
@@ -1147,18 +1159,9 @@ static int mb_handler(request_rec *r)
         query_country = form_lookup(r, "country");
         query_asn = (char *) form_lookup(r, "as");
         if (form_lookup(r, "newmirror")) newmirror = 1;
-        if (form_lookup(r, "meta4")) {
-            rep = META4;
-            rep_ext = reps[META4].ext;
-        };
-        if (form_lookup(r, "metalink")) {
-            rep = METALINK;
-            rep_ext = reps[METALINK].ext;
-        };
-        if (form_lookup(r, "mirrorlist")) {
-            rep = MIRRORLIST;
-            rep_ext = reps[MIRRORLIST].ext;
-        }
+        if (form_lookup(r, "meta4"))   { rep = META4; rep_ext = reps[META4].ext; };
+        if (form_lookup(r, "metalink")) { rep = METALINK; rep_ext = reps[METALINK].ext; };
+        if (form_lookup(r, "mirrorlist")) { rep = MIRRORLIST; rep_ext = reps[MIRRORLIST].ext; }
         if (form_lookup(r, "torrent")) { rep = TORRENT; rep_ext = reps[TORRENT].ext; }
         if (form_lookup(r, "zsync"))   { rep = ZSYNC;   rep_ext = reps[ZSYNC].ext; }
         if (form_lookup(r, "magnet"))  { rep = MAGNET;  rep_ext = reps[MAGNET].ext; }
@@ -1189,10 +1192,12 @@ static int mb_handler(request_rec *r)
                 rep = META4;
                 rep_ext = reps[META4].ext;
                 meta_negotiated = 1;
+                setenv_want(r, reps[rep].ext);
             } else if (ap_strstr_c(accepts, "metalink+xml")) {
                 rep = METALINK;
                 rep_ext = reps[METALINK].ext;
                 meta_negotiated = 1;
+                setenv_want(r, reps[rep].ext);
             }
         }
     }
@@ -1263,6 +1268,7 @@ static int mb_handler(request_rec *r)
                 case SHA1:
                 case SHA256:
                 case BTIH:
+                    setenv_want(r, reps[rep].ext);
                     debugLog(r, cfg, "Representation chosen by .%s extension", rep_ext);
                     /* note this actually modifies r->filename. */
                     ext[0] = '\0';
@@ -1299,6 +1305,7 @@ static int mb_handler(request_rec *r)
             debugLog(r, cfg, "File '%s' too small (%s bytes, less than %s)", 
                     r->filename, apr_off_t_toa(r->pool, r->finfo.size), 
                     apr_off_t_toa(r->pool, cfg->min_size));
+            setenv_give(r, "file");
             return DECLINED;
         }
 
@@ -1306,6 +1313,7 @@ static int mb_handler(request_rec *r)
         if (cfg->exclude_filemask 
            && !ap_regexec(cfg->exclude_filemask, r->uri, 0, NULL, 0) ) {
             debugLog(r, cfg, "File '%s' is excluded by MirrorBrainExcludeFileMask", r->uri);
+            setenv_give(r, "file");
             return DECLINED;
         }
 
@@ -1318,6 +1326,7 @@ static int mb_handler(request_rec *r)
                         "URI request '%s' from ip '%s' is excluded from"
                         " redirecting because it matches IP '%s'",
                         r->unparsed_uri, clientip, ip);
+                    setenv_give(r, "file");
                     return DECLINED;
                 }
             }
@@ -1332,6 +1341,7 @@ static int mb_handler(request_rec *r)
                         "URI request '%s' from ip '%s' is excluded from"
                         " redirecting because it matches network '%s'",
                         r->unparsed_uri, clientip, network);
+                    setenv_give(r, "file");
                     return DECLINED;
                 }
             }
@@ -1347,6 +1357,7 @@ static int mb_handler(request_rec *r)
                         "URI '%s' (%s) is excluded from redirecting"
                         " by mimetype pattern '%s'", r->unparsed_uri,
                         r->content_type, mimetype);
+                    setenv_give(r, "file");
                     return DECLINED;
                 }
             }
@@ -1363,6 +1374,7 @@ static int mb_handler(request_rec *r)
                         "URI request '%s' from agent '%s' is excluded from"
                         " redirecting by User-Agent pattern '%s'",
                         r->unparsed_uri, user_agent, agent);
+                    setenv_give(r, "file");
                     return DECLINED;
                 }
             }
@@ -1398,6 +1410,7 @@ static int mb_handler(request_rec *r)
     if (scfg->query == NULL) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
                 "[mod_mirrorbrain] No MirrorBrainDBDQuery configured!");
+        setenv_give(r, "file");
         return DECLINED;
     }
 
@@ -1450,6 +1463,7 @@ static int mb_handler(request_rec *r)
     if (ptr == NULL) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
                 "[mod_mirrorbrain] Error canonicalizing filename '%s'", r->filename);
+        setenv_give(r, "file");
         return HTTP_INTERNAL_SERVER_ERROR;
     }
     /* XXX we should forbid symlinks in mirror_base */
@@ -1472,6 +1486,7 @@ static int mb_handler(request_rec *r)
 
     if (scfg->query_label == NULL) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] No database query prepared!");
+        setenv_give(r, "file");
         return DECLINED;
     }
 
@@ -1480,6 +1495,7 @@ static int mb_handler(request_rec *r)
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
                 "[mod_mirrorbrain] Error acquiring database connection");
         if (apr_is_empty_array(cfg->fallbacks)) {
+            setenv_give(r, "file");
             return DECLINED; /* fail gracefully */
         }
     }
@@ -1518,6 +1534,7 @@ static int mb_handler(request_rec *r)
         if (h && h[0]) {
             ap_set_content_type(r, "text/plain; charset=UTF-8");
             ap_rprintf(r, "%s %s\n", h, basename);
+            setenv_give(r, reps[rep].ext);
             return OK;
         }
         return HTTP_NOT_FOUND;
@@ -2009,6 +2026,7 @@ static int mb_handler(request_rec *r)
             case METALINK:
                 if (meta_negotiated) {
                     debugLog(r, cfg, "would have to send empty metalink... -> deliver directly");
+                    setenv_give(r, "file");
                     return DECLINED;
                 } else {
                     debugLog(r, cfg, "would have to send empty metalink... -> 404");
@@ -2091,6 +2109,7 @@ static int mb_handler(request_rec *r)
     case METALINK:
 
         debugLog(r, cfg, "Sending metalink");
+        setenv_give(r, reps[rep].ext);
 
         /* tell caches that this is negotiated response and that not every client will take it */
         apr_table_mergen(r->headers_out, "Vary", "accept");
@@ -2457,6 +2476,7 @@ static int mb_handler(request_rec *r)
     /* send an HTML list instead of doing a redirect? */
     case MIRRORLIST:
 
+        setenv_give(r, "mirrorlist");
         debugLog(r, cfg, "Sending mirrorlist");
 
         ap_set_content_type(r, "text/html; charset=ISO-8859-1");
@@ -2661,6 +2681,7 @@ static int mb_handler(request_rec *r)
             return HTTP_NOT_FOUND;
         }
 
+        setenv_give(r, "torrent");
         debugLog(r, cfg, "Sending torrent");
         ap_set_content_type(r, "application/x-bittorrent");
 
@@ -2834,6 +2855,7 @@ static int mb_handler(request_rec *r)
             return HTTP_NOT_FOUND;
         }
     
+        setenv_give(r, "zsync");
         debugLog(r, cfg, "Sending zsync");
         ap_set_content_type(r, "application/x-zsync");
 
@@ -2910,6 +2932,7 @@ static int mb_handler(request_rec *r)
         }
         ap_set_content_type(r, "text/plain; charset=UTF-8");
         ap_rprintf(r, "%s\n", magnet);
+        setenv_give(r, "magnet");
         return OK;
         
     } /* end switch representation */
@@ -2949,6 +2972,7 @@ static int mb_handler(request_rec *r)
         ap_log_rerror(APLOG_MARK, APLOG_NOTICE, 0, r, 
             "[mod_mirrorbrain] '%s': no usable mirrors after classification. Have to deliver directly.",
             filename);
+        setenv_give(r, "file");
         return DECLINED;
     }
     debugLog(r, cfg, "Chose server %s", chosen->identifier);
@@ -2983,6 +3007,7 @@ static int mb_handler(request_rec *r)
     }
 #endif
 
+    setenv_give(r, "redirect");
     return HTTP_MOVED_TEMPORARILY;
 }
 
