@@ -378,8 +378,8 @@ static void *merge_mb_dir_config(apr_pool_t *p, void *basev, void *addv)
     mrg->min_size = (add->min_size != DEFAULT_MIN_MIRROR_SIZE) ? add->min_size : base->min_size;
     cfgMergeInt(handle_headrequest_locally);
     cfgMergeString(mirror_base);
-    /* inheriting makes sense, but does it also make sense if the directory has its own
-     * fallback mirror directives? */
+    /* inheriting makes sense. But does inheriting also make sense if an
+     * inheriting directory has its own fallback mirror directives? */
     /* mrg->fallbacks = apr_is_empty_array(add->fallbacks) ? base->fallbacks : add->fallbacks; */
     /* it's a merge for now */
     mrg->fallbacks = apr_array_append(p, base->fallbacks, add->fallbacks);
@@ -1574,69 +1574,9 @@ static int mb_handler(request_rec *r)
     if (mirror_cnt > 0) {
         debugLog(r, cfg, "Found %d mirror%s", mirror_cnt,
                 (mirror_cnt == 1) ? "" : "s");
-    } else {
-        if (apr_is_empty_array(cfg->fallbacks))  {
-            ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, 
-                    "[mod_mirrorbrain] no mirrors found for %s", filename);
-        } else {
-            ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, 
-                    "[mod_mirrorbrain] no mirrors found for %s, "
-                    "but fallback mirrors are available", filename);
-        }
-
-        /* can be used with a CustomLog directive, conditionally logging these requests */
-        apr_table_setn(r->subprocess_env, "MB_NOMIRROR", "1");
-
-        if (apr_is_empty_array(cfg->fallbacks)) {
-
-            switch (rep) {
-            case MIRRORLIST:
-                debugLog(r, cfg, "empty mirrorlist");
-                ap_set_content_type(r, "text/html; charset=ISO-8859-1");
-                ap_rputs(DOCTYPE_XHTML_1_0T
-                         "<html xmlns=\"http://www.w3.org/1999/xhtml\">\n"
-                         "<head>\n"
-                         "  <title>Mirror List</title>\n", r);
-                if (scfg->mirrorlist_stylesheet) {
-                    ap_rprintf(r, "  <link type=\"text/css\" rel=\"stylesheet\" href=\"%s\" />\n",
-                               scfg->mirrorlist_stylesheet);
-                }
-                ap_rputs("</head>\n\n" "<body>\n", r);
-
-                ap_rprintf(r, "  <h2>Mirrors for <a href=\"http://%s%s\">http://%s%s</a></h2>\n" 
-                           "  <br/>\n", 
-                           r->hostname, r->uri, r->hostname, r->uri);
-                /* ap_rprintf(r, "Client IP address: %s<br/>\n", clientip); */
-
-                ap_rprintf(r, "I am very sorry, but no mirror was found. <br/>\n");
-                ap_rprintf(r, "Feel free to download from the above URL.\n");
-
-                ap_rputs("</body></html>\n", r);
-                return OK;
-            case TORRENT:
-            case ZSYNC:
-                break;
-            case META4:
-            case METALINK:
-                if (meta_negotiated) {
-                    debugLog(r, cfg, "would have to send empty metalink... -> deliver directly");
-                    return DECLINED;
-                } else {
-                    debugLog(r, cfg, "would have to send empty metalink... -> 404");
-                    ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, 
-                            "[mod_mirrorbrain] Can't send metalink for %s (no mirrors)", filename);
-                    return HTTP_NOT_FOUND;
-                }
-            default:
-                /* deliver the file ourselves */
-                debugLog(r, cfg, "have to deliver directly");
-                return DECLINED;
-            }
-
-        }
-
     }
-
+    /* handling of the case mirror_cnt==0 is further below. It may happen that
+     * we have mirrors, but no usable ones. */
 
     /* allocate space for the expected results */
     mirrors              = apr_array_make(r->pool, mirror_cnt, sizeof (mirror_entry_t));
@@ -2033,7 +1973,7 @@ static int mb_handler(request_rec *r)
                     mirror->identifier, mirror->score, mirror->rank);
         }
 
-        debugLog(r, cfg, "Found %d mirror%s: %d prefix, %d AS, %d country, "
+        debugLog(r, cfg, "classifying %d mirror%s: %d prefix, %d AS, %d country, "
                 "%d region, %d elsewhere", 
                 mirror_cnt, (mirror_cnt == 1) ? "" : "s",
                 mirrors_same_prefix->nelts,
@@ -2044,11 +1984,51 @@ static int mb_handler(request_rec *r)
     }
 
 
-    /* any hashes to find in the database? */
-    hashbag = hashbag_fill(r, dbd, filename);
-    if (hashbag == NULL) {
-        debugLog(r, cfg, "no hashes found in database");
-    } 
+#if 0
+    if ((mirror_cnt <= 0) || (!mirrors_same_prefix->nelts && !mirrors_same_as->nelts 
+                              && !mirrors_same_country->nelts && !mirrors_same_region->nelts 
+                              && !mirrors_elsewhere->nelts)) {
+#endif
+    if (!mirrors_same_prefix->nelts && !mirrors_same_as->nelts && !mirrors_same_country->nelts 
+            && !mirrors_same_region->nelts && !mirrors_elsewhere->nelts) {
+        if (apr_is_empty_array(cfg->fallbacks))  {
+            ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, 
+                    "[mod_mirrorbrain] no mirrors found for %s", filename);
+        } else {
+            ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, 
+                    "[mod_mirrorbrain] no mirrors found for %s, "
+                    "but fallback mirrors are available", filename);
+        }
+
+        /* can be used with a CustomLog directive, conditionally logging these requests */
+        apr_table_setn(r->subprocess_env, "MB_NOMIRROR", "1");
+
+        if (apr_is_empty_array(cfg->fallbacks)) {
+            switch (rep) {
+            case META4:
+            case METALINK:
+                if (meta_negotiated) {
+                    debugLog(r, cfg, "would have to send empty metalink... -> deliver directly");
+                    return DECLINED;
+                } else {
+                    debugLog(r, cfg, "would have to send empty metalink... -> 404");
+                    ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, 
+                            "[mod_mirrorbrain] Can't send metalink for %s (no mirrors)", filename);
+                    return HTTP_NOT_FOUND;
+                }
+            }
+        }
+    }
+
+
+
+    if (rep != REDIRECT) {
+        /* any hashes to find in the database? */
+        hashbag = hashbag_fill(r, dbd, filename);
+        if (hashbag == NULL) {
+            debugLog(r, cfg, "no hashes found in database");
+        } 
+    }
 
 
     /* if it makes sense, build a magnet link for later inclusion */
@@ -2102,7 +2082,6 @@ static int mb_handler(request_rec *r)
         }
         }
     }
-
 
 
     /* return a metalink instead of doing a redirect? */
@@ -2559,6 +2538,15 @@ static int mb_handler(request_rec *r)
         ap_rprintf(r, "  <p>List of best mirrors for IP address %s, located in country %s, %s (AS%s).</p>\n", 
                    clientip, country_code, prefix, as);
 
+        if ((mirror_cnt <= 0) || (!mirrors_same_prefix->nelts && !mirrors_same_as->nelts 
+                                  && !mirrors_same_country->nelts && !mirrors_same_region->nelts 
+                                  && !mirrors_elsewhere->nelts)) {
+            ap_rprintf(r, "<p>I am very sorry, but no mirror was found. <br/>\n");
+            ap_rprintf(r, "Feel free to download from one of the above URLs.</p>\n");
+            ap_rputs("</body></html>\n", r);
+            return OK;
+        }
+
 
         /* prefix */
         if (!apr_is_empty_array(mirrors_same_prefix)) {
@@ -2956,8 +2944,9 @@ static int mb_handler(request_rec *r)
     }
 
     if (!chosen) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-            "[mod_mirrorbrain] could not choose a server. Shouldn't have happened.");
+        ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, 
+            "[mod_mirrorbrain] '%s': no usable mirrors after classification. Have to deliver directly.",
+            filename);
         return DECLINED;
     }
     debugLog(r, cfg, "Chose server %s", chosen->identifier);
