@@ -2535,14 +2535,15 @@ static int mb_handler(request_rec *r)
         ap_rputs("  </blockquote>", r);
 
 
-        ap_rprintf(r, "  <p>List of best mirrors for IP address %s, located in country %s, %s (AS%s).</p>\n", 
+        ap_rprintf(r, "  <p>List of best mirrors for IP address %s, located in country %s, %s (AS%s):</p>\n", 
                    clientip, country_code, prefix, as);
 
         if ((mirror_cnt <= 0) || (!mirrors_same_prefix->nelts && !mirrors_same_as->nelts 
                                   && !mirrors_same_country->nelts && !mirrors_same_region->nelts 
                                   && !mirrors_elsewhere->nelts)) {
-            ap_rprintf(r, "<p>I am very sorry, but no mirror was found. <br/>\n");
-            ap_rprintf(r, "Feel free to download from one of the above URLs.</p>\n");
+            ap_rprintf(r, "  <p>I am very sorry, but no mirror was found. Feel free to download directly:<br/>\n");
+            ap_rprintf(r, "  <a href=\"http://%s%s\">http://%s%s</a> </p>\n",
+                       r->hostname, r->uri, r->hostname, r->uri);
             ap_rputs("</body></html>\n", r);
             return OK;
         }
