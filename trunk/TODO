@@ -11,6 +11,10 @@ Missing features:
 
 * mirrorprobe: does it deal with FTP urls entered as baseurl (which is meant for HTTP)?
 
+* make MirrorBrainExcludeNetwork work by prefix match, instead of simple string
+  prefix comparison using apr_ipsubnet_create() and apr_ipsubnet_test() as 
+  mod_authz_host does?
+
 * make installation easier, by providing Makefiles, and a setup.py for the Python module.
 
 
