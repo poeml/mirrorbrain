@@ -5,8 +5,10 @@ Initial configuration steps on all platforms
 ============================================
 
 
-Create a file tree
-------------------
+.. _initial_configuration_file_tree:
+
+Creating a file tree
+~~~~~~~~~~~~~~~~~~~~
 
 If you haven't got a file tree yet, you should create it now.
 
@@ -20,7 +22,9 @@ even though it intercepts the requests to those files and redirects them to
 mirrors.
 
 Having said that, there *is* a way to get by without local files, which is by
-using the :program:`null-rsync` (found in the source tree) tool instead of
+using the :program:`null-rsync` (found `in the source tree 
+<http://svn.mirrorbrain.org/viewvc/mirrorbrain/trunk/tools/null-rsync?view=markup>`_) 
+tool instead of
 :program:`rsync` to pull the files. :program:`null-rsync` is used exactly as
 rsync, but it will create a pseudo file tree that requires very few local
 space. However, since those files are filled with zeroes (!), it is important
@@ -41,8 +45,8 @@ on.
 
 
 
-Create mirrorbrain.conf
-~~~~~~~~~~~~~~~~~~~~~~~
+Creating mirrorbrain.conf
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Create a configuration file named :file:`/etc/mirrorbrain.conf` with the content below::
 
@@ -230,6 +234,8 @@ TODO: describe how to test that the install was successful
 .. _`cURL`: http://curl.haxx.se/
 
 
+.. _initial_configuration_logging_setup:
+
 Logging setup
 -------------
 
@@ -250,15 +256,17 @@ Instead of::
 
   CustomLog /var/log/apache2/myhost/access_log combined
 
-you would use:
+you would use::
 
   CustomLog /var/log/apache2/myhost/access_log combined_redirect
 
 .. TODO: describe a good logging setup with cronolog
 
 
-Create hashes
--------------
+.. _creating_hashes:
+
+Creating hashes
+---------------
 
 
 First, add some configuration::
