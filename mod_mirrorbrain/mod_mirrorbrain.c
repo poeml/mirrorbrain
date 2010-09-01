@@ -2944,7 +2944,7 @@ static int mb_handler(request_rec *r)
     }
 
     if (!chosen) {
-        ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, 
+        ap_log_rerror(APLOG_MARK, APLOG_NOTICE, 0, r, 
             "[mod_mirrorbrain] '%s': no usable mirrors after classification. Have to deliver directly.",
             filename);
         return DECLINED;
