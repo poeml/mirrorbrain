@@ -223,7 +223,7 @@ class Hasheable:
 
 
 
-class HashBag():
+class HashBag:
 
     def __init__(self, src, parent=None):
         self.src = src
