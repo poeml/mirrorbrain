@@ -188,13 +188,28 @@ table.
 Magnet links
 ------------
 
-Hashes are hex-encoded, because Base32 encoding would be awkward to add and
-there seems to be a transition to hex encoding.
+The Magnet URI scheme allows to reference a file for download via P2P networks.
+See `Wikipedia <http://en.wikipedia.org/wiki/Magnet_URI_scheme>`_ and the
+`project website <http://magnet-uri.sourceforge.net/>`_.
 
-The ``urn:sha1`` scheme is currently also not supported, because it is required
-to be Base32-encoded. Base32 encoding could be added in the future, of course.
-Contributions welcome!
+Magnet links are automatically included in Metalinks (v3 Metalinks as well as
+IETF Metalinks). They also appear in the mirror list.
 
+Magnet links can contain a BitTorrent tracker URL. MirrorBrain includes tracker
+URLs configured via the Apache ``MirrorBrainTrackerURL`` directive into magnet
+links. This means that multiple trackers can be listed. Configuring tracker
+URLs is explained in the :ref:`configuring_torrent_generation` section.
+
+A magnet link can be requested from MirrorBrain simply by appending ``.magnet``
+or ``?magnet`` to an URL.
+
+Implementation notes:
+
+- Hashes are hex-encoded, because Base32 encoding would be awkward to add and
+  there seems to be a transition to hex encoding.
+- The ``urn:sha1`` scheme is currently also not supported, because it is
+  required to be Base32-encoded. Base32 encoding could be added in the future,
+  of course.  Contributions welcome!
 
 
 

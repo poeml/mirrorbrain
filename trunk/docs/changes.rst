@@ -77,8 +77,9 @@ New features:
   memory for large rows from database; this may be worked around in the future.
 
 
-* Support for `Magnet <http://magnet-uri.sourceforge.net/>`_ links (`issue 38`_).
-  See :ref:`magnet_links`.
+* Initial support for `Magnet links <http://magnet-uri.sourceforge.net/>`_.
+  This largely closes `issue 38`_, but requires further testing/finetuning. See
+  :ref:`magnet_links` for documentation.
 
 
 * :program:`mb list`:
