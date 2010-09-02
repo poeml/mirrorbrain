@@ -2060,7 +2060,7 @@ static int mb_handler(request_rec *r)
             apr_array_header_t *m;
             m = apr_array_make(r->pool, 7, sizeof(char *));
 
-            /* Bittorrent info hash */
+            /* BitTorrent info hash */
             APR_ARRAY_PUSH(m, char *) = 
                 apr_psprintf(r->pool, "magnet:?xt=urn:btih:%s", hashbag->btihhex);
 #if 0
@@ -3171,7 +3171,7 @@ static const command_rec mb_cmds[] =
 
     AP_INIT_TAKE1("MirrorBrainTorrentTrackerURL", mb_cmd_tracker_url, NULL, 
                   RSRC_CONF, 
-                  "Define the URL a Bittorrent Tracker be included in Torrents and in Magnet "
+                  "Define the URL a BitTorrent Tracker to be included in Torrents and in Magnet "
                   "links. Directive can be repeated to specify multiple URLs."),
 
     AP_INIT_TAKE2("MirrorBrainDHTNode", mb_cmd_dht_node, NULL, 
