@@ -36,12 +36,12 @@ cache::
 That will produce a warning message saying that a GPG key isn't known for the
 new package repository. Take note of the key ID and import the key with `apt-key`::
 
-   # sudo apt-key adv --keyserver hkp://keys.gnupg.net --recv-keys BD6D129A
+   # sudo apt-key adv --keyserver hkp://wwwkeys.de.pgp.net --recv-keys BD6D129A
   Executing: gpg --ignore-time-conflict --no-options --no-default-keyring \
     --secret-keyring /etc/apt/secring.gpg --trustdb-name /etc/apt/trustdb.gpg \
     --keyring /etc/apt/trusted.gpg --keyserver hkp://keys.gnupg.net --recv-keys \
     BD6D129A
-  gpg: requesting key BD6D129A from hkp server keys.gnupg.net
+  gpg: requesting key BD6D129A from hkp server hkp://wwwkeys.de.pgp.net
   gpg: key BD6D129A: public key "Apache OBS Project <Apache@build.opensuse.org>" imported
   gpg: no ultimately trusted keys found
   gpg: Total number processed: 1
@@ -55,7 +55,7 @@ If you now run :program:`apt-get` again, the warning should be gone::
    The key's validity needs to be refreshed from time to time. If apt-get stops
    working due to an expired key, you need to download it again. Thus, the
    "apt-key adv" command (see above) needs to be run again. ...This happened in
-   summer 2010.  I uploaded the renewed key to wwwkeys.de.pgp.net.
+   summer 2010.
 
 
 Install the MirrorBrain packages
