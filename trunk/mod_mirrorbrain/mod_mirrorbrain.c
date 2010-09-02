@@ -124,6 +124,14 @@
 #endif
 #define DEFAULT_MIN_MIRROR_SIZE 4096
 
+#if (APR_MAJOR_VERSION == 1 && APR_MINOR_VERSION == 2)
+#define DBD_FIRST_ROW 0
+#define DBD_LLD_FMT "d"
+#else
+#define DBD_FIRST_ROW 1
+#define DBD_LLD_FMT "lld"
+#endif
+
 #define DEFAULT_QUERY "SELECT id, identifier, region, country, " \
                              "asn, prefix, score, baseurl, " \
                              "region_only, country_only, " \
@@ -142,15 +150,9 @@
                            "WHERE file_id = (SELECT id " \
                                             "FROM filearr " \
                                             "WHERE path = %s) " \
-                           "AND size = %lld " \
-                           "AND mtime = %lld " \
+                           "AND size = %" DBD_LLD_FMT " " \
+                           "AND mtime = %" DBD_LLD_FMT " " \
                            "LIMIT 1"
-
-#if (APR_MAJOR_VERSION == 1 && APR_MINOR_VERSION == 2)
-#define DBD_FIRST_ROW 0
-#else
-#define DBD_FIRST_ROW 1
-#endif
 
 
 module AP_MODULE_DECLARE_DATA mirrorbrain_module;
