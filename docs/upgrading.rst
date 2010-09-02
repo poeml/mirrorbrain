@@ -3,6 +3,32 @@
 Upgrading
 =========
 
+.. _refreshing_package_sign_keys:
+
+Refreshing package sign keys
+----------------------------
+
+The key that is used to sign packages may expire from time to time, and needs
+to be renewed. This is done by the build maintainers, and you may need update
+your installation to know about the refreshed key.
+
+If you see the following (on Debian or Ubuntu), this affects you::
+
+    lenny:~# apt-get update
+    [...]
+    Reading package lists... Done
+    W: GPG error: http://download.opensuse.org  Release: The following signatures were invalid: KEYEXPIRED 1270154736
+    W: You may want to run apt-get update to correct these problems
+    lenny:~#
+
+After running the following command, all should work fine again::
+
+    lenny:~# apt-key adv --keyserver hkp://wwwkeys.de.pgp.net --recv-keys BD6D129A
+
+If it does not help, it is probably best to contact the build maintainers or
+the mirrorbrain mailing list.
+
+
 Upgrading PostgreSQL
 --------------------
 

@@ -52,10 +52,8 @@ If you now run :program:`apt-get` again, the warning should be gone::
   sudo apt-get update
 
 .. note:: 
-   The key's validity needs to be refreshed from time to time. If apt-get stops
-   working due to an expired key, you need to download it again. Thus, the
-   "apt-key adv" command (see above) needs to be run again. ...This happened in
-   summer 2010.
+   The key's validity may need to be refreshed later. If apt-get stops working,
+   see :ref:`refreshing_package_sign_keys`. 
 
 
 Install the MirrorBrain packages
