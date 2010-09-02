@@ -4,36 +4,280 @@ Release Notes/Change History
 ============================
 
 
-*not released:* 2.13.0 (rXXXX, ...)
+Release 2.13.0 (r8098, Sep 1, 2010)
 ------------------------------------
 
-* Issue #40 largely solved.
+New features:
 
-  The semantics for detection of up-to-date-ness of caches hashes are the same as
-  before. File size and mtime are the criteria.
+* This release **fully supports IETF Metalinks**, as finalized in :rfc:`5854` early in 2010.
+  The extension ``.meta4`` triggers the IETF Metalink response. An HTTP Accept
+  header containing ``metalink4+xml`` also elicits this kind of response. This
+  closes `issue 14`_. The old (v3) Metalinks are still supported, and TCN
+  (transparent content negotiation) is supported for both variants.  
 
-  Need to describe the "failure case" when the hash table doesn't exist yet, but
-  mod_mirrorbrain can't prepare its statements then. Or: fix it.
+* As the "hash cache" needed to be restructured for this feature, a number of
+  additional features became possible. Inclusion of **various metadata in the
+  mirror lists** is possible now: (`issue 41`_): 
+  
+  - file size and modification time
+  - SHA256 hash
+  - SHA1 hash
+  - MD5 hashes
+  - BitTorrent infohash
+  - link to Metalink
+  - link to Torrent
+  - zsync link 
+  - Magnet link (needs testing)
+  - link to PGP signature (if applicable)
 
-  The problem is that when mod_mirrorbrain is already upgraded and reloaded,
-  but no script has created the missing hash table yet
+  The information respective links is displayed depending on the availability:
+  hashes need to be generated (or regenerated); PGP signatures need to be
+  present.
+
+* MirrorBrain is now a **hash/metadata server**. A so-called "top hash"
+  (cryptographic hash of the complete file) can now be requested. Depending on
+  the extension added to the URL, like ``.md5``, ``.sha1``, or ``.sha256``, the
+  respective representation is returned. This closes `issue 42`_.
+
+  Like before, MirrorBrain can also store piece-wise hashes for chunks of the files.
+
+  All hashes are now stored in the database. Design notes:
+
+  Inside the database, the hashes are stored as compart binary blobs. For
+  transfer, they are converted to hexadecimal. This is due to the following
+  design decisiion: Storage is binary in so-called ``bytea`` columns.
+  PostgreSQL automatically escapes binary (bytea) data on output in its own
+  way. But this encoding is not very efficient in space. Hex encoding is more
+  efficient (it results in shorter strings, and thus less data to transfer over
+  the wire, and it's also faster). The escape format is kind phased out, and it
+  doesn't make sense to use it in a new application (which we are).
+  On the other hand, storage in bytea is as compact as it can be, which is good.
+  So we store the data in binary, and provide a database view which converts to
+  hex on the fly. The hex encoding function in PostgreSQL seems to be fast.
+
+* Despite of all this, hashing is **twice as fast** as before, not using the
+  external metalink binary any longer. All functionality of the
+  :program:`metalink-hasher` tool has been integrated into :program:`mb
+  makehashes`, which makes sure to never read data from disk more than once,
+  regardless of how many hashes are calculated. 
+
+* MirrorBrain now has a **torrent generator embedded**. Torrents are generated in
+  realtime (from hashes cached in the database). See
+  :ref:`configuring_torrent_generation` for details.
+
+* MirrorBrain now has basic **zsync support**. The `zsync distribution method
+  <http://zsync.moria.org.uk/>`_ is rsync over HTTP, so to speak, and
+  MirrorBrain can generate zsync files on-the-fly. MirrorBrain supports the
+  simpler variant which doesn't look into compressed content. It is compatible
+  to the current zsync release (0.6.1).
+
+  See :ref:`configuring_zsync_generation` for details.
+
+  This feature is off by default, because Apache allocates large amounts of
+  memory for large rows from database; this may be worked around in the future.
 
 
-* The requirement on the metalink package has been removed.
+* Support for `Magnet <http://magnet-uri.sourceforge.net/>`_ links (`issue 38`_).
+  See :ref:`magnet_links`.
 
 
-* Issue #41: Mirror lists now include hashes, link to PGP signature, file size and mtime.
+* :program:`mb list`:
 
-* Issue #14: Meta4 support.
+  - A new option ``-N|--number-of-files`` has been added, which displays the
+    number of files that a mirror is known to have.
 
-* Issue #38: Magnet link support.
+    To achieve this, a new stored procedure :func:`mirr_get_nfiles` has been
+    implemented, which retrieves this number, given either a mirror id or its
+    name. It is added automatically when migrating from previous versions, and
+    made available in through the :mod:`mb.core.mirror_get_nfiles` method.
+  - ``mb list <mirror identifier>`` did not work due to a missing module import
+    in the Python script. This has been amended.
 
-  Hashes are hex-encoded, because Base32 encoding would be awkward to add and
-  there seems to be a transition to hex encoding.
+* :program:`mb update`:
 
-* MirrorBrainTrackerURL directive added.
+  - This command can now also update country & region info in mirror records (from GeoIP).
+  - A ``--dry-run`` option has been added, to allow seeing the changes before
+    applying them.
+  - An ``--all`` option has been added, which updates all metadata, same as when
+    giving ``-c -a -p --country --region`` all at once.
+  - The command now properly takes notice of hostnames that don't resolve in the
+    DNS (so further action cannot be taken).
 
-* Issue #42: Implemented hash server.
+* :program:`mb db sizes`:
+
+  - The command now reports also the size of the hashes table.
+
+* :program:`mb db vacuum`:
+
+  - The database cleanup now takes into account that files in the filearr table
+    might not exist on any mirror, but only locally - so they could be
+    referenced in the hash table.
+
+
+
+.. FIXME
+
+* take note in the subprocess environment what the client requested and which
+    representation was actually sent. Those variables can be logged with
+    CustomLog want:%{WANT}e give:%{GIVE}e for instance.
+
+
+.. _`issue 14`: http://mirrorbrain.org/issues/issue14
+.. _`issue 38`: http://mirrorbrain.org/issues/issue38
+.. _`Issue 40`: http://mirrorbrain.org/issues/issue40
+.. _`Issue 41`: http://mirrorbrain.org/issues/issue41
+.. _`issue 42`: http://mirrorbrain.org/issues/issue42
+
+
+Bug fixes:
+
+* :program:`mod_mirrorbrain`:
+
+  - When a client IP's network prefix did not match a mirror's network prefix
+    exactly, the assignment of the client to this mirror would fail, even
+    though the client IP was (also) contained in the mirror's network prefix.
+    This has been rectified by properly checking for containment of the IP,
+    fixing `issue 52`_.
+  - Requests with PATH_INFO were not ignored, as they should be.  The default
+    behaviour of Apache is to ignore such requests, and CGI or script handler
+    deviate from that. :program:`mod_mirrorbrain` now also correctly returns
+    ``404 Not Found`` for such requests. This fixes `issue 18`_, as well as
+    `openSUSE bug #546396
+    <https://bugzilla.novell.com/show_bug.cgi?id=546396>`_ (which is not
+    publicly readable).
+  - When the only available mirror(s) had a limitation flag set (such as
+    ``region_only``), and a metalink was transparently negotiated, an empty
+    metalink would result. This is now prevented, and the file delivered
+    directly instead.  Other representations (mirror lists, non-negotiated
+    metalinks, torrents, hashes) are generated also if there is no mirror. This
+    was tracked in `openSUSE bug #602434
+    <https://bugzilla.novell.com/show_bug.cgi?id=602434>`_. The mirrorlist is
+    improved when there's no mirror, and can still list all hashes, and give
+    the direct download URL.
+  - Errors from the database adapter (lower DBD layer) are now resolved to
+    strings, where available.
+  - Some variable types have been corrected from int to ``apr_off_t``, using
+    :func:`apr_atoi64` instead of :func:`atoi`. This applies to: ``min_size``,
+    ``file_maxsize``, and the database identifier of a hash row. This at least
+    fixes the info message given when a file is excluded from redirection due
+    to its size. The checks seemed to work nevertheless, because the
+    ``min_size`` numbers were small and ``file_maxsize`` numbers large, which
+    helped to get the correct result when comparing.
+
+
+* :program:`mb scan`:
+
+  - Usage of FTP authentication was fixed (with credentials encoded into the
+    URL). The change done in January
+    http://svn.mirrorbrain.org/viewvc/mirrorbrain/trunk/tools/scanner.pl?r1=7911&r2=7945
+    was incomplete in so far that the FTP client used a wrong path now when
+    cd'ing into a directory (complete URL instead of only the path component).
+    This may have worked with some FTP servers, but it definitely didn't work
+    with vsftpd. Thanks to Deepak Gupta for raising this issue and providing
+    means to analyse it.
+
+* :program:`mb edit`:
+
+  - Problems that occurred when copying and pasting data on the editing window
+    have been fixed (reported in `issue 30`_).
+
+
+* :program:`mirrorprobe`:
+
+  - A hard-to-catch exception is now handled. If Python's socket module ran
+    into a timeout while reading a chunked response, the exception would not be
+    passed correctly to the upper layer, so it could not be caught by its name.
+    We now wrap the entire thread into another exception, which would otherwise
+    be bad practice, but is probably okay here, since we already catch all
+    other exceptions. This should fix `issue 46`_.
+  - In case of exceptions we run into, allow logging the affected mirror's name.
+  - If an unhandled exception occurs, a note is printed.
+
+
+* :program:`null-rsync`:
+
+  - Broken links that are replaced by a directory, and point outside the tree,
+    are now correctly removed in the destination tree. (That's a really special
+    case.)
+  - Some error messages were improved.
+
+
+
+.. _`issue 18`: http://mirrorbrain.org/issues/issue18
+.. _`issue 30`: http://mirrorbrain.org/issues/issue30
+.. _`issue 46`: http://mirrorbrain.org/issues/issue46
+.. _`issue 52`: http://mirrorbrain.org/issues/issue52
+
+Internal changes:
+
+* :program:`mod_mirrorbrain`:
+
+  - Code was generally cleaned up and logging improved.
+  - A hex decoder for efficient handling of binary data from PostgreSQL was added.
+  - Old obsolete code has been removed, which was needed from before 2008/2009
+    when mod_geoip didn't support continent codes yet. Since then, compiling
+    with GeoIP support built-in was still optionally possible, but this old
+    code is now removed.
+  - The code path has been cleaned up a lot for easier handling of different
+    representation, like hashes that are requested.
+  - The message which is logged when no hashes where found in the database has
+    been enhanced.
+
+* :program:`mb makehashes`:
+
+  - Hashes are also stored for files which exists only locally, and not on any
+    mirror (and which weren't present in the ``filearr`` table yet, therefore).
+
+
+
+Documentations improvements:
+
+* A few hints about :ref:`tuning_postgresql` were added to the :ref:`tuning`.
+
+* The installation docs have been restructured: Now there's a new section
+  explaining the :ref:`initial_configuration`, and this part is linked from all
+  platform-specific sections as "next step" at their end. This should avoid
+  some confusion. Hand in hand with this change, a cleanup of things scattered
+  in all places is in progress.
+
+* A :ref:`initial_configuration_logging_setup` is described.
+ 
+* Notes about the necessity of :ref:`initial_configuration_file_tree` have been
+  added, and alternatives explained.
+ 
+* Installing from Debian packages: There is now a note about expired keys, and
+  how to renew them.
+
+* The obsolete MySQL database schema has been removed, which could
+  theoretically be useful for people aiming to run only mod_mirrorbrain, but
+  not the rest of the framework - but is confusing and may cause people assume
+  that MySQL is supported as backend.
+
+
+Other improvements:
+
+* :program:`rsyncinfo`:
+
+  - `This script <http://svn.mirrorbrain.org/viewvc/mirrorbrain/trunk/tools/rsyncinfo.py?view=markup>`_
+    is easier to use now. Instead of the arkward syntax it now also
+    takes simple rsync URLs. Before::
+
+      rsyncinfo size gd.tuwien.ac.at -m openoffice
+
+    Now::
+
+      rsyncinfo size gd.tuwien.ac.at::openoffice
+      rsyncinfo size rsync://gd.tuwien.ac.at/openoffice
+
+* :program:`bdecode`:
+
+  - A new tool `bdecode <http://svn.mirrorbrain.org/viewvc/mirrorbrain/trunk/tools/bdecode.py?view=markup>`_ 
+    to parse a Torrent file (or other BEncoded input), and
+    pretty-print it. Useful to work on the Torrent generator in
+    mod_mirrorbrain. It also reads from standard input:: 
+    
+      curl -s <url> | bdecode.py
+
 
 
 
