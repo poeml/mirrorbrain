@@ -14,9 +14,9 @@ For basic configuration, please refer to the installation section
 Generating Torrents
 -------------------
 
-When hashes are generated with :program:`mb makehashes`, and stored in the
-database, MirrorBrain can generate not only Metalinks but also Torrents. The
-required chunked hashes are the same. 
+From the hashes generated with :program:`mb makehashes`, MirrorBrain can
+generate not only Metalinks, but also Torrents. The required chunked hashes are
+the same. 
 
 The generation is triggered by appending ``.torrent`` to an URL.  
 
@@ -180,6 +180,21 @@ tree, to update the checksums.
 The checksums occupy space in the database. To find out how much it is, the
 :program:`mb db sizes` command can be helpful. Note the size of the ``hash``
 table.
+
+
+
+.. _magnet_links:
+
+Magnet links
+------------
+
+Hashes are hex-encoded, because Base32 encoding would be awkward to add and
+there seems to be a transition to hex encoding.
+
+The ``urn:sha1`` scheme is currently also not supported, because it is required
+to be Base32-encoded. Base32 encoding could be added in the future, of course.
+Contributions welcome!
+
 
 
 

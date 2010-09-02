@@ -9,6 +9,8 @@ performance.
 Depending on the size of your install, this can be mandatory.
 
 
+.. _tuning_apache:
+
 Tuning Apache
 -------------
 
@@ -113,6 +115,8 @@ Hence, good settings are::
     KeepAliveTimeout 2
 
 
+
+.. _tuning_postgresql:
 
 Tuning PostgreSQL
 -----------------
