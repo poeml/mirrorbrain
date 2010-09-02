@@ -993,7 +993,7 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
             /* split the string into an array of the actual pieces */
 
             apr_off_t n = r->finfo.size / h->sha1piecesize;
-            // XXX ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] dbd: %lld sha1 pieces", n);
+            // XXX ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] dbd: %" APR_INT64_T_FMT " sha1 pieces", n);
 
             h->sha1pieceshex = apr_array_make(r->pool, n, sizeof(const char *));
             int max = strlen(val);
@@ -2192,7 +2192,7 @@ static int mb_handler(request_rec *r)
 
         ap_rprintf(r, "  <file name=\"%s\">\n", basename);
         ap_rprintf(r, "    <size>%s</size>\n\n", apr_off_t_toa(r->pool, r->finfo.size));
-        ap_rprintf(r, "    <!-- <mtime>%lld</mtime> -->\n\n", 
+        ap_rprintf(r, "    <!-- <mtime>%" APR_INT64_T_FMT "</mtime> -->\n\n", 
                    apr_time_sec(r->finfo.mtime)); /* APR finfo times are in microseconds */
 
 
@@ -2506,7 +2506,7 @@ static int mb_handler(request_rec *r)
                    apr_off_t_toa(r->pool, r->finfo.size));
         time_str = apr_palloc(r->pool, APR_RFC822_DATE_LEN);
         apr_rfc822_date(time_str, r->finfo.mtime);
-        ap_rprintf(r, "  <li>Last modified: %s (Unix time: %lld)</li>\n", time_str, apr_time_sec(r->finfo.mtime));
+        ap_rprintf(r, "  <li>Last modified: %s (Unix time: %" APR_INT64_T_FMT ")</li>\n", time_str, apr_time_sec(r->finfo.mtime));
 
         if (hashbag != NULL) {
             if (hashbag->sha256hex)
