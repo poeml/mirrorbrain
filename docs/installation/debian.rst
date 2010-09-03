@@ -130,9 +130,9 @@ Running the following snippet will create a configuration for mod_dbd::
 Install PostgreSQL
 ------------------
 
-Install the PostgreSQL server (here, version 8.3 is the current version)::
+Install the PostgreSQL server (here, version 8.4 is the current version)::
 
-  sudo apt-get install postgresql-8.3
+  sudo apt-get install postgresql-8.4
 
 
 Create the postgresql user account and database
@@ -167,11 +167,11 @@ Edit host-based authentication
 Add line ``local mirrorbrain mirrorbrain 127.0.0.1/32 md5`` to the end of
 :file:`pg_hba.conf`, which is to be found here::
 
-  sudo vim /etc/postgresql/8.3/main/pg_hba.conf
+  sudo vim /etc/postgresql/8.4/main/pg_hba.conf
 
 Start the PostgreSQL server::
 
-  sudo /etc/init.d/postgresql-8.3 restart
+  sudo /etc/init.d/postgresql-8.4 restart
 
 Create needed users and groups
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
