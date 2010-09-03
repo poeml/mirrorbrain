@@ -164,7 +164,7 @@ Exit user postgres::
 Edit host-based authentication 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Add line ``local mirrorbrain mirrorbrain 127.0.0.1/32 md5`` to the end of
+Add line ``host mirrorbrain mirrorbrain 127.0.0.1/32 md5`` to the end of
 :file:`pg_hba.conf`, which is to be found here::
 
   sudo vim /etc/postgresql/8.4/main/pg_hba.conf
