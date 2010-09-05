@@ -34,12 +34,20 @@ mirrors that are *always* available and are guaranteed to have *all* those
 files. (The directive can be configured individually per directory in Apache
 config.) See the `2.11.0 release notes`_ for details.
 
-Note that if you have the files locally, you can automatically maintain
+Note that if you *do* have the *real* files locally, you can automatically maintain
 cryptographic hashes of them in the database; running with pseudo files cuts on
 some very useful features. In addition, the local files are always available to
 deliver them directly, which is a good fallback behaviour for files that are
 not mirrored at all, files that have not arrived on any mirror just yet, and so
-on.
+on. Of course, you can also make sure that files are never delivered from the
+redirector (in other words, it redirects always).
+
+.. note::
+   In summary: a tree with real files is required, if you want to serve any
+   hashes, zsync, or torrents. But you can make sure that the content is always
+   redirected.  The "fake tree" that you can create with null-rsync is good
+   *only* for pure redirection. (And Metalinks without hashes.) The server
+   doesn't know any content then; only file path, size, mtime, nothing else.
 
 .. _`2.11.0 release notes`: http://mirrorbrain.org/docs/changes/#release-2-11-0-r7896-dec-2-2009
 
