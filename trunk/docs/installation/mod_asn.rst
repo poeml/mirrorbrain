@@ -43,10 +43,6 @@ live in.  This can be useful in the following scenarios:
   not get any other traffic. The mirrors will be happy to know about this
   possibility.
 
-
-If you don't need mirror selection based on
-network prefix or autonomous system, you don't need to install mod_asn.
-
 To install mod_asn, refer to the `its documentation`__.
 
 __ /mod_asn/docs/
