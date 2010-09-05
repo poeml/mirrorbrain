@@ -71,6 +71,7 @@
 #include "util_md5.h"
 
 #include "apr_version.h"
+#include "apu_version.h"
 #include "apr_strings.h"
 #include "apr_lib.h"
 #include "apr_fnmatch.h"
@@ -125,10 +126,8 @@
 #define DEFAULT_MIN_MIRROR_SIZE 4096
 
 #if (APR_MAJOR_VERSION == 1 && APR_MINOR_VERSION == 2)
-#define DBD_FIRST_ROW 0
 #define DBD_LLD_FMT "d"
 #else
-#define DBD_FIRST_ROW 1
 #define DBD_LLD_FMT "lld"
 #endif
 
@@ -266,6 +265,9 @@ struct dhtnode {
 static ap_dbd_t *(*mb_dbd_acquire_fn)(request_rec*) = NULL;
 static void (*mb_dbd_prepare_fn)(server_rec*, const char*, const char*) = NULL;
 
+static apr_version_t vsn;
+static int dbd_first_row;
+
 static void debugLog(const request_rec *r, const mb_dir_conf *cfg,
                      const char *fmt, ...)
 {
@@ -299,6 +301,18 @@ static void mb_child_init(apr_pool_t *p, server_rec *s)
 static int mb_post_config(apr_pool_t *pconf, apr_pool_t *plog, 
                           apr_pool_t *ptemp, server_rec *s)
 {
+
+    apr_version(&vsn);
+    ap_log_error(APLOG_MARK, APLOG_INFO, 0, s,
+                 "[mod_mirrorbrain] compiled with APR/APR-Util %s/%s",
+                 APR_VERSION_STRING, APU_VERSION_STRING);
+    if ((vsn.major == 1) && (vsn.minor == 2)) {
+        /* database access semantics were changed between 1.2 and 1.3 (strictly
+         * speaking, breaking the binary compatibility */
+        dbd_first_row = 0;
+    } else {
+        dbd_first_row = 1;
+    }
 
     /* be visible in the server signature */
     ap_add_version_component(pconf, VERSION_COMPONENT);
@@ -936,7 +950,7 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
     }
 
     /* we care only about the 1st row, because our query uses 'limit 1' */
-    rv = apr_dbd_get_row(dbd->driver, r->pool, res, &row, DBD_FIRST_ROW);
+    rv = apr_dbd_get_row(dbd->driver, r->pool, res, &row, dbd_first_row);
     if (rv != APR_SUCCESS) {
         const char *errmsg = apr_dbd_error(dbd->driver, dbd->handle, rv);
         ap_log_rerror(APLOG_MARK, APLOG_WARNING, rv, r,
@@ -1043,7 +1057,7 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
 
         
     /* clear the cursor by accessing invalid row */
-    rv = apr_dbd_get_row(dbd->driver, r->pool, res, &row, DBD_FIRST_ROW + 1);
+    rv = apr_dbd_get_row(dbd->driver, r->pool, res, &row, dbd_first_row + 1);
     if (rv != -1) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r,
                       "[mod_mirrorbrain] found too many rows when looking up hashes for %s",
