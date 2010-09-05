@@ -8,7 +8,7 @@ Initial configuration steps on all platforms
 .. _initial_configuration_file_tree:
 
 Creating a file tree
-~~~~~~~~~~~~~~~~~~~~
+--------------------
 
 If you haven't got a file tree yet, you should create it now.
 
@@ -46,7 +46,7 @@ on.
 
 
 Creating mirrorbrain.conf
-~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------
 
 Create a configuration file named :file:`/etc/mirrorbrain.conf` with the content below::
 
@@ -100,8 +100,8 @@ Other possible options per MirrorBrain instance are:
 
 
 
-Test the database admin tool
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Testing the database admin tool
+-------------------------------
 
 At this point, you should be able to type the following command  without getting an
 error::
@@ -130,7 +130,7 @@ correctly.
 
 
 Creating some mirrors
-~~~~~~~~~~~~~~~~~~~~~
+---------------------
 
 Collect a list of mirrors (their HTTP baseurl, and their rsync or FTP baseurl
 for scanning). For example::
@@ -175,11 +175,12 @@ See the output of :program:`mb help` for more commands. Refer to
 the :program:`mb` tool.
 
 
-Set up required cron jobs
--------------------------
 
-Set up mirror monitoring
-~~~~~~~~~~~~~~~~~~~~~~~~
+Setting up required cron jobs
+-----------------------------
+
+Setting up mirror monitoring
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Mirror monitoring needs to be set up to run automatically. Put this into
 :file:`/etc/crontab`:
@@ -190,8 +191,8 @@ them online/offline in the database::
 
   -* * * * *                mirrorbrain   mirrorprobe
 
-Setup mirror scanning
-~~~~~~~~~~~~~~~~~~~~~
+Setting up mirror scanning
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Configure mirror scanning::
 
@@ -207,6 +208,7 @@ Another cron job is useful to remove unreferenced files from the database::
 
   # Monday: database clean-up day...
   30 1 * * mon              mirrorbrain   mb db vacuum
+
 
 
 Testing
@@ -236,8 +238,8 @@ TODO: describe how to test that the install was successful
 
 .. _initial_configuration_logging_setup:
 
-Logging setup
--------------
+Setting up logging
+------------------
 
 You may want to log more details than Apache normally logs into the access_log
 file. You can define a new log format that gives you an access_log, with
@@ -263,11 +265,11 @@ you would use::
 .. TODO: describe a good logging setup with cronolog
 
 
+
 .. _creating_hashes:
 
 Creating hashes
 ---------------
-
 
 First, add some configuration::
 
@@ -317,8 +319,8 @@ Optional things you might want
 
 
 
-Configure GeoIP
-----------------------------------------------
+Configuring GeoIP
+-----------------
 
 Edit /etc/apache2/conf.d/mod_geoip.conf::
 
@@ -358,8 +360,8 @@ sure to set the GeoIPDBFile path (see above) to
 
 
 
-Create a virtual host
----------------------
+Creating a virtual host
+-----------------------
 
 Maybe create a DNS alias for your web host, if needed.
 
