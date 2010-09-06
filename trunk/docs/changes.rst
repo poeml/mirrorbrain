@@ -7,9 +7,13 @@ Release Notes/Change History
 Release 2.13.0 (r8112, Sep 6, 2010)
 -----------------------------------
 
-This is a big release, with several interesting new features, and lots of bugs
-fixed. A lot of work has gone into this release. Big effort has also been
-put in to ensure a seamless upgrade. 
+This is a big release, with many new features, and lots of bugs fixed. Big
+effort has also been put in to ensure a seamless upgrade. 
+
+Please read the `upgrade notes
+<http://mirrorbrain.org/docs/upgrading/#from-2-12-x-to-2-13-0>`_.
+
+New features:
 
 * This release **fully supports IETF Metalinks**, as finalized in :rfc:`5854` early in 2010.
   The extension ``.meta4`` triggers the IETF Metalink response. An HTTP Accept
