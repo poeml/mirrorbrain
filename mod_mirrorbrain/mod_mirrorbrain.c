@@ -1157,7 +1157,7 @@ static int mb_handler(request_rec *r)
     /* is there PATH_INFO, and are we supposed to accept it? */
     if ((r->path_info && *r->path_info)
             && (r->used_path_info != AP_REQ_ACCEPT_PATH_INFO)) {
-        debugLog(r, cfg, "ignoring request with PATH_INFO");
+        debugLog(r, cfg, "ignoring request with PATH_INFO='%s'", r->path_info);
         return DECLINED;
     }
 
@@ -1475,17 +1475,28 @@ static int mb_handler(request_rec *r)
 
 
     /* prepare the filename to look up */
-    char *ptr = canonicalize_file_name(r->filename);
+    char *ptr = realpath(r->filename, NULL);
     if (ptr == NULL) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
                 "[mod_mirrorbrain] Error canonicalizing filename '%s'", r->filename);
-        setenv_give(r, "file");
         return HTTP_INTERNAL_SERVER_ERROR;
     }
-    /* XXX we should forbid symlinks in mirror_base */
     realfile = apr_pstrdup(r->pool, ptr);
-    /* strip the leading directory */
-    filename = realfile + strlen(cfg->mirror_base);
+    free(ptr);
+
+    /* the basedir might contain symlinks. That needs to be taken into account. See issue #17 */
+    ptr = realpath(cfg->mirror_base, NULL);
+    if (ptr == NULL) {
+        /* this should never happen, because the MirrorBrainEngine directive would never
+         * be applied to a non-existing directories */
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+                "[mod_mirrorbrain] Document root \'%s\' does not seem to "
+                "exist. Filesystem not mounted?", cfg->mirror_base);
+        return HTTP_INTERNAL_SERVER_ERROR;
+    }
+    /* the leading directory needs to be stripped from the file path */
+    /* a directory from Apache always ends in '/'; a result from realpath() doesn't */
+    filename = realfile + strlen(ptr) + 1;
     free(ptr);
     debugLog(r, cfg, "Canonicalized file on disk: %s", realfile);
     debugLog(r, cfg, "SQL file to look up: %s", filename);
