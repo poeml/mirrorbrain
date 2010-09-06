@@ -475,9 +475,10 @@ class MirrorDoctor(cmdln.Cmdln):
         """
 
         mirror = lookup_mirror(self, identifier)
-        print mirror.baseurl
         import mb.testmirror
-        print mb.testmirror.access_http(mirror.baseurl)
+        r = mb.testmirror.access_http(mirror.identifier, mirror.baseurl)
+        print r
+        print 'content: %r...' % r.content[:240]
 
 
     @cmdln.option('--content', action='store_true',
@@ -855,9 +856,20 @@ class MirrorDoctor(cmdln.Cmdln):
 
         if opts.enable and rc == 0:
             import time
-            comment = ('*** scanned and enabled at %s.' % (time.ctime()))
+            import mb.testmirror
+            tt = time.ctime()
+            comment = ('*** scanned and enabled at %s.' % tt)
             for mirror in mirrors_to_scan:
                 mirror.comment = ' '.join([mirror.comment or '', '\n\n' + comment])
+
+                print '%s %s: testing status of base URL...' % (tt, mirror.identifier)
+                t = mb.testmirror.access_http(mirror.identifier, mirror.baseurl)
+                if t.http_code == 200:
+                    mirror.statusBaseurl = 1
+                    print '%s %s: OK. Mirror is online now.' % (tt, mirror.identifier)
+                else:
+                    print '%s %s: Error: base URL does not work: %s' \
+                            % (tt, mirror.identifier, mirror.baseurl)
 
         sys.stdout.flush()
         if opts.directory and len(mirrors_skipped):
