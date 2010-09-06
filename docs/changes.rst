@@ -7,8 +7,9 @@ Release Notes/Change History
 Release 2.13.0 (r8112, Sep 6, 2010)
 -----------------------------------
 
-This is a big release, with several interesting new features. A lot of work has
-gone into it. A lot of effort has also been put in to ensure a seamless upgrade. 
+This is a big release, with several interesting new features, and lots of bugs
+fixed. A lot of work has gone into this release. Big effort has also been
+put in to ensure a seamless upgrade. 
 
 * This release **fully supports IETF Metalinks**, as finalized in :rfc:`5854` early in 2010.
   The extension ``.meta4`` triggers the IETF Metalink response. An HTTP Accept
@@ -191,6 +192,8 @@ Bug fixes:
     <https://bugzilla.novell.com/show_bug.cgi?id=602434>`_. The mirrorlist is
     improved when there's no mirror, and can still list all hashes, and give
     the direct download URL.
+  - The module now works when the path used in the Apache <Directory> block
+    contains symlinks, fixing `issue 17`_.
   - Errors from the database adapter (lower DBD layer) are now resolved to
     strings, where available.
   - Some variable types have been corrected from int to ``apr_off_t``, using
@@ -237,6 +240,7 @@ Bug fixes:
 
 
 
+.. _`issue 17`: http://mirrorbrain.org/issues/issue17
 .. _`issue 18`: http://mirrorbrain.org/issues/issue18
 .. _`issue 30`: http://mirrorbrain.org/issues/issue30
 .. _`issue 46`: http://mirrorbrain.org/issues/issue46
@@ -285,7 +289,7 @@ Documentations improvements:
 
 * A few hints about :ref:`tuning_postgresql` were added to the :ref:`tuning`.
 
-* A :ref:`initial_configuration_logging_setup` is described.
+* :ref:`initial_configuration_logging_setup` is described in more detail.
  
 * Notes about the necessity of :ref:`initial_configuration_file_tree` have been
   added, and alternatives explained.
@@ -326,6 +330,9 @@ Other improvements:
     
       curl -s <url> | bdecode.py
 
+
+
+Thanks for all the help!
 
 
 
