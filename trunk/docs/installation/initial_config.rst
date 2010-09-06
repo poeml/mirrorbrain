@@ -282,7 +282,6 @@ Creating hashes
 First, add some configuration::
 
   MirrorBrainMetalinkPublisher "openSUSE" http://download.opensuse.org
-  MirrorBrainMetalinkHashesPathPrefix /srv/hashes/srv/opensuse
 
 You need to create a directory where to store the hashes. For instance,
 :file:`/srv/hashes/srv/opensuse`. Note that the full pathname to the filetree
