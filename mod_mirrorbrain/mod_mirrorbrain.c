@@ -3190,7 +3190,8 @@ static const command_rec mb_cmds[] =
 
     AP_INIT_TAKE1("MirrorBrainMetalinkHashesPathPrefix", mb_cmd_metalink_hashes_prefix, NULL, 
                   RSRC_CONF, 
-                  "Prefix this path when looking for prepared hashes to inject into metalinks"),
+                  "Prefix this path when looking for prepared hashes to inject into metalinks. "
+                  "This directive is obsolete (with 2.13.0) and is going to be removed later."),
 
     AP_INIT_TAKE2("MirrorBrainMetalinkPublisher", mb_cmd_metalink_publisher, NULL, 
                   RSRC_CONF, 
