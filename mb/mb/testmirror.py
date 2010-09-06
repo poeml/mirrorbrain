@@ -12,11 +12,11 @@ TIMEOUT = 20
 
 socket.setdefaulttimeout(TIMEOUT)
 
-def access_http(url):
+def access_http(identifier, url):
     from mb.util import Sample
-    S = Sample('', url, '', get_content=True)
+    S = Sample(identifier, url, '', get_content=True)
     probe(S)
-    return S.content
+    return S
 
 
 def dont_use_proxies():

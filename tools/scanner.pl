@@ -366,7 +366,7 @@ for my $row (@scan_list) {
     print "$sql\n" if $sqlverbose;
     my $sth = $dbh->prepare( $sql );
     $sth->execute() or die "$row->{identifier}: $DBI::errstr";
-    print "$row->{identifier}: now enabled.\n" if $verbose > 0;
+    print localtime(time) . " $row->{identifier}: now enabled.\n" if $verbose > 0;
   }
 
   $sql = "DROP TABLE temp1";
