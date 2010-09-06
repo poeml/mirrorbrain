@@ -79,6 +79,8 @@ warnings, and reload your browser window.
 Implementation and design notes
 -------------------------------
 
+.. _design_database_hash_store:
+
 Database hash store
 ^^^^^^^^^^^^^^^^^^^
 

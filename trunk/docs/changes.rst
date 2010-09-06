@@ -4,14 +4,13 @@ Release Notes/Change History
 ============================
 
 
-Release 2.13.0 (r8112, Sep 6, 2010)
+Release 2.13.0 (r8123, Sep 6, 2010)
 -----------------------------------
 
 This is a big release, with many new features, and lots of bugs fixed. Big
 effort has also been put in to ensure a seamless upgrade. 
 
-Please read the `upgrade notes
-<http://mirrorbrain.org/docs/upgrading/#from-2-12-x-to-2-13-0>`_.
+Please read the `upgrade notes`_.
 
 New features:
 
@@ -34,11 +33,7 @@ New features:
   - link to Torrent
   - zsync link 
   - Magnet link (needs testing)
-  - link to PGP signature (if applicable)
-
-  The information respective links is displayed depending on the availability:
-  hashes need to be generated (or regenerated); PGP signatures need to be
-  present.
+  - link to PGP signature (if available)
 
   These metadata pages resp. mirror lists can now be requested by appending
   ``.mirrorlist`` to an URL. The previous way, using a question mark
@@ -54,29 +49,18 @@ New features:
   The chunk size is now configurable via :file:`/etc/mirrorbrain.conf`, see
   :ref:`configuring_torrent_generation`.
 
-  All hashes are now stored in the database. Design notes:
+  All hashes are now stored in the database. (See
+  :ref:`design_database_hash_store` design notes.)
 
-  Inside the database, the hashes are stored as compart binary blobs. For
-  transfer, they are converted to hexadecimal. This is due to the following
-  design decisiion: Storage is binary in so-called ``bytea`` columns.
-  PostgreSQL automatically escapes binary (bytea) data on output in its own
-  way. But this encoding is not very efficient in space. Hex encoding is more
-  efficient (it results in shorter strings, and thus less data to transfer over
-  the wire, and it's also faster). The escape format is kind phased out, and it
-  doesn't make sense to use it in a new application (which we are).
-  On the other hand, storage in bytea is as compact as it can be, which is good.
-  So we store the data in binary, and provide a database view which converts to
-  hex on the fly. The hex encoding function in PostgreSQL seems to be fast.
+  A fallback mechanism is in place to read existing hashes from disk, if the
+  database doesn't have the new hashes yet (useful for the migration period).
 
-  While hashes are pulled from the database now, a fallback mechanism is in
-  place to read existing hashes from disk, if the database doesn't have the new
-  hashes yet.
-
-* Despite of all this, hashing is **twice as fast** as before, not using the
-  external metalink binary any longer. All functionality of the
-  :program:`metalink-hasher` tool has been integrated into :program:`mb
-  makehashes`, which makes sure to never read data from disk more than once,
-  regardless of how many hashes are calculated. 
+* Even though more hashes are calculated, and hashes stored in the database,
+  hashing is **twice as fast** as before, not relying the external metalink
+  binary any longer. All functionality of the :program:`metalink-hasher` tool
+  has been integrated into :program:`mb makehashes`, which makes sure to never
+  read data from disk more than once, regardless of how many hashes are
+  calculated. 
 
   The external tool names :program:`metalink` is no longer used, and the
   package dependency on the :program:`metalink` package is no longer there.
@@ -130,7 +114,10 @@ be listed:
 
 * :program:`mb update`:
 
-  - This command can now also update country & region info in mirror records (from GeoIP).
+  - This command can now also update country & region info in mirror records
+    (from GeoIP). Before, it updated only the network prefix and AS number, and
+    geographical coordinates. But country and region assignments occasionally
+    change as well.
   - A ``--dry-run`` option has been added, to allow seeing the changes before
     applying them.
   - An ``--all`` option has been added, which updates all metadata, same as when
@@ -140,7 +127,7 @@ be listed:
 
 * :program:`mb db sizes`:
 
-  - The command now reports also the size of the hashes table.
+  - The output of this command now includes also the size of the new hashes table.
 
 * :program:`mb db vacuum`:
 
@@ -262,10 +249,10 @@ Internal changes:
 
   - Code was generally cleaned up and logging improved.
   - A hex decoder for efficient handling of binary data from PostgreSQL was added.
-  - Old obsolete code has been removed, which was needed from before 2008/2009
-    when mod_geoip didn't support continent codes yet. Since then, compiling
-    with GeoIP support built-in was still optionally possible, but this old
-    code is now removed.
+  - Old obsolete code has been removed, which was needed before 2009 when
+    mod_geoip didn't support continent codes yet. Since then, compiling with
+    GeoIP support built-in was still optionally possible, but this old code is
+    now removed.
   - The code path has been cleaned up a lot for easier handling of different
     representation, like hashes that are requested.
   - The message which is logged when no hashes where found in the database has
@@ -320,29 +307,38 @@ Other improvements:
 
 * :program:`rsyncinfo`:
 
-  - `This script <http://svn.mirrorbrain.org/viewvc/mirrorbrain/trunk/tools/rsyncinfo.py?view=markup>`_
-    is easier to use now. Instead of the arkward syntax it now also
-    takes simple rsync URLs. Before::
+  `This script
+  <http://svn.mirrorbrain.org/viewvc/mirrorbrain/trunk/tools/rsyncinfo?view=markup>`_
+  is easier to use now. Instead of the arkward syntax it now also takes simple
+  rsync URLs. Before::
 
-      rsyncinfo size gd.tuwien.ac.at -m openoffice
+    rsyncinfo size gd.tuwien.ac.at -m openoffice
 
-    Now::
+  Now::
 
-      rsyncinfo size gd.tuwien.ac.at::openoffice
-      rsyncinfo size rsync://gd.tuwien.ac.at/openoffice
+    rsyncinfo size gd.tuwien.ac.at::openoffice
+    rsyncinfo size rsync://gd.tuwien.ac.at/openoffice
 
 * :program:`bdecode`:
 
-  - A new tool `bdecode <http://svn.mirrorbrain.org/viewvc/mirrorbrain/trunk/tools/bdecode.py?view=markup>`_ 
-    to parse a Torrent file (or other BEncoded input), and
-    pretty-print it. Useful to work on the Torrent generator in
-    mod_mirrorbrain. It also reads from standard input:: 
+  A new tool `bdecode
+  <http://svn.mirrorbrain.org/viewvc/mirrorbrain/trunk/tools/bdecode?view=markup>`_
+  to parse a Torrent file (or other BEncoded input), and pretty-print it.
+  Useful mainly to work on the Torrent generator in mod_mirrorbrain, but also
+  to compare the generated torrents with torrents that you get from other
+  generators. The tool can take an argument, or read from standard input:: 
     
-      curl -s <url> | bdecode.py
+    bdecode foo.torrent
+    curl -s <url> | bdecode
 
+
+Please read the `upgrade notes`_ before upgrading.
 
 
 Thanks for all the help!
+
+.. _`upgrade notes`: http://mirrorbrain.org/docs/upgrading/#from-2-12-x-to-2-13-0
+
 
 
 
