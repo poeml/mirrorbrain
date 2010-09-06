@@ -45,11 +45,11 @@ install:
     rsyncusers.sh
        Same tool in a more stupid but more portable shell implementation
 
-    rsyncinfo.py
+    rsyncinfo
        Tool to assess the size of rsync modules on a remote server, or a
        subdirectory
 
-    bdecode.py
+    bdecode
        Parse a Torrent file (or other BEncoded input), and pretty-print it.
-       Can read from standard input: curl -s <url> | bdecode.py
+       Can read from standard input: curl -s <url> | bdecode
        Useful to work on the Torrent generator in mod_mirrorbrain.
