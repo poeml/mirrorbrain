@@ -901,27 +901,29 @@ class MirrorDoctor(cmdln.Cmdln):
                         help='set the base directory (so that you can work on a '
                              'subdirectory -- see examples)')
     @cmdln.option('-t', '--target-dir', metavar='PATH',
-                        help='set a different target directory')
+                        help='set the target directory (required)')
     @cmdln.option('-v', '--verbose', action='store_true',
                         help='show more information')
     def do_makehashes(self, subcmd, opts, startdir):
-        """${cmd_name}: Update the verification hashes, e.g. for inclusion into Metalinks
+        """${cmd_name}: Create or update verification hashes, e.g. for
+        inclusion into Metalinks and Torrents, or to be requested by appending
+        .md5 or .sha1 to an URL.
 
-        Examples:
+        Simplest Examples:
+            mb makehashes -t /srv/metalink-hashes/srv/ooo /srv/ooo
 
-        mb makehashes /srv/mirrors/mozilla -t /srv/metalink-hashes/srv/mirrors/mozilla
+        This is aequivalent:
+            mb makehashes -t /srv/metalink-hashes/srv/ooo -b /srv/ooo /srv/ooo
 
-        mb makehashes \\
+        Hash only the subdirectory extended/iso/de:
+            mb makehashes -t /srv/metalink-hashes/srv/ooo -b /srv/ooo /srv/ooo/extended/iso/de
+        
+        Further examples:
+            mb makehashes \\
             -t /srv/metalink-hashes/srv/ftp/pub/opensuse/repositories/home:/poeml \\
             /srv/ftp-stage/pub/opensuse/repositories/home:/poeml \\
             -i '^.*/repoview/.*$'
-
-        mb makehashes \\
-            -t /srv/metalink-hashes/samba/srv/mirrors/samba \\
-            -b /srv/mirrors/samba \\
-            /srv/mirrors/samba/pub/samba/xfertest
-
-        mb makehashes \\
+            mb makehashes \\
             -f '.*.(torrent|iso)$' \\
             -t /var/lib/apache2/metalink-hashes/srv/ftp/pub/opensuse \\
             -b /srv/ftp-stage/pub/opensuse \\
