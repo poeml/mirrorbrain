@@ -4,20 +4,21 @@ Release Notes/Change History
 ============================
 
 
-Release 2.13.0 (r8098, Sep 1, 2010)
-------------------------------------
+Release 2.13.0 (r8112, Sep 6, 2010)
+-----------------------------------
 
-New features:
+This is a big release, with several interesting new features. A lot of work has
+gone into it. A lot of effort has also been put in to ensure a seamless upgrade. 
 
 * This release **fully supports IETF Metalinks**, as finalized in :rfc:`5854` early in 2010.
   The extension ``.meta4`` triggers the IETF Metalink response. An HTTP Accept
   header containing ``metalink4+xml`` also elicits this kind of response. This
-  closes `issue 14`_. The old (v3) Metalinks are still supported, and TCN
-  (transparent content negotiation) is supported for both variants.  
+  closes `issue 14`_. The old (v3) Metalinks are still supported, and
+  transparent content negotiation (TCN) is supported with both variants.  
 
-* As the "hash cache" needed to be restructured for this feature, a number of
-  additional features became possible. Inclusion of **various metadata in the
-  mirror lists** is possible now: (`issue 41`_): 
+* As the cache of hashes needed to be restructured for this feature, it became
+  possible to implement a number of additional features. Inclusion of **various
+  metadata in the mirror lists** is supported now (`issue 41`_): 
   
   - file size and modification time
   - SHA256 hash
@@ -34,12 +35,19 @@ New features:
   hashes need to be generated (or regenerated); PGP signatures need to be
   present.
 
-* MirrorBrain is now a **hash/metadata server**. A so-called "top hash"
-  (cryptographic hash of the complete file) can now be requested. Depending on
-  the extension added to the URL, like ``.md5``, ``.sha1``, or ``.sha256``, the
-  respective representation is returned. This closes `issue 42`_.
+  These metadata pages resp. mirror lists can now be requested by appending
+  ``.mirrorlist`` to an URL. The previous way, using a question mark
+  (``&mirrorlist``) continues to be supported for backwards compatibility.
 
-  Like before, MirrorBrain can also store piece-wise hashes for chunks of the files.
+* Thus, MirrorBrain is now a feature-rich **hash/metadata server**. A so-called
+  "top hash" (cryptographic hash of the complete file) can now be requested.
+  Depending on the extension added to the URL, like ``.md5``, ``.sha1``, or
+  ``.sha256``, the respective representation is returned. This closes `issue
+  42`_.
+
+  Like before, MirrorBrain also stores piece-wise hashes for chunks of the files.
+  The chunk size is now configurable via :file:`/etc/mirrorbrain.conf`, see
+  :ref:`configuring_torrent_generation`.
 
   All hashes are now stored in the database. Design notes:
 
@@ -55,15 +63,22 @@ New features:
   So we store the data in binary, and provide a database view which converts to
   hex on the fly. The hex encoding function in PostgreSQL seems to be fast.
 
+  While hashes are pulled from the database now, a fallback mechanism is in
+  place to read existing hashes from disk, if the database doesn't have the new
+  hashes yet.
+
 * Despite of all this, hashing is **twice as fast** as before, not using the
   external metalink binary any longer. All functionality of the
   :program:`metalink-hasher` tool has been integrated into :program:`mb
   makehashes`, which makes sure to never read data from disk more than once,
   regardless of how many hashes are calculated. 
 
+  The external tool names :program:`metalink` is no longer used, and the
+  package dependency on the :program:`metalink` package is no longer there.
+
 * MirrorBrain now has a **torrent generator embedded**. Torrents are generated in
   realtime (from hashes cached in the database). See
-  :ref:`configuring_torrent_generation` for details.
+  :ref:`configuring_torrent_generation` for details. This resolves `issue 37`_.
 
 * MirrorBrain now has basic **zsync support**. The `zsync distribution method
   <http://zsync.moria.org.uk/>`_ is rsync over HTTP, so to speak, and
@@ -81,7 +96,21 @@ New features:
   This largely closes `issue 38`_, but requires further testing/finetuning. See
   :ref:`magnet_links` for documentation.
 
+* Ubuntu 10.04 (Lucid) support! (`Issue 6`_ had to be fixed for this.)
 
+
+While these are the main news, there is a number of smaller feature updates to
+be listed:
+
+* :program:`mb makehashes`:
+
+  - This is the new tool for hashing files. It supersedes the previously used
+    :program:`metalink-hasher` and the external :program:`metalink` tool.
+  - :program:`metalink-hasher` is a wrapper now, for backwards compatibility,
+    to avoid breaking existing setups.
+  - A ``--force`` option has been added to force refreshing existing hashes.
+  - The usage example with ``--base-dir`` has been improved.
+  
 * :program:`mb list`:
 
   - A new option ``-N|--number-of-files`` has been added, which displays the
@@ -114,19 +143,26 @@ New features:
     might not exist on any mirror, but only locally - so they could be
     referenced in the hash table.
 
+* :program:`mod_mirrorbrain`:
+
+  - There is an additional logging handle which provides details about the
+    request and the response. The Apache module takes note in the subprocess
+    environment what the client requested and which representation of the file
+    was actually sent as response. Those variables can be used for logging with
+    standard Apache CustomLog configuration with e.g. ``want:%{WANT}e
+    give:%{GIVE}e``.
+
+* :program:`mod_autoindex_mb`:
+
+  - The link "Metalink" is no longer displayed. Instead, the link "Mirrors" has
+    been renamed to "Details". 
 
 
-.. FIXME
-
-* take note in the subprocess environment what the client requested and which
-    representation was actually sent. Those variables can be logged with
-    CustomLog want:%{WANT}e give:%{GIVE}e for instance.
-
-
+.. _`issue 6`: http://mirrorbrain.org/issues/issue6
 .. _`issue 14`: http://mirrorbrain.org/issues/issue14
+.. _`issue 37`: http://mirrorbrain.org/issues/issue37
 .. _`issue 38`: http://mirrorbrain.org/issues/issue38
-.. _`Issue 40`: http://mirrorbrain.org/issues/issue40
-.. _`Issue 41`: http://mirrorbrain.org/issues/issue41
+.. _`issue 41`: http://mirrorbrain.org/issues/issue41
 .. _`issue 42`: http://mirrorbrain.org/issues/issue42
 
 
@@ -182,7 +218,6 @@ Bug fixes:
   - Problems that occurred when copying and pasting data on the editing window
     have been fixed (reported in `issue 30`_).
 
-
 * :program:`mirrorprobe`:
 
   - A hard-to-catch exception is now handled. If Python's socket module ran
@@ -194,12 +229,10 @@ Bug fixes:
   - In case of exceptions we run into, allow logging the affected mirror's name.
   - If an unhandled exception occurs, a note is printed.
 
-
 * :program:`null-rsync`:
 
   - Broken links that are replaced by a directory, and point outside the tree,
-    are now correctly removed in the destination tree. (That's a really special
-    case.)
+    are now correctly removed in the destination tree. (A very special case.)
   - Some error messages were improved.
 
 
@@ -223,17 +256,26 @@ Internal changes:
     representation, like hashes that are requested.
   - The message which is logged when no hashes where found in the database has
     been enhanced.
+  - The obsolete support for generation of plaintext mirror lists
+    (application/mirrorlist-txt) has been removed.
+
+* :program:`mb`:
+
+  - Interruptions by Ctrl-C and various other signals are now properly caught.
+  - The error classes have been revamped and modernized for Python 2.6.
+  - The script mirrordoctor.py has been renamed to mb.py, in order to avoid
+    confusion. The tool should now be installed with its own name now, and no
+    further symlinking is needed upon installation. 
 
 * :program:`mb makehashes`:
 
   - Hashes are also stored for files which exists only locally, and not on any
     mirror (and which weren't present in the ``filearr`` table yet, therefore).
+    The cleanup mechanism had to be reworked to take this into account.
 
 
 
 Documentations improvements:
-
-* A few hints about :ref:`tuning_postgresql` were added to the :ref:`tuning`.
 
 * The installation docs have been restructured: Now there's a new section
   explaining the :ref:`initial_configuration`, and this part is linked from all
@@ -241,10 +283,15 @@ Documentations improvements:
   some confusion. Hand in hand with this change, a cleanup of things scattered
   in all places is in progress.
 
+* A few hints about :ref:`tuning_postgresql` were added to the :ref:`tuning`.
+
 * A :ref:`initial_configuration_logging_setup` is described.
  
 * Notes about the necessity of :ref:`initial_configuration_file_tree` have been
   added, and alternatives explained.
+
+* Reasons why or why not to use `mod_asn <http://mirrorbrain.org/mod_asn/>`_
+  are discussed in :ref:`installing_mod_asn`. 
  
 * Installing from Debian packages: There is now a note about expired keys, and
   how to renew them.
