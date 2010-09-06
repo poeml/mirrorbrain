@@ -215,6 +215,11 @@ Bug fixes:
     This may have worked with some FTP servers, but it definitely didn't work
     with vsftpd. Thanks to Deepak Gupta for raising this issue and providing
     means to analyse it.
+  - When using the scanner with ``--enable``, to enable a mirror after
+    scanning, it was counter-intuitive that the redirection to the mirror was
+    not immediately happening. The mirrorprobe first needs to mark the mirror
+    online. The scan tool now does this right away. This issue (`issue 59`_)
+    had repeatedly puzzled people.
 
 * :program:`mb edit`:
 
@@ -245,6 +250,7 @@ Bug fixes:
 .. _`issue 30`: http://mirrorbrain.org/issues/issue30
 .. _`issue 46`: http://mirrorbrain.org/issues/issue46
 .. _`issue 52`: http://mirrorbrain.org/issues/issue52
+.. _`issue 59`: http://mirrorbrain.org/issues/issue59
 
 Internal changes:
 

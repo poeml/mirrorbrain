@@ -1,6 +1,6 @@
 
-Configuring MirrorBrain
-=======================
+Further configuring MirrorBrain
+===============================
 
 This chapter contains notes about important extra things that you may want to
 configure, and also some more exotic configurations.
