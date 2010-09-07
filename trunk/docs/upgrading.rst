@@ -237,9 +237,6 @@ Version-specific upgrade notes
 From 2.12.x to 2.13.0:
 ^^^^^^^^^^^^^^^^^^^^^^
 
-* Debian/Ubuntu users need to install their packages *twice*. This is due to a
-  `packaging bug`_.
-
 * If you created hashes in the past, please edit your :file:`/etc/crontab` and
   replace the calls to the former tool ``metalink-hasher update`` with a call
   to ``mb makehashes``. Example::
@@ -251,8 +248,6 @@ From 2.12.x to 2.13.0:
   past, check the usage examples that come with :program:`mb help makehashes`.
   The option has been rewritten to be easier to use, and it should now be
   easier to get it to do what you want.
-
-.. _`packaging bug`: http://mirrorbrain.org/issues/issue57
 
 
 From 2.11.1 to 2.11.2:
