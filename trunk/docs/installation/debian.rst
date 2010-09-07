@@ -173,13 +173,6 @@ Start the PostgreSQL server::
 
   sudo /etc/init.d/postgresql-8.4 restart
 
-Create needed users and groups
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Create user and group ``mirrorbrain``::
-
-  sudo groupadd -r mirrorbrain
-  sudo useradd -r -m -g mirrorbrain -s /bin/bash -c "MirrorBrain user" -d /home/mirrorbrain mirrorbrain
 
 Import initial mirrorbrain data
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -190,17 +183,6 @@ Import structure and data, running the commands as user mirrorbrain::
   gunzip -c /usr/share/doc/mirrorbrain/sql/schema-postgresql.sql.gz | psql -U mirrorbrain mirrorbrain
   gunzip -c /usr/share/doc/mirrorbrain/sql/initialdata-postgresql.sql.gz | psql -U mirrorbrain mirrorbrain
   exit
-
-
-Create needed directories
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Create the following directory for logs, and give ownership to the new
-mirrorbrain user::
-
-  sudo mkdir /var/log/mirrorbrain
-  sudo chown mirrorbrain:mirrorbrain /var/log/mirrorbrain
-  sudo chmod 0750 /var/log/mirrorbrain
 
 
 Next steps
