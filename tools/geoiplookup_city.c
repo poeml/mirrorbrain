@@ -22,7 +22,7 @@
  * tool to look up city data of an IP address or DNS name
  * using the free city GeoIP database
  *
-/* gcc -g -Wall -lGeoIP -o geoiplookup_city geoiplookup_city.c */
+ * gcc -g -Wall -lGeoIP -o geoiplookup_city geoiplookup_city.c */
 #include <stdio.h>
 #include <GeoIP.h>
 #include <GeoIPCity.h>
