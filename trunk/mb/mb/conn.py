@@ -251,7 +251,7 @@ def servertext2dict(s):
 
     new_attrs = dict()
     for a in mb.conn.server_editable_attrs:
-        m = re.search(r'^%s *: (.*)' % a, 
+        m = re.search(r'^%s *: *(.*)' % a, 
             s, re.MULTILINE)
         if m:
             if m.group(1) != 'None':
