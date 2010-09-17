@@ -3,6 +3,54 @@
 Release Notes/Change History
 ============================
 
+Release 2.13.1 (to be released)
+-------------------------------
+
+This is a minor release, adding some improvements and fixing a bug that sneaked
+into 2.13.0.
+
+* :program:`mb edit`:
+
+  - A problem was fixed that made it impossible to remove an URL by setting it
+    to an empty string. The fix for `issue 30`_) was the culprit. This was a
+    regression that came with the last release (2.13.0), itself tracked in
+    `issue 61`_.
+
+* :program:`mb list/edit/show/...`: 
+
+   - In some situations, the fuzzy-matching on mirror identifiers made it
+     impossible to select certain mirrors. Phillip Smith reported this
+     issue and submitted a clever patch, which retains the convenient
+     behaviour, but also allows for selection mirrors by their full name. 
+     This fixes `issue 61`_.
+  
+* :program:`mb scan`:
+
+  - Scanning lighttpd web servers is now supported. Thanks to patch contributed
+    by Phillip Smith. This fixes `issue 60`_.
+
+
+* Changes regarding packaging:
+
+  - Thanks to the work of Phillip Smith, there are now packages for Arch Linux
+    and the ArchServer distribution.
+
+  - On Debian and Ubuntu, the mirrorbrain user and group are now automatically
+    created by the package, as well as /var/log/mirrorbrain. This simplifies
+    the installation procedure and fixes `issue 4`_.
+
+  - Thanks to the help of Cory Fields, the 2.12 -> 2.13.0 upgrade now works
+    seamlessly on Debian/Ubuntu. Fixing `issue 57`_.
+
+
+
+.. _`issue 4`: http://mirrorbrain.org/issues/issue4
+.. _`issue 30`: http://mirrorbrain.org/issues/issue30
+.. _`issue 57`: http://mirrorbrain.org/issues/issue57
+.. _`issue 60`: http://mirrorbrain.org/issues/issue60
+.. _`issue 61`: http://mirrorbrain.org/issues/issue61
+
+
 
 Release 2.13.0 (r8123, Sep 6, 2010)
 -----------------------------------
