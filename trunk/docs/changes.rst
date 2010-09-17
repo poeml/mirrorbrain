@@ -18,11 +18,11 @@ into 2.13.0.
 
 * :program:`mb list/edit/show/...`: 
 
-   - In some situations, the fuzzy-matching on mirror identifiers made it
-     impossible to select certain mirrors. Phillip Smith reported this
-     issue and submitted a clever patch, which retains the convenient
-     behaviour, but also allows for selection mirrors by their full name. 
-     This fixes `issue 61`_.
+  - In some situations, the fuzzy-matching on mirror identifiers made it
+    impossible to select certain mirrors. Phillip Smith reported this
+    issue and submitted a clever patch, which retains the convenient
+    behaviour, but also allows for selection mirrors by their full name. 
+    This fixes `issue 61`_.
   
 * :program:`mb scan`:
 
