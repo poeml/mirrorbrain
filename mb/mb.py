@@ -586,20 +586,29 @@ class MirrorDoctor(cmdln.Cmdln):
             new_dict = mb.conn.servertext2dict(new)
 
             for i in mb.conn.server_editable_attrs:
-                if not new_dict[i]:
+                if not old_dict[i] and not new_dict[i]:
                     continue
-                elif str(old_dict[i]) != new_dict[i]:
-                    print """changing %s from '%s' to '%s'""" \
-                            % (i, old_dict[i], new_dict[i])
+
+                if ( old_dict[i] and not new_dict[i] ) or \
+                   ( str(old_dict[i]) != new_dict[i] ):
+
+                    if not new_dict[i]:
+                        print 'unsetting %s (was: %r)' % (i, old_dict[i])
+                    else:
+                        print 'changing %s from %r to %r' % (i, old_dict[i], new_dict[i])
+
                     a = new_dict[i]
                     if a == 'False': a = False
                     if a == 'True': a = True
+                    if a == None: a = ''
                     if type(getattr(mirror, i)) in [type(1L), type(1), bool]:
                         try:
                             a = int(a)
                         except ValueError:
                             a = 0
                     setattr(mirror, i, a)
+                #else:
+                #    print 'unchanged: %s' % i
 
 
 
