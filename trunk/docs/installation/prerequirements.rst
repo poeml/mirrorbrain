@@ -47,6 +47,9 @@ Debian
 Ubuntu
     Apache is new enough and known to work at least since *9.04*.
     
+Arch Linux
+    Has a new enough Apache.
+
 Gentoo
     Has a new enough Apache.
 
