@@ -269,7 +269,11 @@ def servertext2dict(s):
     
 
 def servers_match(server, match):
-    servers = server.select("""identifier LIKE '%%%s%%'""" % match)
+    servers = server.select("""identifier = '%s'""" % match)
+
+    if len(list(servers)) == 0:
+        servers = server.select("""identifier LIKE '%%%s%%'""" % match)
+
     return list(servers)
 
 
