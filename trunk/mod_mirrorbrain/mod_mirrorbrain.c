@@ -1081,7 +1081,7 @@ static int mb_handler(request_rec *r)
     const char *clientip = NULL;
     const char *query_country = NULL;
     char *query_asn = NULL;
-    char fakefile = 0, newmirror = 0;
+    char fakefile = 0, newmirror = 0, only_hash = 0;
     int rep = UNKNOWN;                          /* type of a requested representation */
     char *rep_ext = NULL;                       /* extension string of a requested representation */
     char meta_negotiated = 0;                   /* a metalink representation was chosed by negotiation, i.e.
@@ -1185,6 +1185,7 @@ static int mb_handler(request_rec *r)
         if (form_lookup(r, "sha1"))    { rep = SHA1;    rep_ext = reps[SHA1].ext; };
         if (form_lookup(r, "sha256"))  { rep = SHA256;  rep_ext = reps[SHA256].ext; };
         if (form_lookup(r, "btih"))    { rep = BTIH;    rep_ext = reps[BTIH].ext; };
+        if (form_lookup(r, "only_hash")) { only_hash = 1; };
     }
     
     if (!query_country 
@@ -1560,7 +1561,12 @@ static int mb_handler(request_rec *r)
 
         if (h && h[0]) {
             ap_set_content_type(r, "text/plain; charset=UTF-8");
-            ap_rprintf(r, "%s  %s\n", h, basename);
+            if (only_hash) {
+                ap_rprintf(r, "%s\n", h);
+            }
+            else {
+                ap_rprintf(r, "%s  %s\n", h, basename);
+            }
             setenv_give(r, reps[rep].ext);
             return OK;
         }
