@@ -3,11 +3,12 @@
 Release Notes/Change History
 ============================
 
-Release 2.13.1 (to be released)
--------------------------------
+
+Release 2.13.1 (r8136, Sep 18, 2010)
+------------------------------------
 
 This is a minor release, adding some improvements and fixing a bug that sneaked
-into 2.13.0.
+into the last release.
 
 * :program:`mb edit`:
 
@@ -41,7 +42,6 @@ into 2.13.0.
 
   - Thanks to the help of Cory Fields, the 2.12 -> 2.13.0 upgrade now works
     seamlessly on Debian/Ubuntu. Fixing `issue 57`_.
-
 
 
 .. _`issue 4`: http://mirrorbrain.org/issues/issue4
