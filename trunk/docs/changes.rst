@@ -13,7 +13,7 @@ into the last release.
 * :program:`mb edit`:
 
   - A problem was fixed that made it impossible to remove an URL by setting it
-    to an empty string. The fix for `issue 30`_) was the culprit. This was a
+    to an empty string. The fix for `issue 30`_ was the culprit. This was a
     regression that came with the last release (2.13.0), itself tracked in
     `issue 61`_.
 
