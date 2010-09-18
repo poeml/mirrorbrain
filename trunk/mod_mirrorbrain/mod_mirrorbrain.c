@@ -1560,7 +1560,7 @@ static int mb_handler(request_rec *r)
 
         if (h && h[0]) {
             ap_set_content_type(r, "text/plain; charset=UTF-8");
-            ap_rprintf(r, "%s %s\n", h, basename);
+            ap_rprintf(r, "%s  %s\n", h, basename);
             setenv_give(r, reps[rep].ext);
             return OK;
         }
