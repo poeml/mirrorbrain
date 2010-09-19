@@ -251,6 +251,7 @@ typedef struct
     const char *mirrorlist_stylesheet;
     const char *mirrorlist_header;
     const char *mirrorlist_footer;
+    int only_hash;
     const char *query;
     const char *query_label;
     const char *query_hash;
@@ -433,6 +434,7 @@ static void *create_mb_server_config(apr_pool_t *p, server_rec *s)
     new->mirrorlist_stylesheet = NULL;
     new->mirrorlist_header = NULL;
     new->mirrorlist_footer = NULL;
+    new->only_hash = UNSET;
     new->query = DEFAULT_QUERY;
     new->query_label = NULL;
     new->query_hash = DEFAULT_QUERY_HASH;
@@ -464,6 +466,7 @@ static void *merge_mb_server_config(apr_pool_t *p, void *basev, void *addv)
     cfgMergeString(mirrorlist_stylesheet);
     cfgMergeString(mirrorlist_header);
     cfgMergeString(mirrorlist_footer);
+    cfgMergeBool(only_hash);
     mrg->query = (add->query != (char *) DEFAULT_QUERY) ? add->query : base->query;
     cfgMergeString(query_label);
     mrg->query_hash = (add->query_hash != (char *) DEFAULT_QUERY_HASH) 
@@ -713,6 +716,17 @@ static const char *mb_cmd_dht_node(cmd_parms *cmd, void *config,
     new->port = atoi(apr_pstrdup(cmd->pool, arg2));
     if (new->port <= 0)
         return "MirrorBrainDHTNode requires a positive integer as second argument (server port).";
+    return NULL;
+}
+
+static const char *mb_cmd_hashes_suppress_filenames(cmd_parms *cmd, void *config,
+                                       int flag)
+{
+    server_rec *s = cmd->server;
+    mb_server_conf *cfg = 
+        ap_get_module_config(s->module_config, &mirrorbrain_module);
+
+    cfg->only_hash = flag;
     return NULL;
 }
 
@@ -1589,7 +1603,7 @@ static int mb_handler(request_rec *r)
 
         if (h && h[0]) {
             ap_set_content_type(r, "text/plain; charset=UTF-8");
-            if (only_hash) {
+            if (only_hash || (scfg->only_hash == 1) ) {
                 ap_rprintf(r, "%s\n", h);
             }
             else {
@@ -3272,6 +3286,12 @@ static const command_rec mb_cmds[] =
                   RSRC_CONF, 
                   "Prefix this path when looking for prepared hashes to inject into metalinks. "
                   "This directive is obsolete (with 2.13.0) and is going to be removed later."),
+
+    AP_INIT_FLAG("MirrorBrainHashesSuppressFilenames", mb_cmd_hashes_suppress_filenames, NULL,
+                  RSRC_CONF, 
+                  "Set to On to suppress the filename included when hashes are sent. "
+                  "Normally, they come as \"99eaed37390ba0571f8d285829ff63fc  foobar\" "
+                  "as in the format well-known from the md5sum/sha1sum tools. Default: Off"),
 
     AP_INIT_TAKE2("MirrorBrainMetalinkPublisher", mb_cmd_metalink_publisher, NULL, 
                   RSRC_CONF, 
