@@ -36,6 +36,10 @@ you will enjoy:
     Instead of ``99eaed37390ba0571f8d285829ff63fc  du.list``, the server will
     just return ``99eaed37390ba0571f8d285829ff63fc``.
 
+  - The filename in hashes can also be suppressed site-wide (and therewith, on
+    the server side) with a new Apache config directive
+    ``MirrorBrainHashesSuppressFilenames On``. It goes into virtualhost context.
+
   - When sending out a hash to a client (as requested by appending e.g.
     ``.md5``), there is now a *double* space between hash and filename -- just
     like as the familiar tools like :program:`md5sum` and :program:`sha1sum` do
