@@ -530,16 +530,17 @@ With this, it is straighforward to deploy mirmon and automate it to use the
 mirrors from the database. Thus, no separate list of mirrors needs to be
 maintained for it.
 
-The command ``mb export --format=mirmon`` generates the list, which can be
-directly included in the mirmon configuration::
+The command ``mb export --format=mirmon`` generates the list that mirmon needs,
+which basically looks like this::
+
 
      % mb export --format=mirmon | head
-    http    de      http://ftp-stud.fht-esslingen.de/pub/Mirrors/ftp.opensuse.org/  <...@...>
-    ftp     de      ftp://ftp-stud.fht-esslingen.de/pub/Mirrors/ftp.opensuse.org/   <...@...>
-    rsync   de      rsync://ftp-stud.fht-esslingen.de/opensuse/     <...@...>
-    http    us      http://mirror.anl.gov/pub/opensuse/opensuse/    <...@...>
-    ftp     us      ftp://mirror.anl.gov/pub/opensuse/opensuse/     <...@...>
-    rsync   us      rsync://mirror.anl.gov/opensuse/opensuse/       <...@...>
+    de      http://ftp-stud.fht-esslingen.de/pub/Mirrors/ftp.opensuse.org/  <...@...>
+    de      ftp://ftp-stud.fht-esslingen.de/pub/Mirrors/ftp.opensuse.org/   <...@...>
+    de      rsync://ftp-stud.fht-esslingen.de/opensuse/     <...@...>
+    us      http://mirror.anl.gov/pub/opensuse/opensuse/    <...@...>
+    us      ftp://mirror.anl.gov/pub/opensuse/opensuse/     <...@...>
+    us      rsync://mirror.anl.gov/opensuse/opensuse/       <...@...>
     ...
 
 
@@ -548,34 +549,47 @@ like. Note the ``mirror_list`` line which pulls the generated list in::
 
     project_name example.org
     project_url http://www.example.org/mirrors/
-    mirror_list /home/mirrorbrain/mirmon/mirrorlist-export
+    mirror_list /usr/bin/mb export --format=mirmon |
     web_page /var/www/example.org/mirmon/index.html
     icons icons
     probe /usr/bin/wget -q -O - -T %TIMEOUT% -t 1 %URL%timestamp.txt
     state /home/mirrorbrain/mirmon/state
-    countries /usr/local/mirmon-1.38/countries.list
+    countries /usr/local/mirmon-2.3/countries.list
     project_logo http://www.example.org/images/logo.gif
-    list_style apache
+    list_style plain
     timeout 20
 
 
 The cron job to create the list and run mirmon would look like this::
 
-    30 * * * *   mirrorbrain    mb export --format=mirmon > /home/mirrorbrain/mirmon/mirrorlist-export; \
-                                perl /usr/local/mirmon-1.38/mirmon -q -get update -c /etc/mirmon.conf
+    30 * * * *   mirrorbrain    perl /usr/local/mirmon-2.3/mirmon -q -get update -c /etc/mirmon.conf
 
 Note: when mirmon is run for the first time, the state file needs to be
 touched, or the script will not run.
 
 The icons which are included in the resulting HTML page need to made available by Apache::
 
-    Alias /mirmon/icons /usr/local/mirmon-1.38/icons
-    <Directory /usr/local/mirmon-1.38/icons>
+    Alias /mirmon/icons /usr/local/mirmon-2.3/icons
+    <Directory /usr/local/mirmon-2.3/icons>
         Options None
         AllowOverride None
         Order allow,deny
         Allow from all
     </Directory>
+
+
+Further tips:
+
+1) If your mirmon is configured with ``list_style apache`` instead of
+   ``list_style plain``, a different mirror list format is needed; use
+   :program:`mb export` with the ``mb export --format=mirmon-apache`` option
+   then.
+
+2) If you prefer to run :program:`mb export` under a different user id than
+   mirmon, you can write the mirror list to an intermediate file, and configure
+   mirmon to use the file like this::
+
+     mirror_list /path/to/mirmon/mirrorlist-export
 
 
 
