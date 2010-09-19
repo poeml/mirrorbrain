@@ -58,4 +58,7 @@ if c:
 
 """
 
-mirmon_template = """%(proto)s\t%(country)s\t%(url)s\t%(adminEmail)s"""
+# mirmon configured with "list_style = apache"
+mirmon_apache_template = """%(proto)s\t%(country)s\t%(url)s\t%(adminEmail)s"""
+# mirmon configured with "list_style = plain"
+mirmon_template = """%(country)s\t%(url)s\t%(adminEmail)s"""

@@ -1485,7 +1485,7 @@ class MirrorDoctor(cmdln.Cmdln):
     @cmdln.option('--target-dir', metavar='PATH',
                   help='For the "vcs" output format, specify a target directory to place files into')
     @cmdln.option('--format', metavar='FORMAT',
-            help='Specify the output format: [django|postgresql|mirmon|vcs]')
+            help='Specify the output format: [django|postgresql|mirmon|mirmon-apache|vcs]')
     def do_export(self, subcmd, opts, *args):
         """${cmd_name}: export the mirror list as text file
 
@@ -1497,7 +1497,8 @@ class MirrorDoctor(cmdln.Cmdln):
         database.
 
         Format "mirmon" creates a list of mirrors to be included in a mirmon
-        configuration.
+        configuration. "mirmon-apache" uses a different format, used when
+        mirmon is configured with its option "list_style = apache".
 
         Format "vcs" generates a file tree which can be imported/committed into
         a version control system (VCS). This can be used to periodically dump
@@ -1535,7 +1536,7 @@ class MirrorDoctor(cmdln.Cmdln):
         elif opts.format == 'postgresql':
             print mb.exports.postgresql_header
 
-        elif opts.format == 'mirmon':
+        elif opts.format in ['mirmon', 'mirmon-apache']:
             pass
 
         elif opts.format == 'vcs':
@@ -1576,14 +1577,19 @@ class MirrorDoctor(cmdln.Cmdln):
             elif opts.format == 'postgresql':
                 print mb.exports.postgresql_template % d
 
-            elif opts.format == 'mirmon':
+            elif opts.format in ['mirmon', 'mirmon-apache']:
+                if opts.format == 'mirmon':
+                    mirmon_template = mb.exports.mirmon_template
+                elif opts.format == 'mirmon-apache':
+                    mirmon_template = mb.exports.mirmon_apache_template
+
                 if not m.enabled:
                     continue
                 for proto, urlname in [('http', 'baseurl'), 
                                        ('ftp', 'baseurlFtp'),
                                        ('rsync', 'baseurlRsync')]:
                     if d[urlname]:
-                        print mb.exports.mirmon_template \
+                        print mirmon_template \
                                 % dict(proto=proto, 
                                        url=d[urlname], 
                                        adminEmail=d['adminEmail'],
