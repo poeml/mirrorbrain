@@ -372,6 +372,10 @@ Creating a virtual host
 
 Maybe create a DNS alias for your web host, if needed.
 
+.. note::
+   A complete reference of all Apache directives can be found `here
+   <http://svn.mirrorbrain.org/viewvc/mirrorbrain/trunk/mod_mirrorbrain/mod_mirrorbrain.conf?view=markup>`_.
+
 The following snippet would create a new site as virtual host::
 
   sudo sh -c "cat > /etc/apache2/sites-available/mirrorbrain << EOF
