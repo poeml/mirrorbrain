@@ -4,6 +4,62 @@ Release Notes/Change History
 ============================
 
 
+Release 2.13.2 (to be done)
+------------------------------------
+
+This release adds worthwhile new features to the mirror list generator that
+you will enjoy:
+
+* :program:`mod_mirrorbrain`:
+
+  - The content of the mirror lists (details pages) are now wrapped into a
+    XHTML/HTML ``DIV`` container with ``id="mirrorbrain-details"``. This
+    improves the possibilities for styling in conjunction with a stylesheet
+    linked in via the ``MirrorBrainMirrorlistStyleSheet`` directive (`issue
+    63`_).
+
+  - Further individual design can now be achieved by specifying the XHTML/HTML
+    header and footer which are placed around the page body instead of the
+    built-in XHTML (`issue 63`_). This is configured with two new Apache
+    configuration directives.
+
+    This is documented here: :ref:`styling_details_pages`.
+
+  - Hashes can now be requested without a filename being included in the
+    response, to simplify parsing (`issue 68`_). This is done by sending the
+    query string ``only_hash``. This works with different ways to request a
+    hash::
+
+      http://host.example.com/foo.md5?only_hash 
+      http://host.example.com/foo?md5&only_hash
+
+    Instead of ``99eaed37390ba0571f8d285829ff63fc  du.list``, the server will
+    just return ``99eaed37390ba0571f8d285829ff63fc``.
+
+  - When sending out a hash to a client (as requested by appending e.g.
+    ``.md5``), there is now a *double* space between hash and filename -- just
+    like as the familiar tools like :program:`md5sum` and :program:`sha1sum` do
+    it. This should avoid confusion and extra effort in parsing.
+
+  - The mirror list's content type header now comes with UTF-8 as character
+    set, instead of ISO-8859-1, which should make more sense.
+
+* :program:`mb export --format=mirmon`:
+
+  - Exporting a mirror list for `mirmon
+    <http://people.cs.uu.nl/henkp/mirmon/>`_ has been adjusted to the default
+    in mirmon-2.3 of its option ``list_style=plain``. The other format
+    (``list_style=apache``) can also be generated, if mb export is used with
+    ``--format=mirmon-apache``. This fixes `issue 62`_.
+
+    The documentation :ref:`export_mirmon` has been updated to reflect this.
+
+
+.. _`issue 62`: http://mirrorbrain.org/issues/issue62
+.. _`issue 63`: http://mirrorbrain.org/issues/issue63
+.. _`issue 68`: http://mirrorbrain.org/issues/issue68
+
+
 Release 2.13.1 (r8136, Sep 18, 2010)
 ------------------------------------
 
