@@ -212,6 +212,37 @@ Implementation notes:
   of course.  Contributions welcome!
 
 
+.. _styling_details_pages:
+
+Styling the mirrorlist / details pages
+--------------------------------------
+
+MirrorBrain generates per-file pages with all known metadata and a list of
+mirrors. This is triggered by appending ``.mirrorlist`` or ``?mirrorlist`` to a
+request. The pages are delivered with character set UTF-8 in the Content-type
+header.
+
+The content of these pages are wrapped into a XHTML/HTML ``DIV`` container with
+``id="mirrorbrain-details"``. This gives a means for styling in conjunction
+with a stylesheet linked in via the ``MirrorBrainMirrorlistStyleSheet``
+Apache config directive. ``MirrorBrainMirrorlistStyleSheet`` goes into
+virtualhost context and takes an URL, which can be relative or absolute.
+Either of the following would work::
+
+    MirrorBrainMirrorlistStyleSheet "http://www.poeml.de/~poeml/mirrorbrain.css"
+    MirrorBrainMirrorlistStyleSheet "/mirrorbrain.css"
+
+Further, arbitrary design can be achieved by specifying the XHTML/HTML
+header and footer which are placed around the page body instead of the built-in
+XHTML. This is configured with the following two Apache configuration
+directives, which go into virtualhost context::
+
+    # Absolute path to header to be included at the top
+    MirrorBrainMirrorlistHeader /srv/www/htdocs/mb-header.html
+
+    # Absolute path to footer to be appended
+    MirrorBrainMirrorlistFooter /srv/www/htdocs/mb-footer.html
+
 
 Using mod_mirrorbrain without GeoIP
 -----------------------------------
