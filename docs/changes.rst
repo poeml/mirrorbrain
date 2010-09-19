@@ -4,7 +4,7 @@ Release Notes/Change History
 ============================
 
 
-Release 2.13.2 (to be done)
+Release 2.13.2 (r8153, Sep 19, 2010)
 ------------------------------------
 
 This release adds worthwhile new features to the mirror list generator that
