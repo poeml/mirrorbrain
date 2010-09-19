@@ -249,6 +249,8 @@ typedef struct
     apr_array_header_t *dhtnodes;
     const char *metalink_broken_test_mirrors;
     const char *mirrorlist_stylesheet;
+    const char *mirrorlist_header;
+    const char *mirrorlist_footer;
     const char *query;
     const char *query_label;
     const char *query_hash;
@@ -429,6 +431,8 @@ static void *create_mb_server_config(apr_pool_t *p, server_rec *s)
     new->dhtnodes = apr_array_make(p, 5, sizeof (dhtnode_t));
     new->metalink_broken_test_mirrors = NULL;
     new->mirrorlist_stylesheet = NULL;
+    new->mirrorlist_header = NULL;
+    new->mirrorlist_footer = NULL;
     new->query = DEFAULT_QUERY;
     new->query_label = NULL;
     new->query_hash = DEFAULT_QUERY_HASH;
@@ -458,6 +462,8 @@ static void *merge_mb_server_config(apr_pool_t *p, void *basev, void *addv)
     mrg->dhtnodes = apr_array_append(p, base->dhtnodes, add->dhtnodes);
     cfgMergeString(metalink_broken_test_mirrors);
     cfgMergeString(mirrorlist_stylesheet);
+    cfgMergeString(mirrorlist_header);
+    cfgMergeString(mirrorlist_footer);
     mrg->query = (add->query != (char *) DEFAULT_QUERY) ? add->query : base->query;
     cfgMergeString(query_label);
     mrg->query_hash = (add->query_hash != (char *) DEFAULT_QUERY_HASH) 
@@ -658,6 +664,28 @@ static const char *mb_cmd_metalink_publisher(cmd_parms *cmd, void *config,
 
     cfg->metalink_publisher_name = arg1;
     cfg->metalink_publisher_url = arg2;
+    return NULL;
+}
+
+static const char *mb_cmd_mirrorlist_header(cmd_parms *cmd, void *config, 
+                                            const char *arg1)
+{
+    server_rec *s = cmd->server;
+    mb_server_conf *cfg = 
+        ap_get_module_config(s->module_config, &mirrorbrain_module);
+
+    cfg->mirrorlist_header = arg1;
+    return NULL;
+}
+
+static const char *mb_cmd_mirrorlist_footer(cmd_parms *cmd, void *config, 
+                                            const char *arg1)
+{
+    server_rec *s = cmd->server;
+    mb_server_conf *cfg = 
+        ap_get_module_config(s->module_config, &mirrorbrain_module);
+
+    cfg->mirrorlist_footer = arg1;
     return NULL;
 }
 
@@ -2512,17 +2540,40 @@ static int mb_handler(request_rec *r)
         setenv_give(r, "mirrorlist");
         debugLog(r, cfg, "Sending mirrorlist");
 
-        ap_set_content_type(r, "text/html; charset=ISO-8859-1");
-        ap_rputs(DOCTYPE_XHTML_1_0T
-                 "<html xmlns=\"http://www.w3.org/1999/xhtml\">\n"
-                 "<head>\n"
-                 "  <title>Mirror List</title>\n", r);
-        if (scfg->mirrorlist_stylesheet) {
-            ap_rprintf(r, "  <link type=\"text/css\" rel=\"stylesheet\" href=\"%s\" />\n",
-                       scfg->mirrorlist_stylesheet);
+        if (scfg->mirrorlist_header) {
+            /* send the configured custom header */
+            apr_file_t *fh;
+            rv = apr_stat(&sb, scfg->mirrorlist_header, APR_FINFO_MIN, r->pool);
+            if (rv != APR_SUCCESS) {
+                ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r, 
+                              "[mod_mirrorbrain] could not stat mirrorlist header file '%s'.", 
+                              scfg->mirrorlist_header);
+            } else {
+                rv = apr_file_open(&fh, scfg->mirrorlist_header, APR_READ, APR_OS_DEFAULT, r->pool);
+                if (rv == APR_SUCCESS) {
+                    ap_send_fd(fh, r, 0, sb.size, &len);
+                    apr_file_close(fh);
+                } else {
+                    ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+                                  "[mod_mirrorbrain] could not open mirrorlist header '%s'.", 
+                                  scfg->mirrorlist_header);
+                }
+            }
+        } else {
+            /* standard header */
+            ap_set_content_type(r, "text/html; charset=ISO-8859-1");
+            ap_rputs(DOCTYPE_XHTML_1_0T
+                     "<html xmlns=\"http://www.w3.org/1999/xhtml\">\n"
+                     "<head>\n"
+                     "  <title>Mirror List</title>\n", r);
+            if (scfg->mirrorlist_stylesheet) {
+                ap_rprintf(r, "  <link type=\"text/css\" rel=\"stylesheet\" href=\"%s\" />\n",
+                           scfg->mirrorlist_stylesheet);
+            }
+            ap_rputs("</head>\n\n" "<body>\n", r);
         }
-        ap_rputs("</head>\n\n" "<body>\n", r);
 
+        ap_rputs("<div id=\"mirrorbrain-details\">\n", r);
         ap_rprintf(r, "  <h2>Mirrors for <a href=\"http://%s%s\">http://%s%s</a></h2>\n" 
                    "  <br/>\n", 
                    r->hostname, r->uri, r->hostname, r->uri);
@@ -2696,9 +2747,31 @@ static int mb_handler(request_rec *r)
             }
             ap_rputs("  </ul>\n", r);
         }
+        ap_rputs("</div> <!-- mirrorbrain-details -->\n", r);
 
-        ap_rputs("</body>\n", r);
-        ap_rputs("</html>\n", r);
+        if (scfg->mirrorlist_footer) {
+            /* send the configured custom footer */
+            apr_file_t *fh;
+            rv = apr_stat(&sb, scfg->mirrorlist_footer, APR_FINFO_MIN, r->pool);
+            if (rv != APR_SUCCESS) {
+                ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r, 
+                              "[mod_mirrorbrain] could not stat mirrorlist footer file '%s'.", 
+                              scfg->mirrorlist_footer);
+            } else {
+                rv = apr_file_open(&fh, scfg->mirrorlist_footer, APR_READ, APR_OS_DEFAULT, r->pool);
+                if (rv == APR_SUCCESS) {
+                    ap_send_fd(fh, r, 0, sb.size, &len);
+                    apr_file_close(fh);
+                } else {
+                    ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+                                  "[mod_mirrorbrain] could not open mirrorlist footer '%s'.", 
+                                  scfg->mirrorlist_footer);
+                }
+            }
+        } else {
+            ap_rputs("</body>\n", r);
+            ap_rputs("</html>\n", r);
+        }
         return OK;
 
     case TORRENT:
@@ -3222,6 +3295,14 @@ static const command_rec mb_cmds[] =
     AP_INIT_TAKE1("MirrorBrainMirrorlistStyleSheet", mb_cmd_mirrorlist_stylesheet, NULL, 
                   RSRC_CONF, 
                   "Sets a CSS stylesheet to add to mirror lists"),
+    AP_INIT_TAKE1("MirrorBrainMirrorlistHeader", mb_cmd_mirrorlist_header, NULL, 
+                  RSRC_CONF, 
+                  "Absolute path to header to be included at the top of the mirror "
+                  "lists/details page, instead of the built-in header."),
+    AP_INIT_TAKE1("MirrorBrainMirrorlistFooter", mb_cmd_mirrorlist_footer, NULL, 
+                  RSRC_CONF, 
+                  "Absolute path to footer to be appended to the mirror "
+                  "lists/details pages, instead of the built-in footer."),
 
     { NULL }
 };
