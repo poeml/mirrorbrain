@@ -1249,7 +1249,7 @@ static int mb_handler(request_rec *r)
 
     if (clientip) {
         debugLog(r, cfg, "obsolete clientip address parameter: '%s'", clientip);
-        ap_set_content_type(r, "text/html; charset=ISO-8859-1");
+        ap_set_content_type(r, "text/html; charset=UTF-8");
         ap_rputs(DOCTYPE_XHTML_1_0T
                  "<html xmlns=\"http://www.w3.org/1999/xhtml\">\n"
                  "<head>\n"
@@ -2540,6 +2540,8 @@ static int mb_handler(request_rec *r)
         setenv_give(r, "mirrorlist");
         debugLog(r, cfg, "Sending mirrorlist");
 
+        ap_set_content_type(r, "text/html; charset=UTF-8");
+
         if (scfg->mirrorlist_header) {
             /* send the configured custom header */
             apr_file_t *fh;
@@ -2561,7 +2563,6 @@ static int mb_handler(request_rec *r)
             }
         } else {
             /* standard header */
-            ap_set_content_type(r, "text/html; charset=ISO-8859-1");
             ap_rputs(DOCTYPE_XHTML_1_0T
                      "<html xmlns=\"http://www.w3.org/1999/xhtml\">\n"
                      "<head>\n"
