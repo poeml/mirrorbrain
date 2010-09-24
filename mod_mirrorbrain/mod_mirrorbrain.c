@@ -1304,6 +1304,7 @@ static int mb_handler(request_rec *r)
                 return DECLINED;
             } 
 
+            rep = UNKNOWN;
             for (i = 0; reps[i].ext; i++) {
                 if (strcmp(ext + 1, reps[i].ext) == 0) {
                     rep = i;
