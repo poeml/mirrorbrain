@@ -2832,24 +2832,23 @@ static int mb_handler(request_rec *r)
         ap_rprintf(r,     "4:info"
                               "d"
                                   "6:length"
-                                      "i%se" 
-                                  "4:name"
+                                      "i%se", 
+                                      apr_off_t_toa(r->pool, r->finfo.size));
+        ap_rprintf(r,             "6:md5sum"
+                                      "%d:%s", MD5_DIGESTSIZE * 2, hashbag->md5hex);
+        ap_rprintf(r,             "4:name"
                                       "%d:%s"
                                   "12:piece length"
                                       "i%de"
                                   "6:pieces"
-                                      "%d:", apr_off_t_toa(r->pool, r->finfo.size),
-                                             strlen(basename), 
+                                      "%d:", strlen(basename), 
                                              basename,
                                              hashbag->sha1piecesize,
                                              (hashbag->sha1pieceshex->nelts * SHA1_DIGESTSIZE));
-
         char **p = (char **)hashbag->sha1pieceshex->elts;
         for (i = 0; i < hashbag->sha1pieceshex->nelts; i++) {
             ap_rwrite(hex_decode(r, p[i], SHA1_DIGESTSIZE), SHA1_DIGESTSIZE, r);
         }
-        ap_rprintf(r,             "6:md5sum"
-                                      "%d:%s", MD5_DIGESTSIZE * 2, hashbag->md5hex);
         ap_rprintf(r,             "4:sha1"
                                       "%d:", SHA1_DIGESTSIZE);
         ap_rwrite(                    hex_decode(r, hashbag->sha1hex, SHA1_DIGESTSIZE), 
