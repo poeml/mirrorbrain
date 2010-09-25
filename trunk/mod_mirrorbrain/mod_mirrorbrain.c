@@ -2826,6 +2826,10 @@ static int mb_handler(request_rec *r)
                           /* This is meant to be the creation time of the torrent, 
                            * but let's take the mtime of the file since we can generate the
                            * torrent any time */
+        ap_rprintf(r,     "10:created by"
+                              "%d:MirrorBrain/%s", 
+                              strlen("MirrorBrain/") + strlen(MOD_MIRRORBRAIN_VER), 
+                              MOD_MIRRORBRAIN_VER);
         ap_rprintf(r,     "13:creation date"
                               "i%se", apr_itoa(r->pool, apr_time_sec(r->finfo.mtime)));
 
