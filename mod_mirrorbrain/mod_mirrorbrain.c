@@ -248,6 +248,7 @@ typedef struct
     apr_array_header_t *tracker_urls;
     apr_array_header_t *dhtnodes;
     const char *metalink_broken_test_mirrors;
+    int metalink_magnets;
     const char *mirrorlist_stylesheet;
     const char *mirrorlist_header;
     const char *mirrorlist_footer;
@@ -431,6 +432,7 @@ static void *create_mb_server_config(apr_pool_t *p, server_rec *s)
     new->tracker_urls = apr_array_make(p, 5, sizeof (char *));
     new->dhtnodes = apr_array_make(p, 5, sizeof (dhtnode_t));
     new->metalink_broken_test_mirrors = NULL;
+    new->metalink_magnets = UNSET;
     new->mirrorlist_stylesheet = NULL;
     new->mirrorlist_header = NULL;
     new->mirrorlist_footer = NULL;
@@ -463,6 +465,7 @@ static void *merge_mb_server_config(apr_pool_t *p, void *basev, void *addv)
     mrg->tracker_urls = apr_array_append(p, base->tracker_urls, add->tracker_urls);
     mrg->dhtnodes = apr_array_append(p, base->dhtnodes, add->dhtnodes);
     cfgMergeString(metalink_broken_test_mirrors);
+    cfgMergeBool(metalink_magnets);
     cfgMergeString(mirrorlist_stylesheet);
     cfgMergeString(mirrorlist_header);
     cfgMergeString(mirrorlist_footer);
@@ -739,6 +742,18 @@ static const char *mb_cmd_metalink_broken_test_mirrors(cmd_parms *cmd,
         ap_get_module_config(s->module_config, &mirrorbrain_module);
 
     cfg->metalink_broken_test_mirrors = arg1;
+    return NULL;
+}
+
+static const char *mb_cmd_metalink_magnet_links(cmd_parms *cmd, 
+                                                void *config, 
+                                                int flag)
+{
+    server_rec *s = cmd->server;
+    mb_server_conf *cfg = 
+        ap_get_module_config(s->module_config, &mirrorbrain_module);
+
+    cfg->metalink_magnets = flag;
     return NULL;
 }
 
@@ -2396,20 +2411,18 @@ static int mb_handler(request_rec *r)
                        r->uri);
         }
 
-        switch (rep) {
-        case META4:
-            /* inclusion of torrents and other metaurls should probably happen here 
-             *
-             * restrict the use of the new metaurl element to new metalinks */
+        if ((scfg->metalink_magnets == 1) && (hashbag != NULL) && (magnet != NULL)) {
+            switch (rep) {
+            case META4:
+                /* inclusion of torrents and other metaurls should probably happen here 
+                 *
+                 * restrict the use of the new metaurl element to new metalinks */
 
-            /* <metaurl mediatype="torrent">http://example.com/example.ext.torrent</metaurl> */
-            ap_rputs("\n\n    <!-- Meta URLs -->\n", r);
-            if (hashbag != NULL && magnet != NULL) {
+                /* <metaurl mediatype="torrent">http://example.com/example.ext.torrent</metaurl> */
+                ap_rputs("\n\n    <!-- Meta URLs -->\n", r);
                 ap_rprintf(r, "    <metaurl mediatype=\"torrent\">%s</metaurl>\n", magnet);
-            }
-            break;
-        case METALINK:
-            if (hashbag != NULL && magnet != NULL) {
+                break;
+            case METALINK:
                 ap_rprintf(r, "    <url type=\"bittorrent\" preference=\"%d\">%s</url>\n\n", 
                            100, magnet);
             }
@@ -3310,6 +3323,10 @@ static const command_rec mb_cmds[] =
                   "Define a DHT node to be included in Torrents "
                   "links. Directive can be repeated to specify multiple nodes, and takes "
                   "two arguments (hostname, port)."),
+
+    AP_INIT_FLAG("MirrorBrainMetalinkMagnetLinks", mb_cmd_metalink_magnet_links, NULL, 
+                  RSRC_CONF, 
+                  "If set to On, Magnet links will be included in Metalinks. Default is Off."),
 
     AP_INIT_TAKE1("MirrorBrainMetalinkBrokenTestMirrors", mb_cmd_metalink_broken_test_mirrors, NULL, 
                   RSRC_CONF, 
