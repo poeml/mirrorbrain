@@ -2861,6 +2861,18 @@ static int mb_handler(request_rec *r)
         /* end of info hash: */
         ap_rputs(             "e", r);
 
+        if (!apr_is_empty_array(scfg->dhtnodes)) {
+
+            ap_rputs(     "5:nodes"
+                              "l", r);
+            for (i = 0; i < scfg->dhtnodes->nelts; i++) {
+                dhtnode_t node = ((dhtnode_t *) scfg->dhtnodes->elts)[i];
+                ap_rprintf(r,     "l" "%d:%s" "i%de" "e", strlen(node.name), node.name, 
+                                                         node.port);
+            }
+            ap_rputs(     "e", r);
+        }
+
         /* Web seeds
          *
          * There's a trick: send this stuff _after_ the sha1 pieces. 
@@ -2948,17 +2960,6 @@ static int mb_handler(request_rec *r)
             }
         }
 
-        if (!apr_is_empty_array(scfg->dhtnodes)) {
-
-            ap_rputs(     "e"
-                          "5:nodes"
-                              "l", r);
-            for (i = 0; i < scfg->dhtnodes->nelts; i++) {
-                dhtnode_t node = ((dhtnode_t *) scfg->dhtnodes->elts)[i];
-                ap_rprintf(r,     "l" "%d:%s" "i%de" "e", strlen(node.name), node.name, 
-                                                         node.port);
-            }
-        }
         ap_rputs(         "e", r);
 
         ap_rputs(     "e", r);
