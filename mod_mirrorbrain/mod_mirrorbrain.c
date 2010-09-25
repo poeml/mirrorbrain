@@ -2935,12 +2935,12 @@ static int mb_handler(request_rec *r)
 #endif
 
             if (!apr_is_empty_array(m)) {
-                ap_rputs(         "8:url-listl", r);
+                ap_rputs(         "7:sourcesl", r);
                 for (i = 0; i < m->nelts; i++) {
                     char *e = ((char **) m->elts)[i];
                     ap_rputs(e, r);
                 }
-                ap_rputs(         "e7:sourcesl", r);
+                ap_rputs(         "e8:url-listl", r);
                 for (i = 0; i < m->nelts; i++) {
                     char *e = ((char **) m->elts)[i];
                     ap_rputs(e, r);
