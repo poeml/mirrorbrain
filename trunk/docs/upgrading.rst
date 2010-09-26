@@ -234,8 +234,26 @@ If everything works, you can stop and remove the temporary database installation
 Version-specific upgrade notes
 -------------------------------
 
+From 2.13.x to 2.13.3:
+^^^^^^^^^^^^^^^^^^^^^^
+
+`(2.13.3 release notes) <http://mirrorbrain.org/docs/changes/#release-2-13-3-r8166-sep-26-2010>`_
+
+If you actively use Torrents, it may make sense to recreate the hashes. It is
+not strictly necessary, because the only hash that has been changed is the
+BitTorrent info hash (``btih``) that is cached in the database. That hash is
+used only if requested by ``<URL>.btih`` and it is shown on the details page,
+but it is not used in actual Torrent generation. Thus it is unlikely to matter.
+Anyhow, it could cause confusion.
+
+You can use :program:`mb makehashes` with the ``--force`` option once to
+recreate the hashes.
+
+
 From 2.12.x to 2.13.0:
 ^^^^^^^^^^^^^^^^^^^^^^
+
+`(2.13.0 release notes) <http://mirrorbrain.org/docs/changes/#release-2-13-0-r8123-sep-6-2010>`_
 
 * If you created hashes in the past, please edit your :file:`/etc/crontab` and
   replace the calls to the former tool ``metalink-hasher update`` with a call
@@ -253,6 +271,8 @@ From 2.12.x to 2.13.0:
 From 2.11.1 to 2.11.2:
 ^^^^^^^^^^^^^^^^^^^^^^
 
+`(2.11.2 release notes) <http://mirrorbrain.org/docs/changes/#release-2-11-2-r7917-dec-5-2009>`_
+
 The :program:`mb vacuum` command has been renamed to :program:`mb db vacuum`.
 The old command will continue to work for now - but existing cron jobs should
 be updated; the old command might be depracated later.
@@ -264,6 +284,8 @@ lowered to 20 seconds with release.
 
 From 2.10.3 to 2.11.0:
 ^^^^^^^^^^^^^^^^^^^^^^
+
+`(2.11.0 release notes) <http://mirrorbrain.org/docs/changes/#release-2-11-0-r7896-dec-2-2009>`_
 
 The ``MirrorBrainHandleDirectoryIndexLocally`` directive has been removed.  A
 warning is issued where it is still found in the config. It didn't really have
