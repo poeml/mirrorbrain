@@ -4,6 +4,54 @@ Release Notes/Change History
 ============================
 
 
+Release 2.13.3 (r8166, Sep 26, 2010)
+------------------------------------
+
+This is a release that fixes two important bugs, and also includes a number of
+compatibility fixes for Torrents.
+
+* :program:`mod_mirrorbrain`:
+
+  - The Magnet links embedded in Metalinks could cause the Metalink client
+    :program:`aria2c` to wait a long time on P2P connections, and not try the
+    listed mirrors anymore (`issue 73`_). These links are no longer included at
+    the moment, unless ``MirrorBrainMetalinkMagnetLinks On`` is set in the
+    Apache configuration.
+  - Under the conditions that 
+
+    + an ``Accept`` header with ``application/metalink+xml`` or ``metalink4+xml`` is sent,
+    + and the request goes to a path that doesn't exist, 
+    + but some extension (``.foo``) could be split off, 
+    + and a corresponding path without extension exists, 
+      
+    mod_mirrorbrain delivered the file matching the path with the extension
+    split off, instead of replying with a ``404 Not found``. This affected
+    :program:`aria2c` when it requested non-existing files. The bug was found
+    and fixed by Michael Schröder and closes `issue 75`_.
+  - When generating Torrents, the order of keys was not obeyed, which should be
+    lexicographical. This is now the case, so the Torrents should be valid also
+    for clients that insist on correct ordering. This should improve the
+    compatibility to some clients, notably :program:`rtorrent`. Tracked in
+    `issue 74`_ and `issue 78`_.
+  - The MD5 sum in Torrent info hashes was wrongly sent in binary form, instead
+    of being hex-encoded. In addition, the key was wrongly named ``md5`` while
+    ``md5sum`` is the correct name. Fixing `issue 77`_.
+  - Not a bugfix, but a hopefully useful addition is that Torrents now contain
+    a "created by" key, indicating the generator of the torrent, and the
+    version number (e.g. ``MirrorBrain/2.13.3``). Suggested in `issue 65`_.
+  
+Thanks for all kind help and contribution!
+
+.. _`issue 65`: http://mirrorbrain.org/issues/issue65
+.. _`issue 73`: http://mirrorbrain.org/issues/issue73
+.. _`issue 74`: http://mirrorbrain.org/issues/issue74
+.. _`issue 75`: http://mirrorbrain.org/issues/issue75
+.. _`issue 77`: http://mirrorbrain.org/issues/issue77
+.. _`issue 78`: http://mirrorbrain.org/issues/issue78
+
+
+
+
 Release 2.13.2 (r8153, Sep 19, 2010)
 ------------------------------------
 
