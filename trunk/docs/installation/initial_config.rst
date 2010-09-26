@@ -128,9 +128,10 @@ displays its usage info. If so, the installation should be quite fine::
   mb help
 
 
-Also, the following should work::
+Also, the following should work (you might have to change the path to 
+:file:`/usr/share/GeoIP` for your system)::
 
-   % geoiplookup_continent www.slashdot.org
+   % geoiplookup_continent -f /var/lib/GeoIP/GeoIP.dat www.slashdot.org
   NA
 
 The ``NA`` stands for North America and indicates that the GeoIP lookup works
@@ -254,9 +255,10 @@ file. You can define a new log format that gives you an access_log, with
 details from MirrorBrain added::
 
   LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\" \
-  %{X-MirrorBrain-Mirror}o r:%{MB_REALM}e \
+  want:%{WANT}e give:%{GIVE}e r:%{MB_REALM}e %{X-MirrorBrain-Mirror}o \
   %{MB_CONTINENT_CODE}e:%{MB_COUNTRY_CODE}e ASN:%{ASN}e P:%{PFX}e \
   size:%{MB_FILESIZE}e %{Range}i" combined_redirect
+
 
 
 This defines a new log format called "combined_redirect", which you can use in
