@@ -5,7 +5,7 @@
 # Distribute under GPLv2 if it proves worthy.
 
 for i in curl wget ftp; do
-	if which $i 2>/dev/null; then 
+	if which $i &>/dev/null; then 
 		prg=$i
 		break
 	fi
