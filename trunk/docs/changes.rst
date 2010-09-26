@@ -7,8 +7,8 @@ Release Notes/Change History
 Release 2.13.3 (r8166, Sep 26, 2010)
 ------------------------------------
 
-This is a release that fixes two important bugs, and also includes a number of
-compatibility fixes for Torrents.
+This is a release that fixes two important bugs in the Metalink generator. In
+addition, it includes a number of compatibility fixes for Torrents.
 
 * :program:`mod_mirrorbrain`:
 
