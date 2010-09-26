@@ -40,6 +40,8 @@ addition, it includes a number of compatibility fixes for Torrents.
     a "created by" key, indicating the generator of the torrent, and the
     version number (e.g. ``MirrorBrain/2.13.3``). Suggested in `issue 65`_.
   
+Please read the `2.13.3 upgrade notes`_ before upgrading.
+
 Thanks for all kind help and contribution!
 
 .. _`issue 65`: http://mirrorbrain.org/issues/issue65
@@ -48,6 +50,7 @@ Thanks for all kind help and contribution!
 .. _`issue 75`: http://mirrorbrain.org/issues/issue75
 .. _`issue 77`: http://mirrorbrain.org/issues/issue77
 .. _`issue 78`: http://mirrorbrain.org/issues/issue78
+.. _`2.13.3 upgrade notes`: http://mirrorbrain.org/docs/upgrading/#from-2-13-x-to-2-13-3
 
 
 
@@ -165,7 +168,7 @@ Release 2.13.0 (r8123, Sep 6, 2010)
 This is a big release, with many new features, and lots of bugs fixed. Big
 effort has also been put in to ensure a seamless upgrade. 
 
-Please read the `upgrade notes`_.
+Please read the `2.13.0 upgrade notes`_.
 
 New features:
 
@@ -487,12 +490,12 @@ Other improvements:
     curl -s <url> | bdecode
 
 
-Please read the `upgrade notes`_ before upgrading.
+Please read the `2.13.0 upgrade notes`_ before upgrading.
 
 
 Thanks for all the help!
 
-.. _`upgrade notes`: http://mirrorbrain.org/docs/upgrading/#from-2-12-x-to-2-13-0
+.. _`2.13.0 upgrade notes`: http://mirrorbrain.org/docs/upgrading/#from-2-12-x-to-2-13-0
 
 
 
