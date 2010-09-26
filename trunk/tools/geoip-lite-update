@@ -4,6 +4,27 @@
 # (c) 2008,2009,2010 poeml@cmdline.net
 # Distribute under GPLv2 if it proves worthy.
 
+for i in curl wget ftp; do
+	if which $i 2>/dev/null; then 
+		prg=$i
+		break
+	fi
+done
+
+if [ -z "$prg" ]; then
+	echo cannot find a tool to download, like curl or wget >&2
+	exit 1
+fi
+
+case $prg in 
+curl)
+	prg="curl -s -O"
+	;;
+wget)
+	prg="wget --quiet"
+	;;
+esac
+
 
 set -e
 
@@ -12,12 +33,12 @@ set -e
 # updated database there
 cd /usr/share/GeoIP/ 2>/dev/null || cd /var/lib/GeoIP
 
-ftp http://geolite.maxmind.com/download/geoip/database/GeoLiteCountry/GeoIP.dat.gz
+$prg http://geolite.maxmind.com/download/geoip/database/GeoLiteCountry/GeoIP.dat.gz
 gunzip -c GeoIP.dat.gz > GeoIP.dat.updated.new
 mv GeoIP.dat.updated.new GeoIP.dat.updated
 
-ftp http://geolite.maxmind.com/download/geoip/database/GeoLiteCity.dat.gz
+$prg http://geolite.maxmind.com/download/geoip/database/GeoLiteCity.dat.gz
 gunzip -c GeoLiteCity.dat.gz > GeoLiteCity.dat.updated.new
 mv GeoLiteCity.dat.updated.new GeoLiteCity.dat.updated
 
-rcapache2 reload
+/etc/init.d/apache2 reload
