@@ -34,11 +34,18 @@ set -e
 cd /usr/share/GeoIP/ 2>/dev/null || cd /var/lib/GeoIP
 
 $prg http://geolite.maxmind.com/download/geoip/database/GeoLiteCountry/GeoIP.dat.gz
+rm -f GeoIP.dat.gz.1
 gunzip -c GeoIP.dat.gz > GeoIP.dat.updated.new
 mv GeoIP.dat.updated.new GeoIP.dat.updated
 
 $prg http://geolite.maxmind.com/download/geoip/database/GeoLiteCity.dat.gz
+rm -f GeoLiteCity.dat.gz.1
 gunzip -c GeoLiteCity.dat.gz > GeoLiteCity.dat.updated.new
 mv GeoLiteCity.dat.updated.new GeoLiteCity.dat.updated
+
+$prg http://geolite.maxmind.com/download/geoip/database/GeoIPv6.dat.gz
+rm -f GeoIPv6.dat.gz.1
+gunzip -c GeoIPv6.dat.gz > GeoIPv6.dat.updated.new
+mv GeoIPv6.dat.updated.new GeoIPv6.dat.updated
 
 /etc/init.d/apache2 reload
