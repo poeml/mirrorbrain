@@ -5,8 +5,8 @@ Installation on Debian/Ubuntu Linux
 ===================================
 
 .. note:: 
-   The following recipe for installing MirrorBrain was tested on Ubuntu 9.04.
-   A similar procedure should work on Debian 5.0 as well.
+   The following recipe for installing MirrorBrain was tested on Ubuntu 9.04 and 10.04.
+   A similar procedure should work on other Ubuntu versions, and on Debian 5.0.
 
 
 Install a standard Ubuntu LAMP server.
@@ -15,12 +15,12 @@ Install a standard Ubuntu LAMP server.
 Add package repository
 ----------------------
 
-To subscribe to the repository with packages for Ubuntu 9.04, add the following
+To subscribe to the repository with packages for Ubuntu 10.04, add the following
 to :file:`/etc/apt/sources.list`::
 
    sudo vim /etc/apt/sources.list
   [...]
-  deb http://download.opensuse.org/repositories/Apache:/MirrorBrain/xUbuntu_9.04/ /
+  deb http://download.opensuse.org/repositories/Apache:/MirrorBrain/Ubuntu_10.04/ /
 
 
 There are more repositories at
@@ -90,18 +90,35 @@ Configure mod_geoip
 
 .. note:: 
    The mod_geoip Apache module that ships with Debian and Ubuntu is too old
-   (1.x, see http://mirrorbrain.org/issues/issue16). Therefore the provided 
-   packages also include a newer mod_geoip (2.x). With the above apt-get line,
+   (1.1.x, see http://mirrorbrain.org/issues/issue16). Therefore the provided 
+   packages also include a newer mod_geoip (1.2.x). With the above apt-get line,
    you've got it already installed.
 
 mod_geoip is configured to look for the GeoIP data set in
-:file:`/var/lib/GeoIP`. You need to download the GeoIP data set. We chose the
-larger "city" dataset::
+:file:`/usr/share/GeoIP`. A dataset may be installed already, but it is
+recommended to update it. In fact, that should be done regularly. There is
+handy tool that does this, and also downloads the larger "City" dataset::
 
-  wget http://geolite.maxmind.com/download/geoip/database/GeoLiteCountry/GeoIP.dat.gz
-  gunzip GeoIP.dat.gz
-  sudo mkdir /var/lib/GeoIP
-  sudo cp GeoIP.dat /var/lib/GeoIP/GeoIP.dat
+  # l /usr/share/GeoIP
+  total 1296
+  -rw-r--r-- 1 root root 1204947 2010-01-18 08:46 GeoIP.dat
+  -rw-r--r-- 1 root root  109251 2010-01-18 08:46 GeoIPv6.dat
+  # geoip-lite-update
+   * Reloading web server config apache2
+     ...done.
+  # l /usr/share/GeoIP
+  total 52884
+  -rw-r--r-- 1 root root  1204947 2010-01-18 08:46 GeoIP.dat
+  -rw-r--r-- 1 root root   591865 2010-09-26 14:26 GeoIP.dat.gz
+  -rw-r--r-- 1 root root  1072630 2010-09-26 14:26 GeoIP.dat.updated
+  -rw-r--r-- 1 root root   109251 2010-01-18 08:46 GeoIPv6.dat
+  -rw-r--r-- 1 root root   652498 2010-09-26 14:44 GeoIPv6.dat.gz
+  -rw-r--r-- 1 root root  1214981 2010-09-26 14:44 GeoIPv6.dat.updated
+  -rw-r--r-- 1 root root 20478077 2010-09-26 14:27 GeoLiteCity.dat.gz
+  -rw-r--r-- 1 root root 30605325 2010-09-26 14:27 GeoLiteCity.dat.updated
+
+
+Now, one (or more) of the files ending in ``.updated`` can be used with Apache.
 
 
 Configure mod_dbd
