@@ -25,7 +25,7 @@ def iplookup(conn, s):
         #print host, aliases, ips
         if len(ips) != 1:
             print >>sys.stderr, \
-                    '>>> warning: %r resolves to a multiple IP addresses: %s' \
+                    '>>> warning: %r resolves to multiple IP addresses: %s' \
                     % (s, ', '.join(ips))
             print >>sys.stderr, '>>> see http://mirrorbrain.org/archive/mirrorbrain/0042.html why this could' \
                                 ' could be a problem, and what to do about it.\n'
