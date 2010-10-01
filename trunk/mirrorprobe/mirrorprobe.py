@@ -44,11 +44,16 @@ def probe_http(mirror):
 
         logging.debug("%s probing %s" % (threading.currentThread().getName(), mirror.identifier))
 
+        #def urllib2_debug_init(self, debuglevel=0):
+        #    self._debuglevel = 1
+        #urllib2.AbstractHTTPHandler.__init__ = urllib2_debug_init
+
         #req = urllib2.Request('http://old-cherry.suse.de') # never works
         #req = urllib2.Request('http://doozer.poeml.de/')   # always works
         req = urllib2.Request(mirror.baseurl)
 
         req.add_header('User-Agent', USER_AGENT)
+        req.add_header('Accept', '*/*')
         #req.get_method = lambda: "HEAD"
 
         mirror.status_baseurl_new = False
