@@ -117,6 +117,9 @@ def gen_fragments(lines, pat):
         m = pat.match(line)
         if m:
             yield m.groups()
+        #else:
+        #    print 'no match for:'
+        #    print line
 
 
 class RingBuffer:
