@@ -875,6 +875,7 @@ class MirrorDoctor(cmdln.Cmdln):
                 t = mb.testmirror.access_http(mirror.identifier, mirror.baseurl)
                 if t.http_code == 200:
                     mirror.statusBaseurl = 1
+                    mirror.enabled = 1
                     print '%s %s: OK. Mirror is online now.' % (tt, mirror.identifier)
                 else:
                     print '%s %s: Error: base URL does not work: %s' \
