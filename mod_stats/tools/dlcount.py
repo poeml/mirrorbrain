@@ -287,7 +287,11 @@ def gen_processreqs(reqs, conf):
 
     for req in reqs: 
         rq = Req()
-        (ip, tstamp_raw, url, status, referer, ua, country) = req
+        if len(req) == 7:
+            (ip, tstamp_raw, url, status, referer, ua, country) = req
+        elif len(req) == 6:
+            (ip, tstamp_raw, url, status, referer, ua) = req
+            country = ''
 
         skip = False
         for r, mreg in conf['statsignoremask']:
