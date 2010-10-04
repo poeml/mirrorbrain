@@ -109,6 +109,8 @@ push @exclude_list, '/.~tmp~/';
 push @exclude_list_rsync, '*/.~tmp~/';
 push @exclude_list_rsync, '/.~tmp~/';
 
+my $ftp_timer_global;
+
 exit usage() unless @ARGV;
 while (defined (my $arg = shift)) {
 	if    ($arg !~ m{^-})                  { unshift @ARGV, $arg; last; }
@@ -687,10 +689,11 @@ sub byte_size
 sub ftp_readdir
 {
   my ($identifier, $id, $url, $ftp_timer, $name, $ftp) = @_;
+  $ftp_timer_global = $ftp_timer;
 
-  my $ftp_age = (time() - $ftp_timer);
+  my $ftp_age = (time() - $ftp_timer_global);
   print "$identifier: last command issued $ftp_age"."s ago\n" if $verbose > 2;
-  $ftp_timer = time;
+  $ftp_timer_global = time();
 
   my $item;
 
@@ -780,7 +783,7 @@ sub ftp_readdir
           next;
         }
         sleep($recursion_delay) if $recursion_delay;
-        push @r, ftp_readdir($identifier, $id, $urlraw, $ftp_timer, $t, $ftp);
+        push @r, ftp_readdir($identifier, $id, $urlraw, $ftp_timer_global, $t, $ftp);
       }
 
       if($type eq 'l') {
@@ -878,7 +881,6 @@ sub cont
 
   # Create a request
   my $req = HTTP::Request->new(GET => $url);
-  $req->header('Accept' => '*/*');
 
   # Pass request to the user agent and get a response back
   my $res = $ua->request($req);
