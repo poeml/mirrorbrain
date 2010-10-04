@@ -2,29 +2,31 @@ See http://mirrorbrain.org/download-statistics/ for background information on
 this module (and possible further plans).
 
 
-# packages:
+The Apache module isn't usable at this time. Instructions how to build it
+are here just for archive purposes:
 
-http://download.opensuse.org/repositories/Apache:/Modules/
+    # packages:
+    
+    http://download.opensuse.org/repositories/Apache:/Modules/
+    
+    
+    # build and install man manually:
+    
+    sudo apxs2 -ci -Wc,"-Wall -g" mod_stats.c
+    
+    a2enmod dbd
+    a2enmod stats
+    
+    copy mod_dbd.conf to /etc/apache2 and include it server-wide (via
+    /etc/sysconfig/apache2:APACHE_CONF_INCLUDE_FILES)
+    
+    copy contents of mod_stats.conf into your virtual host configuration.
+    
+    
 
 
-# build and install man manually:
+Archiving and pruning old data from the 'stats_counter' table:
 
-sudo apxs2 -ci -Wc,"-Wall -g" mod_stats.c
-
-a2enmod dbd
-a2enmod stats
-
-copy mod_dbd.conf to /etc/apache2 and include it server-wide (via
-/etc/sysconfig/apache2:APACHE_CONF_INCLUDE_FILES)
-
-copy contents of mod_stats.conf into your virtual host configuration.
-
-
-Q: use (MySQL's) delayed inserts?
-A: no, insert are not done really often by this module.
-
-Q: use delayed updates (updates are frequent)?
-A: there _are_ no "delayed updates" in MySQL, only "low-priority" updates,
-but they couuld be postponed forever and never happen. And the updates don't
-really happen often, they don't (with MySQL) lock the table if the InnoDB
-engine is used and the table is maybe not even read more than once a day.
+pg_dump -U mb -t stats_counter > stats_counter-20101004.dump
+delete from stats_counter where date between E'2009-01-01 00:00:00' and E'2010-08-31 23:59:59.999999';
+vacuum full stats_counter;
