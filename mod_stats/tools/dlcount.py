@@ -283,7 +283,7 @@ class Req():
 #        return Countable(self.tuple)
 
 
-def gen_processreqs(reqs, conf): 
+def gen_processreqs(reqs, conf, options): 
     """process a tuple of request data, and return the parsed in the form of a generator"""
 
     known = RingBuffer(conf['statsdupwindow'])
@@ -349,6 +349,8 @@ def gen_processreqs(reqs, conf):
                 url = r.sub(s, url)
                 matched = mreg
         if not matched:
+            if options.verbose:
+                print 'not matched', url
             yield rq
             continue
 
@@ -368,6 +370,7 @@ def gen_processreqs(reqs, conf):
         rq.tuple = tuple(rq.tuple)
 
         rq.countable = True
+        #print rq
         yield rq
 
 
@@ -414,7 +417,7 @@ def main():
     logfiles = gen_open(filenames)
     loglines = gen_cat(logfiles)
     reqs = gen_fragments(loglines, conf['statslogmask'][0][0])
-    items = gen_processreqs(reqs, conf)
+    items = gen_processreqs(reqs, conf, options)
 
     if options.db and not options.db_home:
         sys.exit('--db-home is mandatory with --db.')
