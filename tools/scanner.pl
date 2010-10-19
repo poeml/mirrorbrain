@@ -881,6 +881,7 @@ sub cont
 
   # Create a request
   my $req = HTTP::Request->new(GET => $url);
+  $req->header('Accept' => '*/*');
 
   # Pass request to the user agent and get a response back
   my $res = $ua->request($req);
