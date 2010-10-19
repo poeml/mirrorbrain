@@ -11,6 +11,9 @@ This is a maintenance release with improvements in the mirror scan reporting,
 and small fixes and improved usability. In addition the documentation were
 enhanced and added to in some places.
 
+Noteworthy are the added instructions on setting up automatic GeoIP database
+updates (see below).
+
 
 * :program:`mb scan`:
 
