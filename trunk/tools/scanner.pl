@@ -313,11 +313,11 @@ for my $row (@scan_list) {
   my $start = int(gettimeofday * 1000);
   my $file_count = rsync_readdir($row->{identifier}, $row->{id}, $row->{baseurl_rsync}, $start_dir);
   if(!$file_count and $row->{baseurl_ftp}) {
-    print localtime(time) . " $row->{identifier}: no rsync, trying ftp\n" if $verbose;
+    print localtime(time) . " $row->{identifier}: no rsync, trying ftp\n" if $verbose > 1;
     $file_count = scalar ftp_readdir($row->{identifier}, $row->{id}, $row->{baseurl_ftp}, time, $start_dir);
   }
   if(!$file_count and $row->{baseurl}) {
-    print localtime(time) . " $row->{identifier}: no rsync, no ftp, trying http\n" if $verbose;
+    print localtime(time) . " $row->{identifier}: no rsync, no ftp, trying http\n" if $verbose > 1;
     $file_count = scalar http_readdir($row->{identifier}, $row->{id}, $row->{baseurl}, $start_dir);
   }
 
