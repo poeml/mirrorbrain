@@ -21,12 +21,6 @@ enhanced and added to in some places.
     mirror was not reported. The error message was only "rsync timeout", and
     while there normally were other messages giving a hint, output is now
     improved to include the mirror identifier.
-  - An internal timer was fixed that measures the time passed since the last
-    FTP command. (Not a functional change, since it was only used for debug
-    logging.)
-
-* :program:`mb scan --enable`:
-
   - When enabling a mirror after successful scanning, the scanner now makes
     sure that the mirror is not only marked "enabled" but also marked being
     "online". Mirrors are normally marked online by the mirrorprobe (which is
