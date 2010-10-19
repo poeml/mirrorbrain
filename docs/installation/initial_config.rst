@@ -198,7 +198,7 @@ The following cron job is needed to check which mirrors are reachable. This
 command is responsible for checking the mirrors in short intervals, and marking
 them online/offline in the database::
 
-  -* * * * *                mirrorbrain   mirrorprobe
+  * * * * *                 mirrorbrain   mirrorprobe
 
 Setting up mirror scanning
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
