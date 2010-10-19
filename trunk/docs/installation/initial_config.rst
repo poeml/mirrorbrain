@@ -205,9 +205,13 @@ Setting up mirror scanning
 
 Configure mirror scanning::
 
-  45 * * * *                mirrorbrain   mb scan -j 3 -a
+  45 * * * *                mirrorbrain   mb scan --quiet --jobs 4 --all
 
-Use more parallel scanners (-j ...) if you have a beefy machine.
+Use more parallel scanners (``-j|--jobs ...``) if you have a beefy machine.
+
+The ``--quiet`` option can be used twice (e.g. as ``-qq``), which will totally
+silence the scanner, except for error messages. This means that you get a mail
+only when there is something wrong.
 
 
 Maintenance
