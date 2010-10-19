@@ -223,6 +223,20 @@ Another cron job is useful to remove unreferenced files from the database::
   30 1 * * mon              mirrorbrain   mb db vacuum
 
 
+Keeping the GeoIP database uptodate
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The GeoIP database is changed at least once a month, so a new copy should be
+downloaded regularly::
+
+  # update GeoIP database on Mondays
+  31 2 * * mon              root  sleep $(($RANDOM/1024)); /usr/bin/geoip-lite-update
+
+(The 'sleep' is there so you can copy the line, don't need to adjust the time,
+and still the GeoIP servers will not get a lot of simultaneous hits at exactly
+the same time. That's all.)
+
+
 
 Testing
 -------
