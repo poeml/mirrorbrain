@@ -62,7 +62,6 @@ $SIG{__DIE__} = sub {
 
 $SIG{USR1} = sub { $verbose++; warn "sigusr1 seen. ++verbose = $verbose\n"; };
 $SIG{USR2} = sub { $verbose--; warn "sigusr2 seen. --verbose = $verbose\n"; };
-$SIG{ALRM} = sub { $verbose++; $verbose++; die "rsync timeout...\n" };
 
 $ENV{FTP_PASSIVE} = 1;	# used in LWP only, Net::FTP ignores this.
 
@@ -1109,6 +1108,8 @@ sub rsync_get_filelist
   my ($identifier, $peer, $syncroot, $norecurse, $callback, $priv) = @_;
   my $syncaddr = $peer->{addr};
   my $syncport = $peer->{port};
+
+  $SIG{ALRM} = sub { $verbose++; $verbose++; die localtime(time) . " $identifier: rsync timeout...\n" };
 
   if(!defined($peer->{have_md4})) {
     ## why not rely on %INC here?
