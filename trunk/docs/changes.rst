@@ -4,6 +4,64 @@ Release Notes/Change History
 ============================
 
 
+Release 2.13.4 (r8188, Oct 19, 2010)
+------------------------------------
+
+This is a maintenance release with improvements in the mirror scan reporting,
+and small fixes and improved usability. In addition the documentation were
+enhanced and added to in some places.
+
+
+* :program:`mb scan`:
+
+  - The output of the scanner has been improved, by introducing a
+    ``-q|--quiet`` option. Used once, only a summary line per scanned mirror
+    will be shown. Used twice, no output will be produced except errors.
+  - When a scan via rsync ran into a timeout, the name of the affected
+    mirror was not reported. The error message was only "rsync timeout", and
+    while there normally were other messages giving a hint, output is now
+    improved to include the mirror identifier.
+  - An internal timer was fixed that measures the time passed since the last
+    FTP command. (Not a functional change, since it was only used for debug
+    logging.)
+
+* :program:`mb scan --enable`:
+
+  - When enabling a mirror after successful scanning, the scanner now makes
+    sure that the mirror is not only marked "enabled" but also marked being
+    "online". Mirrors are normally marked online by the mirrorprobe (which is
+    typically run once per minute), but it is much more logical when a mirror
+    is really directly available after scanning with ``--enable``.
+
+* :program:`mb scan` and :program:`mirrorprobe`:
+
+  - There was a case of a quirky web server software that ignores requests
+    without Accept header. The mirrorprobe and the scanner now send an Accept
+    header with value '*/*', because sending this header in general should not
+    harm.
+
+* :program:`geoip-lite-update`:
+
+  - This script now works on Ubuntu. It no longer relies on a command named
+    :program:`ftp` being capable of doing HTTP downloads, and prefers
+    :program:`curl` or :program:`wget` if available.
+  - The script is quiet now, producing no output if no error is encountered.
+
+Documentation improvements:
+
+- The logging configuration example has been updated (See
+  :ref:`initial_configuration_logging_setup`)
+- The instructions to update the GeoIP databases on Ubuntu have been updated.
+  (See :ref:`installation_ubuntu_debian`)
+- Documentation (for all platforms) about setting up automatic updates of the
+  GeoIP database was blatantly missing.
+- A possibly disturbing '-' in front of cron examples has been removed, which
+  work with Vixie cron but not with Anacron as used by Ubuntu.
+- Ubuntu install docs for 10.04 have been updated.
+- The example for using the :program:`geoiplookup_continent` tool now shows how
+  to specify the path to a GeoIP database.
+
+
 Release 2.13.3 (r8166, Sep 26, 2010)
 ------------------------------------
 
