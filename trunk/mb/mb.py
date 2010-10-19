@@ -750,6 +750,9 @@ class MirrorDoctor(cmdln.Cmdln):
 
     @cmdln.option('--sql-debug', action='store_true',
                   help='Show SQL statements for debugging purposes.')
+    @cmdln.option('-q', '--quiet', dest='quietness', action='count', default=0,
+                  help='Produce less output. '
+                       'Can be given multiple times.')
     @cmdln.option('-v', '--verbose', dest='verbosity', action='count', default=0,
                   help='Increase verbosity for debugging purposes. '
                        'Can be given multiple times.')
@@ -789,6 +792,8 @@ class MirrorDoctor(cmdln.Cmdln):
             cmd.append('-S')
         for i in range(opts.verbosity):
             cmd.append('-v')
+        for i in range(opts.quietness):
+            cmd.append('-q')
 
         if opts.enable:
             cmd.append('-e')
@@ -887,7 +892,8 @@ class MirrorDoctor(cmdln.Cmdln):
             print textwrap.fill(', '.join(mirrors_skipped),
                                 initial_indent='    ', subsequent_indent='  ')
 
-        print 'Completed in', mb.util.timer_elapsed()
+        if opts.quietness < 2:
+            print 'Completed in', mb.util.timer_elapsed()
 
 
 

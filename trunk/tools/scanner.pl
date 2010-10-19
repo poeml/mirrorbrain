@@ -46,7 +46,7 @@ use Config::IniFiles;
 use Time::HiRes qw(gettimeofday);
 use Encode;
 
-my $version = '0.41';
+my $version = '2.13.4';
 my $verbose = 1;
 my $sqlverbose = 0;
 
@@ -118,7 +118,7 @@ while (defined (my $arg = shift)) {
 	elsif ($arg =~ m{^(-I|--top-include)}) { push @top_include_list, shift; }
 	elsif ($arg =~ m{^--exclude$})         { push @exclude_list, shift; }
 	elsif ($arg =~ m{^--exclude-rsync$})   { push @exclude_list_rsync, shift; }
-	elsif ($arg =~ m{^-q})                 { $verbose = 0; }
+	elsif ($arg =~ m{^-q})                 { $verbose--; }
 	elsif ($arg =~ m{^-v})                 { $verbose++; }
 	elsif ($arg =~ m{^-S})                 { $sqlverbose++; }
 	elsif ($arg =~ m{^-a})                 { $all_servers++; }
@@ -232,6 +232,7 @@ if ($parallel > 1) {
   push @cmd, '-b', $brain_instance;
   push @cmd, '-q' unless $verbose;
   push @cmd, ('-v') x ($verbose - 1) if $verbose > 1;
+  push @cmd, ('-q') x (-($verbose - 1)) if $verbose < 0;
   foreach my $item(@top_include_list) {
     push @cmd, '-I', $item;
   }
@@ -267,7 +268,7 @@ if($do_transaction) {
 }
 
 for my $row (@scan_list) {
-  print localtime(time) . " $row->{identifier}: starting\n" if $verbose;
+  print localtime(time) . " $row->{identifier}: starting\n" if $verbose > 0;
 
   # already in a transaction? why??
   #if($do_transaction) {
@@ -295,9 +296,11 @@ for my $row (@scan_list) {
   my $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
   my $initial_file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
   if(length $start_dir) {
-    print localtime(time) . " $row->{identifier}: files in '$start_dir' before scan: $initial_file_count\n";
+    print localtime(time) . " $row->{identifier}: files in '$start_dir' before scan: $initial_file_count\n"
+      if $verbose > 0;
   } else {
-    print localtime(time) . " $row->{identifier}: total files before scan: $initial_file_count\n";
+    print localtime(time) . " $row->{identifier}: total files before scan: $initial_file_count\n"
+      if $verbose > 0;
   }
 
   if($do_transaction) {
@@ -330,7 +333,7 @@ for my $row (@scan_list) {
 
   print localtime(time) . " $row->{identifier}: scanned $file_count files (" 
          . int($fpm/60) . "/s) in " 
-         . int($duration) . "s\n" if $verbose;
+         . int($duration) . "s\n" if $verbose > 0;
 
   $start = time();
   print localtime(time) . " $row->{identifier}: purging old files\n" if $verbose > 1;
@@ -341,14 +344,15 @@ for my $row (@scan_list) {
   print "$sql\n" if $sqlverbose;
   $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
   my $purge_file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
-  print localtime(time) . " $row->{identifier}: files to be purged: $purge_file_count\n";
+  print localtime(time) . " $row->{identifier}: files to be purged: $purge_file_count\n" if $verbose > 0;
 
 
   $sql = "SELECT COUNT(*) FROM filearr WHERE $row->{id} = ANY(mirrors);";
   print "$sql\n" if $sqlverbose;
   $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
   $file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
-  print localtime(time) . " $row->{identifier}: total files after scan: $file_count\n";
+  print localtime(time) . " $row->{identifier}: total files after scan: $file_count " . 
+        "(delta: " . ($file_count - $initial_file_count) . ")\n" if $verbose > -1;
 
 
   $duration = time() - $start;
