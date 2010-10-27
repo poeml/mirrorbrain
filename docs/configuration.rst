@@ -136,14 +136,14 @@ triggered by appending ``.zsync`` to an URL.
 
 The supported method reflects the "simpler" zsync variant, which doesn't look
 into compressed content. It is compatible to, and was tested with, the current
-zsync release (0.6.1).
+zsync release (0.6.2). 0.6.1 worked as well.
 
 If mirrors are available for a file, MirrorBrain adds them into the zsync as
-URLs where missing data can be downloaded. zsync-0.6.1 requires real mirrors as
+URLs where missing data can be downloaded. zsync (0.6.1) requires real mirrors as
 URLs, not one URL that redirects to mirrors. It is noteworthy in this context
 that zsync client (as of 0.6.1) tries the provided URLs in random order. Thus,
-the listed URLs are restricted to the ones that are closest. Thereby, the zsync
-client will use nearby mirrors to download data from.
+the sent URLs are restricted to the ones that are closest. Thereby, the zsync
+client will use more nearby mirrors to download data from.
 
 If no mirrors are available, a valid zsync is still generated. The content will
 then be delivered directly by MirrorBrain.
