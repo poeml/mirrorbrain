@@ -1205,12 +1205,6 @@ static int mb_handler(request_rec *r)
         return DECLINED;
     }
 
-    /* is there a password? */
-    if (r->ap_auth_type != NULL) {
-        debugLog(r, cfg, "URI '%s' requires auth", r->unparsed_uri);
-        return DECLINED;
-    }
-
     /* is there PATH_INFO, and are we supposed to accept it? */
     if ((r->path_info && *r->path_info)
             && (r->used_path_info != AP_REQ_ACCEPT_PATH_INFO)) {
