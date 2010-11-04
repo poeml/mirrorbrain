@@ -113,7 +113,7 @@
 #define MOD_MIRRORBRAIN_VER "2.13.4"
 #define VERSION_COMPONENT "mod_mirrorbrain/"MOD_MIRRORBRAIN_VER
 
-/* no space for time zones */
+/* no space for time zones is provided here */
 #define RFC3339_DATE_LEN (21)
 
 #define MD5_DIGESTSIZE 16
@@ -608,8 +608,8 @@ static const char *mb_cmd_handle_headrequest_locally(cmd_parms *cmd,
 }
 
 #ifdef WITH_MEMCACHE
-static const char *mb_cmd_instance(cmd_parms *cmd, 
-                                   void *config, const char *arg1)
+static const char *mb_cmd_instance(cmd_parms *cmd, void *config, 
+                                   const char *arg1)
 {
     server_rec *s = cmd->server;
     mb_server_conf *cfg = 
@@ -621,7 +621,7 @@ static const char *mb_cmd_instance(cmd_parms *cmd,
 #endif
 
 static const char *mb_cmd_dbd_query(cmd_parms *cmd, void *config, 
-                                   const char *arg1)
+                                    const char *arg1)
 {
     server_rec *s = cmd->server;
     mb_server_conf *cfg = 
@@ -632,7 +632,7 @@ static const char *mb_cmd_dbd_query(cmd_parms *cmd, void *config,
 }
 
 static const char *mb_cmd_dbd_query_hash(cmd_parms *cmd, void *config, 
-                                   const char *arg1)
+                                         const char *arg1)
 {
     server_rec *s = cmd->server;
     mb_server_conf *cfg = 
@@ -696,7 +696,7 @@ static const char *mb_cmd_mirrorlist_footer(cmd_parms *cmd, void *config,
 }
 
 static const char *mb_cmd_tracker_url(cmd_parms *cmd, void *config,
-                                    const char *arg1)
+                                      const char *arg1)
 {
     server_rec *s = cmd->server;
     mb_server_conf *cfg = 
@@ -708,7 +708,7 @@ static const char *mb_cmd_tracker_url(cmd_parms *cmd, void *config,
 }
 
 static const char *mb_cmd_dht_node(cmd_parms *cmd, void *config,
-                                    const char *arg1, const char *arg2)
+                                   const char *arg1, const char *arg2)
 {
     server_rec *s = cmd->server;
     mb_server_conf *cfg = 
@@ -718,12 +718,13 @@ static const char *mb_cmd_dht_node(cmd_parms *cmd, void *config,
     new->name = apr_pstrdup(cmd->pool, arg1);
     new->port = atoi(apr_pstrdup(cmd->pool, arg2));
     if (new->port <= 0)
-        return "MirrorBrainDHTNode requires a positive integer as second argument (server port).";
+        return "MirrorBrainDHTNode requires a positive integer "
+               "as second argument (server port).";
     return NULL;
 }
 
 static const char *mb_cmd_hashes_suppress_filenames(cmd_parms *cmd, void *config,
-                                       int flag)
+                                                    int flag)
 {
     server_rec *s = cmd->server;
     mb_server_conf *cfg = 
@@ -734,8 +735,8 @@ static const char *mb_cmd_hashes_suppress_filenames(cmd_parms *cmd, void *config
 }
 
 static const char *mb_cmd_metalink_broken_test_mirrors(cmd_parms *cmd, 
-                                                 void *config, 
-                                                 const char *arg1)
+                                                       void *config, 
+                                                       const char *arg1)
 {
     server_rec *s = cmd->server;
     mb_server_conf *cfg = 
@@ -3249,6 +3250,7 @@ static const command_rec mb_cmds[] =
     AP_INIT_FLAG("MirrorBrainHandleDirectoryIndexLocally", mb_cmd_handle_dirindex_locally, NULL, 
                   OR_OPTIONS,
                   "Obsolete directive. You can remove it from your config."),
+
     AP_INIT_FLAG("MirrorBrainHandleHEADRequestLocally", mb_cmd_handle_headrequest_locally, NULL, 
                   OR_OPTIONS,
                   "Set to On to handle HEAD requests locally (instead of redirecting "
