@@ -15,6 +15,7 @@ region         : %(region)s
 country        : %(country)s
 asn            : %(asn)s
 prefix         : %(prefix)s
+lat,lng        : %(lat)s,%(lng)s
 regionOnly     : %(regionOnly)s
 countryOnly    : %(countryOnly)s
 asOnly         : %(asOnly)s
@@ -40,6 +41,8 @@ server_editable_attrs = [ 'baseurl',
                           'country',
                           'asn',
                           'prefix',
+                          'lat',
+                          'lng',
                           'regionOnly',
                           'countryOnly',
                           'asOnly',
@@ -264,6 +267,12 @@ def servertext2dict(s):
     # the comment field is formatted differently
     comment_delim = '---------- comments ----------'
     new_attrs['comment'] = s.split(comment_delim)[1].strip('\n')
+
+    # latitude/longitude are in one line:
+    m = re.search(r'^lat,lng *: *(.*),(.*)', s, re.MULTILINE)
+    if m:
+        new_attrs['lat'] = m.group(1)
+        new_attrs['lng'] = m.group(2)
 
     return new_attrs
     
