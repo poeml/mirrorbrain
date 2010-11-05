@@ -232,6 +232,7 @@ typedef struct
     apr_array_header_t *exclude_ips;
     ap_regex_t *exclude_filemask;
     ap_regex_t *metalink_torrentadd_mask;
+    const char *stampkey;
 } mb_dir_conf;
 
 /* per-server configuration */
@@ -380,6 +381,7 @@ static void *create_mb_dir_config(apr_pool_t *p, char *dirspec)
     new->exclude_ips = apr_array_make(p, 4, sizeof (char *));
     new->exclude_filemask = NULL;
     new->metalink_torrentadd_mask = NULL;
+    new->stampkey = NULL;
 
     return (void *) new;
 }
@@ -409,6 +411,7 @@ static void *merge_mb_dir_config(apr_pool_t *p, void *basev, void *addv)
     mrg->exclude_ips = apr_array_append(p, base->exclude_ips, add->exclude_ips);
     mrg->exclude_filemask = (add->exclude_filemask == NULL) ? base->exclude_filemask : add->exclude_filemask;
     mrg->metalink_torrentadd_mask = (add->metalink_torrentadd_mask == NULL) ? base->metalink_torrentadd_mask : add->metalink_torrentadd_mask;
+    cfgMergeString(stampkey);
 
     return (void *) mrg;
 }
@@ -484,6 +487,14 @@ static const char *mb_cmd_engine(cmd_parms *cmd, void *config, int flag)
     mb_dir_conf *cfg = (mb_dir_conf *) config;
     cfg->engine_on = flag;
     cfg->mirror_base = apr_pstrdup(cmd->pool, cmd->path);
+    return NULL;
+}
+
+static const char *mb_cmd_redirect_stamp_key(cmd_parms *cmd, void *config, 
+                                             const char* arg1)
+{
+    mb_dir_conf *cfg = (mb_dir_conf *) config;
+    cfg->stampkey = arg1;
     return NULL;
 }
 
@@ -3111,8 +3122,21 @@ static int mb_handler(request_rec *r)
 
 
 
+    /* Build target URI */
+    if (cfg->stampkey) {
+        const char* epoch = apr_itoa(r->pool, apr_time_sec(r->request_time));
+        const char* epochkey = apr_pstrcat(r->pool, epoch, " ", cfg->stampkey, NULL);
+        const char* stamp = ap_md5(r->pool, (unsigned const char *)epochkey);
+
+        debugLog(r, cfg, "stamp: '%s' -> %s", epochkey, stamp);
+        uri = apr_pstrcat(r->pool, chosen->baseurl, filename, 
+                          "?time=", epoch,
+                          "&stamp=", stamp, NULL);
+    } else {
+        uri = apr_pstrcat(r->pool, chosen->baseurl, filename, NULL);
+    }
+
     /* Send it away: set a "Location:" header and 302 redirect. */
-    uri = apr_pstrcat(r->pool, chosen->baseurl, filename, NULL);
     debugLog(r, cfg, "Redirect to '%s'", uri);
 
     /* for _conditional_ logging, leave some mark */
@@ -3266,6 +3290,12 @@ static const command_rec mb_cmds[] =
                   "region code, country code and base URL of a mirror that is used when no "
                   "mirror can be found in the database. These mirrors are assumed to have "
                   "*all* files. (Or they could be configured per directory.)"),
+
+    AP_INIT_TAKE1("MirrorBrainRedirectStampKey_EXPERIMENTAL", mb_cmd_redirect_stamp_key, NULL, 
+                  ACCESS_CONF,
+                  "Causes MirrorBrain to append a signed timestamp to redirection URLs. The "
+                  "argument is a string that defines the key to encrypt the timestamp with. "
+                  "Can be configured on directory-level."),
 
     /* to be used only in server context */
     AP_INIT_TAKE1("MirrorBrainDBDQuery", mb_cmd_dbd_query, NULL,
