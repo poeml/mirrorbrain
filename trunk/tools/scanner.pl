@@ -46,7 +46,7 @@ use Config::IniFiles;
 use Time::HiRes qw(gettimeofday);
 use Encode;
 
-my $version = '2.13.4';
+my $version = '2.14.0';
 my $verbose = 1;
 my $sqlverbose = 0;
 
