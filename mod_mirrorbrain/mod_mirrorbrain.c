@@ -88,6 +88,7 @@
 #include "ap_mpm.h" /* for ap_mpm_query */
 #include "mod_status.h"
 #include "mod_form.h"
+#include <math.h>   /* for sqrt() and pow() */
 
 #define wild_match(p,s) (apr_fnmatch(p,s,APR_FNM_CASE_BLIND) == APR_SUCCESS)
 
@@ -132,6 +133,7 @@
 #endif
 
 #define DEFAULT_QUERY "SELECT id, identifier, region, country, " \
+                             "lat, lng, " \
                              "asn, prefix, score, baseurl, " \
                              "region_only, country_only, " \
                              "as_only, prefix_only, " \
@@ -152,6 +154,13 @@
                            "AND size = %" DBD_LLD_FMT " " \
                            "AND mtime = %" DBD_LLD_FMT " " \
                            "LIMIT 1"
+
+/* the smaller, the smaller the effect of a raised prio in comparison to distance */
+/* 5000000 -> mirror in 200km distance is preferred already when it has prio 100
+ * 1000000 -> mirror in 200km distance is preferred not before it has prio 300
+ * (compared to 100 as normal priority for other mirrors, and tested in
+ * Germany, which is a small country with many mirrors) */
+#define DISTANCE_PRIO 2000000
 
 
 module AP_MODULE_DECLARE_DATA mirrorbrain_module;
@@ -187,6 +196,9 @@ struct mirror_entry {
     const char *identifier;
     const char *region;       /* 2-letter-string */
     const char *country_code; /* 2-letter-string */
+    float lat;                /* geographical latitude */
+    float lng;                /* geographical longitude */
+    int dist;                 /* geographical distance to client */
     const char *as;           /* autonomous system number as string */
     const char *prefix;       /* network prefix xxx.xxx.xxx.xxx/yy */
     apr_ipsubnet_t *ipsub;   /* ip-subnet representation of the network prefix  */
@@ -199,6 +211,8 @@ struct mirror_entry {
     apr_off_t file_maxsize;
     char *other_countries;    /* comma-separated 2-letter strings */
     int rank;
+    int *nsame;               /* to be able to access the number of elements in
+                                 the array from qsort() */
 };
 
 /* verification hashes of a file */
@@ -528,10 +542,14 @@ static const char *mb_cmd_fallback(cmd_parms *cmd, void *config,
     }
 
     new = apr_array_push(cfg->fallbacks);
+    new->nsame = &cfg->fallbacks->nelts;
     new->id = 0;
     new->identifier = uri.hostname;
     new->region = apr_pstrdup(cmd->pool, arg1);
     new->country_code = apr_pstrdup(cmd->pool, arg2);
+    new->lat = 0;
+    new->lng = 0;
+    new->dist = 0;
     new->other_countries = NULL;
     new->as = NULL;
     new->prefix = NULL;
@@ -820,7 +838,7 @@ static const char *mb_cmd_memcached_lifetime(cmd_parms *cmd, void *config,
 static int find_lowest_rank(apr_array_header_t *arr) 
 {
     if (arr->nelts == 1) {
-        return 0;
+        return 0; /* the first and only element */
     }
 
     int i;
@@ -840,11 +858,64 @@ static int find_lowest_rank(apr_array_header_t *arr)
     return lowest_id;
 }
 
+static int find_closest_dist(apr_array_header_t *arr) 
+{
+    if (arr->nelts == 1) {
+        return 0; /* the first and only element */
+    }
+
+    int i, d;
+    int closest_id = 0;
+    int closest = INT_MAX;
+    int closest_rank = INT_MAX;
+    mirror_entry_t *mirror;
+    mirror_entry_t **mirrorp;
+
+    int distprio = DISTANCE_PRIO / arr->nelts;
+
+    mirrorp = (mirror_entry_t **)arr->elts;
+    for (i = 0; i < arr->nelts; i++) {
+        mirror = mirrorp[i];
+        d = mirror->dist + distprio / mirror->score;
+        /* ap_log_error(APLOG_MARK, APLOG_ERR, 0, NULL, "[find_closest_dist] "
+                        "i: %d, %-30s - dist: %d, score: %d, %d/score: %d, d: %d", 
+                        i, mirror->identifier, mirror->dist, mirror->score, distprio, 
+                        distprio/mirror->score, d); */
+        if ( d < closest) {
+            /* this mirror is closer */
+            closest = d;
+            closest_id = i;
+            closest_rank = mirror->rank;
+        } else if (d == closest) {
+            /* this mirror is as close as the closest known mirror. So we pick
+             * one of them randomly. */
+            if (mirror->rank < closest_rank) {
+                closest = d;
+                closest_id = i;
+                closest_rank = mirror->rank;
+            }
+        }
+    }
+    return closest_id;
+}
+
 static int cmp_mirror_rank(const void *v1, const void *v2)
 {
     mirror_entry_t *m1 = *(mirror_entry_t **)v1;
     mirror_entry_t *m2 = *(mirror_entry_t **)v2;
     return m1->rank - m2->rank;
+}
+
+static int cmp_mirror_dist(const void *v1, const void *v2)
+{
+    mirror_entry_t *m1 = *(mirror_entry_t **)v1;
+    mirror_entry_t *m2 = *(mirror_entry_t **)v2;
+
+    int distprio = DISTANCE_PRIO / *m1->nsame;
+    /* ap_log_error(APLOG_MARK, APLOG_ERR, 0, NULL, 
+     * "[cmp_mirror_dist] nsame: %d, distprio: %d", *m1->nsame, distprio); */
+
+    return (m1->dist + distprio / m1->score) - (m2->dist + distprio / m2->score);
 }
 
 /* return the scheme of an URL, e.g. ftp for ftp://foo.example.com/ */
@@ -1163,6 +1234,9 @@ static int mb_handler(request_rec *r)
                                                    if it's excluded from redirection by configuration */
     const char *continent_code;
     const char *country_code;
+    const char *slat, *slng;
+    float lat = 0, lng = 0;
+    const char *state_id, *state_name;
     const char *as;                             /* autonomous system */
     const char *prefix;                         /* network prefix */
     int i;
@@ -1192,7 +1266,10 @@ static int mb_handler(request_rec *r)
     char *m_key, *m_val;
     int cached_id;
 #endif
-    const char* (*form_lookup)(request_rec*, const char*);
+    const char *(*form_lookup)(request_rec*, const char*);
+    int (*cmp_mirror_best)(const void *, const void *);
+    int (*find_best) (apr_array_header_t *);
+
 
     cfg = (mb_dir_conf *)     ap_get_module_config(r->per_dir_config, 
                                                    &mirrorbrain_module);
@@ -1292,7 +1369,7 @@ static int mb_handler(request_rec *r)
     rv = apr_sockaddr_info_get(&clientaddr, clientip, APR_UNSPEC, 0, 0, r->pool);
     if(APR_STATUS_IS_EINVAL(rv) || (rv != APR_SUCCESS)) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] "
-                "Error in parsing GEOIP_ADDR value '%s'", clientip);
+                "Error in parsing GEOIP_ADDR: '%s'", clientip);
     }
     debugLog(r, cfg, "clientip: %s", clientip);
 
@@ -1495,6 +1572,14 @@ static int mb_handler(request_rec *r)
 
     country_code = apr_table_get(r->subprocess_env, "GEOIP_COUNTRY_CODE");
     continent_code = apr_table_get(r->subprocess_env, "GEOIP_CONTINENT_CODE");
+    slat = apr_table_get(r->subprocess_env, "GEOIP_LATITUDE");
+    slng = apr_table_get(r->subprocess_env, "GEOIP_LONGITUDE");
+    if (slat && slng) { 
+        lat = atof(slat);
+        lng = atof(slng);
+    };
+    state_id = apr_table_get(r->subprocess_env, "GEOIP_REGION");
+    state_name = apr_table_get(r->subprocess_env, "GEOIP_REGION_NAME");
 
     if (!country_code) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] could not resolve country");
@@ -1533,7 +1618,8 @@ static int mb_handler(request_rec *r)
     if (!prefix) {
         prefix = "--";
     }
-    debugLog(r, cfg, "AS '%s', Prefix '%s'", as, prefix);
+    debugLog(r, cfg, "AS '%s', Prefix '%s', lat/lng %f,%f state id %s, state '%s'", 
+             as, prefix, lat, lng, state_id, state_name);
 
 
     /* prepare the filename to look up */
@@ -1733,10 +1819,14 @@ static int mb_handler(request_rec *r)
         }
 
         new = apr_array_push(mirrors);
+        new->nsame = &mirrors->nelts;
         new->id = 0;
         new->identifier = NULL;
         new->region = NULL;
         new->country_code = NULL;
+        new->lat = 0;
+        new->lng = 0;
+        new->dist = 9999999;
         new->other_countries = NULL;
         new->as = NULL;
         new->prefix = NULL;
@@ -1772,6 +1862,23 @@ static int mb_handler(request_rec *r)
             ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] apr_dbd_get_entry found NULL for country_code");
         else
             new->country_code = apr_pstrndup(r->pool, val, 2); /* fixed length, two bytes */
+
+        /* latitude */
+        if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL) {
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] apr_dbd_get_entry found NULL for lat");
+        } else
+            new->lat = atof(val);
+
+        /* longitude */
+        if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL) {
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] apr_dbd_get_entry found NULL for lng");
+        } else
+            new->lng = atof(val);
+
+        /* FIXME: would be sufficient to do it only for the "interesting" mirrors */
+        if (new->lat != 0 && new->lng != 0 && lat != 0 && lng != 0) {
+            new->dist = (int) ( sqrt( pow((lat - new->lat), 2) + pow((lng - new->lng), 2) ) * 1000 );
+        }
 
         /* autonomous system number */
         if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL)
@@ -1894,6 +2001,7 @@ static int mb_handler(request_rec *r)
         else if (new->ipsub 
                 && apr_ipsubnet_test(new->ipsub, clientaddr)) {
             *(void **)apr_array_push(mirrors_same_prefix) = new;
+            new->nsame = &mirrors_same_prefix->nelts;
             debugLog(r, cfg, "Mirror '%s' in same prefix (%s)", new->identifier, new->prefix);
         }
 
@@ -1901,6 +2009,7 @@ static int mb_handler(request_rec *r)
         else if ((strcmp(new->as, as) == 0) 
                    && !new->prefix_only) {
             *(void **)apr_array_push(mirrors_same_as) = new;
+            new->nsame = &mirrors_same_as->nelts;
         }
 
         /* same country? */
@@ -1908,12 +2017,14 @@ static int mb_handler(request_rec *r)
                    && !new->as_only
                    && !new->prefix_only) {
             *(void **)apr_array_push(mirrors_same_country) = new;
+            new->nsame = &mirrors_same_country->nelts;
         }
 
         /* is the mirror's country_code a wildcard, indicating that the mirror should be
          * considered for every country? */
         else if (strcmp(new->country_code, "**") == 0) {
             *(void **)apr_array_push(mirrors_same_country) = new; 
+            new->nsame = &mirrors_same_country->nelts;
             /* if so, forget memcache association, so the mirror is not ruled out */
             chosen = NULL; 
             /* set its country and region to that of the client */
@@ -1924,6 +2035,7 @@ static int mb_handler(request_rec *r)
         /* mirror from elsewhere, but suitable for this country? */
         else if (new->other_countries && ap_strcasestr(new->other_countries, country_code)) {
             *(void **)apr_array_push(mirrors_fallback_country) = new;
+            new->nsame = &mirrors_fallback_country->nelts;
         }
 
         /* same region? */
@@ -1934,6 +2046,7 @@ static int mb_handler(request_rec *r)
                     && !new->as_only
                     && !new->prefix_only) {
             *(void **)apr_array_push(mirrors_same_region) = new;
+            new->nsame = &mirrors_same_region->nelts;
         }
 
         /* to be considered as "worldwide" mirror, it must be willing 
@@ -1944,6 +2057,7 @@ static int mb_handler(request_rec *r)
                     && !new->as_only
                     && !new->prefix_only) {
             *(void **)apr_array_push(mirrors_elsewhere) = new;
+            new->nsame = &mirrors_elsewhere->nelts;
         }
 
         i++;
@@ -2005,6 +2119,15 @@ static int mb_handler(request_rec *r)
         }
     }
 
+    if (lat != 0 && lng != 0) {
+        debugLog(r, cfg, "[mod_mirrorbrain] taking geo distance into account");
+        find_best = find_closest_dist;
+        cmp_mirror_best = cmp_mirror_dist;
+    } else {
+        debugLog(r, cfg, "[mod_mirrorbrain] no distance data - using rank selection");
+        find_best = find_lowest_rank;
+        cmp_mirror_best = cmp_mirror_rank;
+    }
 
     /* 
     * Sorting the mirror list(s):
@@ -2027,15 +2150,15 @@ static int mb_handler(request_rec *r)
     case MIRRORLIST:
     case ZSYNC:
         qsort(mirrors_same_prefix->elts, mirrors_same_prefix->nelts, 
-              mirrors_same_prefix->elt_size, cmp_mirror_rank);
+              mirrors_same_prefix->elt_size, cmp_mirror_best);
         qsort(mirrors_same_as->elts, mirrors_same_as->nelts, 
-              mirrors_same_as->elt_size, cmp_mirror_rank);
+              mirrors_same_as->elt_size, cmp_mirror_best);
         qsort(mirrors_same_country->elts, mirrors_same_country->nelts, 
-              mirrors_same_country->elt_size, cmp_mirror_rank);
+              mirrors_same_country->elt_size, cmp_mirror_best);
         qsort(mirrors_same_region->elts, mirrors_same_region->nelts, 
-              mirrors_same_region->elt_size, cmp_mirror_rank);
+              mirrors_same_region->elt_size, cmp_mirror_best);
         qsort(mirrors_elsewhere->elts, mirrors_elsewhere->nelts, 
-              mirrors_elsewhere->elt_size, cmp_mirror_rank);
+              mirrors_elsewhere->elt_size, cmp_mirror_best);
         break;
     }
 
@@ -2049,40 +2172,40 @@ static int mb_handler(request_rec *r)
         mirrorp = (mirror_entry_t **)mirrors_same_prefix->elts;
         for (i = 0; i < mirrors_same_prefix->nelts; i++) {
             mirror = mirrorp[i];
-            debugLog(r, cfg, "same prefix: %-30s (score %4d) (rank %10d)", 
-                    mirror->identifier, mirror->score, mirror->rank);
+            debugLog(r, cfg, "same prefix: %-30s (score %4d) (rank %10d) (dist %d)", 
+                    mirror->identifier, mirror->score, mirror->rank, mirror->dist);
         }
 
         /* list the same-AS mirrors */
         mirrorp = (mirror_entry_t **)mirrors_same_as->elts;
         for (i = 0; i < mirrors_same_as->nelts; i++) {
             mirror = mirrorp[i];
-            debugLog(r, cfg, "same AS: %-30s (score %4d) (rank %10d)", 
-                    mirror->identifier, mirror->score, mirror->rank);
+            debugLog(r, cfg, "same AS: %-30s (score %4d) (rank %10d) (dist %d)", 
+                    mirror->identifier, mirror->score, mirror->rank, mirror->dist);
         }
 
         /* list the same-country mirrors */
         mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
         for (i = 0; i < mirrors_same_country->nelts; i++) {
             mirror = mirrorp[i];
-            debugLog(r, cfg, "same country: %-30s (score %4d) (rank %10d)", 
-                    mirror->identifier, mirror->score, mirror->rank);
+            debugLog(r, cfg, "same country: %-30s (score %4d) (rank %10d) (dist %d)", 
+                    mirror->identifier, mirror->score, mirror->rank, mirror->dist);
         }
 
         /* list the same-region mirrors */
         mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
         for (i = 0; i < mirrors_same_region->nelts; i++) {
             mirror = mirrorp[i];
-            debugLog(r, cfg, "same region:  %-30s (score %4d) (rank %10d)", 
-                    mirror->identifier, mirror->score, mirror->rank);
+            debugLog(r, cfg, "same region:  %-30s (score %4d) (rank %10d) (dist %d)", 
+                    mirror->identifier, mirror->score, mirror->rank, mirror->dist);
         }
 
         /* list all other mirrors */
         mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
         for (i = 0; i < mirrors_elsewhere->nelts; i++) {
             mirror = mirrorp[i];
-            debugLog(r, cfg, "elsewhere:    %-30s (score %4d) (rank %10d)", 
-                    mirror->identifier, mirror->score, mirror->rank);
+            debugLog(r, cfg, "elsewhere:    %-30s (score %4d) (rank %10d) (dist %d)", 
+                    mirror->identifier, mirror->score, mirror->rank, mirror->dist);
         }
 
         debugLog(r, cfg, "classifying %d mirror%s: %d prefix, %d AS, %d country, "
@@ -3078,21 +3201,20 @@ static int mb_handler(request_rec *r)
         
     } /* end switch representation */
 
-
     const char *found_in;
     /* choose from country, then from region, then from elsewhere */
     if (!chosen) {
         if (!apr_is_empty_array(mirrors_same_prefix)) {
             mirrorp = (mirror_entry_t **)mirrors_same_prefix->elts;
-            chosen = mirrorp[find_lowest_rank(mirrors_same_prefix)];
+            chosen = mirrorp[find_best(mirrors_same_prefix)];
             found_in = "prefix";
         } else if (!apr_is_empty_array(mirrors_same_as)) {
             mirrorp = (mirror_entry_t **)mirrors_same_as->elts;
-            chosen = mirrorp[find_lowest_rank(mirrors_same_as)];
+            chosen = mirrorp[find_best(mirrors_same_as)];
             found_in = "AS";
         } else if (!apr_is_empty_array(mirrors_same_country)) {
             mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
-            chosen = mirrorp[find_lowest_rank(mirrors_same_country)];
+            chosen = mirrorp[find_best(mirrors_same_country)];
             if (strcasecmp(chosen->country_code, country_code) == 0) {
                 found_in = "country";
             } else {
@@ -3100,11 +3222,11 @@ static int mb_handler(request_rec *r)
             }
         } else if (!apr_is_empty_array(mirrors_same_region)) {
             mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
-            chosen = mirrorp[find_lowest_rank(mirrors_same_region)];
+            chosen = mirrorp[find_best(mirrors_same_region)];
             found_in = "region";
         } else if (!apr_is_empty_array(mirrors_elsewhere)) {
             mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
-            chosen = mirrorp[find_lowest_rank(mirrors_elsewhere)];
+            chosen = mirrorp[find_best(mirrors_elsewhere)];
             found_in = "other";
         }
     }
