@@ -491,7 +491,7 @@ static const char *mb_cmd_engine(cmd_parms *cmd, void *config, int flag)
 }
 
 static const char *mb_cmd_redirect_stamp_key(cmd_parms *cmd, void *config, 
-                                             const char* arg1)
+                                             const char *arg1)
 {
     mb_dir_conf *cfg = (mb_dir_conf *) config;
     cfg->stampkey = arg1;
@@ -1156,10 +1156,10 @@ static int mb_handler(request_rec *r)
     char meta_negotiated = 0;                   /* a metalink representation was chosed by negotiation, i.e.
                                                    the server might still decide to return the file itself 
                                                    if it's excluded from redirection by configuration */
-    const char* continent_code;
-    const char* country_code;
-    const char* as;                             /* autonomous system */
-    const char* prefix;                         /* network prefix */
+    const char *continent_code;
+    const char *country_code;
+    const char *as;                             /* autonomous system */
+    const char *prefix;                         /* network prefix */
     int i;
     int mirror_cnt;
     apr_size_t len;
@@ -3124,9 +3124,9 @@ static int mb_handler(request_rec *r)
 
     /* Build target URI */
     if (cfg->stampkey) {
-        const char* epoch = apr_itoa(r->pool, apr_time_sec(r->request_time));
-        const char* epochkey = apr_pstrcat(r->pool, epoch, " ", cfg->stampkey, NULL);
-        const char* stamp = ap_md5(r->pool, (unsigned const char *)epochkey);
+        const char *epoch = apr_itoa(r->pool, apr_time_sec(r->request_time));
+        const char *epochkey = apr_pstrcat(r->pool, epoch, " ", cfg->stampkey, NULL);
+        const char *stamp = ap_md5(r->pool, (unsigned const char *)epochkey);
 
         debugLog(r, cfg, "stamp: '%s' -> %s", epochkey, stamp);
         uri = apr_pstrcat(r->pool, chosen->baseurl, filename, 
