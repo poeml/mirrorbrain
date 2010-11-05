@@ -1152,6 +1152,7 @@ static int mb_handler(request_rec *r)
     char *filename = NULL;
     char *realfile = NULL;
     const char *clientip = NULL;
+    apr_sockaddr_t *clientaddr;
     const char *query_country = NULL;
     char *query_asn = NULL;
     char fakefile = 0, newmirror = 0, only_hash = 0;
@@ -1238,7 +1239,6 @@ static int mb_handler(request_rec *r)
     form_lookup = APR_RETRIEVE_OPTIONAL_FN(form_value);
     if (form_lookup && r->args) {
         if (form_lookup(r, "fakefile")) fakefile = 1;
-        clientip = form_lookup(r, "clientip");
         query_country = form_lookup(r, "country");
         query_asn = (char *) form_lookup(r, "as");
         if (form_lookup(r, "newmirror")) newmirror = 1;
@@ -1286,22 +1286,15 @@ static int mb_handler(request_rec *r)
         }
     }
 
-    if (clientip) {
-        debugLog(r, cfg, "obsolete clientip address parameter: '%s'", clientip);
-        ap_set_content_type(r, "text/html; charset=UTF-8");
-        ap_rputs(DOCTYPE_XHTML_1_0T
-                 "<html xmlns=\"http://www.w3.org/1999/xhtml\">\n"
-                 "<head>\n"
-                 "  <title>Sorry</title>\n", r);
-        ap_rputs("</head>\n<body>\n\n", r);
-        ap_rprintf(r, "<p>\n<kbd>clientip</kbd> is no longer supported as query parameter. "
-                      "Please use <kbd>country=xy</kbd> instead, where <kbd>xy</kbd> is a two-letter "
-                      "<a href=\"http://en.wikipedia.org/wiki/ISO_3166-1\">"
-                      "ISO 3166 country code</a>.\n</p>\n");
-        ap_rputs("\n\n</body>\n</html>\n", r);
-        return OK;
-    } else 
-        clientip = apr_pstrdup(r->pool, r->connection->remote_ip);
+    /* We might be running as a backend which sees client IPs only through HTTP
+     * headers */
+    clientip = apr_table_get(r->subprocess_env, "GEOIP_ADDR");
+    rv = apr_sockaddr_info_get(&clientaddr, clientip, APR_UNSPEC, 0, 0, r->pool);
+    if(APR_STATUS_IS_EINVAL(rv) || (rv != APR_SUCCESS)) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] "
+                "Error in parsing GEOIP_ADDR value '%s'", clientip);
+    }
+    debugLog(r, cfg, "clientip: %s", clientip);
 
     /* These checks apply only if the server response is not faked for testing */
     if (fakefile) {
@@ -1899,8 +1892,9 @@ static int mb_handler(request_rec *r)
 
         /* same prefix? */
         else if (new->ipsub 
-                && apr_ipsubnet_test(new->ipsub, r->connection->remote_addr)) {
+                && apr_ipsubnet_test(new->ipsub, clientaddr)) {
             *(void **)apr_array_push(mirrors_same_prefix) = new;
+            debugLog(r, cfg, "Mirror '%s' in same prefix (%s)", new->identifier, new->prefix);
         }
 
         /* same AS? */
