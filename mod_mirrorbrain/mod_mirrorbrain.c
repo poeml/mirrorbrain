@@ -819,6 +819,10 @@ static const char *mb_cmd_memcached_lifetime(cmd_parms *cmd, void *config,
 
 static int find_lowest_rank(apr_array_header_t *arr) 
 {
+    if (arr->nelts == 1) {
+        return 0;
+    }
+
     int i;
     int lowest_id = 0;
     int lowest = INT_MAX;
