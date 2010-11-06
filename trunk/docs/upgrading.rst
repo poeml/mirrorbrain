@@ -234,6 +234,23 @@ If everything works, you can stop and remove the temporary database installation
 Version-specific upgrade notes
 -------------------------------
 
+To `2.14.0 <http://mirrorbrain.org/docs/changes/#release-2-14-0-r8208-nov-6-2010>`_:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To take advantage of mirror selection by geographical distance (as additional criterion to country, network prefix etc.), the free `GeoLite City
+<http://www.maxmind.com/app/geolitecity>`_ GeoIP database needs to be used. If
+you used the simpler database so far, you need to switch to the city edition
+which contains the required data. The following steps are necessary:
+
+1) Use the provided :program:`geoip-lite-update` tool to
+   download it (and keep it updated regularly via cron). 
+   
+2) Edit your mod_geoip configuration and change ``GeoIP.dat`` to ``GeoLiteCity.dat.updated``
+
+3) Run :program:`mb update -A --all-mirrors` to update the mirrors' GeoIP data (coordinates, country and region), and (if :program:`mod_asn` is used) autonomous system and prefix.
+
+
+
 From 2.13.x to `2.13.3 <http://mirrorbrain.org/docs/changes/#release-2-13-3-r8166-sep-26-2010>`_:
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -247,6 +264,8 @@ Anyhow, it could cause confusion.
 
 You can use :program:`mb makehashes` with the ``--force`` option once to
 recreate the hashes.
+
+
 
 From 2.12.x to `2.13.0 <http://mirrorbrain.org/docs/changes/#release-2-13-0-r8123-sep-6-2010>`_:
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -264,6 +283,7 @@ From 2.12.x to `2.13.0 <http://mirrorbrain.org/docs/changes/#release-2-13-0-r812
   easier to get it to do what you want.
 
 
+
 From 2.11.1 to `2.11.2 <http://mirrorbrain.org/docs/changes/#release-2-11-2-r7917-dec-5-2009>`_:
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -274,6 +294,7 @@ be updated; the old command might be depracated later.
 Users that happen to use the :program:`mirrorprobe` with the default timeout of
 60 seconds should now run it with ``-t 60``, because the default has been
 lowered to 20 seconds with release.
+
 
 
 From 2.10.3 to `2.11.0 <http://mirrorbrain.org/docs/changes/#release-2-11-0-r7896-dec-2-2009>`_:
