@@ -14,10 +14,11 @@ This release brings a number of new features, and also some bug fixes.
   MirrorBrain now uses geographical distance as additional criterion in mirror
   selection. This is useful in
   
-    1) large countries (like the US) and any countries with many mirrors 
+    1) large countries (like the US), and probably any countries with many
+       mirrors 
     
     2) countries without mirrors, where only a random mirror from the continent
-       could be selected otherwise. (Defining fallback mirrors for the latter
+       could be selected otherwise. (Defining fallback mirrors for such
        countries worked before, and still has precedence.) 
   
   This implements `issue 34`_. To take advantage of this feature, the free
@@ -25,7 +26,7 @@ This release brings a number of new features, and also some bug fixes.
   to be used.  See the `2.14.0 upgrade notes`_ for instructions.
 
 - Per-file mirror lists have been improved by showing data in a better readable
-  way, and by embedding a link to a Google map showing the 9 closest mirrors.
+  way, and by embedding a link to a Google map visualizing the 9 closest mirrors.
 
 - When running behind a load balancer or other reverse proxy, prefix detection
   (for containment in network prefixes of mirrors) did not work because
@@ -34,22 +35,22 @@ This release brings a number of new features, and also some bug fixes.
   country and continent comparisons already did this.)
 
 - Experimental support for restricted downloads has been implemented, by
-  redirecting to temporary URLs whose validity need to be verified by the
+  redirecting to temporary URLs whose validity can be verified by the
   mirrors. See
   http://www.mail-archive.com/mirrorbrain@mirrorbrain.org/msg00011.html This a
-  prototype implementation that might be changed later, hence the new Apache
+  prototype implementation that might still be changed, hence the new Apache
   config directive is called ``MirrorBrainRedirectStampKey_EXPERIMENTAL`` at
   the moment.
 
-- The module did not work when access was restricted with authentication (e.g.
-  Basic Authentication), due to a broken check which simply needed to be
-  removed. (A bit of code inherited from mod_offload, and likely still dating
-  back to old Apache 1.3 API.)
+- MirrorBrain did not accept requests when access was restricted with
+  authentication (e.g.  Basic Authentication), due to a broken check which
+  simply needed to be removed. (A bit of code inherited from mod_offload, and
+  likely still dating back to old Apache 1.3 API.)
 
 - MirrorBrain has been tested (successfully) against the latest
   :program:`zsync` release (0.6.2) and the documentation updated. 
 
-- Optimizations and code cleanup have been performed.
+- Minor optimizations and code cleanups have been done.
 
 Please read the `2.14.0 upgrade notes`_ before upgrading!
 
