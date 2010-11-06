@@ -918,6 +918,42 @@ static int cmp_mirror_dist(const void *v1, const void *v2)
     return (m1->dist + distprio / m1->score) - (m2->dist + distprio / m2->score);
 }
 
+static apr_array_header_t *get_n_best_mirrors(request_rec *r, int n, 
+                                              apr_array_header_t *a1, apr_array_header_t *a2, 
+                                              apr_array_header_t *a3, apr_array_header_t *a4, 
+                                              apr_array_header_t *a5)
+{
+    int i;
+    int found = 0;
+    apr_array_header_t *mirrors_n_best;
+    mirror_entry_t **mirrorp;
+
+    mirrors_n_best  = apr_array_make(r->pool, n, sizeof (mirror_entry_t *));
+
+    mirrorp = (mirror_entry_t **)a1->elts;
+    for (i = 0; found < n && i < a1->nelts; i++, found++) {
+        *(void **)apr_array_push(mirrors_n_best) = mirrorp[i];
+    }
+    mirrorp = (mirror_entry_t **)a2->elts;
+    for (i = 0; found < n && i < a2->nelts; i++, found++) {
+        *(void **)apr_array_push(mirrors_n_best) = mirrorp[i];
+    }
+    mirrorp = (mirror_entry_t **)a3->elts;
+    for (i = 0; found < n && i < a3->nelts; i++, found++) {
+        *(void **)apr_array_push(mirrors_n_best) = mirrorp[i];
+    }
+    mirrorp = (mirror_entry_t **)a4->elts;
+    for (i = 0; found < n && i < a4->nelts; i++, found++) {
+        *(void **)apr_array_push(mirrors_n_best) = mirrorp[i];
+    }
+    mirrorp = (mirror_entry_t **)a5->elts;
+    for (i = 0; found < n && i < a5->nelts; i++, found++) {
+        *(void **)apr_array_push(mirrors_n_best) = mirrorp[i];
+    }
+
+    return mirrors_n_best;
+}
+
 /* return the scheme of an URL, e.g. ftp for ftp://foo.example.com/ */
 static const char *url_scheme(apr_pool_t *p, const char *url)
 {
@@ -1234,6 +1270,7 @@ static int mb_handler(request_rec *r)
                                                    if it's excluded from redirection by configuration */
     const char *continent_code;
     const char *country_code;
+    const char *country_name;
     const char *slat, *slng;
     float lat = 0, lng = 0;
     const char *state_id, *state_name;
@@ -1571,6 +1608,7 @@ static int mb_handler(request_rec *r)
 
 
     country_code = apr_table_get(r->subprocess_env, "GEOIP_COUNTRY_CODE");
+    country_name = apr_table_get(r->subprocess_env, "GEOIP_COUNTRY_NAME");
     continent_code = apr_table_get(r->subprocess_env, "GEOIP_CONTINENT_CODE");
     slat = apr_table_get(r->subprocess_env, "GEOIP_LATITUDE");
     slng = apr_table_get(r->subprocess_env, "GEOIP_LONGITUDE");
@@ -2772,7 +2810,7 @@ static int mb_handler(request_rec *r)
 
         /* Metalink info */
         ap_rputs("  <br/>\n" 
-                 "  <blockquote>Metalinks for easier, more reliable, self healing downloads:\n"
+                 "  <blockquote>Metalinks for reliable downloads:\n"
                  "  <br/>\n", r);
         ap_rprintf(r, "  <a href=\"http://%s%s.meta4\">http://%s%s.meta4</a> (IETF Metalink)"
                       "  <br/>\n", 
@@ -2793,11 +2831,45 @@ static int mb_handler(request_rec *r)
                               r->hostname, r->uri, r->hostname, r->uri);
             }
         }
-        ap_rputs("  </blockquote>", r);
+        ap_rputs("  </blockquote>\n\n", r);
 
 
-        ap_rprintf(r, "  <p>List of best mirrors for IP address %s, located in country %s, %s (AS%s):</p>\n", 
-                   clientip, country_code, prefix, as);
+        ap_rprintf(r, "  <p>List of best mirrors for IP address %s, located ", clientip);
+        if (lat != 0 && lng != 0) {
+            ap_rprintf(r, "at %f,%f ", lat, lng);
+        }
+        if (strcmp(country_code, "--") != 0) {
+            ap_rprintf(r, "in %s (%s)", country_name, country_code);
+        } else {
+            ap_rputs("in an unknown country", r);
+        }
+        if (strcmp(prefix, "--") != 0) {
+            ap_rprintf(r, ", \n     network %s (autonomous system %s)", prefix, as);
+        }
+        ap_rputs(": ", r);
+
+        if (lat != 0 && lng != 0) {
+            ap_rputs("&nbsp;", r);
+            apr_array_header_t *topten = get_n_best_mirrors(r, 9, mirrors_same_prefix, mirrors_same_as, 
+                                                             mirrors_same_country, mirrors_same_region, 
+                                                             mirrors_elsewhere);
+            mirrorp = (mirror_entry_t **)topten->elts;
+            ap_rprintf(r, "\n     <a href=\"http://maps.google.com/maps/api/staticmap?size=640x640"
+                          "&maptype=terrain&visible&sensor=false&markers=size:mid|color:red|%f,%f", lat, lng);
+            for (i = 0; i < topten->nelts; i++) {
+                mirror = mirrorp[i];
+                ap_rprintf(r, "&markers=size:normal|color:yellow|label:%d|%f,%f", i+1, mirror->lat, mirror->lng);
+            }
+            ap_rputs("\">\n     <img src=\"", r);
+            ap_rprintf(r, "http://maps.google.com/maps/api/staticmap?size=50x50"
+                          "&maptype=terrain&visible&sensor=false&markers=size:mid|color:red|%f,%f", lat, lng);
+            for (i = 0; i < topten->nelts; i++) {
+                mirror = mirrorp[i];
+                ap_rprintf(r, "&markers=size:normal|color:yellow|label:%d|%f,%f", i+1, mirror->lat, mirror->lng);
+            }
+            ap_rputs("\" width=\"50\" height=\"50\" alt=\"map showing the closest mirrors\"/></a> ", r);
+        }
+        ap_rputs("</p>\n", r);
 
         if ((mirror_cnt <= 0) || (!mirrors_same_prefix->nelts && !mirrors_same_as->nelts 
                                   && !mirrors_same_country->nelts && !mirrors_same_region->nelts 
