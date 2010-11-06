@@ -2865,7 +2865,7 @@ static int mb_handler(request_rec *r)
                           "&amp;maptype=terrain&amp;visible&amp;sensor=false&amp;markers=size:mid|color:red|%f,%f", lat, lng);
             for (i = 0; i < topten->nelts; i++) {
                 mirror = mirrorp[i];
-                ap_rprintf(r, "&markers=size:normal|color:yellow|label:%d|%f,%f", i+1, mirror->lat, mirror->lng);
+                ap_rprintf(r, "&amp;markers=size:normal|color:yellow|label:%d|%f,%f", i+1, mirror->lat, mirror->lng);
             }
             ap_rputs("\" width=\"50\" height=\"50\" alt=\"map showing the closest mirrors\"/></a> ", r);
         }
