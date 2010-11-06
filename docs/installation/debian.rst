@@ -120,6 +120,8 @@ handy tool that does this, and also downloads the larger "City" dataset::
 
 Now, one (or more) of the files ending in ``.updated`` can be used with Apache.
 
+The larger dataset (``GeoLiteCity.dat.updated``) is recommended.
+
 
 Configure mod_dbd
 ~~~~~~~~~~~~~~~~~

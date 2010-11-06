@@ -349,11 +349,18 @@ Optional things you might want
 Configuring GeoIP
 -----------------
 
+.. note::
+   It is better to use the larger `GeoLiteCity
+   <http://www.maxmind.com/app/geolitecity>`_ database, instead of the minimal
+   GeoIP database that contains only country information. With the more
+   detailed info in the former database, a better mirror selection is achieved
+   in many cases.
+
 Edit /etc/apache2/conf.d/mod_geoip.conf::
 
   <IfModule mod_geoip.c>
      GeoIPEnable On
-     GeoIPDBFile /var/lib/GeoIP/GeoIP.dat
+     GeoIPDBFile /var/lib/GeoIP/GeoLiteCity.dat.updated
      #GeoIPOutput [Notes|Env|All]
      GeoIPOutput Env
   </IfModule>
@@ -365,7 +372,7 @@ the worker MPM.In this case, use::
 
   <IfModule mod_geoip.c>
      GeoIPEnable On
-     GeoIPDBFile /var/lib/GeoIP/GeoIP.dat MMapCache
+     GeoIPDBFile /var/lib/GeoIP/GeoLiteCity.dat.updated MMapCache
      GeoIPOutput Env
   </IfModule>
 
