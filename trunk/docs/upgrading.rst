@@ -234,7 +234,7 @@ If everything works, you can stop and remove the temporary database installation
 Version-specific upgrade notes
 -------------------------------
 
-To `2.14.0 <http://mirrorbrain.org/docs/changes/#release-2-14-0-r8208-nov-6-2010>`_:
+To `2.14.0 <http://mirrorbrain.org/docs/changes/#release-2-14-0-r8210-nov-6-2010>`_:
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To take advantage of mirror selection by geographical distance (as additional criterion to country, network prefix etc.), the free `GeoLite City
