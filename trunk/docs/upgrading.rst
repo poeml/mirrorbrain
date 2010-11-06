@@ -249,6 +249,9 @@ which contains the required data. The following steps are necessary:
 
 3) Run :program:`mb update -A --all-mirrors` to update the mirrors' GeoIP data (coordinates, country and region), and (if :program:`mod_asn` is used) autonomous system and prefix.
 
+MirrorBrain will continue to run fine without the extra data. Thus, it is not
+obligatory to switch to the larger GeoIP database.
+
 
 
 From 2.13.x to `2.13.3 <http://mirrorbrain.org/docs/changes/#release-2-13-3-r8166-sep-26-2010>`_:
