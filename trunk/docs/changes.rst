@@ -56,7 +56,7 @@ This release brings a number of new features, and also some bug fixes.
 
 Please read the `2.14.0 upgrade notes`_ before upgrading!
 
-.. _`2.14.0 upgrade notes`: http://mirrorbrain.org/docs/upgrading/#to-2.14.0
+.. _`2.14.0 upgrade notes`: http://mirrorbrain.org/docs/upgrading/#to-2-14-0
 .. _`issue 34`: http://mirrorbrain.org/issues/issue34
 
 
