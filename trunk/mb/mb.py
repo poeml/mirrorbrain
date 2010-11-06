@@ -578,7 +578,12 @@ class MirrorDoctor(cmdln.Cmdln):
         old = mb.conn.server_show_template % old_dict
 
         import mb.util
-        boilerplate = """#\n# Note: You cannot modify 'identifier' or 'id'. You can use 'mb rename' though.\n#\n"""
+        boilerplate = """#
+# Note: - You cannot modify 'identifier' or 'id'. You can use 'mb rename' though.
+#       - AS, prefix, lat and lng should be modified through 'mb update' 
+#         ('mb update -A –all-mirrors' for all).
+#
+"""
         new = mb.util.edit_file(old, boilerplate=boilerplate)
         if not new:
             print 'Quitting.'
