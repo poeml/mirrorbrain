@@ -310,7 +310,11 @@ running this command (say, once a month) is a good idea because the data
 sometimes might change over time. However, this also means that manual edits
 will be overwritten.
 
-The update command can be used for individual mirrors::
+To update all network data for all mirrors, simply run::
+
+     % mb update -A --all-mirrors
+
+The command can also be used for individual mirrors, and to update only some data::
 
      % mb update --coordinates --asn --prefix ftp5
     updating geographical coordinates for ftp5.gwdg.de (0.000 0.000 -> 53.083 8.8)
