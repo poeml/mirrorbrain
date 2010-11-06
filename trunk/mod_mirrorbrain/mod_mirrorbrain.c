@@ -2855,14 +2855,14 @@ static int mb_handler(request_rec *r)
                                                              mirrors_elsewhere);
             mirrorp = (mirror_entry_t **)topten->elts;
             ap_rprintf(r, "\n     <a href=\"http://maps.google.com/maps/api/staticmap?size=640x640"
-                          "&maptype=terrain&visible&sensor=false&markers=size:mid|color:red|%f,%f", lat, lng);
+                          "&amp;maptype=terrain&amp;visible&amp;sensor=false&amp;markers=size:mid|color:red|%f,%f", lat, lng);
             for (i = 0; i < topten->nelts; i++) {
                 mirror = mirrorp[i];
-                ap_rprintf(r, "&markers=size:normal|color:yellow|label:%d|%f,%f", i+1, mirror->lat, mirror->lng);
+                ap_rprintf(r, "&amp;markers=size:normal|color:yellow|label:%d|%f,%f", i+1, mirror->lat, mirror->lng);
             }
             ap_rputs("\">\n     <img src=\"", r);
             ap_rprintf(r, "http://maps.google.com/maps/api/staticmap?size=50x50"
-                          "&maptype=terrain&visible&sensor=false&markers=size:mid|color:red|%f,%f", lat, lng);
+                          "&amp;maptype=terrain&amp;visible&amp;sensor=false&amp;markers=size:mid|color:red|%f,%f", lat, lng);
             for (i = 0; i < topten->nelts; i++) {
                 mirror = mirrorp[i];
                 ap_rprintf(r, "&markers=size:normal|color:yellow|label:%d|%f,%f", i+1, mirror->lat, mirror->lng);
