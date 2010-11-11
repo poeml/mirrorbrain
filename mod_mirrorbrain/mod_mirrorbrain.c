@@ -504,14 +504,6 @@ static const char *mb_cmd_engine(cmd_parms *cmd, void *config, int flag)
     return NULL;
 }
 
-static const char *mb_cmd_redirect_stamp_key(cmd_parms *cmd, void *config, 
-                                             const char *arg1)
-{
-    mb_dir_conf *cfg = (mb_dir_conf *) config;
-    cfg->stampkey = arg1;
-    return NULL;
-}
-
 static const char *mb_cmd_debug(cmd_parms *cmd, void *config, int flag)
 {
     mb_dir_conf *cfg = (mb_dir_conf *) config;
@@ -806,6 +798,14 @@ static const char *mb_cmd_metalink_torrentadd_mask(cmd_parms *cmd, void *config,
     if (cfg->metalink_torrentadd_mask == NULL) {
         return "MirrorBrainMetalinkTorrentAddMask regex could not be compiled";
     }
+    return NULL;
+}
+
+static const char *mb_cmd_redirect_stamp_key(cmd_parms *cmd, void *config, 
+                                             const char *arg1)
+{
+    mb_dir_conf *cfg = (mb_dir_conf *) config;
+    cfg->stampkey = arg1;
     return NULL;
 }
 
