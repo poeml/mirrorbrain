@@ -80,6 +80,7 @@
 #include "mod_dbd.h"
 
 #include <unistd.h> /* for getpid */
+#include <math.h>   /* for sqrt() and pow() */
 #include <arpa/inet.h>
 #ifdef WITH_MEMCACHE
 #include "mod_memcache.h"
@@ -88,7 +89,6 @@
 #include "ap_mpm.h" /* for ap_mpm_query */
 #include "mod_status.h"
 #include "mod_form.h"
-#include <math.h>   /* for sqrt() and pow() */
 
 #define wild_match(p,s) (apr_fnmatch(p,s,APR_FNM_CASE_BLIND) == APR_SUCCESS)
 
