@@ -167,7 +167,7 @@ module AP_MODULE_DECLARE_DATA mirrorbrain_module;
 
 /* (meta) representations of a requested file */
 enum { REDIRECT, META4, METALINK, MIRRORLIST, TORRENT, 
-       ZSYNC, MAGNET, MD5, SHA1, SHA256, BTIH, UNKNOWN };
+       ZSYNC, MAGNET, MD5, SHA1, SHA256, BTIH, YUMLIST, UNKNOWN };
 static struct {
         int     id;
         char    *ext;
@@ -183,6 +183,7 @@ static struct {
         { SHA1,          "sha1" },
         { SHA256,        "sha256" },
         { BTIH,          "btih" },
+        { YUMLIST,       "yumlist" },
         { UNKNOWN,       NULL }
 };
 
@@ -264,6 +265,7 @@ typedef struct
     apr_array_header_t *dhtnodes;
     const char *metalink_broken_test_mirrors;
     int metalink_magnets;
+    apr_array_header_t *yumdirs;
     const char *mirrorlist_stylesheet;
     const char *mirrorlist_header;
     const char *mirrorlist_footer;
@@ -278,6 +280,19 @@ typedef struct dhtnode dhtnode_t;
 struct dhtnode {
     char *name;
     int port;
+};
+
+typedef struct yumdir yumdir_t;
+struct yumdir {
+    char *dir;                /* base dir */
+    char *file;               /* marker file within base dir */
+    apr_array_header_t *args; /* query arguments */
+};
+
+typedef struct yumarg yumarg_t;
+struct yumarg {
+    char *key;
+    ap_regex_t *regexp;
 };
 
 
@@ -450,6 +465,7 @@ static void *create_mb_server_config(apr_pool_t *p, server_rec *s)
     new->dhtnodes = apr_array_make(p, 5, sizeof (dhtnode_t));
     new->metalink_broken_test_mirrors = NULL;
     new->metalink_magnets = UNSET;
+    new->yumdirs = apr_array_make(p, 10, sizeof (yumdir_t));
     new->mirrorlist_stylesheet = NULL;
     new->mirrorlist_header = NULL;
     new->mirrorlist_footer = NULL;
@@ -483,6 +499,7 @@ static void *merge_mb_server_config(apr_pool_t *p, void *basev, void *addv)
     mrg->dhtnodes = apr_array_append(p, base->dhtnodes, add->dhtnodes);
     cfgMergeString(metalink_broken_test_mirrors);
     cfgMergeBool(metalink_magnets);
+    mrg->yumdirs = apr_array_append(p, base->yumdirs, add->yumdirs);
     cfgMergeString(mirrorlist_stylesheet);
     cfgMergeString(mirrorlist_header);
     cfgMergeString(mirrorlist_footer);
@@ -808,6 +825,64 @@ static const char *mb_cmd_redirect_stamp_key(cmd_parms *cmd, void *config,
     cfg->stampkey = arg1;
     return NULL;
 }
+
+
+static const char *mb_cmd_add_yumdir(cmd_parms *cmd, void *dummy, 
+                                     const char *arg)
+{
+    server_rec *s = cmd->server;
+    mb_server_conf *cfg = 
+        ap_get_module_config(s->module_config, &mirrorbrain_module);
+
+    char *d = NULL; /* base dir */
+    char *f = NULL; /* marker file within base dir */
+    char *word;
+    apr_array_header_t *yumargs = apr_array_make(cmd->pool, 3, sizeof (yumarg_t));
+
+    while (*arg) {
+        word = ap_getword_conf(cmd->pool, &arg);
+        char *val = ap_strchr(word, '=');
+        if (!val) {
+            if (!d) {
+                d = word;
+                continue;
+            } else if (!f) {
+                f = word;
+                continue;
+            } else {
+                return "Invalid MirrorBrainYumDir parameter. Parameter must be "
+                       "in the form 'key=value'.";
+            }
+        } 
+        *val++ = '\0';
+
+        yumarg_t *a = apr_array_push(yumargs);
+        a->key = apr_pstrdup(cmd->pool, word);
+        /* we better anchor the regexp to the start and end, because when user
+         * data matches the regexp, we will substitute parts of the URL with it */
+        a->regexp = ap_pregcomp(cmd->pool, 
+                                apr_pstrcat(cmd->pool, "^", val, "$", NULL), 
+                                AP_REG_EXTENDED);
+        if (!a->regexp)
+            return "Regular expression for ProxyRemoteMatch could not be compiled.";
+    };
+    
+    if (d == NULL)
+        return "MirrorBrainYumDir needs a (relative) base path";
+    if (f == NULL)
+        return "MirrorBrainYumDir needs a file name relative to the base path";
+
+    if (apr_is_empty_array(yumargs))
+        return "MirrorBrainYumDir needs at least one query argument";
+
+    yumdir_t *new = apr_array_push(cfg->yumdirs);
+    new->dir = apr_pstrdup(cmd->pool, d);
+    new->file = apr_pstrdup(cmd->pool, f);
+    new->args = yumargs;
+
+    return NULL;
+}
+
 
 #ifdef WITH_MEMCACHE
 static const char *mb_cmd_memcached_on(cmd_parms *cmd, void *config,
@@ -1255,9 +1330,13 @@ static int mb_handler(request_rec *r)
 {
     mb_dir_conf *cfg = NULL;
     mb_server_conf *scfg = NULL;
+    char *ptr = NULL;
     char *uri = NULL;
     char *filename = NULL;
+    const char *basename = NULL;
+    const char *mirror_base = NULL;
     char *realfile = NULL;
+    yumdir_t *yum = NULL;
     const char *clientip = NULL;
     apr_sockaddr_t *clientaddr;
     const char *query_country = NULL;
@@ -1278,7 +1357,7 @@ static int mb_handler(request_rec *r)
     const char *prefix;                         /* network prefix */
     int i;
     int mirror_cnt;
-    apr_size_t len;
+    apr_size_t len, nr;
     mirror_entry_t *new;
     mirror_entry_t *mirror;
     mirror_entry_t **mirrorp;
@@ -1367,6 +1446,92 @@ static int mb_handler(request_rec *r)
         if (form_lookup(r, "sha256"))  { rep = SHA256;  rep_ext = reps[SHA256].ext; };
         if (form_lookup(r, "btih"))    { rep = BTIH;    rep_ext = reps[BTIH].ext; };
         if (form_lookup(r, "only_hash")) { only_hash = 1; };
+
+        /* yum query to be parsed? */
+        if (!apr_is_empty_array(scfg->yumdirs)) {
+            for (i = 0; i < scfg->yumdirs->nelts; i++) {
+                yumdir_t y;
+                yumarg_t a;
+                char *d, *f;
+                const char *val;
+                int val_len_sum = 0;
+                int n_matches = 0;
+
+                y = ((yumdir_t *) scfg->yumdirs->elts)[i];
+                d = y.dir;
+                f = y.file;
+                //debugLog(r, cfg, "checking against yum dir %s / %s", d, f);
+                for (n_matches = 0; n_matches < y.args->nelts; n_matches++) {
+                    a = ((yumarg_t *) y.args->elts)[n_matches];
+                    val = form_lookup(r, a.key);
+                    if (!val) 
+                        break;
+                    if (ap_regexec(a.regexp, val, 0, NULL, 0)) 
+                        break;
+                    val_len_sum += strlen(val);
+                    //debugLog(r, cfg, "value '%s' matches regexp for '%s'", val, a.key);
+                }
+
+                char *src, *dst;
+                char c;
+
+                if (n_matches == y.args->nelts) {
+
+                    rep = YUMLIST;
+                    yum = apr_pcalloc(r->pool, sizeof(yumdir_t));
+
+                    debugLog(r, cfg, "match for yum dir %s / %s", d, f);
+                    yum->file = apr_pstrdup(r->pool, f);
+
+                    if ((ptr = ap_strchr(d, '$'))) {
+                        //debugLog(r, cfg, "substitution to be done");
+
+                        src = d;
+                        yum->dir = dst = apr_pcalloc(r->pool, strlen(d) + val_len_sum + 1);
+
+                        while ((c = *src++) != '\0') {
+                            if (c == '$' && apr_isdigit(*src)) {
+                                nr = *src++ - '0';
+
+                                if (nr == 0) {
+                                    ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] "
+                                            "cannot substitute $0 in '%s' -- use 1 or a greater digit", d);
+                                    return HTTP_INTERNAL_SERVER_ERROR;
+                                } else if (nr > n_matches) {
+                                    ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] "
+                                            "cannot substitute $%d in '%s' -- only %d args are defined", 
+                                            nr, d, y.args->nelts);
+                                    return HTTP_INTERNAL_SERVER_ERROR;
+                                }
+
+                                a = ((yumarg_t *) y.args->elts)[nr - 1];
+                                val = form_lookup(r, a.key);
+
+                                debugLog(r, cfg, "substituting $%d with '%s'", nr, val);
+                                len = strlen(val);
+                                memcpy(dst, val, len);
+                                dst += len;
+                            } else {
+                                *dst++ = c;
+                            }
+                        }
+                        *dst = '\0';
+
+                    } else {
+                        yum->dir = apr_pstrdup(r->pool, d);
+                    }
+                    debugLog(r, cfg, "yum->dir: '%s', yum->file: '%s'", yum->dir, yum->file);
+
+                    /* FIXME: maybe don't break in debug mode, to discover double matches */
+                    break;
+                } 
+                    
+            } 
+            if (yum == NULL) {
+                debugLog(r, cfg, "yum query received, but didn't match any of the rules");
+                return HTTP_NOT_FOUND;
+            }
+        }
     }
     
     if (!query_country 
@@ -1415,14 +1580,14 @@ static int mb_handler(request_rec *r)
         debugLog(r, cfg, "FAKE File -- not looking at real files");
 
     } else {
-        if (r->finfo.filetype == APR_DIR) {
+        if ((r->finfo.filetype == APR_DIR) && (rep != YUMLIST)) {
         /* if (ap_is_directory(r->pool, r->filename)) */
             debugLog(r, cfg, "'%s' is a directory", r->filename);
             return DECLINED;
         }   
 
         /* if the file doesn't exist, maybe a representation of it is requested */
-        if (r->finfo.filetype != APR_REG) {
+        if ((r->finfo.filetype != APR_REG) && (rep != YUMLIST)) {
             debugLog(r, cfg, "File does not exist according to r->finfo");
 
             if (r->filename[strlen(r->filename) - 1] == '.') {
@@ -1607,6 +1772,7 @@ static int mb_handler(request_rec *r)
     }
 
 
+
     country_code = apr_table_get(r->subprocess_env, "GEOIP_COUNTRY_CODE");
     country_name = apr_table_get(r->subprocess_env, "GEOIP_COUNTRY_NAME");
     continent_code = apr_table_get(r->subprocess_env, "GEOIP_CONTINENT_CODE");
@@ -1660,17 +1826,9 @@ static int mb_handler(request_rec *r)
              as, prefix, lat, lng, state_id, state_name);
 
 
-    /* prepare the filename to look up */
-    char *ptr = realpath(r->filename, NULL);
-    if (ptr == NULL) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-                "[mod_mirrorbrain] Error canonicalizing filename '%s'", r->filename);
-        return HTTP_INTERNAL_SERVER_ERROR;
-    }
-    realfile = apr_pstrdup(r->pool, ptr);
-    free(ptr);
 
-    /* the basedir might contain symlinks. That needs to be taken into account. See issue #17 */
+    /* The basedir might contain symlinks. That needs to be taken into account. 
+     * See discussion in http://mirrorbrain.org/issues/issue17 */
     ptr = realpath(cfg->mirror_base, NULL);
     if (ptr == NULL) {
         /* this should never happen, because the MirrorBrainEngine directive would never
@@ -1680,20 +1838,42 @@ static int mb_handler(request_rec *r)
                 "exist. Filesystem not mounted?", cfg->mirror_base);
         return HTTP_INTERNAL_SERVER_ERROR;
     }
+    mirror_base = apr_pstrdup(r->pool, ptr);
+    free(ptr);
+
+    /* prepare the filename to look up */
+    if (rep != YUMLIST) {
+        filename = apr_pstrdup(r->pool, r->filename);
+    } else {
+        filename = apr_pstrcat(r->pool, mirror_base, "/", yum->dir, "/", yum->file, NULL);
+        debugLog(r, cfg, "yum path on disk: %s", filename);
+    }
+
+    ptr = realpath(filename, NULL);
+    if (ptr == NULL) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+                "[mod_mirrorbrain] Error canonicalizing filename '%s'", filename);
+        /* return HTTP_INTERNAL_SERVER_ERROR; */
+        return HTTP_NOT_FOUND;
+    }
+
+    realfile = apr_pstrdup(r->pool, ptr);
+    debugLog(r, cfg, "Canonicalized file on disk: %s", realfile);
+    free(ptr);
+
     /* the leading directory needs to be stripped from the file path */
     /* a directory from Apache always ends in '/'; a result from realpath() doesn't */
-    filename = realfile + strlen(ptr) + 1;
-    free(ptr);
-    debugLog(r, cfg, "Canonicalized file on disk: %s", realfile);
-    debugLog(r, cfg, "SQL file to look up: %s", filename);
+    filename = realfile + strlen(mirror_base) + 1;
 
-    /* keep a filename version without leading path, because metalink clients
-     * will otherwise place the downloaded file into a directory hierarchy */
-    const char *basename;
-    if ((basename = ap_strrchr_c(filename, '/')) == NULL)
-        basename = filename;
-    else 
-        ++basename;
+    if (rep != YUMLIST) {
+        /* keep a filename version without leading path, because metalink clients
+         * will otherwise place the downloaded file into a directory hierarchy */
+        if ((basename = ap_strrchr_c(filename, '/')) == NULL)
+            basename = filename;
+        else 
+            ++basename;
+    }
+    debugLog(r, cfg, "SQL file to look up: %s", filename);
 
 
 
@@ -2187,6 +2367,7 @@ static int mb_handler(request_rec *r)
     case METALINK:
     case MIRRORLIST:
     case ZSYNC:
+    case YUMLIST:
         qsort(mirrors_same_prefix->elts, mirrors_same_prefix->nelts, 
               mirrors_same_prefix->elt_size, cmp_mirror_best);
         qsort(mirrors_same_as->elts, mirrors_same_as->nelts, 
@@ -2296,7 +2477,7 @@ static int mb_handler(request_rec *r)
 
 
 
-    if ((rep != REDIRECT) && (!hashbag)) {
+    if ((rep != REDIRECT) && (rep != YUMLIST) && (!hashbag)) {
         hashbag = hashbag_fill(r, dbd, filename);
         if (hashbag == NULL) {
             debugLog(r, cfg, "no hashes found in database");
@@ -2357,7 +2538,7 @@ static int mb_handler(request_rec *r)
     }
 
 
-    /* return a metalink instead of doing a redirect? */
+    /* So, which representation are we going to send back? */
     switch (rep) {
 
     case META4:
@@ -3269,6 +3450,19 @@ static int mb_handler(request_rec *r)
         ap_rprintf(r, "%s\n", magnet);
         setenv_give(r, "magnet");
         return OK;
+
+    case YUMLIST:
+        ap_set_content_type(r, "text/plain; charset=UTF-8");
+        apr_array_header_t *topten = get_n_best_mirrors(r, 10, mirrors_same_prefix, mirrors_same_as, 
+                                                         mirrors_same_country, mirrors_same_region, 
+                                                         mirrors_elsewhere);
+        mirrorp = (mirror_entry_t **)topten->elts;
+        for (i = 0; i < topten->nelts; i++) {
+            mirror = mirrorp[i];
+            ap_rprintf(r, "%s%s/\n", mirror->baseurl, yum->dir);
+        }
+        setenv_give(r, "yumlist");
+        return OK;
         
     } /* end switch representation */
 
@@ -3487,6 +3681,14 @@ static const command_rec mb_cmds[] =
                   "Causes MirrorBrain to append a signed timestamp to redirection URLs. The "
                   "argument is a string that defines the key to encrypt the timestamp with. "
                   "Can be configured on directory-level."),
+    AP_INIT_RAW_ARGS("MirrorBrainYumDir", mb_cmd_add_yumdir, NULL, 
+                  RSRC_CONF, /* RSRC_CONF|ACCESS_CONF, */
+                  "Specify query arguments mapping to a directory that must have a certain file. "
+                  "Syntax: arg1=<regexp> arg2=<regexp> <basedir> <mandatory_file>. "
+                  "Parts of basedir can be substituted with query arguments $1-$9. "
+                  "Patterns are forced to be anchored to start and end for security reasons. "
+                  "Example: MirrorBrainYumDir release=(5\\.5) repo=(os|updates) arch=i586  "
+                  "$1/$2/i386 repodata/repomd.xml"),
 
     /* to be used only in server context */
     AP_INIT_TAKE1("MirrorBrainDBDQuery", mb_cmd_dbd_query, NULL,
