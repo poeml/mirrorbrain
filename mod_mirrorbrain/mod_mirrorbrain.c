@@ -3572,7 +3572,7 @@ static void mb_register_hooks(apr_pool_t *p)
     ap_hook_pre_config    (mb_pre_config,  NULL, NULL, APR_HOOK_MIDDLE);
 #endif
     ap_hook_post_config   (mb_post_config, NULL, NULL, APR_HOOK_MIDDLE);
-    ap_hook_handler       (mb_handler,     NULL, NULL, APR_HOOK_LAST);
+    ap_hook_handler       (mb_handler,     NULL, NULL, APR_HOOK_FIRST);
     ap_hook_child_init    (mb_child_init,  NULL, NULL, APR_HOOK_MIDDLE );
 }
 
