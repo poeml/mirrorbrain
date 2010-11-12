@@ -2296,8 +2296,7 @@ static int mb_handler(request_rec *r)
 
 
 
-    if (rep != REDIRECT) {
-        /* any hashes to find in the database? */
+    if ((rep != REDIRECT) && (!hashbag)) {
         hashbag = hashbag_fill(r, dbd, filename);
         if (hashbag == NULL) {
             debugLog(r, cfg, "no hashes found in database");
