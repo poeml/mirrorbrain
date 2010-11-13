@@ -3456,10 +3456,14 @@ static int mb_handler(request_rec *r)
         apr_array_header_t *topten = get_n_best_mirrors(r, 10, mirrors_same_prefix, mirrors_same_as, 
                                                          mirrors_same_country, mirrors_same_region, 
                                                          mirrors_elsewhere);
-        mirrorp = (mirror_entry_t **)topten->elts;
-        for (i = 0; i < topten->nelts; i++) {
-            mirror = mirrorp[i];
-            ap_rprintf(r, "%s%s/\n", mirror->baseurl, yum->dir);
+        if (topten->nelts > 0) {
+            mirrorp = (mirror_entry_t **)topten->elts;
+            for (i = 0; i < topten->nelts; i++) {
+                mirror = mirrorp[i];
+                ap_rprintf(r, "%s%s/\n", mirror->baseurl, yum->dir);
+            }
+        } else {
+            ap_rprintf(r, "http://%s/%s/\n", r->hostname, yum->dir);
         }
         setenv_give(r, "yumlist");
         return OK;
