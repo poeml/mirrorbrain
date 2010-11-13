@@ -541,7 +541,7 @@ sub http_readdir
       }
     }
     if (!$included) {
-      print "$identifier: not in top_include_list: $name\n";# if $verbose > 1;
+      print "$identifier: not in top_include_list: $name\n" if $verbose > 1;
       return;
     }
   }
@@ -758,7 +758,7 @@ sub ftp_readdir
           }
         }
         if (!$included) {
-          print "$identifier: not in top_include_list: $fname\n";# if $verbose > 1;
+          print "$identifier: not in top_include_list: $fname\n" if $verbose > 1;
           next;
         }
       }
