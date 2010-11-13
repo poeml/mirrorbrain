@@ -348,11 +348,16 @@ for my $row (@scan_list) {
 
   $sql = "SELECT COUNT(*) FROM filearr WHERE $row->{id} = ANY(mirrors);";
   print "$sql\n" if $sqlverbose;
-  $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
-  $file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
-  print localtime(time) . " $row->{identifier}: total files after scan: $file_count " . 
-        "(delta: " . ($file_count - $initial_file_count) . ")\n" if $verbose > -1;
 
+  if(length $start_dir) {
+    print localtime(time) . " $row->{identifier}: total files in '$start_dir' after scan: $file_count " . 
+          "(delta: " . ($file_count - $initial_file_count) . ")\n" if $verbose > -1;
+  } else {
+    $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
+    $file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
+    print localtime(time) . " $row->{identifier}: total files after scan: $file_count " . 
+          "(delta: " . ($file_count - $initial_file_count) . ")\n" if $verbose > -1;
+  }
 
   $duration = time() - $start;
   print localtime(time) . " $row->{identifier}: purged old files in " . $duration . "s.\n" if $verbose > 0;
