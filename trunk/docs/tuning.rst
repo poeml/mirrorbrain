@@ -335,5 +335,34 @@ tuning for MirrorBrain:
    (value is in milliseconds).
 
 
+Preventing kernel "write floods"
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+The kernel might decide to write a whole bunch of changes to disk in one step.
+This might block other operations for several seconds. That's deadly for
+performance of a web server.
 
+This may affect you if you run a huge MirrorBrain database (like, say, 1 GB in
+size) in conjunction with heavy write activity (scanning many mirrors).
+
+You should first make sure that you have followed all the tuning advice given
+above. 
+
+Now, if 
+
+1) that is all fine and
+2) you are sure that your database server principally has enough memory and
+3) you see webserver hangs occuring intermittently and
+4) there is no other memory-intensive task to be done by the database server
+
+then you can tune your kernel to handle write in a (for us) more efficient way.
+(The kernel finds it more efficient, by default, to wait a while until there is
+a lot to write -- for us it is more efficient to write out data more
+frequently, in smaller portions.)
+
+The two kernel tunables that let us achieve the desired behaviour are::
+
+    vm.overcommit_memory = 2
+    vm.dirty_background_ratio = 0
+
+Put them into :file:`/etc/sysctl.conf` to make it a permanent change.
