@@ -1043,15 +1043,15 @@ sub rsync_cb
         }
 
         $r = [$name, $len, $mode, $mtime, @info];
-        printf "%s: rsync ADD: %03o %10d %-25s %-50s\n", $priv->{identifier}, ($mode & 0777), $len, scalar(localtime $mtime), $name if $verbose > 2;
+        printf "%s: rsync ADD: %03o %12.0f %-25s %-50s\n", $priv->{identifier}, ($mode & 0777), $len, scalar(localtime $mtime), $name if $verbose > 2;
       }
     }
     else {
-      printf "%s: rsync skip: %03o %10d %-25s %-50s\n", $priv->{identifier}, ($mode & 0777), $len, scalar(localtime $mtime), $name if $verbose > 1;
+      printf "%s: rsync skip: %03o %12.0f %-25s %-50s\n", $priv->{identifier}, ($mode & 0777), $len, scalar(localtime $mtime), $name if $verbose > 1;
     }
   }
   elsif($verbose) {
-    printf "%s: rsync dir: %03o %10d %-25s %-50s\n", $priv->{identifier}, ($mode & 0777), $len, scalar(localtime $mtime), $name if $verbose > 1;
+    printf "%s: rsync dir: %03o %12.0f %-25s %-50s\n", $priv->{identifier}, ($mode & 0777), $len, scalar(localtime $mtime), $name if $verbose > 1;
   }
   return $r;
 }
