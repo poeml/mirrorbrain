@@ -263,8 +263,13 @@ Here, the meaning of the arguments is:
    expression that catches several things.
    
    These regular expressions are forced to be anchored to start and end, for
-   security reasons. (See below.)
+   security reasons.
 
+   When you use strings like ``10.0``, remember that the dot is a magic in
+   regular expressions (matching any character), so you should escape it with a
+   backslash (see examples below).
+
+   See the next section for a discussion of security implications.
 
 .. describe:: subdir
 
@@ -280,6 +285,9 @@ Here, the meaning of the arguments is:
    For instance, ``$2`` is replaced with the *second* ``arg`` value defined
    here. (*Not* with the second argument that yum passes in. That would make no
    sense -- since the order in which it places the values is not specified.) 
+
+   It is not necessary to put ``()`` braces around the regexps, to declare them as a
+   "match group". *Every* regexp is a match group.
 
 
 .. describe:: mandatory_file
@@ -308,6 +316,14 @@ If the client sends ``?repo=extra&release=5``, the directory becomes
 
 Things you should note:
 
+- Symlinks are automatically handled. Remember that symlinks on mirrors are
+  invisible when scanning is done only via HTTP. To avoid having multiple trees
+  in your database, you should make sure that only "real" directories are
+  scanned via ``scan_top_include`` in :file:`/etc/mirrorbrain.conf`.
+  MirrorBrain canonicalizes all paths in the local filesystem before doing a
+  lookup in the database. Therefore, it doesn't matter if the query arguments
+  are in fact resolving to a symlink to a file tree.
+
 - If no mirror is found in the database, any mirror configured via
   ``MirrorBrainFallback`` is considered. If none of the latter is configured,
   MirrorBrain at least returns its own URL, which, after all, will give the
@@ -316,7 +332,44 @@ Things you should note:
 - The client needs to specify all arguments defined in a MirrorBrainYumDir, and
   all must match.
 
+Security considerations are discussed in the following section.
+
+Security notes
+~~~~~~~~~~~~~~
+
+- Because MirrorBrain uses strings that are passed in from clients, which could
+  potentially be malicious, these are handled with care. 
   
+  The normal resource limits of request processing in Apache apply. There is no
+  special sanitizing for '/../' elements in the path. 
+
+  Such arguments are accepted if the regular expression leaves room for that --
+  for instance, if it contains wildcards as ``.*``.
+  
+  In any case, the resulting path is canonicalized in the local file system. It
+  is assumed that this cannot have bad effects. The most that an attacker can
+  achieve is that a path is canonicalized to an existing file on the server.
+  For Apache, this will mean that it (debug-) logs something like::
+  
+    Error canonicalizing filename '/srv/nullmirrors/centos/5/os/x86_64/../../../../../../etc//repodata/repomd.xml'
+
+  Canonicalization still fails because the file checked is always the one
+  specified by the admin. Even if the canonicalization would accidentally work,
+  no information about the file, or even about the success or failure, would be
+  returned to the client. 
+  
+  Any error in canonicalization will stop processing of the request. Success
+  (let's assume it is possible) will result in the path being used in a
+  database SQL query, asking for mirrors that have the file, which is highly
+  unlikely. The SQL argument is passed to the database via a prepared statement
+  with bound parameters, so there is no chance for SQL injection attacks.
+
+  (And all Apache logging undergoes escaping, excluding viewing logs etc. as
+  attack vector.)
+  
+  Still, it seems prudent to recommend to downright avoid the issue by using
+  more specific regular expressions that accept only what you want.
+
 
 
 .. _styling_details_pages:
@@ -387,7 +440,8 @@ ways:
    mirror will still apply. 
    
    Thus, this solution is more powerful than simple DNS-based round robin, or
-   random request distribution via mod_rewrite.
+   random request distribution via mod_rewrite. (Of course, contrary to those
+   other solutions, it requires tracking the mirrors' status and contents.)
 
 
 .. _`mod_setenvif`: http://httpd.apache.org/docs/2.2/mod/mod_setenvif.html
