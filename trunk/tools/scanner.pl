@@ -566,7 +566,8 @@ sub http_readdir
     ## good, we know that one. It is a standard apache dir-listing.
     ## 
     ## bad, apache shows symlinks as a copy of the file or dir they point to.
-    ## no way to avoid duplicate crawls.
+    ## no way to avoid duplicate crawls except by defining top_include_dirs,
+    ## scan_exclude or scan_exclude_rsync in /etc/mirrorbrain.conf.
     ##
     $contents =~ s{</(PRE|pre|table)>.*$}{}s;
     for my $line (split "\n", $contents) {
@@ -638,6 +639,57 @@ sub http_readdir
         my $dir = 1 if $pre =~ m{>Directory<};
         my $t = length($name) ? "$name/$name1" : $name1;
         if($size eq '-' and ($dir or $name1 =~ m{/$})) {
+          ## we must be really sure it is a directory, when we come here.
+          ## otherwise, we'll retrieve the contents of a file!
+          sleep($recursion_delay) if $recursion_delay;
+          push @r, http_readdir($identifier, $id, $urlraw, $t, 0);
+        }
+        else {
+          ## it is a file.
+          my $time = $date;
+          my $len = byte_size($size);
+
+          # str2time returns undef in some rare cases causing KILL! FIXME
+          # workaround: don't store files with broken times
+          if(not defined($time)) {
+            print "$identifier: Error: str2time returns undef on parsing \"$date\". Skipping file $name1\n";
+            print "$identifier: current line was:\n$line\nat url $url/$name\nname= $name1\n" if $verbose > 1;
+          }
+          elsif(largefile_check($identifier, $id, $t, $len)) {
+            #save timestamp and file in database
+            if(save_file($t, $identifier, $id, $time, $re)) {
+              push @r, [ $t , $time ];
+            }
+          }
+        }
+      }
+    }
+    print "$identifier: committing http dir $name\n" if $verbose > 2;
+    if($do_transaction) {
+      $dbh->commit or die "$DBI::errstr";
+    }
+ } elsif($contents =~ s{^<html>.*<head><title>Index of .*<h1>Index of .*</h1><hr><pre><a href="../">../</a>}{}s) {
+    ## Oh look, it's a nginx directory index!
+    $contents =~ s{<pre><a href="../">../</a>.*</pre><hr></body>$}{}s;
+    for my $line (split "\n", $contents) {
+      #$line =~ s/<\/*t[rd].*?>/ /g;
+      print "$identifier: line: $line\n" if $verbose > 2;
+
+      # <a href="addons/">addons/</a>                                            14-May-2010 15:38                   -
+      if($line =~ m{^<a href="([^"]+)">([^<]+)</a>\s*([\w\s:-]+)\s+(-|[\d\.]+)}) {
+
+        my ($name1, $name2, $date, $size) = ($1, $2, $3, $4, $5);
+        next if $name1 =~ m{^/} or $name1 =~ m{^\.\.};
+        if($verbose > 2) {
+          print "$identifier: name1 $name1\n";
+          print "$identifier: name2 $name2\n";
+          print "$identifier: date $date\n";
+          print "$identifier: size $size\n";
+        }
+        #$name1 =~ s{%([\da-fA-F]{2})}{pack 'c', hex $1}ge;
+        #$name1 =~ s{^\./}{};
+        my $t = length($name) ? "$name/$name1" : $name1;
+        if($size eq '-' and ($name1 =~ m{/$})) {
           ## we must be really sure it is a directory, when we come here.
           ## otherwise, we'll retrieve the contents of a file!
           sleep($recursion_delay) if $recursion_delay;
