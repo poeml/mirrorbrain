@@ -978,6 +978,11 @@ class MirrorDoctor(cmdln.Cmdln):
         opts.target_dir = opts.target_dir.rstrip('/')
         opts.base_dir = opts.base_dir.rstrip('/')
 
+        double_slashes = re.compile('/+')
+        startdir = re.sub(double_slashes, '/', startdir)
+        opts.target_dir = re.sub(double_slashes, '/', opts.target_dir)
+        opts.base_dir = re.sub(double_slashes, '/', opts.base_dir)
+
         if not os.path.exists(startdir):
             sys.exit('STARTDIR %r does not exist' % startdir) 
 
