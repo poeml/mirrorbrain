@@ -4,6 +4,66 @@ Release Notes/Change History
 ============================
 
 
+Release 2.15.0 (r8232, Nov 13, 2010)
+------------------------------------
+
+This release comes with a new feature useful for RPM-based Linux distributions:
+generation of `Yum`_ mirror lists. Another new feature is that `nginx`_
+directory indexes can be scanned. In addition, there are several bug fixes and
+improvements, and new documentation on tuning your database server for optimal
+performance.
+
+
+**Yum-style mirror list support** is configured with a new Apache configuration
+directive which creates a mapping of Yum's query arguments to directories in
+the file tree.  Please refer to the complete instructions in
+:ref:`yum_style_lists`.
+
+To make this possible, the main handler function in :program:`mod_mirrorbrain`
+is now run before all other configured handlers from other modules, not as the
+very last one. This means we can run before :program:`mod_autoindex`, which
+would otherwise handle a request on a directory, despite the presence of query
+arguments requesting a yum mirror list. It also means that we run before
+:program:`mod_php` (most modules' handlers run as middle hook and therefore not
+in strictly defined order).
+
+A small bugfix is that, for generated torrent files, hashes from the database
+were retrieved twice from the database. This has been fixed.
+
+
+The mirror scanner (:program:`mb scan`) underwent the following small
+improvements, other than implementing support for **scanning Nginx
+directories**:
+
+- When scanning only a subdirectory, the calculation of added/removed files was
+  wrong. (It functinally did the right thing, but the logging was wrong.)
+- The pre-scanning check for existance of a subdirectory is now skipped, when
+  scanning only a single mirror. 
+- The messages logged when encoungering unparseable HTML index when scanning
+  over HTTP have been improved.
+- Logging messages about directories "not in top_include_list" have been
+  silenced (but can be brought up again by increasing verbosity).
+- Displaying of file sizes > 4GB when scanning over rsync has been fixed
+  (a finding from `issue 8`_).
+
+
+
+In :program:`mb makehashes`, `issue 72`_ has been fixed: If specified path
+names contain duplicated slashes, these were introduced as wrong filenames into
+the database.
+
+
+The documentation on :ref:`tuning_postgresql` has been extensively reworked and
+gives a complete set of instructions now. 
+
+
+.. _`Yum`: http://en.wikipedia.org/wiki/Yellowdog_Updater,_Modified
+.. _`nginx`: http://nginx.org/
+.. _`issue 8`: http://mirrorbrain.org/issues/issue8
+.. _`issue 72`: http://mirrorbrain.org/issues/issue72
+
+
+
 Release 2.14.0 (r8210, Nov 6, 2010)
 -----------------------------------
 
