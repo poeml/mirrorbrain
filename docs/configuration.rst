@@ -212,6 +212,113 @@ Implementation notes:
   of course.  Contributions welcome!
 
 
+.. _yum_style_lists:
+
+Serving Yum-style mirror lists
+------------------------------
+
+Yum has a way to request a plain-text list of mirrors from a server. This is
+useful because it can then has a number of mirrors available as fallbacks, or
+can test which one works fastest for it. Traditionally, Yum is configured with
+a URL containing passing a few query arguments to select the appropriate
+repository. For example, the communication with the server could look like
+this::
+
+   request: 
+     http://centos.mirrorbrain.org/?release=5.5&arch=x86_64&repo=os
+   reply from server:
+     http://ftp.uni-bayreuth.de/linux/CentOS/5.5/os/x86_64/
+     http://ftp.hosteurope.de/mirror/centos.org/5.5/os/x86_64/
+     http://mirror.sov.uk.goscomb.net/centos/5.5/os/x86_64/
+
+
+MirrorBrain has support to answer these queries in a meaningful way. The
+returned list of mirrors will be sorted by suitability for the client -- with
+the full-blown selection algorithm being applied. 10 mirrors will be returned
+(that could be made configurable, if need be).
+
+
+The Apache config directive ``MirrorBrainYumDir`` is used to map the various
+possible query arguments to actual directories. Below these directories,
+MirrorBrain checks if a certain file present. Only mirrors that list that
+marker file will turn up in the mirror list. 
+
+The syntax of the directive is::
+
+    MirrorBrainYumDir <arg>=<regexp> [<arg>=<regexp> ...] <basedir> <mandatory_file>
+
+
+Here, the meaning of the arguments is:
+
+.. describe:: arg
+
+   One ore more keys that the client uses in the query. The order in these are
+   given does not matter.
+
+
+.. describe:: regexp
+
+   This is a regular expression against the values are matched which Yum sends.
+   You are free to use a simple string here, like ``updates``, or a regular
+   expression that catches several things.
+   
+   These regular expressions are forced to be anchored to start and end, for
+   security reasons. (See below.)
+
+
+.. describe:: subdir
+
+   This is the directory that corresponds to the specified query arguments. Its
+   path is given relative to the top of the file tree. At the same time, this
+   is the path on the mirror servers, relative to the base URL of their mirror.
+
+   Since there can be a need for many different, but similar mappings, there is a way to
+   automatically insert values from the query into this path. Any 
+   ``$1`` to ``$9`` specified in the ``subdir`` string will be replaced with
+   the respective value. 
+   
+   For instance, ``$2`` is replaced with the *second* ``arg`` value defined
+   here. (*Not* with the second argument that yum passes in. That would make no
+   sense -- since the order in which it places the values is not specified.) 
+
+
+.. describe:: mandatory_file
+
+   This is a file that needs to exist in the specified subdirectory on the
+   mirrors. Again, its path is given relative. 
+
+ 
+Here's an example with two similar mappings::
+
+    MirrorBrainYumDir release=5\.5 repo=os arch=i586 5.5/os/i386 repodata/repomd.xml
+    MirrorBrainYumDir release=4\.8 repo=os arch=i586 4.8/os/i386 repodata/repomd.xml
+
+If the client requests ``?release=4.8&arch=i586&repo=os``, the second rule will
+match. MirrorBrain will create a list of all mirrors that are known to have the
+file ``4.8/os/i386/repodata/repomd.xml``, and send the 10 best of these mirrors to
+the client. The mirror URLs will have the ``subdir`` appended as appropriate.
+
+Here is a more complex (but not contrived) example which demonstrates how a
+multitude of cases can be handled with a single rule::
+
+    MirrorBrainYumDir release=(4|4\.8|5|5\.5) repo=(os|updates|extra) arch=i586 $1/$2/i386 repodata/repomd.xml
+
+If the client sends ``?repo=extra&release=5``, the directory becomes
+``5/extra/i386``, and so on.
+
+Things you should note:
+
+- If no mirror is found in the database, any mirror configured via
+  ``MirrorBrainFallback`` is considered. If none of the latter is configured,
+  MirrorBrain at least returns its own URL, which, after all, will give the
+  client a working download, so it should be better than nothing.
+
+- The client needs to specify all arguments defined in a MirrorBrainYumDir, and
+  all must match.
+
+  
+
+
 .. _styling_details_pages:
 
 Styling the mirrorlist / details pages
