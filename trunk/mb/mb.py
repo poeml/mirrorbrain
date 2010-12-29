@@ -1383,6 +1383,10 @@ class MirrorDoctor(cmdln.Cmdln):
                   help='show up to N distinct path segments.')
     @cmdln.option('-d', dest='dirpath', metavar='DIR',
                   help='list mirrors on which DIR was found.')
+    @cmdln.option('--missing', dest='missingdirpath', metavar='DIR',
+                  help='list mirrors on which DIR was *not* found.')
+    @cmdln.option('--sql-debug', action='store_true',
+                  help='Show SQL statements for debugging purposes.')
     def do_dirs(self, subcmd, opts, *args):
         """${cmd_name}: show directories that are in the database
 
@@ -1416,6 +1420,9 @@ class MirrorDoctor(cmdln.Cmdln):
 
         if opts.dirpath:
             for i in mb.files.dir_show_mirrors(self.conn, opts.dirpath):
+                print i[0]
+        elif opts.missingdirpath:
+            for i in mb.files.dir_show_mirrors(self.conn, opts.missingdirpath, missing=True):
                 print i[0]
         else:
             for i in mb.files.dir_ls(self.conn, segments=opts.segments, mirror=mirror):
