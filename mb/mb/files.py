@@ -127,11 +127,7 @@ def dir_show_mirrors(conn, path, missing=False):
     written for.
     """
 
-    if missing:
-        query = """select distinct(mirrors) from filearr where path not like '%s%%'""" % path
-    else:
-        query = """select distinct(mirrors) from filearr where path like '%s%%'""" % path
-
+    query = """select distinct(mirrors) from filearr where path like '%s%%'""" % path
     result = conn.Server._connection.queryAll(query)
 
     mirror_ids = []
@@ -144,7 +140,10 @@ def dir_show_mirrors(conn, path, missing=False):
 
     if not mirror_ids:
         return []
-    query = """select identifier from server where id in (%s)""" % ','.join(mirror_ids)
+    if not missing:
+        query = """select identifier from server where id in (%s)""" % ','.join(mirror_ids)
+    else:
+        query = """select identifier from server where id not in (%s)""" % ','.join(mirror_ids)
     result = conn.Server._connection.queryAll(query)
 
     return result
