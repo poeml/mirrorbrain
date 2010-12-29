@@ -120,14 +120,18 @@ def dir_ls(conn, segments = 1, mirror=None):
     result = conn.Server._connection.queryAll(query)
     return result
 
-def dir_show_mirrors(conn, path):
+def dir_show_mirrors(conn, path, missing=False):
     """Show mirrors on which a certain directory path was found.
     The path could actually also be a file, it doesn't matter, but 
     directory is what we are looking for in the context that this function was
     written for.
     """
 
-    query = """select distinct(mirrors) from filearr where path like '%s%%'""" % path
+    if missing:
+        query = """select distinct(mirrors) from filearr where path not like '%s%%'""" % path
+    else:
+        query = """select distinct(mirrors) from filearr where path like '%s%%'""" % path
+
     result = conn.Server._connection.queryAll(query)
 
     mirror_ids = []
