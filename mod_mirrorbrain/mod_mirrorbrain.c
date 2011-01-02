@@ -3680,7 +3680,7 @@ static const command_rec mb_cmds[] =
                   "mirror can be found in the database. These mirrors are assumed to have "
                   "*all* files. (Or they could be configured per directory.)"),
 
-    AP_INIT_TAKE1("MirrorBrainRedirectStampKey_EXPERIMENTAL", mb_cmd_redirect_stamp_key, NULL, 
+    AP_INIT_TAKE1("MirrorBrainRedirectStampKey", mb_cmd_redirect_stamp_key, NULL, 
                   ACCESS_CONF,
                   "Causes MirrorBrain to append a signed timestamp to redirection URLs. The "
                   "argument is a string that defines the key to encrypt the timestamp with. "
