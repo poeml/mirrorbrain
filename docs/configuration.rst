@@ -404,6 +404,76 @@ directives, which go into virtualhost context::
     MirrorBrainMirrorlistFooter /srv/www/htdocs/mb-footer.html
 
 
+
+.. _configuring_url_signatures:
+
+Configuring URL signatures
+--------------------------
+
+Signing URLs can be a way to protect content from unauthorized access. How does
+this work?
+
+The redirector can generate redirection URLs that contain a signature with
+temporary validity. The signature can be checked on the mirror servers to
+restrict access to authenticated clients. This means that authentication and
+authorization of clients can be validated centrally (by the redirector), and
+the content on all mirrors protected. 
+
+To configure URL signing, the server needs to be configured with a secret key::
+
+    MirrorBrainRedirectStampKey my_key
+
+In this example, ``my_key`` is an arbitrary string known only to the server
+administrators (including the mirror servers).
+
+The directive may be used server-wide, or applied to certain directories.
+
+It makes sense to combine this with setting up authentication to restrict
+access. When clients access the server *and* are authorized to access the file,
+and the server decides to redirect the request, the result is as demonstrated
+in the following example::
+
+     # curl -sI http://192.168.0.117/extended/3.2.0rc5/OOo_3.2.0rc5_20100203_LinuxIntel_install_ar.tar.gz
+    HTTP/1.1 302 Found
+    [...]
+    http://ftp.udc.es/OpenOffice/extended/3.2.0rc5/OOo_3.2.0rc5_20100203_LinuxIntel_install_ar.tar.gz?time=1288879347&stamp=e215bb55bbea2c133145330f9e061f5b
+
+Note the two arguments that are appended to the URL in the Location header.
+
+The mirrors which receives these requests need to check two things:
+
+1) Check if the "ticket" is a valid one, by hashing the timestamp and
+   the shared secret -- here in shell code::
+
+        # echo -n '1288879347 my_key' | md5sum
+       e215bb55bbea2c133145330f9e061f5b  -  
+
+   That hash is the same as came with the URL, and thus the ticket
+   is valid (or was valid in the past).
+
+
+2) Check if the "ticket" is still fresh enough, simply by comparing to
+   current time. Shell example::
+
+        # echo $(( $(date +'%s') - 1288879347 ))
+       380
+
+   While I was typing, the ticked became 380 seconds old (because I'm
+   slow :-), which makes it outdated, and the mirror would reject it,
+   based on the policy that it must not be older than e.g. 30 seconds.
+
+These two checks to be done on the mirrors can easily be destilled in a
+script consisting of only a few lines.
+
+The fact that MD5 collisions can be found nowadays should be pretty
+irrelevant considering the short-lived-ness of the tickets. That's one
+reason why the mirrors should check for the age. The other reason is
+because it allows using a one-way, non-revertible hash, instead of a
+symmetric encryption which would be less trivial to implement (md5 is
+available anywhere, while symmetric ciphers are not).
+
+
+
 Using mod_mirrorbrain without GeoIP
 -----------------------------------
 
