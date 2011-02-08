@@ -1412,20 +1412,20 @@ sub largefile_check
   # 307 - same as 302 except different caching behaviour
   if($code == 301 or $code == 302 or $code == 303 or $code == 307) {
     if($result->header('location') =~ m{^ftp:.*}) {
-      print "$identifier: Moved to ftp location, assuming success if followed";
+      print localtime(time) . " $identifier: Moved to ftp location, assuming success if followed\n" if $verbose >= 1;
       goto all_ok;
     }
     if($result->header('location') =~ m{^http:.*}) {
-      print "$identifier: [RECURSE] Moved to other http location, recursing scan...";
+      print localtime(time) . " $identifier: [RECURSE] Moved to other http location, recursing scan...\n" if $verbose >= 1;
       return largefile_check($id, $result->header('location'), $size, $recurse+1);
     }
   }
 
   if($result->code() == 416) {
-    print "$identifier: Error: range error: filesize broken for file $url\n" if $verbose >= 1;
+    print localtime(time) . " $identifier: Error: range error: filesize broken for file $url\n" if $verbose >= 1;
   }
   else {
-    print "$identifier: Error ".$result->code()." occured\n" if $verbose >= 1;
+    print localtime(time) . " $identifier: Error ".$result->code()." occured\n" if $verbose >= 1;
   }
 
   error:
