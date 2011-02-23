@@ -1356,7 +1356,7 @@ static int mb_handler(request_rec *r)
     const char *as;                             /* autonomous system */
     const char *prefix;                         /* network prefix */
     int i;
-    int mirror_cnt;
+    int mirror_cnt = 0;
     apr_size_t len, nr;
     mirror_entry_t *new;
     mirror_entry_t *mirror;
@@ -1940,9 +1940,11 @@ static int mb_handler(request_rec *r)
     }
 
 
-    statement = apr_hash_get(dbd->prepared, scfg->query_label, APR_HASH_KEY_STRING);
+    if (dbd) {
+        statement = apr_hash_get(dbd->prepared, scfg->query_label, APR_HASH_KEY_STRING);
+    }
 
-    if (statement == NULL) {
+    if (!dbd || !statement) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
                       "[mod_mirrorbrain] Could not get prepared statement labelled '%s'",
                       scfg->query_label);
@@ -1966,13 +1968,15 @@ static int mb_handler(request_rec *r)
                       "DBDParams must be unique. The same string cannot be used "
                       "in two vhosts.");
 
-        return DECLINED;
+        if (apr_is_empty_array(cfg->fallbacks)) {
+            return DECLINED;
+        }
     }
 
 
     /* no need to escape for the SQL query because we use a prepared 
      * statement with bound parameters */
-    if (apr_dbd_pvselect(dbd->driver, r->pool, dbd->handle, &res, statement, 
+    if (dbd && apr_dbd_pvselect(dbd->driver, r->pool, dbd->handle, &res, statement, 
                 1, /* we don't need random access actually, but 
                       without it the mysql driver doesn't return results
                       once apr_dbd_num_tuples() has been called; 
@@ -1985,7 +1989,9 @@ static int mb_handler(request_rec *r)
         }
     }
 
-    mirror_cnt = apr_dbd_num_tuples(dbd->driver, res);
+    if (dbd) {
+        mirror_cnt = apr_dbd_num_tuples(dbd->driver, res);
+    }
 
     if (mirror_cnt > 0) {
         debugLog(r, cfg, "Found %d mirror%s", mirror_cnt,
