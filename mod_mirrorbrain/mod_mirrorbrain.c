@@ -1364,7 +1364,7 @@ static int mb_handler(request_rec *r)
     mirror_entry_t *chosen = NULL;
     hashbag_t *hashbag = NULL;
     apr_status_t rv;
-    apr_dbd_prepared_t *statement;
+    apr_dbd_prepared_t *statement = NULL;
     apr_dbd_results_t *res = NULL;
     apr_dbd_row_t *row = NULL;
     /* this holds all mirror_entrys */
