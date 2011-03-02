@@ -455,7 +455,7 @@ class HashBag:
                  '12:piece length', 'i', str(self.chunk_size), 'e',
                  '6:pieces', str(len(self.pieces) * SHA1_DIGESTSIZE), ':', ''.join(self.pieces),
                  '4:sha1', str(SHA1_DIGESTSIZE), ':', self.sha1,
-                 '6:sha256', str(SHA256_DIGESTSIZE), ':', self.sha256,
+                 '6:sha256', str(SHA256_DIGESTSIZE), ':', self.sha256 or '',
                'e']
 
         h = sha1.sha1()
