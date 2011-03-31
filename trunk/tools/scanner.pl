@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 
 ################################################################################
-# scanner.pl -- daemon for working through opensuse directories.
+# scanner.pl -- script that crawls through mirror file trees.
 #
 # Copyright 2006,2007,2008,2009,2010,2011 Martin Polster, Juergen Weigert, 
 #                                         Peter Poeml, Novell Inc.
