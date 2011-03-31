@@ -4,7 +4,7 @@
 # mirrorprobe -- fetch mirrors from a database, try to access them and mark them 
 #                as "up" or "down".
 #
-# Copyright (C) 2007,2008,2009,2010 Peter Poeml <poeml@cmdline.net>, Novell Inc.
+# Copyright (C) 2007,2008,2009,2010,2011 Peter Poeml <poeml@cmdline.net>, Novell Inc.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License version 2

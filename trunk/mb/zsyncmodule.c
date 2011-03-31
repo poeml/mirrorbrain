@@ -1,7 +1,7 @@
 /* "rsum" checksumming function from zsync's librcksum/rsum.c, version 0.6.1,
  * wrapped into a Python extension
  *
- * Copyright 2010 Peter Poeml <poeml@mirrorbrain.org> 
+ * Copyright 2010,2011 Peter Poeml <poeml@mirrorbrain.org> 
  *
  * The checksumming function itself is available under the Artistic License;
  * the boilerplate was a nice exercise.

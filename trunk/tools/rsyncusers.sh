@@ -2,7 +2,7 @@
 
 # analyze rsync logfile to list rsync users per rsync module
 
-# Copyright 2008,2009,2010 Peter Poeml <poeml@cmdline.net>
+# Copyright 2008,2009,2010,2011 Peter Poeml <poeml@cmdline.net>
 # 
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License version 2
