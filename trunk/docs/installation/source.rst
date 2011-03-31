@@ -63,7 +63,7 @@ following steps::
 
   # unpack the tarball and go inside the source tree
   cd mod_mirrorbrain
-  apxs -c mod_mirrorbrain.c
+  apxs -c -lm mod_mirrorbrain.c
 
 To install the module in the right place, you would normally call::
 
