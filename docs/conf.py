@@ -38,7 +38,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'MirrorBrain'
-copyright = u'2010, Peter Poeml'
+copyright = u'2010-2011, Peter Poeml'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
