@@ -49,7 +49,7 @@ class Sample:
                 or ('://' not in self.probebaseurl and '::' in self.probebaseurl):
             self.scheme = 'rsync'
         else:
-            raise 'unknown url type: %s' % self.probebaseurl
+            raise Exception('unknown url type: %s' % self.probebaseurl)
 
         self.probeurl = self.probebaseurl.rstrip('/') + '/' + self.filename.lstrip('/')
 
