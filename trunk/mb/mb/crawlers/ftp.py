@@ -29,7 +29,7 @@ def line2File(line):
         name = parts[7]
         size = parts[3]
     else:
-        raise 'haeh? could not parse line from FTP listing'
+        raise Exception('haeh? could not parse line from FTP listing')
     return Afile(name, size)
 
 

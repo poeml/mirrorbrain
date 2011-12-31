@@ -128,7 +128,7 @@ def probe(S, http_method='GET'):
         return S
 
     else:
-        raise 'unknown URL type: %r' % S.probebaseurl
+        raise Exception('unknown URL type: %r' % S.probebaseurl)
 
 
 
@@ -163,7 +163,7 @@ def make_probelist(mirrors, filename, url_type='http', get_digest=False, get_con
                         for i in mirrors 
                         for url in get_all_urls(i) ]
     else:
-        raise 'unknown url_type value: %r' % url_type
+        raise Exception('unknown url_type value: %r' % url_type)
 
 
 def probe_report(m):
