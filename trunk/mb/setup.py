@@ -3,7 +3,7 @@
 from distutils.core import setup, Extension
 
 s = setup(name='mb',
-      version='2.15.1',
+      version='2.16.0',
       description='mb, a tool to maintain the MirrorBrain database',
       author='MirrorBrain project',
       author_email='info@mirrorbrain.org',
