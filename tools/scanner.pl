@@ -561,7 +561,11 @@ sub http_readdir
   my @r;
   print "$identifier: http dir: $url/$name\n" if $verbose > 2;
   print "$identifier: http dir: $name\n" if $verbose == 2;
-  my $contents = cont("$url/$name/?F=1");
+  my ($res, $contents) = cont("$url/$name/?F=1");
+  if(!$res) {
+    print "$url/$name/?F=1: error \"$contents\" fetching index, skipped.\n" if $verbose;
+    return;
+  }
   if($contents =~ s{^.*<(PRE|pre|table)>.*<(a href|A HREF)="\?(N=A|C=.*;O=)[^"]*">}{}s) {
     ## good, we know that one. It is a standard apache dir-listing.
     ## 
@@ -949,10 +953,10 @@ sub cont
 
   # Check the outcome of the response
   if ($res->is_success) {
-    return ($res->content);
+    return (1,$res->content);
   }
   else {
-    return ($res->status_line);
+    return (0,$res->status_line);
   }
 }
 
