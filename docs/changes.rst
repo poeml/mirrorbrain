@@ -4,10 +4,46 @@ Release Notes/Change History
 ============================
 
 
-Release 2.16.0 (rXXX, Feb 20, 2012)
+Release 2.16.0 (r8251, Feb 21, 2012)
 ------------------------------------
 
-...
+This release sums up small fixes that piled up slowly, over a good
+year.
+
+*URL signing* is no longer regarded experimental. See
+:ref:`configuring_url_signatures` for more information on this interesting
+feature.
+
+:program:`mb dirs`: A new option was added to list all mirrors which don't have
+a specified directory: ``mb dirs --missing DIR`` 
+
+The following bugs were fixed:
+
+* :program:`mod_mirrorbrain`: The server could crash if there was configuration for fallback mirrors in
+  place and acquisition of a database connection failed.  This has been fixed
+  (`issue 84`_).
+
+* :program:`mb scan`:
+
+  - If some directories on a mirror return 404, the scanner crashed. This
+    is fixed with a patch kindly contributed by Thorsten Behrens.
+  - As adjunct to r8180 (terse logging), logging messages in the large file check
+    have been silenced (and their formatting improved, while at it) 
+
+* :program:`mb`: A compatibility issue in Python has been fixed, by updating the way how
+  exceptions are raised. Thanks to Christian Lohmaier for bringing this up.
+
+* :program:`mb makehashes`: Handling of non-availability of SHA256 cipher was
+  fixed for old Python versions (`issue 85`_).
+
+  
+In the documentation, the section about :ref:`configuring_url_signatures` has
+been added, and a general build problem has been documented: On some newer
+platforms, there is a need for linking the math library (as in ``-lm``).
+
+
+.. _`issue 84`: http://mirrorbrain.org/issues/issue84
+.. _`issue 85`: http://mirrorbrain.org/issues/issue85
 
 
 
