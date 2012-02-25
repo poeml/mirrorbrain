@@ -99,7 +99,7 @@ def run_push(push):
 
 pushes = []
 pushes.append(Push('foo', 'rsync://mirror.foo.com/acme-upload/'))
-pushes.append(Push('bar', 'rsync://mirror.bar.com/acme/'))
+pushes.append(Push('bar', 'user@mirror.bar.com:/acme/')) # (rsync over ssh)
 pushes.append(Push('halifax', 'rsync://ftp.halifax.example.de/acme-push/'))
 pushes.append(Push('powermirror', 'rsync://myuser@ftp.powermirror.org:666/acme', 'Peter'))
 pushes.append(Push('bla.com', 'rsync://acme-update@acme.mirror.bla.com/acme-update', 'seeeeecret', '--address=192.0.43.10'))
