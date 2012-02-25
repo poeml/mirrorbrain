@@ -1,0 +1,125 @@
+#!/usr/bin/python
+
+# push2mirrors -- rsync file to mirrors in parallel
+# Copyright 2010,2011,2012 Peter Poeml
+
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License version 2
+# as published by the Free Software Foundation;
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+
+
+
+# See http://download.documentfoundation.org/mirroring.html for possible
+# directions to mirrors for their setup
+
+import sys
+import os
+import commands
+import subprocess
+from subprocess import Popen, PIPE
+from multiprocessing import Pool
+
+#
+# Mirrors are defined below --- scroll down!
+#
+
+RSYNC = ['rsync', '--no-motd', '--no-inc-recursive', '-rlptH', '-hi', '--delete', '--delete-excluded', '--exclude=*.md5', '--exclude=/archive', '/srv/acme/']
+BUFSIZE = 65536
+#POOLSIZE = 6
+POOLSIZE = 2
+
+
+class Push:
+    def __init__(self, name, url, pw='', add_args=''):
+        self.name = name
+        self.url = url
+        self.pw = pw
+        self.add_args = add_args
+
+        self.cmd = RSYNC[:]
+        self.cmd.append(self.url)
+        if self.add_args:
+            self.cmd.append(self.add_args)
+
+
+def run_push(push):
+
+    sys.stdout.write("\n%s: starting\n" % push.name)
+    if push.name in ['very-slow-mirror', 'faraway']:
+        sys.stdout.write('%s is slow to sync!\n' % push.name)
+
+    # run rsync
+    os.environ['RSYNC_PASSWORD'] = push.pw
+    sys.stdout.write('%s: %s\n' % (push.name, ' '.join(push.cmd)))
+
+    #rc = subprocess.call(push.cmd)
+    #if rc != 0:
+    #    print rc
+    p = Popen(push.cmd, shell=False, bufsize=BUFSIZE,
+              stdin=PIPE, stdout=PIPE, stderr=PIPE, close_fds=True)
+    (child_stdin, child_stdout, child_stderr) = (p.stdin, p.stdout, p.stderr)
+    p.stdin.close()
+    while True:
+        line = child_stdout.readline()
+        if not line:
+            break
+        sys.stdout.write('%s: %s' % (push.name, line))
+    rc_rsync = p.wait()
+    if rc_rsync != 0:
+        sys.stdout.write("\n%s: rsync return code: %s\n" % (push.name, rc_rsync))
+
+
+
+    # run the scanner
+    cmd = 'mb scan %s' % push.name
+    (rc_scan, out) = commands.getstatusoutput(cmd)
+    if rc_scan != 0:
+        sys.stdout.write("\n%s: scan return code: %s\n" % (push.name, rc_scan))
+    for line in out.splitlines():
+        if 'total files' in line:
+            sys.stdout.write("\n%s: %s\n" % (push.name, line))
+
+
+    sys.stdout.write("\n%s: ready!\n" % push.name)
+
+    return rc_rsync, rc_scan
+
+
+# Format is:
+# identifier rsync-url [password [rsync-options]]
+
+pushes = []
+pushes.append(Push('foo', 'rsync://mirror.foo.com/acme-upload/'))
+pushes.append(Push('bar', 'rsync://mirror.bar.com/acme/'))
+pushes.append(Push('halifax', 'rsync://ftp.halifax.example.de/acme-push/'))
+pushes.append(Push('powermirror', 'rsync://myuser@ftp.powermirror.org:666/acme', 'Peter'))
+pushes.append(Push('bla.com', 'rsync://acme-update@acme.mirror.bla.com/acme-update', 'seeeeecret', '--address=192.0.43.10'))
+pushes.append(Push('faraway', 'rsync://slow.far.cn/acme-update'))
+
+# TODO: make mirrors configurable outside of this script. E.g., look into MirrorBrain database.
+
+
+
+
+#for p in pushes:
+#    run_push(p)
+
+
+if len(pushes) < POOLSIZE:
+    pool_size = len(pushes)
+else:
+    pool_size = POOLSIZE
+p = Pool(pool_size)
+result = p.map_async(run_push, pushes)
+#print result.get(timeout=20)
+print result.get()
+
