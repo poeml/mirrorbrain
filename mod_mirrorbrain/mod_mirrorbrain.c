@@ -1162,7 +1162,14 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
     }
     if (dbd == NULL) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-                "[mod_mirrorbrain] Don't have a database connection");
+                "[mod_mirrorbrain] Don't have a database connection for hashes");
+        return NULL;
+    }
+
+    if (!dbd->prepared) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+            "[mod_mirrorbrain] dbd->prepared hash is NULL");
+        dbd = NULL; /* don't try to use again */
         return NULL;
     }
 
@@ -1172,7 +1179,7 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
                       "[mod_mirrorbrain] Could not get prepared statement labelled '%s'",
                       scfg->query_hash_label);
-
+        dbd = NULL;
         return NULL;
     }
 
@@ -1889,9 +1896,19 @@ static int mb_handler(request_rec *r)
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
                 "[mod_mirrorbrain] Error acquiring database connection");
         if (apr_is_empty_array(cfg->fallbacks)) {
-            setenv_give(r, "file");
+            setenv_give(r, "file (database_not_reached)");
             return DECLINED; /* fail gracefully */
         }
+
+    }
+    if (dbd && !dbd->prepared) {
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+            "[mod_mirrorbrain] dbd->prepared hash is NULL");
+        if (apr_is_empty_array(cfg->fallbacks)) {
+            setenv_give(r, "file (dbd_prepared_is_NULL)");
+            return DECLINED; /* fail gracefully */
+        }
+        dbd = NULL; /* stay away! */
     }
     debugLog(r, cfg, "Successfully acquired database connection.");
 
@@ -1942,34 +1959,37 @@ static int mb_handler(request_rec *r)
 
 
     if (dbd) {
+
         statement = apr_hash_get(dbd->prepared, scfg->query_label, APR_HASH_KEY_STRING);
-    }
+        if (!statement) {
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+                          "[mod_mirrorbrain] Could not get prepared statement labelled '%s'",
+                          scfg->query_label);
 
-    if (!dbd || !statement) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-                      "[mod_mirrorbrain] Could not get prepared statement labelled '%s'",
-                      scfg->query_label);
-
-        /* log existing prepared statements. It might help with figuring out
-         * misconfigurations */
-        ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, 
-                      "[mod_mirrorbrain] dbd->prepared hash contains %d key/value pairs", 
-                      apr_hash_count(dbd->prepared));
-
-        apr_hash_index_t *hi;
-        const char *label, *query;
-        for (hi = apr_hash_first(r->pool, dbd->prepared); hi; hi = apr_hash_next(hi)) {
-            apr_hash_this(hi, (void*) &label, NULL, (void*) &query);
+            /* log existing prepared statements. It might help with figuring out
+             * misconfigurations */
             ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, 
-                          "[mod_mirrorbrain] dbd->prepared dump: key %s, value 0x%08lx", label, (long)query);
+                          "[mod_mirrorbrain] dbd->prepared hash contains %d key/value pairs", 
+                          apr_hash_count(dbd->prepared));
+            apr_hash_index_t *hi;
+            const char *label, *query;
+            for (hi = apr_hash_first(r->pool, dbd->prepared); hi; hi = apr_hash_next(hi)) {
+                apr_hash_this(hi, (void*) &label, NULL, (void*) &query);
+                ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, 
+                              "[mod_mirrorbrain] dbd->prepared dump: key %s, value 0x%08lx", label, (long)query);
+            }
+
+            dbd = NULL; /* don't use */
+
+            if (apr_is_empty_array(cfg->fallbacks)) {
+                setenv_give(r, "file (dbd_statement_is_NULL)");
+                return DECLINED;
+            }
         }
 
-        ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, 
-                      "[mod_mirrorbrain] Hint: connection strings defined with "
-                      "DBDParams must be unique. The same string cannot be used "
-                      "in two vhosts.");
-
+    } else {
         if (apr_is_empty_array(cfg->fallbacks)) {
+            setenv_give(r, "file");
             return DECLINED;
         }
     }
