@@ -73,11 +73,10 @@ class Hasheable:
         try:
             dst_statinfo = os.stat(self.dst)
             dst_mtime = dst_statinfo.st_mtime
-            dst_size = dst_statinfo.st_size
         except OSError:
-            dst_mtime = dst_size = 0 # file missing
+            dst_mtime = 0 # file missing
 
-        if int(dst_mtime) == int(self.mtime) and dst_size != 0 and not force:
+        if int(dst_mtime) == int(self.mtime) and not force:
             if verbose:
                 print 'Up to date hash file: %r' % self.dst
             return 
@@ -92,9 +91,7 @@ class Hasheable:
             sys.stderr.write('skipping hash (file) generation\n')
             return
 
-        d = open(self.dst, 'wb')
-        d.write(self.hb.dump_2_12_template())
-        d.close()
+        open(self.dst, 'w').close()
 
         if verbose:
             print 'Hash file updated: %r' % self.dst
@@ -347,36 +344,6 @@ class HashBag:
 
     def __str__(self):
         return self.dump_raw()
-
-
-    def dump_2_12_template(self):
-        """dump in the form that was used up to mirrorbrain-2.12.0"""
-
-        r = []
-
-
-        r.append("""      <verification>
-        <hash type="md5">%s</hash>
-        <hash type="sha1">%s</hash>""" % (self.md5hex, self.sha1hex))
-        if self.sha256:
-            r.append('        <hash type="sha256">%s</hash>' % (self.sha256hex))
-
-        if self.pgp:
-            r.append('        <signature type="pgp" file="%s.asc">' % self.basename)
-            r.append(self.pgp)
-            r.append('        </signature>')
-
-        if self.do_chunked_hashes:
-            r.append('        <pieces length="%s" type="sha1">' % (self.chunk_size))
-
-            n = 0
-            for piece in self.pieceshex:
-                r.append('            <hash piece="%s">%s</hash>' % (n, piece))
-                n += 1
-
-            r.append('        </pieces>\n      </verification>\n')
-
-        return '\n'.join(r)
 
 
     def zs_guess_zsync_params(self):
