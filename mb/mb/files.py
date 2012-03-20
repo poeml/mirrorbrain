@@ -8,16 +8,14 @@ def has_file(conn, path, mirror_id):
     path can contain wildcards, which will result in a LIKE match.
     """
     if path.find('*') >= 0 or path.find('%') >= 0:
-        pattern = True
         oprtr = 'like'
         path = path.replace('*', '%')
     else:
-        pattern = False
         oprtr = '='
 
-    query = "SELECT mirr_hasfile_byname(%s, '%s')" \
-                  % (mirror_id, path)
-    result = conn.Server._connection.queryAll(query)[0][0]
+    query = "SELECT path FROM filearr WHERE path %s '%s' AND %s = ANY(mirrors)" \
+                  % (oprtr, path, mirror_id)
+    result = conn.Server._connection.queryAll(query)
 
     return result
 
