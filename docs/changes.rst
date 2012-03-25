@@ -4,6 +4,46 @@ Release Notes/Change History
 ============================
 
 
+Release 2.16.1 (rXXXX, Mar 25, 2012)
+------------------------------------
+
+
+Bugs fixed:
+
+* :program:`mb makehashes`: It didn't work with PGP signature files that were
+  not detached signatures. Non-detached (attached) signatures are now ignored
+  because they could be very large (file size of the original file plus
+  signature) (`issue 102`_). Thanks to Tom Albers for his help here.
+
+
+
+* :program:`mb makehashes`: It no longer writes metalink data / cryptohashes
+  into files. All hashes are stored in the database since 2.13.0. The obsolete
+  storage in files had been kept only for backwards compatibility with 2.12 and
+  earlier. (Which are outdated since ~18 months now. So let's avoid confusion.)
+
+
+* :program:`mod_mirrorbrain`:
+  Reworked error handling regarding the acquisition of database connections,
+  including more detailed logging of errors. This fixes a crash that affected
+  only setups with ``MirrorBrainFallback`` configuration. The crash could occur
+  when no database connection was available -- because the logging code wrongly
+  tried to log details about the (unavailable) connection.
+
+New features:
+
+* :program:`mb mirrorlist`: Path names can now contain wildcards. (Edited via
+  :program:`mb markers -e`). Very nice improvement, thanks to idea and patch
+  from Stephan Jauernick.
+
+
+* There is a little new tool: :program:`tools/push2mirrors`, an example script to
+  run rsync processes in parallel to push content to mirrors.
+
+.. _`issue 102`: http://mirrorbrain.org/issues/issue102
+
+
+
 Release 2.16.0 (r8251, Feb 21, 2012)
 ------------------------------------
 
