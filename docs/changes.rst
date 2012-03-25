@@ -4,7 +4,7 @@ Release Notes/Change History
 ============================
 
 
-Release 2.16.1 (rXXXX, Mar 25, 2012)
+Release 2.16.1 (r8261, Mar 25, 2012)
 ------------------------------------
 
 
