@@ -1034,7 +1034,7 @@ sub rsync_cb
     if($mode & 004) { # readable for the world is good.
       # params for largefile check: url=$ary_ref->{$priv->{serverid}}/$name, size=$len
       if(largefile_check($priv->{identifier}, $priv->{serverid}, $name, $len) == 0) {
-        printf "$priv->{identifier}: warning: $name cannot be delivererd via HTTP! Skipping\n" if $verbose > 0;
+        printf "$priv->{identifier}: warning: $name cannot be delivered via HTTP! Skipping\n" if $verbose > 0;
       }
       else {
         $name = save_file($name, $priv->{identifier}, $priv->{serverid}, $mtime, $priv->{re});
