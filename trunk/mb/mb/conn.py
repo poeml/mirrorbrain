@@ -20,6 +20,7 @@ regionOnly     : %(regionOnly)s
 countryOnly    : %(countryOnly)s
 asOnly         : %(asOnly)s
 prefixOnly     : %(prefixOnly)s
+ipv6Only       : %(ipv6Only)s
 otherCountries : %(otherCountries)s
 fileMaxsize    : %(fileMaxsize)s
 publicNotes    : %(publicNotes)s
@@ -73,6 +74,7 @@ def server2dict(s):
                 countryOnly   = s.countryOnly,
                 asOnly        = s.asOnly,
                 prefixOnly    = s.prefixOnly,
+                ipv6Only      = s.ipv6Only,
                 otherCountries = s.otherCountries,
                 fileMaxsize   = s.fileMaxsize,
                 score         = s.score,
@@ -120,6 +122,32 @@ class Conn:
                               config['dbname'])
 
         sqlhub.processConnection = connectionForURI(self.uri)
+
+
+
+        # upgrade things in the database, if needed
+        try:
+            class Version(SQLObject):
+                """version of the database schema"""
+                class sqlmeta:
+                    fromDatabase = True
+        except psycopg2.ProgrammingError:
+            print 'Your database needs to be upgraded (2.17.0)...'
+
+            query = """CREATE TABLE version ( 
+                           "component" text NOT NULL PRIMARY KEY,
+                           "major" INTEGER NOT NULL,
+                           "minor" INTEGER NOT NULL,
+                           "patchlevel" INTEGER NOT NULL );
+                       INSERT INTO version VALUES ('mirrorbrain', 2, 17, 0);
+                    """
+            SQLObject._connection.query(query)
+
+            # the following modification comes with 2.17.0
+            print "migrating server table by adding ipv6_only column"
+            query = "ALTER TABLE server ADD COLUMN ipv6_only boolean NOT NULL default 'f';"
+            SQLObject._connection.query(query)
+
 
         class Server(SQLObject):
             """the server table"""
