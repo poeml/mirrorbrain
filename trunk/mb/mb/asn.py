@@ -6,14 +6,25 @@ def iplookup(conn, s):
 
 
     if s[0].isdigit():
-        a = IpAddress(s)
+        a = IpAddress()
+        if ':' in s:
+            a.ip6 = s
+        else:
+            a.ip = s
 
     else:
         import sys, socket
-        # note the difference between socket.gethostbyname 
-        # and socket.gethostbyname_ex
+        ips = []
+        ip6s = []
         try:
-            host, aliases, ips = socket.gethostbyname_ex(s)
+            for res in socket.getaddrinfo(s, 0):
+                af, socktype, proto, canonname, sa = res
+                if ':' in sa[0]:
+                    if sa[0] not in ip6s:
+                        ip6s.append(sa[0])
+                else:
+                    if sa[0] not in ips:
+                        ips.append(sa[0])
         except socket.error, e:
             if e[0] == socket.EAI_NONAME:
                 raise mb.mberr.NameOrServiceNotKnown(s)
@@ -22,14 +33,19 @@ def iplookup(conn, s):
                 return None
 
 
-        #print host, aliases, ips
-        if len(ips) != 1:
-            print >>sys.stderr, \
-                    '>>> warning: %r resolves to multiple IP addresses: %s' \
-                    % (s, ', '.join(ips))
-            print >>sys.stderr, '>>> see http://mirrorbrain.org/archive/mirrorbrain/0042.html why this could' \
+        #print ips
+        #print ip6s
+        if len(ips) > 1 or len(ip6s) > 1:
+            print >>sys.stderr, '>>> warning: %r resolves to multiple IP addresses: ' % s,
+            if len(ips) > 1:
+                print >>sys.stderr, ', '.join(ips),
+            if len(ip6s) > 1:
+                print >>sys.stderr, ', '.join(ip6s),
+            print >>sys.stderr, '\n>>> see http://mirrorbrain.org/archive/mirrorbrain/0042.html why this could' \
                                 ' could be a problem, and what to do about it.\n'
-        a = IpAddress(ips[0])
+        a = IpAddress()
+        if ips: a.ip = ips[0]
+        if ip6s: a.ip6 = ip6s[0]
         
 
     query = """SELECT pfx, asn \

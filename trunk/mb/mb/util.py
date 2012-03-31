@@ -19,12 +19,15 @@ class Afile:
 
 class IpAddress:
     """represent an IP address, or rather some data associated with it"""
-    def __init__(self, ip):
-        self.ip = ip
+    def __init__(self):
+        self.ip = None
+        self.ip6 = None
         self.asn = None
         self.prefix = None
     def __str__(self):
-        return '%s (%s AS%s)' % (self.ip, self.prefix, self.asn)
+        r = '%s (%s AS%s)' % (self.ip, self.prefix, self.asn)
+        if self.ip6:
+            r += ' %s' % self.ip6
 
 
 class Sample:
