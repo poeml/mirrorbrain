@@ -346,7 +346,7 @@ class MirrorDoctor(cmdln.Cmdln):
         elif opts.prefix:
             print r.prefix
         else:
-            print '%s (AS%s)' % (r.prefix, r.asn)
+            print '%s (AS%s) %s' % (r.prefix, r.asn, r.ip6)
         if opts.all_prefixes:
             r2 = mb.asn.asn_prefixes(self.conn, r.asn)
             print ', '.join(r2)
