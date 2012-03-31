@@ -13,6 +13,16 @@ BEGIN;
 -- --------------------------------------------------------
 
 
+CREATE TABLE "version" (
+        "component" text NOT NULL PRIMARY KEY,
+        "major" INTEGER NOT NULL,
+        "minor" INTEGER NOT NULL,
+        "patchlevel" INTEGER NOT NULL
+);
+
+-- --------------------------------------------------------
+
+
 CREATE TABLE "filearr" (
         "id" serial NOT NULL PRIMARY KEY,
         "path" varchar(512) UNIQUE NOT NULL,
