@@ -1793,6 +1793,14 @@ static int mb_handler(request_rec *r)
     state_id = apr_table_get(r->subprocess_env, "GEOIP_REGION");
     state_name = apr_table_get(r->subprocess_env, "GEOIP_REGION_NAME");
 
+    /* IPv6 is experimentally supported in mod_geoip >= 1.2.7 and GeoIP >= 1.4.8 */
+    if (!country_code) 
+        country_code = apr_table_get(r->subprocess_env, "GEOIP_COUNTRY_CODE_V6");
+    if (!country_name) 
+        country_name = apr_table_get(r->subprocess_env, "GEOIP_COUNTRY_NAME_V6");
+    if (!continent_code) 
+        continent_code = apr_table_get(r->subprocess_env, "GEOIP_CONTINENT_CODE_V6");
+
     if (!country_code) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] could not resolve country");
         country_code = "--";
