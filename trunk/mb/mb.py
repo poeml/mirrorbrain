@@ -424,6 +424,13 @@ class MirrorDoctor(cmdln.Cmdln):
                 continue
 
 
+            if res:
+                if mirror.ipv6Only != res.ipv6Only():
+                    print '%s: updating ipv6Only flag (%s -> %s)' \
+                        % (mirror.identifier, mirror.ipv6Only, res.ipv6Only())
+                    if not opts.dry_run:
+                        mirror.ipv6Only = res.ipv6Only()
+
             if opts.prefix and res:
                 if mirror.prefix != res.prefix:
                     print '%s: updating network prefix (%s -> %s)' \

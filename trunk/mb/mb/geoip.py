@@ -17,6 +17,15 @@ for i in databases:
     if os.path.exists(i):
         database = i
         break
+databases6 = ['/var/lib/GeoIP/GeoIPv6.dat.updated', 
+             '/var/lib/GeoIP/GeoIPv6.dat', 
+             '/usr/share/GeoIP/GeoIPv6.dat.updated', 
+             '/usr/share/GeoIP/GeoIPv6.dat', 
+             ]
+for i in databases6:
+    if os.path.exists(i):
+        database6 = i
+        break
 
 
 def lookup_country_code(addr):

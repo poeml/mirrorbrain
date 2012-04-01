@@ -24,6 +24,11 @@ class IpAddress:
         self.ip6 = None
         self.asn = None
         self.prefix = None
+    def ipv6Only(self):
+        if self.ip6 and not self.ip:
+            return True
+        else:
+            return False
     def __str__(self):
         r = '%s (%s AS%s)' % (self.ip, self.prefix, self.asn)
         if self.ip6:

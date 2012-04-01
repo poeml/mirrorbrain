@@ -48,6 +48,8 @@ def iplookup(conn, s):
         if ip6s: a.ip6 = ip6s[0]
         
 
+    if not a.ip:
+        return a
     query = """SELECT pfx, asn \
                    FROM pfx2asn \
                    WHERE pfx >>= ip4r('%s') \
