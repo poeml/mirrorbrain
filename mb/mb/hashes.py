@@ -311,7 +311,7 @@ class HashBag:
         # but not if the signature file is larger than 
         # the actual file -- that would be a sign that the signature
         # is not "detached", and could be huge (or contain characters that
-        # can not easily saved to the database for encoding reasons) 
+        # can not easily be saved to the database for encoding reasons) 
         if os.path.exists(self.src + '.asc') \
             and os.stat(self.src + '.asc').st_size < self.h.size:
             self.pgp = open(self.src + '.asc').read()
