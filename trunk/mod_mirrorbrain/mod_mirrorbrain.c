@@ -2403,6 +2403,7 @@ static int mb_handler(request_rec *r)
     case MIRRORLIST:
     case ZSYNC:
     case YUMLIST:
+    case REDIRECT:
         qsort(mirrors_same_prefix->elts, mirrors_same_prefix->nelts, 
               mirrors_same_prefix->elt_size, cmp_mirror_best);
         qsort(mirrors_same_as->elts, mirrors_same_as->nelts, 
@@ -2512,7 +2513,7 @@ static int mb_handler(request_rec *r)
 
 
 
-    if ((rep != REDIRECT) && (rep != YUMLIST) && (!hashbag)) {
+    if ((rep != YUMLIST) && (!hashbag)) {
         hashbag = hashbag_fill(r, dbd, filename);
         if (hashbag == NULL) {
             debugLog(r, cfg, "no hashes found in database");
@@ -3569,6 +3570,74 @@ static int mb_handler(request_rec *r)
 
     apr_table_setn(r->err_headers_out, "X-MirrorBrain-Mirror", chosen->identifier);
     apr_table_setn(r->err_headers_out, "X-MirrorBrain-Realm", found_in);
+
+
+    /* add HTTP headers according to RFC 5988 (Web Linking) 
+     * and RFC 5854/6249 (Metalink/HTTP: Mirrors and Hashes) */
+    /* rel=describedby */
+    apr_table_addn(r->err_headers_out, "Link", 
+                   apr_pstrcat(r->pool,
+                               "<http://", r->hostname, r->uri, ".meta4>; "
+                               "rel=describedby; type=\"application/metalink4+xml\"", 
+                               NULL));
+    if (hashbag && hashbag->pgp) {
+        apr_table_addn(r->err_headers_out, "Link", 
+                       apr_pstrcat(r->pool,
+                                   "<http://", r->hostname, r->uri, ".asc>; "
+                                   "rel=describedby; type=\"application/pgp-signature\"", 
+                                   NULL));
+    }
+    if (!apr_is_empty_array(scfg->tracker_urls) && hashbag && hashbag->btihhex) {
+        apr_table_addn(r->err_headers_out, "Link", 
+                       apr_pstrcat(r->pool,
+                                   "<http://", r->hostname, r->uri, ".torrent>; "
+                                   "rel=describedby; type=\"application/x-bittorrent\"", 
+                                   NULL));
+    }
+
+    /* rel=duplicate */
+    apr_array_header_t *topten = get_n_best_mirrors(r, 5, mirrors_same_prefix, mirrors_same_as, 
+                                                     mirrors_same_country, mirrors_same_region, 
+                                                     mirrors_elsewhere);
+    if (topten->nelts > 0) {
+        mirrorp = (mirror_entry_t **)topten->elts;
+        for (i = 0; i < topten->nelts; i++) {
+            mirror = mirrorp[i];
+            apr_table_addn(r->err_headers_out, "Link", 
+                           apr_pstrcat(r->pool,
+                                       "<", mirror->baseurl, filename, 
+                                       ">; rel=duplicate"
+                                       "; pri=", apr_itoa(r->pool, i+1),
+                                       "; geo=", mirror->country_code,
+                                       NULL));
+        }
+    }
+    
+    /* RFC 3230 HTTP Instance Digests (including updates from RFC 5843) */
+    if (hashbag) {
+        if (hashbag->md5hex) {
+            apr_table_addn(r->err_headers_out, "Digest", 
+                           apr_pstrcat(r->pool,
+                                       "MD5=", 
+                                       ap_pbase64encode(r->pool, hex_decode(r, hashbag->md5hex, MD5_DIGESTSIZE)),
+                                       NULL));
+        }
+        if (hashbag->sha1hex) {
+            apr_table_addn(r->err_headers_out, "Digest", 
+                           apr_pstrcat(r->pool,
+                                       "SHA=", 
+                                       ap_pbase64encode(r->pool, hex_decode(r, hashbag->sha1hex, SHA1_DIGESTSIZE)),
+                                       NULL));
+        }
+        if (hashbag->sha256hex) {
+            apr_table_addn(r->err_headers_out, "Digest", 
+                           apr_pstrcat(r->pool,
+                                       "SHA-256=", 
+                                       ap_pbase64encode(r->pool, hex_decode(r, hashbag->sha256hex, SHA256_DIGESTSIZE)),
+                                       NULL));
+        }
+    }
+
     apr_table_setn(r->headers_out, "Location", uri);
 
 #ifdef WITH_MEMCACHE
