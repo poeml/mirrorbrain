@@ -210,3 +210,9 @@ def strip_auth(s):
         netloc = netloc.split('@')[1]
     return urlparse.urlunsplit((u[0], netloc, u[2], u[3], u[4]))
 
+def pgsql_regexp_esc(s):
+    if s:
+        return '\\\\' + '\\\\'.join(['%03o' % ord(c) for c in s])
+    else:
+        return s
+
