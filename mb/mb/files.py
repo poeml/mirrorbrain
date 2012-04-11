@@ -1,5 +1,6 @@
 from sqlobject.sqlbuilder import AND
 
+from mb import util
 
 def has_file(conn, path, mirror_id):
     """check if file 'path' exists on mirror 'mirror_id'
@@ -156,7 +157,7 @@ def dir_filelist(conn, path):
                    FROM filearr 
                LEFT JOIN hash 
                    ON hash.file_id = filearr.id 
-               WHERE filearr.path ~ '^%s/[^/]*$'""" % path
+               WHERE filearr.path ~ '^""" + util.pgsql_regexp_esc(path) +"""/[^/]*$'""" 
 
     result = conn.Server._connection.queryAll(query)
     return result
