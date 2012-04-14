@@ -4,6 +4,47 @@ Release Notes/Change History
 ============================
 
 
+Release 2.17.0 (rXXXX, XXX XX, 2012)
+------------------------------------
+
+
+New features:
+
+* :program:`mod_mirrorbrain`: enable geolocation by country for IPv6 clients.
+  This requires :program:`GeoIP` 1.4.8 and :program:`mod_geoip` 1.2.7 or newer (which add experimental
+  support for IPv6 resolution). `issue 106`_
+
+* program:`mb update`, :program:`mb iplookup`: DNS resolution now works with IPv4 + IPv6.
+
+* Support for Metalink/HTTP (RFC 6249) has finally been implemented `issue 15`_
+
+* :program:`mb makehashes`: A problem was fixed with filenames containing
+  characters that could be interpreted as magic characters in regular
+  expressions (`issue 94`_) Thanks, KDE sysadmins, for your help!
+ 
+* :program:`mb scan`: A typo has been fixed (patch by Oliver Beattie)
+
+
+
+Internally, a way to migrate the database after updates has been implemented. A
+table named ``version`` keeps info about the state of the database. Thus,
+database schema upgrades can happen automatically when possible. This release
+adds a new flag to the database called ``ipv6_only`` to denote mirrors that are
+not reachable by IPv4. Once this new flag is used, it will allow to redirect
+clients to this type of mirrors. (And IPv6-only mirrors won't go away -- rather
+the contrary.)
+
+* Ubuntu 11.10 packages are now built and tested.
+
+* Debian 6.0 packages have been tested.
+
+.. _`issue 15`: http://mirrorbrain.org/issues/issue15
+.. _`issue 94`: http://mirrorbrain.org/issues/issue94
+.. _`issue 102`: http://mirrorbrain.org/issues/issue102
+.. _`issue 106`: http://mirrorbrain.org/issues/issue106
+
+
+
 Release 2.16.1 (r8261, Mar 25, 2012)
 ------------------------------------
 
