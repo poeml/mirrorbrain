@@ -108,6 +108,11 @@ def probe_http(mirror):
             mirror.response_code = 0
             mirror.response = "%s" % e.reason
 
+        except httplib.IncompleteRead, e:
+            logging.info('mirror %s returns incomplete response' % mirror.identifier)
+            mirror.response_code = 0
+            mirror.response = "%s" % e.reason
+
         except IOError, e:
             # IOError: [Errno ftp error] (111, 'Connection refused')
             if e.errno == 'ftp error':
