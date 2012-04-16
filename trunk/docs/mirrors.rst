@@ -268,8 +268,8 @@ Editing a mirror
 A mirror (in the mirror database) can be edited with the :program:`mb edit` command.
 
 The command will bring up an editor with the mirror's metadata. The
-:envvar:`EDITOR` environmental variable is respected, and the editor defaults
-to :program:`vim`.
+:envvar:`EDITOR` and :envvar:`VISUAL` environmental variable is respected, and
+the editor defaults to :program:`vim`.
 
 For fields where a Boolean is expected, you can type the value (while editing)
 in the form of 0/1 instead of true/false (shorter to type).
