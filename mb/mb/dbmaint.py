@@ -1,5 +1,5 @@
 
-def stale(conn):
+def stale(conn, quietness):
     """show statistics about stale files in the database"""
 
     n_file_total = conn.Filearr.select().count()
@@ -10,14 +10,16 @@ def stale(conn):
     n_file_stale = conn.Filearr._connection.queryAll(query)[0]
 
 
-    print 'Total files:                     %10d' % n_file_total
-    print 'Stale files (not on any mirror): %10d' % n_file_stale
+    if quietness < 1:
+        print 'Total files:                     %10d' % n_file_total
+        print 'Stale files (not on any mirror): %10d' % n_file_stale
 
 
-def vacuum(conn):
+def vacuum(conn, quietness):
     """delete stale file entries from the database"""
 
-    print 'Deleting stale files...'
+    if quietness < 1:
+        print 'Deleting stale files...'
     query = """DELETE FROM filearr 
                WHERE id IN (
                    SELECT filearr.id FROM filearr 
@@ -26,7 +28,8 @@ def vacuum(conn):
                )"""
     conn.Filearr._connection.query(query)
 
-    print 'Done.'
+    if quietness < 1:
+        print 'Done.'
 
 
 def stats(conn):

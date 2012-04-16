@@ -1229,6 +1229,9 @@ class MirrorDoctor(cmdln.Cmdln):
 
     @cmdln.option('-n', '--dry-run', action='store_true',
                   help='don\'t delete, but only show statistics.')
+    @cmdln.option('-q', '--quiet', dest='quietness', action='count', default=0,
+                  help='Produce less output. '
+                       'Can be given multiple times.')
     def do_db(self, subcmd, opts, *args):
         """${cmd_name}: perform database maintenance
         
@@ -1253,9 +1256,9 @@ class MirrorDoctor(cmdln.Cmdln):
 
 
         usage:
-            mb vacuum [-n]
-            mb sizes
-            mb shell
+            mb db vacuum [-q] [-n]
+            mb db sizes
+            mb db shell
         ${cmd_option_list}
         """
 
@@ -1264,8 +1267,8 @@ class MirrorDoctor(cmdln.Cmdln):
         # this subcommand was renamed from "mb vacuum" to "mb db <action>"
         # let's keep the old way working
         if subcmd == 'vacuum':
-                mb.dbmaint.stale(self.conn)
-                mb.dbmaint.vacuum(self.conn)
+                mb.dbmaint.stale(self.conn, opts.quietness)
+                mb.dbmaint.vacuum(self.conn, opts.quietness)
                 sys.exit(0)
 
         if len(args) < 1:
@@ -1276,10 +1279,10 @@ class MirrorDoctor(cmdln.Cmdln):
             mb.dbmaint.stats(self.conn)
         elif action == 'vacuum':
             if not opts.dry_run:
-                mb.dbmaint.stale(self.conn)
-                mb.dbmaint.vacuum(self.conn)
+                mb.dbmaint.stale(self.conn, opts.quietness)
+                mb.dbmaint.vacuum(self.conn, opts.quietness)
             else:
-                mb.dbmaint.stale(self.conn)
+                mb.dbmaint.stale(self.conn, opts.quietness)
         elif action == 'shell':
             mb.dbmaint.shell(self.config.dbconfig)
 
