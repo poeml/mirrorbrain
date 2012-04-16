@@ -129,7 +129,7 @@ def edit_file(data, boilerplate = None):
     f.close()
     hash_orig = dgst(filename)
 
-    editor = os.getenv('EDITOR', default='vim')
+    editor = os.getenv('EDITOR', os.getenv('VISUAL', default='vim'))
     while 1:
         os.system('%s %s' % (editor, filename))
         hash = dgst(filename)

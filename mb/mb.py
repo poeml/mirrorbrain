@@ -572,7 +572,7 @@ class MirrorDoctor(cmdln.Cmdln):
 
 
     def do_edit(self, subcmd, opts, identifier):
-        """${cmd_name}: edit a new mirror entry in $EDITOR
+        """${cmd_name}: edit a new mirror entry in $EDITOR/$VISUAL
 
         Usage:
             mb edit IDENTIFIER
