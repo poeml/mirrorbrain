@@ -40,6 +40,9 @@ install:
     mirrorprobe-logrotate
        Logrotate snippet for the /var/log/mirrorbrain/mirrorprobe.log file
 
+    push2mirrors
+       Skeleton script to push content to mirrors, via rsync, in parallel.
+
     rsyncusers
        Tool to summarize rsync uses from an rsync log file
     rsyncusers.sh
