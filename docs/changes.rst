@@ -31,6 +31,9 @@ New features:
 * :program:`mb edit`: An editor set via the environmental variable ``$VISUAL``
   is now used, if none is set in ``$EDITOR``. This fixed `issue 96`_.
 
+* :program:`mb db vacuum`: A new option ``-q`` allows to silence the commands
+  output (`issue 99`_).
+
 
 
 Internally, a way to migrate the database after updates has been implemented. A
@@ -48,6 +51,7 @@ the contrary.)
 .. _`issue 15`: http://mirrorbrain.org/issues/issue15
 .. _`issue 94`: http://mirrorbrain.org/issues/issue94
 .. _`issue 96`: http://mirrorbrain.org/issues/issue96
+.. _`issue 99`: http://mirrorbrain.org/issues/issue99
 .. _`issue 102`: http://mirrorbrain.org/issues/issue102
 .. _`issue 106`: http://mirrorbrain.org/issues/issue106
 
