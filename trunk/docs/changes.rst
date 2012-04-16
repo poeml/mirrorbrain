@@ -22,7 +22,14 @@ New features:
   characters that could be interpreted as magic characters in regular
   expressions (`issue 94`_) Thanks, KDE sysadmins, for your help!
  
+* :program:`mirrorprobe`: Incomplete responses returned by mirrors (less
+  bytes sent than announced) spawned an annoying error message. Now this error
+  is just logged.
+
 * :program:`mb scan`: A typo has been fixed (patch by Oliver Beattie)
+
+* :program:`mb edit`: An editor set via the environmental variable ``$VISUAL``
+  is now used, if none is set in ``$EDITOR``. This fixed `issue 96`_.
 
 
 
@@ -40,6 +47,7 @@ the contrary.)
 
 .. _`issue 15`: http://mirrorbrain.org/issues/issue15
 .. _`issue 94`: http://mirrorbrain.org/issues/issue94
+.. _`issue 96`: http://mirrorbrain.org/issues/issue96
 .. _`issue 102`: http://mirrorbrain.org/issues/issue102
 .. _`issue 106`: http://mirrorbrain.org/issues/issue106
 
