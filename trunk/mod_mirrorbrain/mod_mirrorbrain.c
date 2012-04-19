@@ -1104,7 +1104,7 @@ static const int8_t hexlookup[128] = {
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
 };
 
-static char get_hex(request_rec *r, char c)
+static char get_hex(apr_pool_t *p, char c)
 {
     int         res = -1;
 
@@ -1112,47 +1112,47 @@ static char get_hex(request_rec *r, char c)
         res = hexlookup[(unsigned char) c];
 
     if (res < 0)
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-                "[mod_mirrorbrain] invalid hexadecimal digit: \"%c\"", c);
+        ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, NULL, 
+                     "[mod_mirrorbrain] invalid hexadecimal digit: \"%c\"", c);
 
     return (char) res;
 }
 
-static char *hex_decode(request_rec *r, const char *src, unsigned dstlen)
+static char *hex_decode(apr_pool_t *p, const char *src, unsigned dstlen)
 {
     const char *s, *srcend;
     char *dst;
-    char v1, v2, *p;
+    char v1, v2, *d;
 
     if (!dstlen) {
         dstlen = (strlen(src) >> 1);
     }
-    dst = apr_palloc(r->pool, (dstlen));
+    dst = apr_palloc(p, (dstlen));
 
     srcend = src + (dstlen << 1);
     s = src;
-    p = dst;
+    d = dst;
     while (s < srcend) {
-        v1 = get_hex(r, *s++) << 4;
+        v1 = get_hex(p, *s++) << 4;
         if (s >= srcend) {
-            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-                          "[mod_mirrorbrain] invalid hexadecimal data: "
+            ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, NULL, 
+                         "[mod_mirrorbrain] invalid hexadecimal data: "
                           "odd number of digits");
         }
-        v2 = get_hex(r, *s++);
-        *p++ = v1 | v2;
+        v2 = get_hex(p, *s++);
+        *d++ = v1 | v2;
     }
 
     return dst;
 }
 
-static char *hex_to_b64(request_rec *r, const char *src, unsigned binlen)
+static char *hex_to_b64(apr_pool_t *p, const char *src, unsigned binlen)
 {
     char *bin, *encoded;
 
-    bin = hex_decode(r, src, binlen);
+    bin = hex_decode(p, src, binlen);
 
-    encoded = (char *) apr_palloc(r->pool, 1 + apr_base64_encode_len(binlen));
+    encoded = (char *) apr_palloc(p, 1 + apr_base64_encode_len(binlen));
     binlen = apr_base64_encode(encoded, bin, binlen);
     encoded[binlen] = '\0'; /* make binary sequence into string */
 
@@ -3293,15 +3293,15 @@ static int mb_handler(request_rec *r)
                                              (hashbag->sha1pieceshex->nelts * SHA1_DIGESTSIZE));
         char **p = (char **)hashbag->sha1pieceshex->elts;
         for (i = 0; i < hashbag->sha1pieceshex->nelts; i++) {
-            ap_rwrite(hex_decode(r, p[i], SHA1_DIGESTSIZE), SHA1_DIGESTSIZE, r);
+            ap_rwrite(hex_decode(r->pool, p[i], SHA1_DIGESTSIZE), SHA1_DIGESTSIZE, r);
         }
         ap_rprintf(r,             "4:sha1"
                                       "%d:", SHA1_DIGESTSIZE);
-        ap_rwrite(                    hex_decode(r, hashbag->sha1hex, SHA1_DIGESTSIZE), 
+        ap_rwrite(                    hex_decode(r->pool, hashbag->sha1hex, SHA1_DIGESTSIZE), 
                 SHA1_DIGESTSIZE, r);
         ap_rprintf(r,             "6:sha256"
                                       "%d:", SHA256_DIGESTSIZE);
-        ap_rwrite(                    hex_decode(r, hashbag->sha256hex, SHA256_DIGESTSIZE), 
+        ap_rwrite(                    hex_decode(r->pool, hashbag->sha256hex, SHA256_DIGESTSIZE), 
                 SHA256_DIGESTSIZE, r);
 
         /* end of info hash: */
@@ -3487,7 +3487,7 @@ static int mb_handler(request_rec *r)
             return OK;
         }
         int l = strlen(hashbag->zsumshex);
-        ap_rwrite(hex_decode(r, hashbag->zsumshex, l/2), 
+        ap_rwrite(hex_decode(r->pool, hashbag->zsumshex, l/2), 
                   l/2, r);
         return OK;
 
@@ -3632,19 +3632,19 @@ static int mb_handler(request_rec *r)
         if (hashbag->md5hex) {
             apr_table_addn(r->err_headers_out, "Digest", 
                            apr_pstrcat(r->pool, "MD5=", 
-                                       hex_to_b64(r, hashbag->md5hex, MD5_DIGESTSIZE),
+                                       hex_to_b64(r->pool, hashbag->md5hex, MD5_DIGESTSIZE),
                                        NULL));
         }
         if (hashbag->sha1hex) {
             apr_table_addn(r->err_headers_out, "Digest", 
                            apr_pstrcat(r->pool, "SHA=", 
-                                       hex_to_b64(r, hashbag->sha1hex, SHA1_DIGESTSIZE),
+                                       hex_to_b64(r->pool, hashbag->sha1hex, SHA1_DIGESTSIZE),
                                        NULL));
         }
         if (hashbag->sha256hex) {
             apr_table_addn(r->err_headers_out, "Digest", 
                            apr_pstrcat(r->pool, "SHA-256=", 
-                                       hex_to_b64(r, hashbag->sha256hex, SHA256_DIGESTSIZE),
+                                       hex_to_b64(r->pool, hashbag->sha256hex, SHA256_DIGESTSIZE),
                                        NULL));
         }
     }
