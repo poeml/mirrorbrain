@@ -77,6 +77,7 @@
 #include "apr_lib.h"
 #include "apr_fnmatch.h"
 #include "apr_hash.h"
+#include "apr_base64.h"
 #include "apr_dbd.h"
 #include "mod_dbd.h"
 
@@ -1143,6 +1144,19 @@ static char *hex_decode(request_rec *r, const char *src, unsigned dstlen)
     }
 
     return dst;
+}
+
+static char *hex_to_b64(request_rec *r, const char *src, unsigned binlen)
+{
+    char *bin, *encoded;
+
+    bin = hex_decode(r, src, binlen);
+
+    encoded = (char *) apr_palloc(r->pool, 1 + apr_base64_encode_len(binlen));
+    binlen = apr_base64_encode(encoded, bin, binlen);
+    encoded[binlen] = '\0'; /* make binary sequence into string */
+
+    return encoded;
 }
 
 static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
@@ -3618,22 +3632,19 @@ static int mb_handler(request_rec *r)
         if (hashbag->md5hex) {
             apr_table_addn(r->err_headers_out, "Digest", 
                            apr_pstrcat(r->pool, "MD5=", 
-                                       ap_pbase64encode(r->pool, 
-                                                        hex_decode(r, hashbag->md5hex, MD5_DIGESTSIZE)),
+                                       hex_to_b64(r, hashbag->md5hex, MD5_DIGESTSIZE),
                                        NULL));
         }
         if (hashbag->sha1hex) {
             apr_table_addn(r->err_headers_out, "Digest", 
                            apr_pstrcat(r->pool, "SHA=", 
-                                       ap_pbase64encode(r->pool, 
-                                                        hex_decode(r, hashbag->sha1hex, SHA1_DIGESTSIZE)),
+                                       hex_to_b64(r, hashbag->sha1hex, SHA1_DIGESTSIZE),
                                        NULL));
         }
         if (hashbag->sha256hex) {
             apr_table_addn(r->err_headers_out, "Digest", 
                            apr_pstrcat(r->pool, "SHA-256=", 
-                                       ap_pbase64encode(r->pool, 
-                                                        hex_decode(r, hashbag->sha256hex, SHA256_DIGESTSIZE)),
+                                       hex_to_b64(r, hashbag->sha256hex, SHA256_DIGESTSIZE),
                                        NULL));
         }
     }
