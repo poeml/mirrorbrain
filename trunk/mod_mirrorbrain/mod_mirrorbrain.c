@@ -1542,10 +1542,10 @@ static int mb_handler(request_rec *r)
         }
     }
     
-    if !(query_country 
-          && strlen(query_country) == 2
-          && apr_isalnum(query_country[0])
-          && apr_isalnum(query_country[1])) {
+    if (!(query_country 
+         && (strlen(query_country) == 2)
+         && apr_isalnum(query_country[0])
+         && apr_isalnum(query_country[1]))) {
         query_country = NULL;
     }
 
