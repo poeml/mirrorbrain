@@ -32,7 +32,7 @@
  * apr_memcache, ssl_scache_memcache.c */
 
 
-/* Copyright notice for the hex_decode() function
+/* Copyright notice for the hex_to_bin() function (hex_decode())
  *
  * Copyright (c) 2001-2009, PostgreSQL Global Development Group
  *
@@ -1118,7 +1118,7 @@ static char get_hex(apr_pool_t *p, char c)
     return (char) res;
 }
 
-static char *hex_decode(apr_pool_t *p, const char *src, unsigned dstlen)
+static char *hex_to_bin(apr_pool_t *p, const char *src, unsigned dstlen)
 {
     const char *s, *srcend;
     char *dst;
@@ -1150,7 +1150,7 @@ static char *hex_to_b64(apr_pool_t *p, const char *src, unsigned binlen)
 {
     char *bin, *encoded;
 
-    bin = hex_decode(p, src, binlen);
+    bin = hex_to_bin(p, src, binlen);
 
     encoded = (char *) apr_palloc(p, 1 + apr_base64_encode_len(binlen));
     binlen = apr_base64_encode(encoded, bin, binlen);
@@ -3293,15 +3293,15 @@ static int mb_handler(request_rec *r)
                                              (hashbag->sha1pieceshex->nelts * SHA1_DIGESTSIZE));
         char **p = (char **)hashbag->sha1pieceshex->elts;
         for (i = 0; i < hashbag->sha1pieceshex->nelts; i++) {
-            ap_rwrite(hex_decode(r->pool, p[i], SHA1_DIGESTSIZE), SHA1_DIGESTSIZE, r);
+            ap_rwrite(hex_to_bin(r->pool, p[i], SHA1_DIGESTSIZE), SHA1_DIGESTSIZE, r);
         }
         ap_rprintf(r,             "4:sha1"
                                       "%d:", SHA1_DIGESTSIZE);
-        ap_rwrite(                    hex_decode(r->pool, hashbag->sha1hex, SHA1_DIGESTSIZE), 
+        ap_rwrite(                    hex_to_bin(r->pool, hashbag->sha1hex, SHA1_DIGESTSIZE), 
                 SHA1_DIGESTSIZE, r);
         ap_rprintf(r,             "6:sha256"
                                       "%d:", SHA256_DIGESTSIZE);
-        ap_rwrite(                    hex_decode(r->pool, hashbag->sha256hex, SHA256_DIGESTSIZE), 
+        ap_rwrite(                    hex_to_bin(r->pool, hashbag->sha256hex, SHA256_DIGESTSIZE), 
                 SHA256_DIGESTSIZE, r);
 
         /* end of info hash: */
@@ -3487,7 +3487,7 @@ static int mb_handler(request_rec *r)
             return OK;
         }
         int l = strlen(hashbag->zsumshex);
-        ap_rwrite(hex_decode(r->pool, hashbag->zsumshex, l/2), 
+        ap_rwrite(hex_to_bin(r->pool, hashbag->zsumshex, l/2), 
                   l/2, r);
         return OK;
 
