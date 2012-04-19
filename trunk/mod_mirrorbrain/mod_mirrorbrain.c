@@ -3617,23 +3617,23 @@ static int mb_handler(request_rec *r)
     if (hashbag) {
         if (hashbag->md5hex) {
             apr_table_addn(r->err_headers_out, "Digest", 
-                           apr_pstrcat(r->pool,
-                                       "MD5=", 
-                                       ap_pbase64encode(r->pool, hex_decode(r, hashbag->md5hex, MD5_DIGESTSIZE)),
+                           apr_pstrcat(r->pool, "MD5=", 
+                                       ap_pbase64encode(r->pool, 
+                                                        hex_decode(r, hashbag->md5hex, MD5_DIGESTSIZE)),
                                        NULL));
         }
         if (hashbag->sha1hex) {
             apr_table_addn(r->err_headers_out, "Digest", 
-                           apr_pstrcat(r->pool,
-                                       "SHA=", 
-                                       ap_pbase64encode(r->pool, hex_decode(r, hashbag->sha1hex, SHA1_DIGESTSIZE)),
+                           apr_pstrcat(r->pool, "SHA=", 
+                                       ap_pbase64encode(r->pool, 
+                                                        hex_decode(r, hashbag->sha1hex, SHA1_DIGESTSIZE)),
                                        NULL));
         }
         if (hashbag->sha256hex) {
             apr_table_addn(r->err_headers_out, "Digest", 
-                           apr_pstrcat(r->pool,
-                                       "SHA-256=", 
-                                       ap_pbase64encode(r->pool, hex_decode(r, hashbag->sha256hex, SHA256_DIGESTSIZE)),
+                           apr_pstrcat(r->pool, "SHA-256=", 
+                                       ap_pbase64encode(r->pool, 
+                                                        hex_decode(r, hashbag->sha256hex, SHA256_DIGESTSIZE)),
                                        NULL));
         }
     }
