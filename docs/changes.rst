@@ -4,7 +4,7 @@ Release Notes/Change History
 ============================
 
 
-Release 2.17.0 (rXXXX, XXX XX, 2012)
+Release 2.17.0 (r8288, Apr 21, 2012)
 ------------------------------------
 
 
@@ -12,12 +12,24 @@ New features:
 
 * :program:`mod_mirrorbrain`: IPv6 geolocation for IPv6 clients is now enabled.
   This requires :program:`GeoIP` 1.4.8 and :program:`mod_geoip` 1.2.7 or newer (which add experimental
-  support for IPv6 resolution). `issue 106`_
+  support for IPv6 resolution) (`issue 106`_).
 
 * program:`mb update`, :program:`mb iplookup`: DNS resolution now works with IPv4 + IPv6.
 
-* Support for Metalink/HTTP (RFC 6249) has been implemented (`issue 15`_). It
-  was long on my todo list!
+* Support for Metalink/HTTP (RFC 6249) has been implemented (`issue 15`_). This
+  was long on my todo list! This makes MirrorBrain include in its server HTTP
+  responses useful metadata like cryptohashes, mirror URLs and links to
+  alternate representations. There's support for RFC 5988 Web Linking, for RFC
+  6249 Metalink/HTTP: Mirrors and Hashes, and for RFC 3230 HTTP Instance
+  Digests (including updates from RFC 5843). Here's an `example (screenshot)`_.
+
+* :program:`mb edit`: An editor set via the environmental variable ``$VISUAL``
+  is now used, if none is set in ``$EDITOR``. This fixed `issue 96`_.
+
+* :program:`mb db vacuum`: A new option ``-q`` allows to silence the commands
+  output (`issue 99`_).
+
+Bug fixes:
 
 * :program:`mb makehashes`: A problem was fixed with filenames containing
   characters that could be interpreted as magic characters in regular
@@ -27,16 +39,7 @@ New features:
   bytes sent than announced) spawned an annoying error message. Now this error
   is just logged, as it should.
 
-* :program:`mb edit`: An editor set via the environmental variable ``$VISUAL``
-  is now used, if none is set in ``$EDITOR``. This fixed `issue 96`_.
-
-* :program:`mb db vacuum`: A new option ``-q`` allows to silence the commands
-  output (`issue 99`_).
-
 * :program:`mb scan`: A typo has been fixed (patch by Oliver Beattie)
-
-
-
 
 Internally, a way to migrate the database after updates has been implemented. A
 table named ``version`` keeps info about the state of the database. Thus,
@@ -49,9 +52,9 @@ the contrary.)
 New platforms:
 
 * Ubuntu 11.10 packages are now built and tested.
-
 * Debian 6.0 packages have been tested.
 
+.. _`example (screenshot)`: http://mirrorbrain.org/static/images/screenshots/metalink_http.png
 .. _`issue 15`: http://mirrorbrain.org/issues/issue15
 .. _`issue 94`: http://mirrorbrain.org/issues/issue94
 .. _`issue 96`: http://mirrorbrain.org/issues/issue96
