@@ -10,13 +10,14 @@ Release 2.17.0 (rXXXX, XXX XX, 2012)
 
 New features:
 
-* :program:`mod_mirrorbrain`: enable geolocation by country for IPv6 clients.
+* :program:`mod_mirrorbrain`: IPv6 geolocation for IPv6 clients is now enabled.
   This requires :program:`GeoIP` 1.4.8 and :program:`mod_geoip` 1.2.7 or newer (which add experimental
   support for IPv6 resolution). `issue 106`_
 
 * program:`mb update`, :program:`mb iplookup`: DNS resolution now works with IPv4 + IPv6.
 
-* Support for Metalink/HTTP (RFC 6249) has finally been implemented `issue 15`_
+* Support for Metalink/HTTP (RFC 6249) has been implemented (`issue 15`_). It
+  was long on my todo list!
 
 * :program:`mb makehashes`: A problem was fixed with filenames containing
   characters that could be interpreted as magic characters in regular
@@ -24,15 +25,16 @@ New features:
  
 * :program:`mirrorprobe`: Incomplete responses returned by mirrors (less
   bytes sent than announced) spawned an annoying error message. Now this error
-  is just logged.
-
-* :program:`mb scan`: A typo has been fixed (patch by Oliver Beattie)
+  is just logged, as it should.
 
 * :program:`mb edit`: An editor set via the environmental variable ``$VISUAL``
   is now used, if none is set in ``$EDITOR``. This fixed `issue 96`_.
 
 * :program:`mb db vacuum`: A new option ``-q`` allows to silence the commands
   output (`issue 99`_).
+
+* :program:`mb scan`: A typo has been fixed (patch by Oliver Beattie)
+
 
 
 
@@ -43,6 +45,8 @@ adds a new flag to the database called ``ipv6_only`` to denote mirrors that are
 not reachable by IPv4. Once this new flag is used, it will allow to redirect
 clients to this type of mirrors. (And IPv6-only mirrors won't go away -- rather
 the contrary.)
+
+New platforms:
 
 * Ubuntu 11.10 packages are now built and tested.
 
