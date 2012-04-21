@@ -4,7 +4,7 @@ Release Notes/Change History
 ============================
 
 
-Release 2.17.0 (r8288, Apr 21, 2012)
+Release 2.17.0 (r8289, Apr 21, 2012)
 ------------------------------------
 
 
@@ -14,20 +14,27 @@ New features:
   This requires :program:`GeoIP` 1.4.8 and :program:`mod_geoip` 1.2.7 or newer (which add experimental
   support for IPv6 resolution) (`issue 106`_).
 
-* program:`mb update`, :program:`mb iplookup`: DNS resolution now works with IPv4 + IPv6.
+* :program:`mb update`, :program:`mb iplookup`: DNS resolution now works with IPv4 + IPv6.
 
-* Support for Metalink/HTTP (RFC 6249) has been implemented (`issue 15`_). This
+* Support for Metalink/HTTP (:rfc:`6249`) has been implemented (`issue 15`_). This
   was long on my todo list! This makes MirrorBrain include in its server HTTP
   responses useful metadata like cryptohashes, mirror URLs and links to
-  alternate representations. There's support for RFC 5988 Web Linking, for RFC
-  6249 Metalink/HTTP: Mirrors and Hashes, and for RFC 3230 HTTP Instance
-  Digests (including updates from RFC 5843). Here's an `example (screenshot)`_.
+  alternate representations. There's support for :rfc:`5988` Web Linking, for :rfc:`6249`
+  Metalink/HTTP: Mirrors and Hashes, and for :rfc:`3230` HTTP Instance
+  Digests (including updates from :rfc:`5843`). Here's an `example (screenshot)`_.
 
 * :program:`mb edit`: An editor set via the environmental variable ``$VISUAL``
   is now used, if none is set in ``$EDITOR``. This fixed `issue 96`_.
 
 * :program:`mb db vacuum`: A new option ``-q`` allows to silence the commands
   output (`issue 99`_).
+
+New platforms:
+
+* Ubuntu 11.10 packages are now built and tested.
+
+* Debian 6.0 packages have been tested.
+
 
 Bug fixes:
 
@@ -47,12 +54,7 @@ database schema upgrades can happen automatically when possible. This release
 adds a new flag to the database called ``ipv6_only`` to denote mirrors that are
 not reachable by IPv4. Once this new flag is used, it will allow to redirect
 clients to this type of mirrors. (And IPv6-only mirrors won't go away -- rather
-the contrary.)
-
-New platforms:
-
-* Ubuntu 11.10 packages are now built and tested.
-* Debian 6.0 packages have been tested.
+the contrary :-)
 
 .. _`example (screenshot)`: http://mirrorbrain.org/static/images/screenshots/metalink_http.png
 .. _`issue 15`: http://mirrorbrain.org/issues/issue15
@@ -1675,7 +1677,7 @@ Release 1.8 (Jun 2, 2008)
 * :program:`rsyncinfo` tool added
 * scanner bugfix regarding following redirects for large file checks
 * failover testbed for text mirrorlists implemented
-* metalinks: switch back to RFC822 format
+* metalinks: switch back to :rfc:`822` format
 * new ``ZrkadloMetalinkPublisher`` directive 
 * fix issue with ``<size>`` element
 * now there is another (more natural) way to request a metalink: by appending
