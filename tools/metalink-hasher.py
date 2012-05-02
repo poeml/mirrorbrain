@@ -24,6 +24,8 @@
 import sys
 import os
 
+sys.stderr.write('The "metalink-hasher" script is superseded by "mb makehashes". Please adjust!\n')
+
 args = ['mb', 'makehashes'] + sys.argv[2:]
 os.execlp('mb', *args)
 
