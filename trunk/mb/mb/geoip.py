@@ -3,6 +3,8 @@ import os
 from subprocess import Popen, PIPE
 import errno
 
+ENV = {'PATH': ':'.join([os.getenv('PATH'), '/usr/share/mirrorbrain'])}
+
 # try different databases and different locations
 databases = ['/var/lib/GeoIP/GeoLiteCity.dat.updated', 
              '/var/lib/GeoIP/GeoLiteCity.dat', 
@@ -29,7 +31,7 @@ for i in databases6:
 
 
 def lookup_country_code(addr):
-    out = Popen(['geoiplookup', '-f', database, addr], stdout=PIPE).communicate()[0]
+    out = Popen(['geoiplookup', '-f', database, addr], env=ENV, stdout=PIPE).communicate()[0]
     out = out.split(':')[1].strip().split(',')[0]
 
     return out.lower()
@@ -37,7 +39,7 @@ def lookup_country_code(addr):
 
 def lookup_region_code(addr):
     try:
-        out = Popen(['geoiplookup_continent', '-f', database, addr], stdout=PIPE).communicate()[0]
+        out = Popen(['geoiplookup_continent', '-f', database, addr], env=ENV, stdout=PIPE).communicate()[0]
     except OSError, e:
         if e.errno == errno.ENOENT:
             sys.exit('Error: The geoiplookup_continent binary could not be found.\n'
@@ -47,7 +49,7 @@ def lookup_region_code(addr):
 
 def lookup_coordinates(addr):
     try:
-        out = Popen(['geoiplookup_city', '-f', database, addr], stdout=PIPE).communicate()[0]
+        out = Popen(['geoiplookup_city', '-f', database, addr], env=ENV, stdout=PIPE).communicate()[0]
     except OSError, e:
         if e.errno == errno.ENOENT:
             sys.exit('Error: The geoiplookup_city binary could not be found.\n'
