@@ -93,6 +93,7 @@ CREATE TABLE "server" (
         "country" varchar(2) NOT NULL,
         "asn" integer NOT NULL,
         "prefix" varchar(18) NOT NULL,
+        "ipv6_only" boolean NOT NULL default 'f',
         "score" smallint NOT NULL,
         "scan_fpm" integer NOT NULL,
         "last_scan" timestamp with time zone NULL,
