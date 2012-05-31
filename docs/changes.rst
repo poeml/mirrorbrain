@@ -4,6 +4,30 @@ Release Notes/Change History
 ============================
 
 
+Release 2.17.1 (rXXXX, XXX xx, 2012)
+------------------------------------
+
+Bug fixes:
+
+* :program:`mb makehashes`: "permission denied" errors are now handled
+  gracefully, fixing `issue 105`_. Thanks Tom Albers for report & patch!
+
+
+* The database SQL scheme for new installations has been updated to add the new
+  column named ``ipv6_only``. Thanks George Koutras for the report!
+
+
+* :program:`mb update`: The :program:`geoiplookup` and
+  :program:`geoiplookup_city` binaries are now also looked for in
+  ``/usr/share/mirrorbrain``. Helps to solve the packaging cleanup `issue
+  110`_.
+
+
+.. _`issue 105`: http://mirrorbrain.org/issues/issue105
+.. _`issue 110`: http://mirrorbrain.org/issues/issue110
+
+
+
 Release 2.17.0 (r8289, Apr 21, 2012)
 ------------------------------------
 
