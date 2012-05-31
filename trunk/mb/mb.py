@@ -1040,7 +1040,11 @@ class MirrorDoctor(cmdln.Cmdln):
 
 
             # a set offers the fastest access for "foo in ..." lookups
-            src_basenames = set(os.listdir(src_dir))
+            try:
+                src_basenames = set(os.listdir(src_dir))
+            except os.error:
+                sys.stderr.write('Cannot access directory: %r\n' % src_dir)
+                src_basenames = []
 
             if opts.verbose:
                 print 'Examining directory', src_dir
