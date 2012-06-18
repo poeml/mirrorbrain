@@ -188,7 +188,7 @@ class Conn:
                     fromDatabase = True
                     defaultOrder = 'asn'
             self.Pfx2asn = Pfx2asn
-        except psycopg2.ProgrammingError:
+        except (dberrors.ProgrammingError, psycopg2.ProgrammingError):
             # this is the error which we get if mod_asn doesn't happen
             # to be installed as well
             pass
