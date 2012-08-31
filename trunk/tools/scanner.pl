@@ -125,6 +125,7 @@ while (defined (my $arg = shift)) {
 	elsif ($arg =~ m{^-e})                 { $enable_after_scan++; }
 	elsif ($arg =~ m{^-f})                 { $force_scan++; }
 	elsif ($arg =~ m{^-d})                 { $start_dir = shift; }
+	elsif ($arg =~ m{^--config})           { $cfgfile = shift; }
 	elsif ($arg =~ m{^-b})                 { $brain_instance = shift; }
 	elsif ($arg =~ m{^-l})                 { $list_only++; 
 						 $list_only++ if $arg =~ m{ll}; 
