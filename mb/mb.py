@@ -56,7 +56,8 @@ class MirrorDoctor(cmdln.Cmdln):
     def get_optparser(self):
         """Parser for global options (that are not specific to a subcommand)"""
         optparser = cmdln.CmdlnOptionParser(self, version=__version__)
-        optparser.add_option('-c', '--config', default='/etc/mirrorbrain.conf',
+        optparser.add_option('--config', dest="configpath", metavar="CONFIGPATH",
+                             default='/etc/mirrorbrain.conf',
                              help='location of configuration file '
                                   '(default: /etc/mirrorbrain.conf)')
         optparser.add_option('-d', '--debug', action='store_true',
@@ -75,7 +76,7 @@ class MirrorDoctor(cmdln.Cmdln):
         import os, mb.conf
         if not self.options.brain_instance:
             self.options.brain_instance = os.getenv('MB', default=None)
-        self.config = mb.conf.Config(conffile = self.options.config, instance = self.options.brain_instance)
+        self.config = mb.conf.Config(conffile = self.options.configpath, instance = self.options.brain_instance)
 
         # set up the database connection
         import mb.conn
@@ -800,6 +801,8 @@ class MirrorDoctor(cmdln.Cmdln):
         cmd = []
         cmd.append(opts.scanner or '/usr/bin/scanner')
 
+        if self.options.configpath:
+            cmd.append('--config %s' % self.options.configpath)
         if self.options.brain_instance:
             cmd.append('-b %s' % self.options.brain_instance)
 

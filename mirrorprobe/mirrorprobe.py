@@ -145,8 +145,18 @@ def main():
     if '-b' in sys.argv:
         brain_instance = sys.argv[sys.argv.index('-b') + 1]
 
+    configpath = '/etc/mirrorbrain.conf'
+    if '--config' in sys.argv:
+        configpath = sys.argv[sys.argv.index('--config') + 1]
+
     import mb.conf
-    config = mb.conf.Config(instance = brain_instance)
+    import mb.mberr
+    try:
+        config = mb.conf.Config(conffile = configpath, instance = brain_instance)
+    except mb.mberr.NoConfigfile, e:
+        print >>sys.stderr, e.msg
+        sys.exit(1)
+
 
 
     LOGLEVEL = config.mirrorprobe.get('loglevel', 'INFO')
@@ -158,6 +168,11 @@ def main():
     #
     parser = OptionParser(usage="%prog [options] [<mirror identifier>+]", version="%prog 1.0")
 
+    parser.add_option("--config",
+                      dest="configpath",
+                      default='/etc/mirrorbrain.conf',
+                      help="location of the configuration file",
+                      metavar="CONFIGPATH")
     parser.add_option("-b", "--brain-instance",
                       dest="brain_instance",
                       default=None,
