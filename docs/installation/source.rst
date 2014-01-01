@@ -71,7 +71,7 @@ To install the module in the right place, you would normally call::
 
 Building, installing and activation can typically be combined in one :program:`apxs` call::
 
-  apxs -cia mod_mirrorbrain.c
+  apxs -cia -lm mod_mirrorbrain.c
 
 
 mod_autoindex_mb
