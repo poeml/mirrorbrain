@@ -31,7 +31,7 @@ redirector:
   libGeoIP1 mirrorbrain mirrorbrain-scanner mirrorbrain-tools
   perl-Config-IniFiles perl-DBD-Pg perl-Digest-MD4 perl-libwww-perl perl-TimeDate 
   postgresql postgresql-ip4r postgresql-server python-cmdln python-psycopg2
-  python-SQLObject
+  python-SQLObject python-FormEncode
 
 .. note:: If the web server is set up on a separate host than the database
           server, the web server needs only the package libapr-util1-dbd-pgsql
