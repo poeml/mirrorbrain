@@ -161,9 +161,11 @@ line::
   host    mirrorbrain mirrorbrain 10.10.2.3/32          md5
 
 
-If you plan to use :program:`mod_asn` in addition, now's the moment to Install
-the ``ip4r`` data type. See the `mod_asn documentation` for instructions.
+If you plan to use `mod_asn`_ for lookup of AS (autonomous system) data, now's
+the moment to install the ``ip4r`` data type into PostgreSQL. See the `mod_asn
+documentation`_ for instructions.
 
+.. _`mod_asn`: http://mirrorbrain.org/mod_asn/
 .. _`mod_asn documentation`: http://mirrorbrain.org/mod_asn/docs/installation/#installing-the-ip4r-data-type-into-postgresql
 
 Import the table structure and initial data::
