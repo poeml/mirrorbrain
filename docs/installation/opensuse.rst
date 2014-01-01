@@ -15,9 +15,9 @@ distribution version:
 
 You can do this via commandline (we are using openSUSE 13.1 in our example)::
 
-  zypper ar http://download.opensuse.org/repositories/Apache:/MirrorBrain/Apache_openSUSE_13.1 Apache:MirrorBrain 
-  zypper ar http://download.opensuse.org/repositories/devel:/languages:/python/openSUSE_13.1 devel:languages:python 
-  zypper ar http://download.opensuse.org/repositories/server:/database:/postgresql/openSUSE_13.1 server:database:postgresql
+  zypper addrepo --refresh http://download.opensuse.org/repositories/Apache:/MirrorBrain/Apache_openSUSE_13.1 Apache:MirrorBrain 
+  zypper addrepo --refresh http://download.opensuse.org/repositories/devel:/languages:/python/openSUSE_13.1 devel:languages:python 
+  zypper addrepo --refresh http://download.opensuse.org/repositories/server:/database:/postgresql/openSUSE_13.1 server:database:postgresql
 
 
 Installing the MirrorBrain packages
