@@ -113,7 +113,7 @@ Installing Python and Perl modules
 
 Install the following Python modules:
 
-* python-cmdln python-sqlobject python-psycopg2
+* python-cmdln python-SQLObject python-FormEncode python-psycopg2
 
 Install a few Perl modules as well (required for the mirror scanner, which is written in Perl):
 
@@ -126,8 +126,6 @@ Installing PostgreSQL
 
 Install the PostgreSQL server, start it and create a user and a database::
 
-  su - postgres
-  
   root@powerpc:~ # su - postgres
   postgres@powerpc:~> createuser -P mirrorbrain
   Enter password for new role: 
@@ -142,6 +140,11 @@ Install the PostgreSQL server, start it and create a user and a database::
   postgres@powerpc:~> createlang plpgsql mirrorbrain
   postgres@powerpc:~> 
 
+
+Maybe it is a good idea to check PostgreSQL's access policy configuration at
+this point. The default should already be fine for local access via password.
+But you can add access from a remote host if needed, as shown in the bottom
+line::
 
   postgres@powerpc:~> cp data/pg_hba.conf data/pg_hba.conf.orig
   postgres@powerpc:~> vi data/pg_hba.conf
@@ -158,7 +161,10 @@ Install the PostgreSQL server, start it and create a user and a database::
   host    mirrorbrain mirrorbrain 10.10.2.3/32          md5
 
 
-Install the ip4r data type.
+If you plan to use :program:`mod_asn` in addition, now's the moment to Install
+the ``ip4r`` data type. See the `mod_asn documentation` for instructions.
+
+.. _`mod_asn documentation`: http://mirrorbrain.org/mod_asn/docs/installation/#installing-the-ip4r-data-type-into-postgresql
 
 Import the table structure and initial data::
 
