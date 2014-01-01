@@ -178,7 +178,7 @@ Creating a "mirrorbrain" user and group
 Create a "mirrorbrain" user and group::
 
   groupadd -r mirrorbrain
-  useradd -r -o -g mirrorbrain -s /bin/bash -c "MirrorBrain user" -d /home/mirrorbrain mirrorbrain
+  useradd -r -g mirrorbrain -s /bin/bash -c "MirrorBrain user" -d /home/mirrorbrain mirrorbrain
 
 
 Installation of the tools
