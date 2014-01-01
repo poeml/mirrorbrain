@@ -113,16 +113,11 @@ Installing Python and Perl modules
 
 Install the following Python modules:
 
-* python-cmdln
-* python-sqlobject
-* python-psycopg2
+* python-cmdln python-sqlobject python-psycopg2
 
 Install a few Perl modules as well (required for the mirror scanner, which is written in Perl):
 
-* perl-Config-IniFiles
-* perl-libwww-perl
-* perl-DBD-Pg
-* perl-TimeDate
+* perl-Config-IniFiles perl-libwww-perl perl-DBD-Pg perl-TimeDate
 * perl-Digest-MD4 (it is not *really* needed, but prevents an ugly error message)
 
 
