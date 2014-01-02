@@ -104,6 +104,24 @@ class Conn:
             except: 
                 sys.exit('To use mb with PostgreSQL, you need the pcycopg2 Python module installed.')
             # see http://mirrorbrain.org/issues/issue27
+
+            try:
+                config['dbpass']
+            except:
+                sys.exit("Your config doesn't have a 'dbpass' setting.")
+            try:
+                config['dbuser']
+            except:
+                sys.exit("Your config doesn't have a 'dbuser' setting.")
+            try:
+                config['dbhost']
+            except:
+                sys.exit("Your config doesn't have a 'dbhost' setting.")
+            try:
+                config['dbname']
+            except:
+                sys.exit("Your config doesn't have a 'dbname' setting.")
+
             config['dbpass'] = config['dbpass'].replace(' ', r'\ ')
             config['dbpass'] = config['dbpass'].replace('\t', '\\\t')
             config['dbpass'] = config['dbpass'].replace("'", r"\'")
