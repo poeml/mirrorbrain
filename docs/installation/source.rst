@@ -151,10 +151,10 @@ line::
   host    mirrorbrain mirrorbrain 10.10.2.3/32          md5
 
 
-.. note:: I recommend to use "password" or "md5" authentication in all lines.
-          Remove "ident"; it is not so handy, at least not if you aren't always
-          the same user.  "password" is transmitting in clear text, so use
-          "md5" for all remote connections.
+.. note:: I recommend to use ``password`` or ``md5`` authentication in all lines.
+          Remove ``ident``; it is not so handy, at least not if you aren't always
+          the same user.  ``password`` is transmitting in clear text, so one
+          should use ``md5`` for all remote connections.
 
 If you plan to use `mod_asn`_ for lookup of AS (autonomous system) data, now's
 the moment to install the ``ip4r`` data type into PostgreSQL. See the `mod_asn
@@ -162,6 +162,10 @@ documentation`_ for instructions.
 
 .. _`mod_asn`: http://mirrorbrain.org/mod_asn/
 .. _`mod_asn documentation`: http://mirrorbrain.org/mod_asn/docs/installation/#installing-the-ip4r-data-type-into-postgresql
+
+
+Creating database schema
+------------------------
 
 Import the table structure and initial data::
 
