@@ -160,7 +160,7 @@ BEGIN
         return 1;
     END IF;
 END;
-$$ LANGUAGE 'plpgsql';
+$$ LANGUAGE plpgsql;
 
 
 -- remove a mirror from the list of mirrors where a file was seen
@@ -189,7 +189,7 @@ BEGIN
         RETURN 1;
     END IF;
 END;
-$$ LANGUAGE 'plpgsql';
+$$ LANGUAGE plpgsql;
 
 
 -- check whether a given mirror is known to have a file (id)
@@ -203,7 +203,7 @@ BEGIN
     END IF;
     RETURN false;
 END;
-$$ LANGUAGE 'plpgsql';
+$$ LANGUAGE plpgsql;
 
 -- check whether a given mirror is known to have a file (name)
 CREATE OR REPLACE FUNCTION mirr_hasfile_byname(arg_serverid integer, arg_path text) RETURNS boolean AS $$
@@ -216,7 +216,7 @@ BEGIN
     END IF;
     RETURN false;
 END;
-$$ LANGUAGE 'plpgsql';
+$$ LANGUAGE plpgsql;
 
 
 CREATE OR REPLACE FUNCTION mirr_add_bypath(arg_serverid integer, arg_path text) RETURNS integer AS $$
@@ -250,13 +250,13 @@ EXCEPTION
         SELECT into fileid mirr_add_bypath(arg_serverid, arg_path);
         RETURN fileid;
 END;
-$$ LANGUAGE 'plpgsql';
+$$ LANGUAGE plpgsql;
 
 
 
 CREATE OR REPLACE FUNCTION mirr_get_name(integer) RETURNS text AS '
     SELECT identifier FROM server WHERE id=$1
-' LANGUAGE 'SQL';
+' LANGUAGE SQL;
 
 
 CREATE OR REPLACE FUNCTION mirr_get_name(ids smallint[]) RETURNS text[] AS $$
@@ -269,16 +269,16 @@ BEGIN
                   );
     RETURN names;
 END;
-$$ LANGUAGE 'plpgsql';
+$$ LANGUAGE plpgsql;
 
 
 CREATE OR REPLACE FUNCTION mirr_get_nfiles(integer) RETURNS bigint AS '
     SELECT count(*) FROM filearr WHERE $1 = ANY(mirrors)
-' LANGUAGE 'SQL';
+' LANGUAGE SQL;
 
 CREATE OR REPLACE FUNCTION mirr_get_nfiles(text) RETURNS bigint AS '
     SELECT count(*) FROM filearr WHERE (SELECT id from server where identifier = $1) = ANY(mirrors)
-' LANGUAGE 'SQL';
+' LANGUAGE SQL;
 
 
 -- --------------------------------------------------------
