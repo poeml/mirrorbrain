@@ -12,7 +12,7 @@
 #
 # 
 # Copyright 2008,2009 Peter Poeml <poeml@cmdline.net>, Novell Inc.
-# Copyright 2008,2009,2010,2011,2012 Peter Poeml <poeml@cmdline.net>
+# Copyright 2008-2014 Peter Poeml <poeml@cmdline.net>
 # 
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License version 2
@@ -30,6 +30,7 @@
 
 
 import os
+import sys
 import time
 import tempfile
 import pwd, grp
@@ -38,15 +39,19 @@ epoch = int(time.time())
 utc = time.strftime("%a, %d %b %Y %H:%M:%S UTC", time.gmtime())
 
 explanation = """
-Should you wonder about this file, it serves as timestamp that can be
+Should you wonder about this file, it supplies timestamps that can be
 used to assess possible lags in mirroring.
+
+These are not used by MirrorBrain for mirror checking, but can help
+human beings with verifying a mirrors setup. (Maybe MirrorBrain could/should
+make use of these timestamps in the future.)
 
 In addition, the .timestamp_invisible is supposed to be not visible
 through HTTP, FTP or rsync. This serves to ensure that a mirrors's
 permission setup is correct. Keeping certain files temporarily
-unreadable is an important step in the process of publishing content.
+unreadable can be an important step in the process of publishing content.
 
-Feel free to contact admin at opensuse org for more information!
+Feel free to contact mirrorbrain at mirrorbrain org for more information;
 Thanks.
 
 """
@@ -57,16 +62,27 @@ tstamps = [ '/srv/ftp/pub/opensuse/distribution/.timestamp',
             '/srv/ftp-stage/pub/opensuse/distribution/.timestamp',
             '/srv/ftp-stage/pub/opensuse/distribution/.timestamp_invisible' ]
 
+if len(sys.argv) < 2:
+    sys.exit("""Missing argument.
+Usage: 
+
+  %s [username:groupname] timestampfile1 [timestampfile2...]
+""" % os.path.basename(sys.argv[0]))
+
+if not '/' in sys.argv[1] and ':' in sys.argv[1]:
+    user, group = sys.argv[1].split(':')
+    user = pwd.getpwnam(user).pw_uid 
+    group = grp.getgrnam(group).gr_gid
+    tstamps = sys.argv[2:]
+else:
+    user = os.geteuid()
+    group = os.getegid()
+    tstamps = sys.argv[1:]
 
 for tstamp in tstamps:
     # we might write in a directory not owned by root
     (fd, tmpfilename) = tempfile.mkstemp(prefix = os.path.basename(tstamp), 
                                          dir = os.path.dirname(tstamp))
-
-    if 'ftp-stage' in tstamp:
-        group = 'stage'
-    else:
-        group = 'nogroup'
 
     if tstamp.endswith('invisible'):
         mode = 0640
@@ -74,8 +90,8 @@ for tstamp in tstamps:
         mode = 0644
 
     os.chown(tmpfilename, 
-             pwd.getpwnam('mirror').pw_uid, 
-             grp.getgrnam(group).gr_gid)
+             user, 
+             group)
 
     os.chmod(tmpfilename, mode)
     
