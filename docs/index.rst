@@ -11,6 +11,7 @@ Table of Contents
 .. toctree::
 
    intro
+   platforms
    installation/index
    mirrors
    configuration
