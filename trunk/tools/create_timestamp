@@ -57,11 +57,6 @@ Thanks.
 """
 
 
-tstamps = [ '/srv/ftp/pub/opensuse/distribution/.timestamp',
-            '/srv/ftp/pub/opensuse/distribution/.timestamp_invisible',
-            '/srv/ftp-stage/pub/opensuse/distribution/.timestamp',
-            '/srv/ftp-stage/pub/opensuse/distribution/.timestamp_invisible' ]
-
 if len(sys.argv) < 2:
     sys.exit("""Missing argument.
 Usage: 
