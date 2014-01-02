@@ -126,19 +126,10 @@ Installing PostgreSQL
 
 Install the PostgreSQL server, start it and create a user and a database::
 
-  root@powerpc:~ # su - postgres
+  su - postgres
   postgres@powerpc:~> createuser -P mirrorbrain
-  Enter password for new role: 
-  Enter it again: 
-  Shall the new role be a superuser? (y/n) n
-  Shall the new role be allowed to create databases? (y/n) n
-  Shall the new role be allowed to create more new roles? (y/n) n
-  CREATE ROLE
-  
   postgres@powerpc:~> createdb -O mirrorbrain mirrorbrain
-  CREATE DATABASE
   postgres@powerpc:~> createlang plpgsql mirrorbrain
-  postgres@powerpc:~> 
 
 
 Maybe it is a good idea to check PostgreSQL's access policy configuration at
@@ -151,7 +142,6 @@ line::
 
   # TYPE  DATABASE    USER        CIDR-ADDRESS          METHOD
   # "local" is for Unix domain socket connections only
-  #local   all         all                               ident
   local   all         all                               password
   # IPv4 local connections:
   host    all         all         127.0.0.1/32          password
@@ -160,6 +150,11 @@ line::
   # remote connections:
   host    mirrorbrain mirrorbrain 10.10.2.3/32          md5
 
+
+.. note:: I recommend to use "password" or "md5" authentication in all lines.
+          Remove "ident"; it is not so handy, at least not if you aren't always
+          the same user.  "password" is transmitting in clear text, so use
+          "md5" for all remote connections.
 
 If you plan to use `mod_asn`_ for lookup of AS (autonomous system) data, now's
 the moment to install the ``ip4r`` data type into PostgreSQL. See the `mod_asn
