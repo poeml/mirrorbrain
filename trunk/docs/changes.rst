@@ -37,6 +37,10 @@ New features:
 
 Bug fixes:
 
+* The database SQL scheme for new installations has been updated to add the new
+  column named ``ipv6_only``. Thanks George Koutras, Raphael Hertzog and others
+  for the report (and for their patience)! (`issue 119`_)
+
 * The build on openSUSE 13.1 was fixed.
 
 * The SQL schema was updated to remove obsolete quotes around language names on
@@ -56,13 +60,11 @@ Bug fixes:
 * :program:`mb makehashes`: "permission denied" errors are now handled
   gracefully, fixing `issue 105`_. Thanks Tom Albers for report & patch!
 
-* The database SQL scheme for new installations has been updated to add the new
-  column named ``ipv6_only``. Thanks George Koutras for the report!
-
 
 .. _`issue 105`: http://mirrorbrain.org/issues/issue105
 .. _`issue 110`: http://mirrorbrain.org/issues/issue110
 .. _`issue 114`: http://mirrorbrain.org/issues/issue114
+.. _`issue 119`: http://mirrorbrain.org/issues/issue119
 .. _`issue 127`: http://mirrorbrain.org/issues/issue127
 
 
