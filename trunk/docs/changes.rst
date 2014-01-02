@@ -4,18 +4,26 @@ Release Notes/Change History
 ============================
 
 
-Release 2.17.1 (rXXXX, XXX xx, 2012)
+Release 2.18.0 (rXXXX, XXX xx, 2014)
 ------------------------------------
 
 Bug fixes:
 
+* ``mb/countries.py`` was never used; remove it so it doesn't confuse anyone.
+  Thanks Gokdeniz for the hint.
+
+* :program:`mb`: when mod_asn is not installed, an additional
+  ``ProgrammingError`` exception from the ``sqlobject.dberrors`` can occur.
+  This is now also caught. Thanks Gökdeniz very much for the patch!
+
+* :program:`mb`: new command line option for configuration file path. Patch
+   kindly provided by Gökdeniz Karadağ (see also `issue 114`_)
+
 * :program:`mb makehashes`: "permission denied" errors are now handled
   gracefully, fixing `issue 105`_. Thanks Tom Albers for report & patch!
 
-
 * The database SQL scheme for new installations has been updated to add the new
   column named ``ipv6_only``. Thanks George Koutras for the report!
-
 
 * :program:`mb update`: The :program:`geoiplookup` and
   :program:`geoiplookup_city` binaries are now also looked for in
@@ -25,6 +33,7 @@ Bug fixes:
 
 .. _`issue 105`: http://mirrorbrain.org/issues/issue105
 .. _`issue 110`: http://mirrorbrain.org/issues/issue110
+.. _`issue 114`: http://mirrorbrain.org/issues/issue114
 
 
 
