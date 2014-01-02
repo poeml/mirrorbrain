@@ -63,7 +63,8 @@ Frontend (mod_mirrorbrain, the redirector)
 * If `mod_geoip`_ is used, it needs to be version 1.2.0 or newer. See
   http://mirrorbrain.org/issues/issue16
 
-* `mod_form`_, plus a `patch preserving the arguments that it parses`_ for MirrorBrain
+* `mod_form`_, plus a `patch preserving the arguments that it parses`_ for
+  other modules, like mod_autoindex.
 
 * if you want to compile with the optional memcache support (there
   should not be reason for it, though), you would need
