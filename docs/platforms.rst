@@ -4,6 +4,8 @@
 Platforms
 =========
 
+This table is work in progress (started in 2014), in an attempt to collect an
+overview of platform features.
 
 ===================================  ========  ==========  ====  ==========  ======  =======
            Platform                  Apache    PostgreSQL  ip4r   packaged   tested  remarks

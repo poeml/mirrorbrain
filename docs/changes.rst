@@ -7,7 +7,44 @@ Release Notes/Change History
 Release 2.18.0 (rXXXX, XXX xx, 2014)
 ------------------------------------
 
+New features:
+
+* :program:`mb`: new command line option for configuration file path. Patch
+  kindly provided by Gökdeniz Karadağ (see also `issue 114`_)
+
+* :program:`mb update`: The :program:`geoiplookup` and
+  :program:`geoiplookup_city` binaries are now also looked for in
+  ``/usr/share/mirrorbrain``. Helps to solve the packaging cleanup `issue
+  110`_.
+
+* :program:`geoip-lite-update`: It is now possible to run this script without
+  reloading Apache. On the other hand, it can now reload Apache on openSUSE,
+  Ubuntu, Debian, Fedora, and via systemd. Thanks Andrea Veri for the report.
+
+* :program:`asn_get_routeviews` now allows to only download routing data, but
+  don't process it, by using the switch ``--download-only``. In addition,
+  ``--no-download`` can be used if the data is distributed by other means, e.g.
+  with distro updates. Thanks Dagobert Michelsen for the suggestion! (`issue
+  127`_)
+
+* The :program:`create_timestamp` script no longer contains openSUSE specifics.
+  Usage::
+
+    create_timestamp [username:groupname] timestampfile1 [timestampfile2...]
+    
+* The installation documentation was updated in many places.
+
+
 Bug fixes:
+
+* The build on openSUSE 13.1 was fixed.
+
+* The SQL schema was updated to remove obsolete quotes around language names on
+  function declarations: ``'plpgsql'`` -> ``plpgsql``; ``'SQL'`` -> ``SQL``. 
+  PostgreSQL 9.2 and newer no longer ignore these wrong quotes.
+
+* :program:`mb` now gives sane error messages when a config statement is
+  missing/misspelled in ``/etc/mirrorbrain.conf``.
 
 * ``mb/countries.py`` was never used; remove it so it doesn't confuse anyone.
   Thanks Gokdeniz for the hint.
@@ -16,24 +53,17 @@ Bug fixes:
   ``ProgrammingError`` exception from the ``sqlobject.dberrors`` can occur.
   This is now also caught. Thanks Gökdeniz very much for the patch!
 
-* :program:`mb`: new command line option for configuration file path. Patch
-   kindly provided by Gökdeniz Karadağ (see also `issue 114`_)
-
 * :program:`mb makehashes`: "permission denied" errors are now handled
   gracefully, fixing `issue 105`_. Thanks Tom Albers for report & patch!
 
 * The database SQL scheme for new installations has been updated to add the new
   column named ``ipv6_only``. Thanks George Koutras for the report!
 
-* :program:`mb update`: The :program:`geoiplookup` and
-  :program:`geoiplookup_city` binaries are now also looked for in
-  ``/usr/share/mirrorbrain``. Helps to solve the packaging cleanup `issue
-  110`_.
-
 
 .. _`issue 105`: http://mirrorbrain.org/issues/issue105
 .. _`issue 110`: http://mirrorbrain.org/issues/issue110
 .. _`issue 114`: http://mirrorbrain.org/issues/issue114
+.. _`issue 127`: http://mirrorbrain.org/issues/issue127
 
 
 
