@@ -63,7 +63,7 @@ Frontend (mod_mirrorbrain, the redirector)
 * If `mod_geoip`_ is used, it needs to be version 1.2.0 or newer. See
   http://mirrorbrain.org/issues/issue16
 
-* `mod_form`_
+* `mod_form`_, plus a `patch preserving the arguments that it parses`_ for MirrorBrain
 
 * if you want to compile with the optional memcache support (there
   should not be reason for it, though), you would need
@@ -74,6 +74,7 @@ Frontend (mod_mirrorbrain, the redirector)
 .. _`libGeoIP`: http://www.maxmind.com/app/c
 .. _`mod_memcache`: http://code.google.com/p/modmemcache/
 .. _`memcache`: http://www.danga.com/memcached/
+.. _`patch preserving the arguments that it parses`: https://build.opensuse.org/source/Apache:Modules/apache2-mod_form/mod_form.c.preserve_args.patch?rev=40cbd37223a3593d7d66aacc389d716e
 
 
 Database
