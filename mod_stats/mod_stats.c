@@ -582,7 +582,12 @@ static void stats_register_hooks(apr_pool_t *p)
 }
 
 
+#ifdef AP_DECLARE_MODULE
+AP_DECLARE_MODULE(stats) =
+#else
+/* pre-2.4 */
 module AP_MODULE_DECLARE_DATA stats_module =
+#endif
 {
     STANDARD20_MODULE_STUFF,
     create_stats_dir_config,    /* create per-directory config structures */
