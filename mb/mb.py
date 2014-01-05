@@ -943,6 +943,9 @@ class MirrorDoctor(cmdln.Cmdln):
         inclusion into Metalinks and Torrents, or to be requested by appending
         .md5 or .sha1 to an URL.
 
+        Note that the pathnames used here need to match the DocumentRoot in
+        Apache's vhost setup.
+
         Simplest Examples:
             mb makehashes -t /srv/metalink-hashes/srv/ooo /srv/ooo
 

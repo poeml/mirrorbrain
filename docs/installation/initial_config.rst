@@ -318,6 +318,11 @@ Add the hashing command to /etc/crontab to be run every few hours.
 Alternatively, run it after changes in the file tree happen, coupled to some
 trigger etc.
 
+.. note::
+   The path names used here need to match the ``DocumentRoot`` in Apache's virtual
+   host setup.
+
+
 (This command was called ``metalink-hasher`` in previous releases of
 MirrorBrain.)
 
