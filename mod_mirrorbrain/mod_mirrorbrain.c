@@ -3897,7 +3897,12 @@ static void mb_register_hooks(apr_pool_t *p)
     ap_hook_child_init    (mb_child_init,  NULL, NULL, APR_HOOK_MIDDLE );
 }
 
+#ifdef AP_DECLARE_MODULE
+AP_DECLARE_MODULE(mirrorbrain) =
+#else
+/* pre-2.4 */
 module AP_MODULE_DECLARE_DATA mirrorbrain_module =
+#endif
 {
     STANDARD20_MODULE_STUFF,
     create_mb_dir_config,    /* create per-directory config structures */
