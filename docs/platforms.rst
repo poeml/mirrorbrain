@@ -48,3 +48,7 @@ CentOS 6
 CentOS 5                                                           
 ===================================  ========  ==========  ====  ==========  ======  =======
 
+
+Suggestions for other features to track:
+
+* mod_geoip with IPv6 capability
