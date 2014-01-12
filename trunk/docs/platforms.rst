@@ -19,7 +19,7 @@ Debian 4.0 (Etch)
 -----------------------------------  --------  ----------  ----  ----------  ------  -------
 Ubuntu 13.10 (Saucy Salamander)      2.4.6     9.1         2.0     
 Ubuntu 13.04 (Raring Ringtail)       2.2.22    9.1         1.05    
-Ubuntu 12.10 (Quantal Quetzal)       2.2.22    9.1         1.05    
+Ubuntu 12.10 (Quantal Quetzal)       2.2.22    9.1         1.05                      sqlobject upstream bug was fixed in this release (#120)
 Ubuntu 12.04 LTS (Precise Pangolin)  2.2.22    9.1         1.05    
 Ubuntu 11.10 (Oneiric Ocelot)                                                2.17.0  floeff, tested on 12.04
 Ubuntu 10.04 LTS (Lucid Lynx)        2.2.14    8.4         1.04    
@@ -55,6 +55,6 @@ Suggestions for other features to track:
 * see also http://mirrorbrain.org/issues/issue16
 
 
-Package search URLs
+Package search URLs:
 
-* http://packages.ubuntu.com/
+* http://packages.ubuntu.com/ and https://launchpad.net/
