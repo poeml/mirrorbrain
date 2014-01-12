@@ -34,7 +34,7 @@ New features:
     
 * The installation documentation was updated in many places.
 
-* :program:`mod_mirrorbrain`
+* :program:`mod_mirrorbrain` 
 
   - If multiple instances of MirrorBrain run in Apache (or you have multiple vhosts 
     using one MirrorBrain configuration), you would have multiple ``DBDParams``
@@ -49,6 +49,10 @@ New features:
     and it'll also show the workaround at the same time. In addition, the
     documentation was enhanced. Thanks Stephan Jauernick.
     
+* :program:`geoiplookup_city` and :program:`geoiplookup_continent` tools:
+  The path to the GeoIP database files is now configurable at compile time, so
+  distribution builders could use preprocessor definitions to define them
+  instead of patching the code. Patch by Dagobert Michelsen. Thanks! (`issue 130`_)
 
 
 Bug fixes:
@@ -85,6 +89,7 @@ Bug fixes:
 .. _`issue 119`: http://mirrorbrain.org/issues/issue119
 .. _`issue 125`: http://mirrorbrain.org/issues/issue125
 .. _`issue 127`: http://mirrorbrain.org/issues/issue127
+.. _`issue 130`: http://mirrorbrain.org/issues/issue130
 
 
 
