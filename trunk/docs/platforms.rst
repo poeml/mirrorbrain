@@ -11,7 +11,7 @@ overview of platform features.
            Platform                  Apache    PostgreSQL  ip4r   packaged   tested  remarks
 ===================================  ========  ==========  ====  ==========  ======  =======
 Debian next (Jessie)                 2.4.6     9.3         2.0     
-Debian 7.0 (Wheezy)                  2.2.22    9.1         1.05   obs        yes     stephan48?
+Debian 7.0 (Wheezy)                  2.2.22    9.1         1.05   obs        yes     stephan48
 Debian 6.0 (Squeeze)                 2.2.16    8.4         1.04    
 Debian 5.0 (Lenny)                                                 
 Debian 4.0 (Etch)                                                  
@@ -21,7 +21,7 @@ Ubuntu 13.10 (Saucy Salamander)      2.4.6     9.1         2.0
 Ubuntu 13.04 (Raring Ringtail)       2.2.22    9.1         1.05    
 Ubuntu 12.10 (Quantal Quetzal)       2.2.22    9.1         1.05    
 Ubuntu 12.04 LTS (Precise Pangolin)  2.2.22    9.1         1.05    
-Ubuntu 11.10 (Oneiric Ocelot)
+Ubuntu 11.10 (Oneiric Ocelot)                                                2.17.0  floeff, tested on 12.04
 Ubuntu 10.04 LTS (Lucid Lynx)        2.2.14    8.4         1.04    
 -----------------------------------  --------  ----------  ----  ----------  ------  -------
 -----------------------------------  --------  ----------  ----  ----------  ------  -------
@@ -52,3 +52,9 @@ CentOS 5
 Suggestions for other features to track:
 
 * mod_geoip with IPv6 capability
+* see also http://mirrorbrain.org/issues/issue16
+
+
+Package search URLs
+
+* http://packages.ubuntu.com/
