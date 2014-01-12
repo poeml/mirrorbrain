@@ -82,7 +82,13 @@ Bug fixes:
 * :program:`mb makehashes`: "permission denied" errors are now handled
   gracefully, fixing `issue 105`_. Thanks Tom Albers for report & patch!
 
+* :program:`mod_mirrorbrain`: Compiler warnings about using ``%d`` for
+  ``size_t`` were silenced, by now using ``APR_SIZE_T_FMT`` where appropriate.
+  (`issue 82`_)
 
+
+
+.. _`issue 82`: http://mirrorbrain.org/issues/issue82
 .. _`issue 105`: http://mirrorbrain.org/issues/issue105
 .. _`issue 110`: http://mirrorbrain.org/issues/issue110
 .. _`issue 114`: http://mirrorbrain.org/issues/issue114
