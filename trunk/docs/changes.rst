@@ -34,6 +34,22 @@ New features:
     
 * The installation documentation was updated in many places.
 
+* :program:`mod_mirrorbrain`
+
+  - If multiple instances of MirrorBrain run in Apache (or you have multiple vhosts 
+    using one MirrorBrain configuration), you would have multiple ``DBDParams``
+    statememts which prepare SQL statements when Apache starts processes.
+    Peculiarly, Apache doesn't allow the same connection string used more than
+    once. (To make the connection strings unique, a possible workaround is to
+    use differing ``connect_timeout`` values.) Anyhow, to help users running
+    into this problem, MirrorBrain used to log a warning (added in 2009). This
+    warning was removed when the DBD error handling was reworked in 2.16.1
+    (2012). It replaced with much more detailed error logging, but the helpful
+    one-liner was missing hence. This release re-adds the helpful one-liner,
+    and it'll also show the workaround at the same time. In addition, the
+    documentation was enhanced. Thanks Stephan Jauernick.
+    
+
 
 Bug fixes:
 

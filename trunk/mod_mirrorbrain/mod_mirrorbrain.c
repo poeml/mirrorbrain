@@ -1987,7 +1987,10 @@ static int mb_handler(request_rec *r)
             ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
                           "[mod_mirrorbrain] Could not get prepared statement labelled '%s'",
                           scfg->query_label);
-
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+                          "[mod_mirrorbrain] Hint: connection strings defined with "
+                          "DBDParams must be unique. The same string cannot be used "
+                          "in two vhosts. Workaround: use a differing connect_timeout parameter");
             /* log existing prepared statements. It might help with figuring out
              * misconfigurations */
             ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, 

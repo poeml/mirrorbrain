@@ -241,7 +241,8 @@ contain the database password::
           This matters if several MirrorBrain instances are set up in one
           Apache. If the database connection string is identical in
           different virtual hosts, mod_dbd may fail to associate the
-          connection string with the correct virtual host.
+          connection string with the correct virtual host. A possible
+          workaround is to use differing values in connect_timeout.
 
 
 
