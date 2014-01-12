@@ -59,6 +59,8 @@ Bug fixes:
 
 * The build on openSUSE 13.1 was fixed.
 
+* The build on RHEL6 was fixed, with a patch courtesy of jcpunk. (`issue 125`_)
+
 * The SQL schema was updated to remove obsolete quotes around language names on
   function declarations: ``'plpgsql'`` -> ``plpgsql``; ``'SQL'`` -> ``SQL``. 
   PostgreSQL 9.2 and newer no longer ignore these wrong quotes.
@@ -81,6 +83,7 @@ Bug fixes:
 .. _`issue 110`: http://mirrorbrain.org/issues/issue110
 .. _`issue 114`: http://mirrorbrain.org/issues/issue114
 .. _`issue 119`: http://mirrorbrain.org/issues/issue119
+.. _`issue 125`: http://mirrorbrain.org/issues/issue125
 .. _`issue 127`: http://mirrorbrain.org/issues/issue127
 
 
