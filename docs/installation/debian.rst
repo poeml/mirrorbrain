@@ -145,6 +145,11 @@ Running the following snippet will create a configuration for mod_dbd::
    Edit the password in the template here -- take note of it, you'll need it
    below, when you create a database user account.
 
+.. note::
+   Important: DBDParams strings must be unique; you cannot use the same string
+   in another vhost. A possible workaround is to use differing connect_timeout
+   values.
+
 
 Install PostgreSQL
 ------------------
