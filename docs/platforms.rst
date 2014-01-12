@@ -11,7 +11,7 @@ overview of platform features.
            Platform                  Apache    PostgreSQL  ip4r   packaged   tested  remarks
 ===================================  ========  ==========  ====  ==========  ======  =======
 Debian next (Jessie)                 2.4.6     9.3         2.0     
-Debian 7.0 (Wheezy)                  2.2.22    9.1         1.05    
+Debian 7.0 (Wheezy)                  2.2.22    9.1         1.05   obs        yes     stephan48?
 Debian 6.0 (Squeeze)                 2.2.16    8.4         1.04    
 Debian 5.0 (Lenny)                                                 
 Debian 4.0 (Etch)                                                  
@@ -39,7 +39,7 @@ Fedora 19                            2.4.6     9.2         1.05
 Fedora 18                            2.4.6     9.2         1.05    
 -----------------------------------  --------  ----------  ----  ----------  ------  -------
 -----------------------------------  --------  ----------  ----  ----------  ------  -------
-RHEL 6                                                             
+RHEL 6                                                                       no      mirrorbrain package builds in OBS
 RHEL 5                                                             
 RHEL 4                                                             
 -----------------------------------  --------  ----------  ----  ----------  ------  -------
