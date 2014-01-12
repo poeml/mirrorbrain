@@ -27,10 +27,12 @@
 #include <GeoIP.h>
 #include <GeoIPCity.h>
 
-#define DEFAULT_GEOIPFILE "/var/lib/GeoIP/GeoLiteCity.dat"
+#ifndef DEFAULT_GEOIPCITYFILE
+#define DEFAULT_GEOIPCITYFILE "/var/lib/GeoIP/GeoLiteCity.dat"
+#endif
 
 int main(int argc, char **argv) {
-	const char *geoipfilename = DEFAULT_GEOIPFILE;
+	const char *geoipfilename = DEFAULT_GEOIPCITYFILE;
 	GeoIP *gip = NULL;
 	GeoIPRecord *gir = NULL;
 	char *name;
