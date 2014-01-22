@@ -3011,6 +3011,7 @@ static int mb_handler(request_rec *r)
                  "<ul>\n", r);
         char buf[5];
         ap_rprintf(r, "  <li><span class=\"mirrorbrain-label\">Filename:</span> %s</li>\n", basename);
+	ap_rprintf(r, "  <li><span class=\"mirrorbrain-label\">Path:</span> %s</li>\n", r->uri);
         ap_rprintf(r, "  <li><span class=\"mirrorbrain-label\">Size:</span> %s (%s bytes)</li>\n", 
                    apr_strfsize(r->finfo.size, buf),
                    apr_off_t_toa(r->pool, r->finfo.size));
