@@ -29,6 +29,7 @@ from sqlobject import *
 from sqlobject.sqlbuilder import AND
 
 USER_AGENT = 'MirrorBrain Probe (see http://mirrorbrain.org/probe_info)'
+DEFAULT_TIMEOUT = 20
 
 def reenable(mirror):
     comment = mirror.comment or ''
@@ -199,8 +200,8 @@ def main():
 
     parser.add_option("-t", "--timeout",
                       dest="timeout",
-                      default=20,
-                      help="Timeout in seconds",
+                      default=DEFAULT_TIMEOUT,
+                      help="Timeout in seconds (default: %ss)" % DEFAULT_TIMEOUT,
                       metavar="TIMEOUT")
 
     parser.add_option("-n", "--no-run",
