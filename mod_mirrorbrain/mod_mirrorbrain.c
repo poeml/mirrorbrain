@@ -2992,6 +2992,7 @@ static int mb_handler(request_rec *r)
             ap_rputs(DOCTYPE_XHTML_1_0T
                      "<html xmlns=\"http://www.w3.org/1999/xhtml\">\n"
                      "<head>\n"
+                     "  <meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n"
                      "  <title>Mirror List</title>\n", r);
             if (scfg->mirrorlist_stylesheet) {
                 ap_rprintf(r, "  <link type=\"text/css\" rel=\"stylesheet\" href=\"%s\" />\n",
@@ -3001,34 +3002,40 @@ static int mb_handler(request_rec *r)
         }
 
         ap_rputs("<div id=\"mirrorbrain-details\">\n", r);
-        ap_rprintf(r, "  <h2>Mirrors for <a href=\"http://%s%s\">http://%s%s</a></h2>\n" 
-                   "  <br/>\n", 
-                   r->hostname, r->uri, r->hostname, r->uri);
-
-        ap_rputs("  <address>Powered by <a href=\"http://mirrorbrain.org/\">MirrorBrain</a></address>\n", r);
+        ap_rprintf(r, "  <h2>Mirrors for <a href=\"http://%s%s\">%s</a></h2>\n", 
+                   r->hostname, r->uri, basename);
 
         /* Metadata */
-        ap_rputs("  <ul>\n", r);
+        ap_rputs("<div id=\"mirrorbrain-fileinfo\">\n"
+                 "<h3>File information</h3>\n"
+                 "<ul>\n", r);
         char buf[5];
-        ap_rprintf(r, "  <li>Size: %s (%s bytes)</li>\n", 
+        ap_rprintf(r, "  <li><span class=\"mirrorbrain-label\">Filename:</span> %s</li>\n", basename);
+        ap_rprintf(r, "  <li><span class=\"mirrorbrain-label\">Size:</span> %s (%s bytes)</li>\n", 
                    apr_strfsize(r->finfo.size, buf),
                    apr_off_t_toa(r->pool, r->finfo.size));
         time_str = apr_palloc(r->pool, APR_RFC822_DATE_LEN);
         apr_rfc822_date(time_str, r->finfo.mtime);
-        ap_rprintf(r, "  <li>Last modified: %s (Unix time: %" APR_INT64_T_FMT ")</li>\n", time_str, apr_time_sec(r->finfo.mtime));
+        ap_rprintf(r, "  <li><span class=\"mirrorbrain-label\">Last modified:</span> "
+                      "%s (Unix time: %" APR_INT64_T_FMT ")</li>\n",
+                   time_str, apr_time_sec(r->finfo.mtime));
 
         if (hashbag != NULL) {
             if (hashbag->sha256hex)
-                ap_rprintf(r, "  <li><a href=\"http://%s%s.sha256\">SHA-256 Hash</a>: <tt>%s</tt> "
+                ap_rprintf(r, "  <li><span class=\"mirrorbrain-label\">"
+                              "<a href=\"http://%s%s.sha256\">SHA-256 Hash</a>:</span> <tt>%s</tt>"
                               "</li>\n", r->hostname, r->uri, hashbag->sha256hex);
             if (hashbag->sha1hex)
-                ap_rprintf(r, "  <li><a href=\"http://%s%s.sha1\">SHA-1 Hash</a>: <tt>%s</tt> "
+                ap_rprintf(r, "  <li><span class=\"mirrorbrain-label\">"
+                              "<a href=\"http://%s%s.sha1\">SHA-1 Hash</a>:</span> <tt>%s</tt>"
                               "</li>\n", r->hostname, r->uri, hashbag->sha1hex);
             if (hashbag->md5hex)
-                ap_rprintf(r, "  <li><a href=\"http://%s%s.md5\">MD5 Hash</a>: <tt>%s</tt> "
+                ap_rprintf(r, "  <li><span class=\"mirrorbrain-label\">"
+                              "<a href=\"http://%s%s.md5\">MD5 Hash</a>:</span> <tt>%s</tt>"
                               "</li>\n", r->hostname, r->uri, hashbag->md5hex);
-            if (hashbag->btihhex)
-                ap_rprintf(r, "  <li><a href=\"http://%s%s.btih\">BitTorrent Information Hash</a>: <tt>%s</tt> "
+            if (hashbag->btihhex && !apr_is_empty_array(scfg->tracker_urls))
+                ap_rprintf(r, "  <li><span class=\"mirrorbrain-label\">"
+                              "<a href=\"http://%s%s.btih\">BitTorrent Information Hash</a>:</span> <tt>%s</tt>"
                               "</li>\n", r->hostname, r->uri, hashbag->btihhex);
 
             if (hashbag->pgp) {
@@ -3038,36 +3045,61 @@ static int mb_handler(request_rec *r)
                               "</li>\n", r->hostname, r->uri);
             }
         }
-        ap_rputs("  </ul>\n", r);
 
+        /* Direct download link */
+        ap_rputs("</ul>\n", r);
+        ap_rprintf(r, "<p><a href=\"http://%s%s\" class=\"mirrorbrain-btn\">Download file from preferred mirror</a></p>\n", r->hostname, r->uri);
+        ap_rputs("</div>\n\n", r);
+
+        /* Metalink / P2P / zsync section */
+        ap_rputs("<div id=\"mirrorbrain-links\">\n"
+                 "<h3>Reliable downloads</h3>\n", r);
 
         /* Metalink info */
-        ap_rputs("  <br/>\n" 
-                 "  <blockquote>Metalinks for reliable downloads:\n"
-                 "  <br/>\n", r);
-        ap_rprintf(r, "  <a href=\"http://%s%s.meta4\">http://%s%s.meta4</a> (IETF Metalink)"
-                      "  <br/>\n", 
-                r->hostname, r->uri, r->hostname, r->uri);
-        ap_rprintf(r, "  <a href=\"http://%s%s.metalink\">http://%s%s.metalink</a> (old (v3) Metalink)"
-                      "  <br/>\n", 
-                r->hostname, r->uri, r->hostname, r->uri);
+        ap_rputs("<div class=\"mirrorbrain-links-grp\">\n"
+                 "<h4>Metalink</h4>\n"
+                 "<ul>\n", r);
+        ap_rprintf(r, "  <li><a href=\"http://%s%s.meta4\">http://%s%s.meta4</a> (IETF Metalink)</li>\n",
+                   r->hostname, r->uri, r->hostname, r->uri);
+        ap_rprintf(r, "  <li><a href=\"http://%s%s.metalink\">http://%s%s.metalink</a> (old (v3) Metalink)</li>\n", 
+                   r->hostname, r->uri, r->hostname, r->uri);
+        ap_rputs("</ul>\n" "</div>\n", r);
+
         if (hashbag) {
-            ap_rprintf(r, "  P2P Links:\n<br/>"
-                          "  <a href=\"http://%s%s.torrent\">http://%s%s.torrent</a> (BitTorrent)\n", 
-                          r->hostname, r->uri, r->hostname, r->uri);
-            ap_rprintf(r, "  <br/><a href=\"http://%s%s.magnet\">http://%s%s.magnet</a> (Magnet)\n", 
-                          r->hostname, r->uri, r->hostname, r->uri);
+            if (!apr_is_empty_array(scfg->tracker_urls)) {
+                /* Torrent downloads */
+                ap_rputs("<div class=\"mirrorbrain-links-grp\">\n"
+                         "<h4>P2P links</h4>\n"
+                         "<ul>\n", r);
+                ap_rprintf(r, "  <li><a href=\"http://%s%s.torrent\">http://%s%s.torrent</a> (BitTorrent)</li>\n", 
+                           r->hostname, r->uri, r->hostname, r->uri);
+                ap_rprintf(r, "  <li><a href=\"http://%s%s.magnet\">http://%s%s.magnet</a> (Magnet)</li>\n", 
+                           r->hostname, r->uri, r->hostname, r->uri);
+                ap_rputs("</ul>\n" "</div>\n", r);
+            }
+
             if (hashbag->sha1hex && (hashbag->zblocksize > 0) 
                     && hashbag->zhashlens && hashbag->zsumshex) {
-                ap_rprintf(r, "  <br/>zsync Link:\n<br/>"
-                              "  <a href=\"http://%s%s.zsync\">http://%s%s.zsync</a>\n", 
-                              r->hostname, r->uri, r->hostname, r->uri);
+                /* zSync */
+                ap_rputs("<div class=\"mirrorbrain-links-grp\">\n"
+                         "<h4>Zsync links</h4>\n"
+                         "<ul>\n", r);
+                ap_rprintf(r, "  <li><a href=\"http://%s%s.zsync\">http://%s%s.zsync</a></li>\n", 
+                           r->hostname, r->uri, r->hostname, r->uri);
+                ap_rputs("</ul>\n" "</div>\n", r);
             }
         }
-        ap_rputs("  </blockquote>\n\n", r);
 
+        /* End of Reliable downloads section */
+        ap_rputs("</div>\n\n", r);
 
-        ap_rprintf(r, "  <p>List of best mirrors for IP address %s, located ", clientip);
+        /* Mirrors */
+        ap_rputs("<div id=\"mirrorbrain-mirrors\">\n"
+                 "<h3>Mirrors</h3>\n"
+                 "<p>", r);
+
+        /* Nice string where the user is located */
+        ap_rprintf(r, "List of best mirrors for IP address %s, located ", clientip);
         if (lat != 0 && lng != 0) {
             ap_rprintf(r, "at %f,%f ", lat, lng);
         }
@@ -3077,138 +3109,142 @@ static int mb_handler(request_rec *r)
             ap_rputs("in an unknown country", r);
         }
         if (strcmp(prefix, "--") != 0) {
-            ap_rprintf(r, ", \n     network %s (autonomous system %s)", prefix, as);
+            ap_rprintf(r, ", network %s (autonomous system %s)", prefix, as);
         }
-        ap_rputs(": ", r);
+        ap_rputs(".</p>\n\n", r);
 
+        /* Link to static map of user and mirror locations */
         if (lat != 0 && lng != 0) {
-            ap_rputs("&nbsp;", r);
             apr_array_header_t *topten = get_n_best_mirrors(r, 9, mirrors_same_prefix, mirrors_same_as, 
                                                              mirrors_same_country, mirrors_same_region, 
                                                              mirrors_elsewhere);
             mirrorp = (mirror_entry_t **)topten->elts;
-            ap_rprintf(r, "\n     <a href=\"http://maps.google.com/maps/api/staticmap?size=640x640"
-                          "&amp;maptype=terrain&amp;visible&amp;sensor=false&amp;markers=size:mid|color:red|%f,%f", lat, lng);
+            ap_rprintf(r, "<p><a href=\"http://maps.google.com/maps/api/staticmap?size=640x512&amp;center=0,0&amp;"
+                          "visual_refresh=true&amp;scale=2&amp;maptype=roadmap&amp;sensor=false&amp;markers=color:red|%f,%f", lat, lng);
             for (i = 0; i < topten->nelts; i++) {
                 mirror = mirrorp[i];
-                ap_rprintf(r, "&amp;markers=size:normal|color:yellow|label:%d|%f,%f", i+1, mirror->lat, mirror->lng);
+                ap_rprintf(r, "&amp;markers=color:yellow|label:%d|%f,%f", i+1, mirror->lat, mirror->lng);
             }
-            ap_rputs("\">\n     <img src=\"", r);
-            ap_rprintf(r, "http://maps.google.com/maps/api/staticmap?size=50x50"
-                          "&amp;maptype=terrain&amp;visible&amp;sensor=false&amp;markers=size:mid|color:red|%f,%f", lat, lng);
-            for (i = 0; i < topten->nelts; i++) {
-                mirror = mirrorp[i];
-                ap_rprintf(r, "&amp;markers=size:normal|color:yellow|label:%d|%f,%f", i+1, mirror->lat, mirror->lng);
-            }
-            ap_rputs("\" width=\"50\" height=\"50\" alt=\"map showing the closest mirrors\"/></a> ", r);
+            ap_rputs("\">Map showing the closest mirrors</a></p>\n\n", r);
         }
-        ap_rputs("</p>\n", r);
 
         if ((mirror_cnt <= 0) || (!mirrors_same_prefix->nelts && !mirrors_same_as->nelts 
                                   && !mirrors_same_country->nelts && !mirrors_same_region->nelts 
                                   && !mirrors_elsewhere->nelts)) {
-            ap_rprintf(r, "  <p>I am very sorry, but no mirror was found. Feel free to download directly:<br/>\n");
-            ap_rprintf(r, "  <a href=\"http://%s%s\">http://%s%s</a> </p>\n",
+            ap_rputs("<div id=\"mirrorbrain-mirrors-none\">\n"
+                     "<h4>No mirror was found</h4>\n", r);
+            ap_rputs("<p>I am very sorry, but no mirror was found. Feel free to download directly:<br />\n", r);
+            ap_rprintf(r, "  <a href=\"http://%s%s\">http://%s%s</a></p>\n",
                        r->hostname, r->uri, r->hostname, r->uri);
-            ap_rputs("</body></html>\n", r);
+            ap_rputs("</div>\n" "</div>\n", r);
+            ap_rputs("<address>Powered by <a href=\"http://mirrorbrain.org/\">MirrorBrain</a></address>\n", r);
+            ap_rputs("</div><!-- mirrorbrain-details -->\n", r);
+            ap_rputs("</body>\n" "</html>\n", r);
             return OK;
         }
 
-
         /* prefix */
         if (!apr_is_empty_array(mirrors_same_prefix)) {
-            ap_rprintf(r, "\n  <h3>Found %d mirror%s directly nearby (within the same network prefix: %s :-)</h3>\n", 
+            ap_rprintf(r, "<div class=\"mirrorbrain-mirrors-grp\">\n"
+                          "<h4>Found %d mirror%s directly nearby (within the same network prefix: %s)</h4>\n"
+                          "<ul>\n",
                        mirrors_same_prefix->nelts, 
                        (mirrors_same_prefix->nelts == 1) ? "" : "s",
                        prefix);
-            ap_rputs("  <ul>\n", r);
             mirrorp = (mirror_entry_t **)mirrors_same_prefix->elts;
             for (i = 0; i < mirrors_same_prefix->nelts; i++) {
                 mirror = mirrorp[i];
-                ap_rprintf(r, "    <li><a href=\"%s%s\">%s%s</a> (%s, prio %d)</li>\n", 
+                ap_rprintf(r, "  <li><a href=\"%s%s\">%s%s</a> (%s, prio %d)</li>\n", 
                         mirror->baseurl, filename, 
                         mirror->baseurl, filename, 
                         mirror->country_code,
                         mirror->score);
             }
-            ap_rputs("  </ul>\n", r);
+            ap_rputs("</ul>\n" "</div>\n\n", r);
         }
 
         /* AS */
         if (!apr_is_empty_array(mirrors_same_as)) {
-            ap_rprintf(r, "\n  <h3>Found %d mirror%s very close (within the same autonomous system (AS%s):</h3>\n", 
+            ap_rprintf(r, "<div class=\"mirrorbrain-mirrors-grp\">\n"
+                          "<h4>Found %d mirror%s very close (within the same autonomous system (AS%s)</h4>\n"
+                          "<ul>\n",
                        mirrors_same_as->nelts, 
                        (mirrors_same_as->nelts == 1) ? "" : "s",
                        as);
-            ap_rputs("  <ul>\n", r);
             mirrorp = (mirror_entry_t **)mirrors_same_as->elts;
             for (i = 0; i < mirrors_same_as->nelts; i++) {
                 mirror = mirrorp[i];
-                ap_rprintf(r, "    <li><a href=\"%s%s\">%s%s</a> (%s, prio %d)</li>\n", 
+                ap_rprintf(r, "  <li><a href=\"%s%s\">%s%s</a> (%s, prio %d)</li>\n", 
                         mirror->baseurl, filename, 
                         mirror->baseurl, filename, 
                         mirror->country_code,
                         mirror->score);
             }
-            ap_rputs("  </ul>\n", r);
+            ap_rputs("</ul>\n" "</div>\n\n", r);
         }
 
         /* country */
         if (!apr_is_empty_array(mirrors_same_country)) {
-            ap_rprintf(r, "\n  <h3>Found %d mirror%s which handle this country (%s):</h3>\n", 
+            ap_rprintf(r, "<div class=\"mirrorbrain-mirrors-grp\">\n"
+                          "<h4>Found %d mirror%s which handle this country (%s)</h4>\n"
+                          "<ul>\n", 
                        mirrors_same_country->nelts, 
                        (mirrors_same_country->nelts == 1) ? "" : "s",
                        country_code);
-            ap_rputs("  <ul>\n", r);
             mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
             for (i = 0; i < mirrors_same_country->nelts; i++) {
                 mirror = mirrorp[i];
-                ap_rprintf(r, "    <li><a href=\"%s%s\">%s%s</a> (%s, prio %d)</li>\n", 
+                ap_rprintf(r, " <li><a href=\"%s%s\">%s%s</a> (%s, prio %d)</li>\n", 
                         mirror->baseurl, filename, 
                         mirror->baseurl, filename, 
                         mirror->country_code,
                         mirror->score);
             }
-            ap_rputs("  </ul>\n", r);
+            ap_rputs("</ul>\n" "</div>\n\n", r);
         }
 
         /* region */
         if (!apr_is_empty_array(mirrors_same_region)) {
-            ap_rprintf(r, "\n  <h3>Found %d mirror%s in other countries, but same continent (%s):</h3>\n", 
+            ap_rprintf(r, "<div class=\"mirrorbrain-mirrors-grp\">\n"
+                          "<h4>Found %d mirror%s in other countries, but same continent (%s)</h4>\n"
+                          "<ul>\n", 
                        mirrors_same_region->nelts,
                        (mirrors_same_region->nelts == 1) ? "" : "s",
                        continent_code);
-            ap_rputs("  <ul>\n", r);
             mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
             for (i = 0; i < mirrors_same_region->nelts; i++) {
                 mirror = mirrorp[i];
-                ap_rprintf(r, "    <li><a href=\"%s%s\">%s%s</a> (%s, prio %d)</li>\n", 
+                ap_rprintf(r, "  <li><a href=\"%s%s\">%s%s</a> (%s, prio %d)</li>\n", 
                         mirror->baseurl, filename, 
                         mirror->baseurl, filename, 
                         mirror->country_code,
                         mirror->score);
             }
-            ap_rputs("  </ul>\n", r);
+            ap_rputs("</ul>\n" "</div>\n\n", r);
         }
 
         /* elsewhere */
         if (!apr_is_empty_array(mirrors_elsewhere)) {
-            ap_rprintf(r, "\n   <h3>Found %d mirror%s in other parts of the world:</h3>\n", 
+            ap_rprintf(r, "<div class=\"mirrorbrain-mirrors-grp\">\n"
+                          "<h4>Found %d mirror%s in other parts of the world</h4>\n"
+                          "<ul>\n",
                        mirrors_elsewhere->nelts,
                        (mirrors_elsewhere->nelts == 1) ? "" : "s");
-            ap_rputs("  <ul>\n", r);
             mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
             for (i = 0; i < mirrors_elsewhere->nelts; i++) {
                 mirror = mirrorp[i];
-                ap_rprintf(r, "    <li><a href=\"%s%s\">%s%s</a> (%s, prio %d)</li>\n", 
+                ap_rprintf(r, "  <li><a href=\"%s%s\">%s%s</a> (%s, prio %d)</li>\n", 
                         mirror->baseurl, filename, 
                         mirror->baseurl, filename, 
                         mirror->country_code,
                         mirror->score);
             }
-            ap_rputs("  </ul>\n", r);
+            ap_rputs("</ul>\n" "</div>\n\n", r);
         }
-        ap_rputs("</div> <!-- mirrorbrain-details -->\n", r);
+
+        ap_rputs("</div>\n"
+                 "<address>Powered by <a href=\"http://mirrorbrain.org/\">MirrorBrain</a></address>\n"
+                 "</div><!-- mirrorbrain-details -->\n", r);
 
         if (scfg->mirrorlist_footer) {
             /* send the configured custom footer */
