@@ -36,9 +36,15 @@ New features:
 
 * :program:`mod_mirrorbrain` 
 
+  - Nick Schermer from Xfce contributed a wonderful patch to improve the HTML
+    output for the details pages that MirrorBrain generates (see `issue 123`_).
+    As a consequence, in some installations the web design needs to be
+    adjusted, but hopefully people will value the better possibilities. The
+    full list of changes can be `viewed here`_.
+    
   - If multiple instances of MirrorBrain run in Apache (or you have multiple vhosts 
     using one MirrorBrain configuration), you would have multiple ``DBDParams``
-    statememts which prepare SQL statements when Apache starts processes.
+    statements which prepare SQL statements when Apache starts processes.
     Peculiarly, Apache doesn't allow the same connection string used more than
     once. (To make the connection strings unique, a possible workaround is to
     use differing ``connect_timeout`` values.) Anyhow, to help users running
@@ -48,12 +54,14 @@ New features:
     one-liner was missing hence. This release re-adds the helpful one-liner,
     and it'll also show the workaround at the same time. In addition, the
     documentation was enhanced. Thanks Stephan Jauernick.
-    
+
 * :program:`geoiplookup_city` and :program:`geoiplookup_continent` tools:
   The path to the GeoIP database files is now configurable at compile time, so
   distribution builders could use preprocessor definitions to define them
   instead of patching the code. Patch by Dagobert Michelsen. Thanks! (`issue 130`_)
 
+* :program:`mirrorprobe`: in the ``--help`` output, display the default value
+  for the network timeout (20 seconds)
 
 Bug fixes:
 
@@ -93,6 +101,8 @@ Bug fixes:
 .. _`issue 110`: http://mirrorbrain.org/issues/issue110
 .. _`issue 114`: http://mirrorbrain.org/issues/issue114
 .. _`issue 119`: http://mirrorbrain.org/issues/issue119
+.. _`issue 123`: http://mirrorbrain.org/issues/issue123
+.. _`viewed here`: http://svn.mirrorbrain.org/viewvc/mirrorbrain?view=revision&revision=8334
 .. _`issue 125`: http://mirrorbrain.org/issues/issue125
 .. _`issue 127`: http://mirrorbrain.org/issues/issue127
 .. _`issue 130`: http://mirrorbrain.org/issues/issue130
