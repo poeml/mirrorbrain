@@ -17,7 +17,7 @@ def iplookup(conn, s):
         ips = []
         ip6s = []
         try:
-            for res in socket.getaddrinfo(s, 0):
+            for res in socket.getaddrinfo(s, None):
                 af, socktype, proto, canonname, sa = res
                 if ':' in sa[0]:
                     if sa[0] not in ip6s:
