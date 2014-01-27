@@ -439,13 +439,19 @@ class MirrorDoctor(cmdln.Cmdln):
                         mirror.ipv6Only = res.ipv6Only()
 
             if opts.prefix and res:
-                if mirror.prefix != res.prefix:
+                if not res.prefix:
+                    print '%s: STRANGE! There\'s no prefix containing this hosts IP address (%s)...' \
+                            % (mirror.identifier, res.ip)
+                elif mirror.prefix != res.prefix:
                     print '%s: updating network prefix (%s -> %s)' \
                         % (mirror.identifier, mirror.prefix, res.prefix)
                     if not opts.dry_run:
                         mirror.prefix = res.prefix
             if opts.asn and res:
-                if mirror.asn != res.asn:
+                if not res.asn:
+                    print '%s: STRANGE! There\'s no ASN containing this hosts IP address (%s)...' \
+                            % (mirror.identifier, res.ip)
+                elif mirror.asn != res.asn:
                     print '%s: updating autonomous system number (%s -> %s)' \
                         % (mirror.identifier, mirror.asn, res.asn)
                     if not opts.dry_run:
