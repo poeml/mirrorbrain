@@ -335,8 +335,11 @@ class MirrorDoctor(cmdln.Cmdln):
         Requires a pfx2asn table to be present, which can be used to look
         up the AS (autonomous system) number and the closest network prefix
         that an IP is contained in.
-        Such a table is probably used in conjunction with mod_asn.
-        (Get it. It is worth it ;-)
+        Such a table comes with mod_asn, which can be very useful in conjunction
+        with MirrorBrain. See http://mirrorbrain.org/mod_asn/
+
+        Returns the string representation of an IpAddress instance from mb.util: 
+          Prefix (ASxxx) IPv6address
 
         ${cmd_usage}
         ${cmd_option_list}
