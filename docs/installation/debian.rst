@@ -146,7 +146,6 @@ package which is just a pointer to the libaprutil1 package.
 
 Running the following snippet will create a configuration for mod_dbd::
 
-  sudo a2enmod dbd
   sudo sh -c "cat > /etc/apache2/mods-available/dbd.conf << EOF
    <IfModule mod_dbd.c>
       DBDriver pgsql
