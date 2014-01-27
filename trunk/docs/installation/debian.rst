@@ -85,6 +85,19 @@ embedded interpreter (mod_php), though, then you need to stick to the prefork
 MPM, because libraries that are used by PHP might not be threadsafe.
 
 
+Loading Apache modules
+~~~~~~~~~~~~~~~~~~~~~~
+
+Don't forget to load the needed Apache modules::
+
+  a2enmod form
+  a2enmod mirrorbrain
+  a2enmod geoip
+  a2enmod dbd
+  a2enmod autoindex_mb   # instead of Apache's own mod_autoindex
+  a2enmod asn # only if you use that module as well
+
+
 Configure mod_geoip
 ~~~~~~~~~~~~~~~~~~~
 
@@ -133,6 +146,7 @@ package which is just a pointer to the libaprutil1 package.
 
 Running the following snippet will create a configuration for mod_dbd::
 
+  sudo a2enmod dbd
   sudo sh -c "cat > /etc/apache2/mods-available/dbd.conf << EOF
    <IfModule mod_dbd.c>
       DBDriver pgsql
