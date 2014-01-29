@@ -140,6 +140,7 @@ class RsyncInfo(cmdln.Cmdln):
             if opts.hide_stderr:
                 cmd += ' 2> /dev/null'
             cmd += ' | awk \'/^Total file size/ { print $4; exit }\''
+            # TODO: also check number of files (given as 'Number of files')
             if self.options.debug:
                 print cmd
             if not self.options.dry_run:
