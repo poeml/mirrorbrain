@@ -103,8 +103,6 @@ class Conn:
                 import psycopg2
             except: 
                 sys.exit('To use mb with PostgreSQL, you need the pcycopg2 Python module installed.')
-            # see http://mirrorbrain.org/issues/issue27
-
             try:
                 config['dbpass']
             except:
@@ -122,6 +120,8 @@ class Conn:
             except:
                 sys.exit("Your config doesn't have a 'dbname' setting.")
 
+            # see http://mirrorbrain.org/issues/issue27
+            # and http://mirrorbrain.org/issues/issue112
             config['dbpass'] = config['dbpass'].rstrip()
             config['dbpass'] = config['dbpass'].replace(' ', r'\ ')
             config['dbpass'] = config['dbpass'].replace('\t', '\\\t')
