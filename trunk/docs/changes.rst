@@ -7,28 +7,28 @@ Release Notes/Change History
 Release 2.18.0 (rXXXX, XXX xx, 2014)
 ------------------------------------
 
+(Pleae note that a new version of :program:`mod_asn` was also `issued recently`_.)
+
 New features:
 
-* :program:`mod_mirrorbrain` 
-
-  - Nick Schermer from Xfce contributed a wonderful patch to improve the HTML
-    output for the details pages that MirrorBrain generates (see `issue 123`_).
-    As a consequence, in some installations the web design needs to be
-    adjusted, but hopefully people will value the better possibilities. The
-    full list of changes can be `viewed here`_.
+* :program:`mod_mirrorbrain`: Nick Schermer from Xfce contributed a wonderful
+  patch to improve the HTML output for the details pages that MirrorBrain
+  generates (see `issue 123`_).  As a consequence, in some installations the
+  web design needs to be adjusted, but hopefully people will value the better
+  possibilities. The full list of changes can be `viewed here`_.
     
-  - If multiple instances of MirrorBrain run in Apache (or you have multiple vhosts 
-    using one MirrorBrain configuration), you would have multiple ``DBDParams``
-    statements which prepare SQL statements when Apache starts processes.
-    Peculiarly, Apache doesn't allow the same connection string used more than
-    once. (To make the connection strings unique, a possible workaround is to
-    use differing ``connect_timeout`` values.) Anyhow, to help users running
-    into this problem, MirrorBrain used to log a warning (added in 2009). This
-    warning was removed when the DBD error handling was reworked in 2.16.1
-    (2012). It replaced with much more detailed error logging, but the helpful
-    one-liner was missing hence. This release re-adds the helpful one-liner,
-    and it'll also show the workaround at the same time. In addition, the
-    documentation was enhanced. Thanks Stephan Jauernick.
+* :program:`mod_mirrorbrain`: If multiple instances of MirrorBrain run in
+  Apache (or you have multiple vhosts using one MirrorBrain configuration), you
+  would have multiple ``DBDParams`` statements which prepare SQL statements
+  when Apache starts processes.  Peculiarly, Apache doesn't allow the same
+  connection string used more than once. (To make the connection strings
+  unique, a possible workaround is to use differing ``connect_timeout``
+  values.) Anyhow, to help users running into this problem, MirrorBrain used to
+  log a warning (added in 2009). This warning was removed when the DBD error
+  handling was reworked in 2.16.1 (2012). It replaced with much more detailed
+  error logging, but the helpful one-liner was missing hence. This release
+  re-adds the helpful one-liner, and it'll also show the workaround at the same
+  time. In addition, the documentation was enhanced. Thanks Stephan Jauernick.
 
 * The installation documentation was updated in many places.
 
@@ -43,12 +43,6 @@ New features:
 * :program:`geoip-lite-update`: It is now possible to run this script without
   reloading Apache. On the other hand, it can now reload Apache on openSUSE,
   Ubuntu, Debian, Fedora, and via systemd. Thanks Andrea Veri for the report.
-
-* :program:`asn_get_routeviews` now allows to only download routing data, but
-  don't process it, by using the switch ``--download-only``. In addition,
-  ``--no-download`` can be used if the data is distributed by other means, e.g.
-  with distro updates. Thanks Dagobert Michelsen for the suggestion! (`issue
-  127`_)
 
 * The :program:`create_timestamp` script no longer contains openSUSE specifics.
   Usage::
@@ -69,19 +63,22 @@ Bug fixes:
   column named ``ipv6_only``. Thanks George Koutras, Raphael Hertzog and others
   for the report (and for their patience)! (`issue 119`_)
 
-* The build on openSUSE 13.1 was fixed.
-
-* The build on RHEL6 was fixed, with a patch courtesy of jcpunk. (`issue 125`_)
-
 * The SQL schema was updated to remove obsolete quotes around language names on
   function declarations: ``'plpgsql'`` -> ``plpgsql``; ``'SQL'`` -> ``SQL``. 
   PostgreSQL 9.2 and newer no longer ignore these wrong quotes.
 
+* :program:`mod_mirrorbrain`: Compiler warnings about using ``%d`` for
+  ``size_t`` were silenced, by now using ``APR_SIZE_T_FMT`` where appropriate.
+  (`issue 82`_)
+
+
+* :program:`mb` / ``mirrorbrain.conf``: Trailing(!) spaces in passwords were
+  taken literally so far, but were very hard to see and hard to debug. Now,
+  trailing spaces are rightfully ignored (`issue 112`_). Thanks to patch from
+  Pat Riehecky!
+
 * :program:`mb` now gives sane error messages when a config statement is
   missing/misspelled in ``/etc/mirrorbrain.conf``.
-
-* ``mb/countries.py`` was never used; remove it so it doesn't confuse anyone.
-  Thanks Gokdeniz for the hint.
 
 * :program:`mb`: when mod_asn is not installed, an additional
   ``ProgrammingError`` exception from the ``sqlobject.dberrors`` can occur.
@@ -90,22 +87,49 @@ Bug fixes:
 * :program:`mb makehashes`: "permission denied" errors are now handled
   gracefully, fixing `issue 105`_. Thanks Tom Albers for report & patch!
 
-* :program:`mod_mirrorbrain`: Compiler warnings about using ``%d`` for
-  ``size_t`` were silenced, by now using ``APR_SIZE_T_FMT`` where appropriate.
-  (`issue 82`_)
+* :program:`mb iplookup`: On the Solaris/OpenCSW platform, using 
+  ``socket.getaddrinfo()`` in Python for DNS lookups doesn't work with port
+  ``0``. Using ``None`` instead seems to be more correct and hopefully work on
+  all platforms. Thanks Dagobert for the fix! (`issue 135`_)
+
+
+* :program:`mb edit`: A mistyped dash in the commands help output was fixed.
+  Thanks Dago! (`issue 136`_) 
+
+* :program:`mb update`: This command now handles errors that lead to ``Null``
+  as prefix or ``Null`` as AS number, so the command doesn't anymore under
+  these conditions. (`issue 137`_)
+
+* :program:`tools/geoiplookup_*`: They no longer segfault when opening a GeoIP
+  database database fails. Patch courtesy of Dagobert Michelsen. (`issue 138`_)
+
+
+* The file ``mb/countries.py`` was never used; remove it so it doesn't confuse anyone.
+  Thanks Gokdeniz for the hint.
+
+* The build on openSUSE 13.1 was fixed.
+
+* The build on RHEL6 was fixed, with a patch courtesy of jcpunk. (`issue 125`_)
 
 
 
+
+
+.. _`issued recently`: http://mirrorbrain.org/mod_asn/news/mod_asn-16-release-apache-24/
 .. _`issue 82`: http://mirrorbrain.org/issues/issue82
 .. _`issue 105`: http://mirrorbrain.org/issues/issue105
 .. _`issue 110`: http://mirrorbrain.org/issues/issue110
+.. _`issue 112`: http://mirrorbrain.org/issues/issue112
 .. _`issue 114`: http://mirrorbrain.org/issues/issue114
 .. _`issue 119`: http://mirrorbrain.org/issues/issue119
 .. _`issue 123`: http://mirrorbrain.org/issues/issue123
 .. _`viewed here`: http://svn.mirrorbrain.org/viewvc/mirrorbrain?view=revision&revision=8334
 .. _`issue 125`: http://mirrorbrain.org/issues/issue125
-.. _`issue 127`: http://mirrorbrain.org/issues/issue127
 .. _`issue 130`: http://mirrorbrain.org/issues/issue130
+.. _`issue 135`: http://mirrorbrain.org/issues/issue135
+.. _`issue 136`: http://mirrorbrain.org/issues/issue136
+.. _`issue 137`: http://mirrorbrain.org/issues/issue137
+.. _`issue 138`: http://mirrorbrain.org/issues/issue138
 
 
 
