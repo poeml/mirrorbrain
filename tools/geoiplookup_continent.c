@@ -56,6 +56,10 @@ int main(int argc, char **argv) {
         }
 
 	gip = GeoIP_open(geoipfilename, GEOIP_STANDARD);
+	if (gip == NULL) {
+		printf("An error occured during GeoIP_open\n");
+		return 1;
+	}
 	edition = GeoIP_database_edition(gip);
 
 	if (edition == GEOIP_COUNTRY_EDITION) {
