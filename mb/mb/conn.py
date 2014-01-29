@@ -122,6 +122,7 @@ class Conn:
             except:
                 sys.exit("Your config doesn't have a 'dbname' setting.")
 
+            config['dbpass'] = config['dbpass'].rstrip()
             config['dbpass'] = config['dbpass'].replace(' ', r'\ ')
             config['dbpass'] = config['dbpass'].replace('\t', '\\\t')
             config['dbpass'] = config['dbpass'].replace("'", r"\'")
