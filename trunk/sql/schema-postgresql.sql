@@ -14,7 +14,8 @@ BEGIN;
 
 
 CREATE TABLE "version" (
-        "component" text NOT NULL PRIMARY KEY,
+        "id" serial NOT NULL PRIMARY KEY,
+        "component" text NOT NULL,
         "major" INTEGER NOT NULL,
         "minor" INTEGER NOT NULL,
         "patchlevel" INTEGER NOT NULL

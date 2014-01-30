@@ -145,27 +145,49 @@ class Conn:
 
 
         # upgrade things in the database, if needed
+        self.Version = None
         try:
             class Version(SQLObject):
                 """version of the database schema"""
                 class sqlmeta:
                     fromDatabase = True
-        except psycopg2.ProgrammingError:
-            print 'Your database needs to be upgraded (2.17.0)...'
+            self.Version = Version
+            
+            # 2.17.0 shipped with an SQL schema where the version table didn't contain an "id" column
+            # sqlobject doesn't like that, so let's re-create the table properly...
+            try:
+                dbversion = self.Version.select("""component = 'mirrorbrain'""")[0]
+            except (dberrors.ProgrammingError, psycopg2.ProgrammingError):
+                query = "drop table version;"
+                SQLObject._connection.query(query)
+                raise
+
+
+        except (dberrors.ProgrammingError, psycopg2.ProgrammingError):
+            print 'Your database needs to be upgraded (to 2.18.0): creating "version" table...'
 
             query = """CREATE TABLE version ( 
-                           "component" text NOT NULL PRIMARY KEY,
+                           "id" serial NOT NULL PRIMARY KEY,
+                           "component" text NOT NULL,
                            "major" INTEGER NOT NULL,
                            "minor" INTEGER NOT NULL,
                            "patchlevel" INTEGER NOT NULL );
-                       INSERT INTO version VALUES ('mirrorbrain', 2, 17, 0);
+                       INSERT INTO version VALUES (1, 'mirrorbrain', 2, 18, 0);
                     """
             SQLObject._connection.query(query)
 
-            # the following modification comes with 2.17.0
-            print "migrating server table by adding ipv6_only column"
-            query = "ALTER TABLE server ADD COLUMN ipv6_only boolean NOT NULL default 'f';"
-            SQLObject._connection.query(query)
+            try:
+                # the following modification came with 2.17.0
+                print "checking server table if ipv6_only column exists...",
+                query = "ALTER TABLE server ADD COLUMN ipv6_only boolean NOT NULL default 'f';"
+                SQLObject._connection.query(query)
+                print "created."
+            except (dberrors.ProgrammingError, psycopg2.ProgrammingError):
+                print "already there."
+
+        if self.Version:
+            mbversion = self.Version.select("""component = 'mirrorbrain'""")[0]
+            #print mbversion.major, mbversion.minor
 
 
         class Server(SQLObject):
