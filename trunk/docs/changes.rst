@@ -179,11 +179,11 @@ Bug fixes:
 
 Internally, a way to migrate the database after updates has been implemented. A
 table named ``version`` keeps info about the state of the database. Thus,
-database schema upgrades can happen automatically when possible. This release
-adds a new flag to the database called ``ipv6_only`` to denote mirrors that are
-not reachable by IPv4. Once this new flag is used, it will allow to redirect
-clients to this type of mirrors. (And IPv6-only mirrors won't go away -- rather
-the contrary :-)
+database schema upgrades can hopefully be done automatically when possible.
+This release adds a new flag to the database called ``ipv6_only`` to denote
+mirrors that are not reachable by IPv4. Once this new flag is used, it will
+allow to redirect clients to this type of mirrors. (And IPv6-only mirrors won't
+go away -- rather the contrary :-)
 
 .. _`example (screenshot)`: http://mirrorbrain.org/static/images/screenshots/metalink_http.png
 .. _`issue 15`: http://mirrorbrain.org/issues/issue15
