@@ -100,6 +100,10 @@ Bug fixes:
   as prefix or ``Null`` as AS number, so the command doesn't anymore under
   these conditions. (`issue 137`_)
 
+* :program:`mb dirs`: When using the -d or --missing option, only enabled
+  mirrors are shown now. Thanks Florian! (`issue 116`_)
+
+
 * :program:`tools/geoiplookup_*`: They no longer segfault when opening a GeoIP
   database database fails. Patch courtesy of Dagobert Michelsen. (`issue 138`_)
 
@@ -121,6 +125,7 @@ Bug fixes:
 .. _`issue 110`: http://mirrorbrain.org/issues/issue110
 .. _`issue 112`: http://mirrorbrain.org/issues/issue112
 .. _`issue 114`: http://mirrorbrain.org/issues/issue114
+.. _`issue 116`: http://mirrorbrain.org/issues/issue116
 .. _`issue 119`: http://mirrorbrain.org/issues/issue119
 .. _`issue 123`: http://mirrorbrain.org/issues/issue123
 .. _`viewed here`: http://svn.mirrorbrain.org/viewvc/mirrorbrain?view=revision&revision=8334
