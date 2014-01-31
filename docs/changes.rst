@@ -4,7 +4,7 @@ Release Notes/Change History
 ============================
 
 
-Release 2.18.0 (rXXXX, XXX xx, 2014)
+Release 2.18.0 (r8358, Jan 31, 2014)
 ------------------------------------
 
 (Pleae note that a new version of :program:`mod_asn` was also `issued recently`_.)
@@ -103,7 +103,7 @@ Bug fixes:
   Thanks Dago! (`issue 136`_) 
 
 * :program:`mb update`: This command now handles errors that lead to ``Null``
-  as prefix or ``Null`` as AS number, so the command doesn't anymore under
+  as prefix or ``Null`` as AS number, so the command doesn't crash anymore under
   these conditions. (`issue 137`_)
 
 * :program:`mb dirs`: When using the ``-d`` or ``--missing`` option, only
