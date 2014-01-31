@@ -59,6 +59,12 @@ New features:
 
 Bug fixes:
 
+* There's a ``version`` table in the database since recently (created since
+  2.17.0), but it didn't contain an ``id`` column as primary key, so SQLObject
+  couldn't work with it. So now we add an ``id`` column as primary key to the
+  table (and an existing table from 2.17.0 is migrated by simply recreating it
+  from scratch).
+
 * The database SQL scheme for new installations has been updated to add the new
   column named ``ipv6_only``. Thanks George Koutras, Raphael Hertzog and others
   for the report (and for their patience)! (`issue 119`_)
