@@ -100,8 +100,8 @@ Bug fixes:
   as prefix or ``Null`` as AS number, so the command doesn't anymore under
   these conditions. (`issue 137`_)
 
-* :program:`mb dirs`: When using the -d or --missing option, only enabled
-  mirrors are shown now. Thanks Florian! (`issue 116`_)
+* :program:`mb dirs`: When using the ``-d`` or ``--missing`` option, only
+  enabled mirrors are shown now. Thanks Florian! (`issue 116`_)
 
 
 * :program:`tools/geoiplookup_*`: They no longer segfault when opening a GeoIP
