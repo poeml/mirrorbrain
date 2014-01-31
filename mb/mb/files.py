@@ -140,9 +140,9 @@ def dir_show_mirrors(conn, path, missing=False):
     if not mirror_ids:
         return []
     if not missing:
-        query = """select identifier from server where id in (%s)""" % ','.join(mirror_ids)
+        query = """select identifier from server where enabled and id in (%s)""" % ','.join(mirror_ids)
     else:
-        query = """select identifier from server where id not in (%s)""" % ','.join(mirror_ids)
+        query = """select identifier from server where enabled and id not in (%s)""" % ','.join(mirror_ids)
     result = conn.Server._connection.queryAll(query)
 
     return result
