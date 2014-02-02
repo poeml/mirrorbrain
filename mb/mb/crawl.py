@@ -2,6 +2,7 @@
 
 import sys
 import os
+import re
 
 def get_filelist(url):
     child_stdin, child_stdout, child_stderr = os.popen3(['rsync', '-r', url])
@@ -48,10 +49,11 @@ def get_filelist(url):
 
 from mechanize import Browser
 
-url = sys.argv[1]
-burl_len = len('http://widehat.opensuse.org/')
-burl_len = len('http://opensuse.unixheads.net/')
-burl_len = len('http://download.opensuse.org/pub/opensuse/')
+burl, url = sys.argv[1], sys.argv[2]
+#burl_len = len('http://widehat.opensuse.org/')
+#burl_len = len('http://opensuse.unixheads.net/')
+#burl_len = len('http://download.opensuse.org/pub/opensuse/')
+burl_len = len(burl)
 
 br = Browser()
 br.open(url)
@@ -63,7 +65,7 @@ for link in br.links(url_regex=re.compile(r"""
         .*
         /$
         """, re.X)):
-    #print link
+    #print link.url
     print link.base_url[burl_len:] + link.url
 
 print
@@ -76,3 +78,5 @@ for link in br.links(url_regex=re.compile(r"""
     #print link
     print link.base_url[burl_len:] + link.url
 
+for line in get_filelist('rsync.opensuse.org::opensuse-updates'):
+    print line
