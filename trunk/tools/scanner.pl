@@ -1055,8 +1055,11 @@ sub rsync_cb
       printf "%s: rsync skip: %03o %12.0f %-25s %-50s\n", $priv->{identifier}, ($mode & 0777), $len, scalar(localtime $mtime), $name if $verbose > 1;
     }
   }
-  elsif($verbose) {
+  elsif($mode == 0755) {
     printf "%s: rsync dir: %03o %12.0f %-25s %-50s\n", $priv->{identifier}, ($mode & 0777), $len, scalar(localtime $mtime), $name if $verbose > 1;
+  }
+  elsif($mode == 020777) {
+    printf "%s: rsync link: %03o %12.0f %-25s %-50s\n", $priv->{identifier}, ($mode & 0777), $len, scalar(localtime $mtime), $name if $verbose > 2;
   }
   return $r;
 }
