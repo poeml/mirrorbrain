@@ -93,6 +93,9 @@ Bug fixes:
 * :program:`mb makehashes`: "permission denied" errors are now handled
   gracefully, fixing `issue 105`_. Thanks Tom Albers for report & patch!
 
+* :program:`metalink-hasher.py`: This very old (backward) compatibility wrapper
+  has been removed from the tools directory, since it is long obsolete.
+
 * :program:`mb iplookup`: On the Solaris/OpenCSW platform, using 
   ``socket.getaddrinfo()`` in Python for DNS lookups doesn't work with port
   ``0``. Using ``None`` instead seems to be more correct and hopefully work on
