@@ -782,7 +782,7 @@ class MirrorDoctor(cmdln.Cmdln):
                   help='Increase verbosity for debugging purposes. '
                        'Can be given multiple times.')
     @cmdln.option('-e', '--enable', action='store_true',
-                  help='Enable a mirror, after it was scanned. Useful with -f')
+                  help='Enable a mirror, after it was scanned.')
     @cmdln.option('-a', '--all', action='store_true',
                   help='Scan all enabled mirrors.')
     @cmdln.option('-j', '--jobs', metavar='N',
