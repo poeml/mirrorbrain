@@ -20,10 +20,6 @@ Optional tools:
     geoip-lite-update
        Can fetch updated databases from GeoIP
 
-    metalink-hasher.py
-       Creates hashes for automatic inclusion into metalinks
-
-
 
 Additional tools that may or may not be useful for operators of MirrorBrain, or
 of a mirror infrastructure in general. You can ignore them for a MirrorBrain
