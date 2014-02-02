@@ -775,7 +775,7 @@ sub ftp_readdir
   return unless defined $ftp;
   my $text = ftp_cont($ftp, "$url/$name");
 
-  if(!ref($text) && \$text =~ m/^(\d\d\d)\s/) {	# some FTP status code? Not good.
+  if(!ref($text) && $text =~ m/^(\d\d\d)\s/) {	# some FTP status code? Not good.
 
     # Bug: Net::FTP wrongly reports timeouts (421) as code 550:
     # sunsite.informatik.rwth-aachen.de: ftp dir: ftp://sunsite.informatik.rwth-aachen.de/pub/linux/opensuse/distribution/11.0/repo/debug/suse/i686
