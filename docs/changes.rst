@@ -117,6 +117,7 @@ Bug fixes:
   database database fails. Patch courtesy of Dagobert Michelsen. (`issue 138`_)
 
 * :program:`mb scan`: 
+
   - When FTP URLs are not correct, and the directory is not found on an
     FTP server, the scanner bailed out. Fixed with patch from Dago. (`issue 139`_)
   - when in verbose mode, don't wrongly log symlinks as directories (`issue 141`_) 
