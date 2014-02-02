@@ -113,6 +113,10 @@ Bug fixes:
 * :program:`tools/geoiplookup_*`: They no longer segfault when opening a GeoIP
   database database fails. Patch courtesy of Dagobert Michelsen. (`issue 138`_)
 
+* :program:`mb scan`: 
+  - When FTP URLs are not correct, and the directory is not found on an
+    FTP server, the scanner bailed out. Fixed with patch from Dago. (`issue 139`_)
+  - when in verbose mode, don't wrongly log symlinks as directories (`issue 141`_) 
 
 * The file ``mb/countries.py`` was never used; remove it so it doesn't confuse anyone.
   Thanks Gokdeniz for the hint.
@@ -141,6 +145,8 @@ Bug fixes:
 .. _`issue 136`: http://mirrorbrain.org/issues/issue136
 .. _`issue 137`: http://mirrorbrain.org/issues/issue137
 .. _`issue 138`: http://mirrorbrain.org/issues/issue138
+.. _`issue 139`: http://mirrorbrain.org/issues/issue139
+.. _`issue 141`: http://mirrorbrain.org/issues/issue141
 
 
 
