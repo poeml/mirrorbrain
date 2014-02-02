@@ -4,8 +4,8 @@ Release Notes/Change History
 ============================
 
 
-Release 2.18.0 (r8358, Jan 31, 2014)
-------------------------------------
+Release 2.18.0 (r8365, Feb 2, 2014)
+-----------------------------------
 
 (Pleae note that a new version of :program:`mod_asn` was also `issued recently`_.)
 
