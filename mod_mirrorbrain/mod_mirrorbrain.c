@@ -670,6 +670,14 @@ static const char *mb_cmd_dbd_query_hash(cmd_parms *cmd, void *config,
     return NULL;
 }
 
+static const char *mb_cmd_metalink_hashes_prefix(cmd_parms *cmd, 
+                                                 void *config, 
+                                                 const char *arg1)
+{
+    return "mod_mirrorbrain: the MirrorBrainMetalinkHashesPathPrefix "
+           "directive is obsolete. It has no effect. Simply remove it.";
+}
+
 static const char *mb_cmd_metalink_publisher(cmd_parms *cmd, void *config, 
                                              const char *arg1, 
                                              const char *arg2)
@@ -3798,6 +3806,11 @@ static const command_rec mb_cmds[] =
                   "Lifetime (in seconds) associated with stored objects in "
                   "memcache daemon(s). Default is 600 s."),
 #endif
+
+    AP_INIT_TAKE1("MirrorBrainMetalinkHashesPathPrefix", mb_cmd_metalink_hashes_prefix, NULL, 
+                  RSRC_CONF, 
+                  "Prefix this path when looking for prepared hashes to inject into metalinks. "
+                  "This directive is obsolete (with 2.13.0) and is going to be removed."),
 
     AP_INIT_FLAG("MirrorBrainHashesSuppressFilenames", mb_cmd_hashes_suppress_filenames, NULL,
                   RSRC_CONF, 
