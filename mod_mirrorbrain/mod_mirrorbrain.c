@@ -627,15 +627,6 @@ static const char *mb_cmd_exclude_filemask(cmd_parms *cmd, void *config,
     return NULL;
 }
 
-static const char *mb_cmd_handle_dirindex_locally(cmd_parms *cmd, 
-                                                  void *config, int flag)
-{
-    ap_log_error(APLOG_MARK, APLOG_WARNING, 0, NULL,
-                 "[mod_mirrorbrain] The MirrorBrainHandleDirectoryIndexLocally "
-                 "directive is obsolete. You can remove it from your config.");
-    return NULL;
-}
-
 static const char *mb_cmd_handle_headrequest_locally(cmd_parms *cmd, 
                                                      void *config, int flag)
 {
@@ -3754,11 +3745,6 @@ static const command_rec mb_cmds[] =
     AP_INIT_TAKE1("MirrorBrainExcludeFileMask", mb_cmd_exclude_filemask, NULL,
                   ACCESS_CONF,
                   "Regexp which determines which files will be excluded form redirecting"),
-
-    /* obsolete, and to removed later */
-    AP_INIT_FLAG("MirrorBrainHandleDirectoryIndexLocally", mb_cmd_handle_dirindex_locally, NULL, 
-                  OR_OPTIONS,
-                  "Obsolete directive. You can remove it from your config."),
 
     AP_INIT_FLAG("MirrorBrainHandleHEADRequestLocally", mb_cmd_handle_headrequest_locally, NULL, 
                   OR_OPTIONS,
