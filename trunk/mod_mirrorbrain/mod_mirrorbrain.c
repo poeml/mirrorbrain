@@ -679,12 +679,6 @@ static const char *mb_cmd_dbd_query_hash(cmd_parms *cmd, void *config,
     return NULL;
 }
 
-static const char *mb_cmd_geoip_filename(cmd_parms *cmd, void *config,
-                                         const char *arg1)
-{
-    return "mod_mirrorbrain: the GeoIPFilename directive is obsolete. Use mod_geoip.";
-}
-
 static const char *mb_cmd_metalink_publisher(cmd_parms *cmd, void *config, 
                                              const char *arg1, 
                                              const char *arg2)
@@ -3803,10 +3797,6 @@ static const command_rec mb_cmds[] =
     AP_INIT_TAKE1("MirrorBrainDBDQueryHash", mb_cmd_dbd_query_hash, NULL,
                   RSRC_CONF,
                   "The SQL query for fetching verification hashes from the backend database"),
-
-    AP_INIT_TAKE1("MirrorBrainGeoIPFile", mb_cmd_geoip_filename, NULL, 
-                  RSRC_CONF, 
-                  "Obsolete directive - use mod_geoip, please."),
 
 #ifdef WITH_MEMCACHE
     AP_INIT_TAKE1("MirrorBrainInstance", mb_cmd_instance, NULL, 
