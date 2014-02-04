@@ -4,6 +4,29 @@ Release Notes/Change History
 ============================
 
 
+Release 2.18.1 (rXXXX, Feb 3, 2014)
+-----------------------------------
+
+Bug fixes:
+
+* :program:`geoip-lite-update`: The tools reloads Apache, but the 
+  ``systemctl`` call added in 2.18.0 for operating systems with ``systemd`` was
+  incorrect. This has been fixed and was the reason for this release.
+
+* :program:`mod_mirrorbrain`: Some obsolete configuration directives 
+  have been removed (``MirrorBrainGeoIPFile``,
+  ``MirrorBrainHandleDirectoryIndexLocally``,
+  ``MirrorBrainMetalinkHashesPathPrefix``).  ``MirrorBrainGeoIPFile`` was also
+  still present in the example configuration file. (`issue 146`_)
+
+* mb scan: an obsolete reference to a -f switch was removed that exists only in
+  the behind-the-scene scanner perl script, but not in mb scan. Thanks, Bart!
+
+In the documentation about system tuning, a reference to the PostgreSQL docs
+has been added.
+
+.. _`issue 146`: http://mirrorbrain.org/issues/issue146
+
 Release 2.18.0 (r8365, Feb 2, 2014)
 -----------------------------------
 

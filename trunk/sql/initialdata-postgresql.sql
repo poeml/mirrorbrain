@@ -1,4 +1,4 @@
-INSERT INTO version VALUES ('1', 'mirrorbrain', 2, 18, 0);
+INSERT INTO version VALUES ('1', 'mirrorbrain', 2, 18, 1);
 
 INSERT INTO region VALUES (1,'af','Africa'),(2,'as','Asia'),(3,'eu','Europe'),(4,'na','North America'),(5,'sa','South America'),(6,'oc','Oceania');
 
