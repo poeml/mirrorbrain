@@ -234,6 +234,14 @@ If everything works, you can stop and remove the temporary database installation
 Version-specific upgrade notes
 -------------------------------
 
+To `2.18.0 <http://mirrorbrain.org/docs/changes/#release-2-18-0-r8365-feb-2-2014>`_:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Due to the modernized HTML of the .mirrorlist page, please check your CSS
+styling for them (if you have some).
+
+
+
 To `2.14.0 <http://mirrorbrain.org/docs/changes/#release-2-14-0-r8210-nov-6-2010>`_:
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
