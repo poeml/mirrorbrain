@@ -366,3 +366,7 @@ The two kernel tunables that let us achieve the desired behaviour are::
     vm.dirty_background_ratio = 0
 
 Put them into :file:`/etc/sysctl.conf` to make it a permanent change.
+
+You'll find additional details in the official PostgreSQL documentation:
+http://www.postgresql.org/docs/9.3/static/kernel-resources.html#LINUX-MEMORY-OVERCOMMIT
+(the rest of the page is also readworthy).
