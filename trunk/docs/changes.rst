@@ -4,7 +4,7 @@ Release Notes/Change History
 ============================
 
 
-Release 2.18.1 (rXXXX, Feb 3, 2014)
+Release 2.18.1 (r8379, Feb 3, 2014)
 -----------------------------------
 
 Bug fixes:
