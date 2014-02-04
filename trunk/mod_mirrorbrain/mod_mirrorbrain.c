@@ -260,7 +260,6 @@ typedef struct
     int memcached_on;
     int memcached_lifetime;
 #endif
-    const char *metalink_hashes_prefix;
     const char *metalink_publisher_name;
     const char *metalink_publisher_url;
     apr_array_header_t *tracker_urls;
@@ -460,7 +459,6 @@ static void *create_mb_server_config(apr_pool_t *p, server_rec *s)
     new->memcached_on = UNSET;
     new->memcached_lifetime = UNSET;
 #endif
-    new->metalink_hashes_prefix = NULL;
     new->metalink_publisher_name = NULL;
     new->metalink_publisher_url = NULL;
     new->tracker_urls = apr_array_make(p, 5, sizeof (char *));
@@ -494,7 +492,6 @@ static void *merge_mb_server_config(apr_pool_t *p, void *basev, void *addv)
     cfgMergeBool(memcached_on);
     cfgMergeInt(memcached_lifetime);
 #endif
-    cfgMergeString(metalink_hashes_prefix);
     cfgMergeString(metalink_publisher_name);
     cfgMergeString(metalink_publisher_url);
     mrg->tracker_urls = apr_array_append(p, base->tracker_urls, add->tracker_urls);
@@ -686,18 +683,6 @@ static const char *mb_cmd_geoip_filename(cmd_parms *cmd, void *config,
                                          const char *arg1)
 {
     return "mod_mirrorbrain: the GeoIPFilename directive is obsolete. Use mod_geoip.";
-}
-
-static const char *mb_cmd_metalink_hashes_prefix(cmd_parms *cmd, 
-                                                 void *config, 
-                                                 const char *arg1)
-{
-    server_rec *s = cmd->server;
-    mb_server_conf *cfg = 
-        ap_get_module_config(s->module_config, &mirrorbrain_module);
-
-    cfg->metalink_hashes_prefix = arg1;
-    return NULL;
 }
 
 static const char *mb_cmd_metalink_publisher(cmd_parms *cmd, void *config, 
@@ -2755,44 +2740,6 @@ static int mb_handler(request_rec *r)
 
         }
 
-
-        if (!hashbag  && rep == METALINK) {
-            /* if the above failed, and we are creating a v3 metalink, let's try the old on-disk format */
-            apr_finfo_t sb;
-            const char *hashfilename;
-            hashfilename = apr_psprintf(r->pool, "%s%s.size_%s", 
-                                       scfg->metalink_hashes_prefix ? scfg->metalink_hashes_prefix : "", 
-                                       r->filename, 
-                                       apr_off_t_toa(r->pool, r->finfo.size));
-
-            if (apr_stat(&sb, hashfilename, APR_FINFO_MIN, r->pool) == APR_SUCCESS && (sb.filetype == APR_REG)) {
-                debugLog(r, cfg, "hashfile '%s' exists", hashfilename);
-
-                /* the old on-disk format is injected as-is */
-                if (sb.mtime == r->finfo.mtime) {
-                    debugLog(r, cfg, "hashfile '%s' up to date, injecting", hashfilename);
-
-                    apr_file_t *fh;
-                    rv = apr_file_open(&fh, hashfilename, APR_READ, APR_OS_DEFAULT, r->pool);
-                    if (rv == APR_SUCCESS) {
-                        ap_send_fd(fh, r, 0, sb.size, &len);
-                        apr_file_close(fh);
-                    } else {
-                        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-                                      "[mod_mirrorbrain] could not open hashfile '%s'.", hashfilename);
-                    }
-                } else {
-                    debugLog(r, cfg, "hashfile '%s' outdated, ignoring", hashfilename);
-                }
-
-            } else {
-                debugLog(r, cfg, "no hash file found (%s)", hashfilename);
-            } 
-        }
-
-
-
-
         if (rep == METALINK) {
             ap_rputs(     "    <resources>\n\n", r);
         }
@@ -3875,11 +3822,6 @@ static const command_rec mb_cmds[] =
                   "Lifetime (in seconds) associated with stored objects in "
                   "memcache daemon(s). Default is 600 s."),
 #endif
-
-    AP_INIT_TAKE1("MirrorBrainMetalinkHashesPathPrefix", mb_cmd_metalink_hashes_prefix, NULL, 
-                  RSRC_CONF, 
-                  "Prefix this path when looking for prepared hashes to inject into metalinks. "
-                  "This directive is obsolete (with 2.13.0) and is going to be removed later."),
 
     AP_INIT_FLAG("MirrorBrainHashesSuppressFilenames", mb_cmd_hashes_suppress_filenames, NULL,
                   RSRC_CONF, 
