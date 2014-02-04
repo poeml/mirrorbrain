@@ -59,6 +59,8 @@ if [ -x /etc/init.d/apache2 ]; then
 elif [ -x /etc/init.d/httpd ]; then
 	/etc/init.d/httpd reload
 elif [ -x /usr/bin/systemctl ]; then
-	/usr/bin/systemctl daemon-reload >/dev/null 2>&1 || :
+	/usr/bin/systemctl reload httpd >/dev/null 2>&1 || :
+elif [ -x /bin/systemctl ]; then
+	/bin/systemctl reload httpd >/dev/null 2>&1 || :
 fi
 
