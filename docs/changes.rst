@@ -9,7 +9,7 @@ Release 2.18.1 (r8379, Feb 3, 2014)
 
 Bug fixes:
 
-* :program:`geoip-lite-update`: The tools reloads Apache, but the 
+* :program:`geoip-lite-update`: This tool reloads Apache, but the 
   ``systemctl`` call added in 2.18.0 for operating systems with ``systemd`` was
   incorrect. This has been fixed and was the reason for this release.
 
