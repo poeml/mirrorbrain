@@ -2942,8 +2942,8 @@ static int mb_handler(request_rec *r)
         }
 
         ap_rputs("<div id=\"mirrorbrain-details\">\n", r);
-        ap_rprintf(r, "  <h2>Mirrors for <a href=\"http://%s%s\">%s</a></h2>\n", 
-                   r->hostname, r->uri, basename);
+        ap_rprintf(r, "  <h2>Mirrors for <a href=\"%s\">%s</a></h2>\n", 
+                   r->uri, basename);
 
         /* Metadata */
         ap_rputs("<div id=\"mirrorbrain-fileinfo\">\n"
@@ -2964,32 +2964,32 @@ static int mb_handler(request_rec *r)
         if (hashbag != NULL) {
             if (hashbag->sha256hex)
                 ap_rprintf(r, "  <li><span class=\"mirrorbrain-label\">"
-                              "<a href=\"http://%s%s.sha256\">SHA-256 Hash</a>:</span> <tt>%s</tt>"
-                              "</li>\n", r->hostname, r->uri, hashbag->sha256hex);
+                              "<a href=\"%s.sha256\">SHA-256 Hash</a>:</span> <tt>%s</tt>"
+                              "</li>\n", r->uri, hashbag->sha256hex);
             if (hashbag->sha1hex)
                 ap_rprintf(r, "  <li><span class=\"mirrorbrain-label\">"
-                              "<a href=\"http://%s%s.sha1\">SHA-1 Hash</a>:</span> <tt>%s</tt>"
-                              "</li>\n", r->hostname, r->uri, hashbag->sha1hex);
+                              "<a href=\"%s.sha1\">SHA-1 Hash</a>:</span> <tt>%s</tt>"
+                              "</li>\n", r->uri, hashbag->sha1hex);
             if (hashbag->md5hex)
                 ap_rprintf(r, "  <li><span class=\"mirrorbrain-label\">"
-                              "<a href=\"http://%s%s.md5\">MD5 Hash</a>:</span> <tt>%s</tt>"
-                              "</li>\n", r->hostname, r->uri, hashbag->md5hex);
+                              "<a href=\"%s.md5\">MD5 Hash</a>:</span> <tt>%s</tt>"
+                              "</li>\n", r->uri, hashbag->md5hex);
             if (hashbag->btihhex && !apr_is_empty_array(scfg->tracker_urls))
                 ap_rprintf(r, "  <li><span class=\"mirrorbrain-label\">"
-                              "<a href=\"http://%s%s.btih\">BitTorrent Information Hash</a>:</span> <tt>%s</tt>"
-                              "</li>\n", r->hostname, r->uri, hashbag->btihhex);
+                              "<a href=\"%s.btih\">BitTorrent Information Hash</a>:</span> <tt>%s</tt>"
+                              "</li>\n", r->uri, hashbag->btihhex);
 
             if (hashbag->pgp) {
                 /* contrary to the hashes, we don't have a handler for .asc files, because
                  * the database always only gets a signature when one already exists on-disk */
-                ap_rprintf(r, "  <li>PGP signature <a href=\"http://%s%s.asc\">available</a> "
-                              "</li>\n", r->hostname, r->uri);
+                ap_rprintf(r, "  <li>PGP signature <a href=\"%s.asc\">available</a> "
+                              "</li>\n", r->uri);
             }
         }
 
         /* Direct download link */
         ap_rputs("</ul>\n", r);
-        ap_rprintf(r, "<p><a href=\"http://%s%s\" class=\"mirrorbrain-btn\">Download file from preferred mirror</a></p>\n", r->hostname, r->uri);
+        ap_rprintf(r, "<p><a href=\"%s\" class=\"mirrorbrain-btn\">Download file from preferred mirror</a></p>\n", r->uri);
         ap_rputs("</div>\n\n", r);
 
         /* Metalink / P2P / zsync section */
@@ -3000,10 +3000,10 @@ static int mb_handler(request_rec *r)
         ap_rputs("<div class=\"mirrorbrain-links-grp\">\n"
                  "<h4>Metalink</h4>\n"
                  "<ul>\n", r);
-        ap_rprintf(r, "  <li><a href=\"http://%s%s.meta4\">http://%s%s.meta4</a> (IETF Metalink)</li>\n",
-                   r->hostname, r->uri, r->hostname, r->uri);
-        ap_rprintf(r, "  <li><a href=\"http://%s%s.metalink\">http://%s%s.metalink</a> (old (v3) Metalink)</li>\n", 
-                   r->hostname, r->uri, r->hostname, r->uri);
+        ap_rprintf(r, "  <li><a href=\"%s.meta4\">%s.meta4</a> (IETF Metalink)</li>\n",
+                   r->uri, r->uri);
+        ap_rprintf(r, "  <li><a href=\"%s.metalink\">%s.metalink</a> (old (v3) Metalink)</li>\n", 
+                   r->uri, r->uri);
         ap_rputs("</ul>\n" "</div>\n", r);
 
         if (hashbag) {
@@ -3012,10 +3012,10 @@ static int mb_handler(request_rec *r)
                 ap_rputs("<div class=\"mirrorbrain-links-grp\">\n"
                          "<h4>P2P links</h4>\n"
                          "<ul>\n", r);
-                ap_rprintf(r, "  <li><a href=\"http://%s%s.torrent\">http://%s%s.torrent</a> (BitTorrent)</li>\n", 
-                           r->hostname, r->uri, r->hostname, r->uri);
-                ap_rprintf(r, "  <li><a href=\"http://%s%s.magnet\">http://%s%s.magnet</a> (Magnet)</li>\n", 
-                           r->hostname, r->uri, r->hostname, r->uri);
+                ap_rprintf(r, "  <li><a href=\"%s.torrent\">%s.torrent</a> (BitTorrent)</li>\n", 
+                           r->uri, r->uri);
+                ap_rprintf(r, "  <li><a href=\"%s.magnet\">%s.magnet</a> (Magnet)</li>\n", 
+                           r->uri, r->uri);
                 ap_rputs("</ul>\n" "</div>\n", r);
             }
 
@@ -3025,8 +3025,8 @@ static int mb_handler(request_rec *r)
                 ap_rputs("<div class=\"mirrorbrain-links-grp\">\n"
                          "<h4>Zsync links</h4>\n"
                          "<ul>\n", r);
-                ap_rprintf(r, "  <li><a href=\"http://%s%s.zsync\">http://%s%s.zsync</a></li>\n", 
-                           r->hostname, r->uri, r->hostname, r->uri);
+                ap_rprintf(r, "  <li><a href=\"%s.zsync\">%s.zsync</a></li>\n", 
+                           r->uri, r->uri);
                 ap_rputs("</ul>\n" "</div>\n", r);
             }
         }
@@ -3075,8 +3075,8 @@ static int mb_handler(request_rec *r)
             ap_rputs("<div id=\"mirrorbrain-mirrors-none\">\n"
                      "<h4>No mirror was found</h4>\n", r);
             ap_rputs("<p>I am very sorry, but no mirror was found. Feel free to download directly:<br />\n", r);
-            ap_rprintf(r, "  <a href=\"http://%s%s\">http://%s%s</a></p>\n",
-                       r->hostname, r->uri, r->hostname, r->uri);
+            ap_rprintf(r, "  <a href=\"%s\">%s</a></p>\n",
+                       r->uri, r->uri);
             ap_rputs("</div>\n" "</div>\n", r);
             ap_rputs("<address>Powered by <a href=\"http://mirrorbrain.org/\">MirrorBrain</a></address>\n", r);
             ap_rputs("</div><!-- mirrorbrain-details -->\n", r);
