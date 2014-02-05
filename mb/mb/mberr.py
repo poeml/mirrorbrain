@@ -40,7 +40,8 @@ class MirrorNotFoundError(MbBaseError):
     def __init__(self, identifier):
         MbBaseError.__init__(self)
         self.identifier = identifier
-        self.msg = 'A mirror with identifier %r does not exist in the database' \
+        self.msg = 'A mirror with identifier %r does not exist in the database\n' \
+                   '(full name required for this operation!)' \
                 % self.identifier
 
 class SocketError(MbBaseError):
