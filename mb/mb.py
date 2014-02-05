@@ -162,7 +162,7 @@ class MirrorDoctor(cmdln.Cmdln):
                      'Exiting. ' % identifier)
 
         if not opts.http:
-            sys.exit('An HTTP base URL needs to be specified')
+            sys.exit('At least an HTTP base URL needs to be specified (-H)')
 
         scheme, host, path, a, b, c = urlparse.urlparse(opts.http)
         if ':' in host:
