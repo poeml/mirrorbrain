@@ -338,8 +338,9 @@ Optional things you might want
 
       a2dismod autoindex
       a2enmod autoindex_mb
-      Add IndexOptions Metalink Mirrorlist
-      # or IndexOptions +Metalink +Mirrorlist, depending on your config
+      Add IndexOptions Mirrorlist
+      # or IndexOptions +Mirrorlist, depending on your config (if you have options
+      # that are inherited from above in the tree, and you just want to add this one here)
 
   * add a link to a CSS stylesheet for mirror lists::
 
