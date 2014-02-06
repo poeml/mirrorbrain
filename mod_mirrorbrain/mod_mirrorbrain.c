@@ -1336,6 +1336,8 @@ static int mb_handler(request_rec *r)
     const char *basename = NULL;
     const char *mirror_base = NULL;
     char *realfile = NULL;
+    const char *thisserver, *thisport;
+    unsigned int port;
     yumdir_t *yum = NULL;
     const char *clientip = NULL;
     apr_sockaddr_t *clientaddr;
@@ -2516,6 +2518,17 @@ static int mb_handler(request_rec *r)
     }
 
 
+    /* for building URLs to self */
+    thisserver = ap_get_server_name(r);
+    port = ap_get_server_port(r);
+    if (ap_is_default_port(port, r)) {
+        thisport = "";
+    } else {
+        thisport = apr_psprintf(r->pool, ":%u", port);
+    }
+
+
+
     /* if it makes sense, build a magnet link for later inclusion */
     char *magnet = NULL;
     if (hashbag != NULL) {
@@ -2552,7 +2565,9 @@ static int mb_handler(request_rec *r)
 
             /* a HTTP link to the file */
             APR_ARRAY_PUSH(m, char *) = 
-                apr_psprintf(r->pool, "&amp;as=http://%s%s", ap_escape_uri(r->pool, r->hostname), 
+                apr_psprintf(r->pool, "&amp;as=%s://%s%s%s", ap_http_scheme(r), 
+                                                             ap_escape_uri(r->pool, thisserver), 
+                                                             thisport, 
                                                              ap_escape_uri(r->pool, r->uri));
 
             if (!apr_is_empty_array(scfg->tracker_urls)) {
@@ -2607,17 +2622,12 @@ static int mb_handler(request_rec *r)
             apr_strftime(time_str, &len, RFC3339_DATE_LEN, "%Y-%m-%dT%H:%M:%SZ", &tm); 
 
             ap_rputs(     "  <generator>MirrorBrain/"MOD_MIRRORBRAIN_VER"</generator>\n", r);
-            /* The origin URL is meant to specify the location for revalidation of this metalink
-             *
-             * Unfortunately, r->parsed_uri.scheme and r->parsed_uri.hostname don't
-             * seem to be filled out (why?). But we can put it together from
-             * r->hostname and r->uri. Actually we should add the port.
-             *
-             * We could use r->server->server_hostname instead, which would be the configured server name.
+            /* The origin URL is meant to specify the location for revalidation of this metalink.
              *
              * We use r->uri, not r->unparsed_uri, so we don't need to escape query strings for xml.
              */
-            ap_rprintf(r, "  <origin dynamic=\"true\">http://%s%s.%s</origin>\n", r->hostname, r->uri, rep_ext);
+            ap_rprintf(r, "  <origin dynamic=\"true\">%s://%s%s%s.%s</origin>\n", 
+                       ap_http_scheme(r), thisserver, thisport, r->uri, rep_ext);
             ap_rprintf(r, "  <published>%s</published>\n", time_str);
 
             if (scfg->metalink_publisher_name && scfg->metalink_publisher_url) {
@@ -2637,7 +2647,7 @@ static int mb_handler(request_rec *r)
             time_str = apr_palloc(r->pool, APR_RFC822_DATE_LEN);
             apr_rfc822_date(time_str, apr_time_now());
 
-            ap_rprintf(r, "  origin=\"http://%s%s.%s\"\n", r->hostname, r->uri, rep_ext);
+            ap_rprintf(r, "  origin=\"%s://%s%s%s.%s\"\n", ap_http_scheme(r), thisserver, thisport, r->uri, rep_ext);
             ap_rputs(     "  generator=\"MirrorBrain "MOD_MIRRORBRAIN_VER" (see http://mirrorbrain.org/)\"\n", r);
             ap_rputs(     "  type=\"dynamic\"", r);
             ap_rprintf(r, "  pubdate=\"%s\"", time_str);
@@ -2743,9 +2753,11 @@ static int mb_handler(request_rec *r)
             && !ap_regexec(cfg->metalink_torrentadd_mask, r->filename, 0, NULL, 0)
             && apr_stat(&sb, apr_pstrcat(r->pool, r->filename, ".torrent", NULL), APR_FINFO_MIN, r->pool) == APR_SUCCESS) {
             debugLog(r, cfg, "found torrent file");
-            ap_rprintf(r, "    <url type=\"bittorrent\" preference=\"%d\">http://%s%s.torrent</url>\n\n", 
+            ap_rprintf(r, "    <url type=\"bittorrent\" preference=\"%d\">%s://%s%s%s.torrent</url>\n\n", 
                        100,
-                       r->hostname, 
+                       ap_http_scheme(r),
+                       thisserver, 
+                       thisport, 
                        r->uri);
         }
 
@@ -3359,8 +3371,9 @@ static int mb_handler(request_rec *r)
             /* add the redirector, in case there wasn't any mirror */
             if (!found_urls) {
                 APR_ARRAY_PUSH(m, char *) = 
-                    apr_psprintf(r->pool, "%" APR_SIZE_T_FMT ":http://%s%s", (7 + strlen(r->hostname) + strlen(r->uri)), 
-                                                            r->hostname, r->uri);
+                    apr_psprintf(r->pool, "%" APR_SIZE_T_FMT ":%s://%s%s%s", 
+                                           (strlen(ap_http_scheme(r)) + 3 + strlen(thisserver) + strlen(thisport) + strlen(r->uri)), 
+                                           ap_http_scheme(r), thisserver, thisport, r->uri);
             }
 
 #if 0
@@ -3368,8 +3381,9 @@ static int mb_handler(request_rec *r)
              * retrieves a Metalink then and doesn't expect it in that situation. Maybe later */
             APR_ARRAY_PUSH(m, char *) = 
                 apr_psprintf(r->pool,     "8:url-list"
-                                          "%" APR_SIZE_T_FMT ":http://%s%s", (7 + strlen(r->hostname) + strlen(r->uri)), 
-                                                            r->hostname, r->uri);
+                                          "%" APR_SIZE_T_FMT ":%s://%s%s%s", 
+                                          (strlen(ap_http_scheme(r)) + 3 + strlen(thisserver) + strlen(thisport) + strlen(r->uri)), 
+                                          ap_http_scheme(r), thisserver, thisport, r->uri);
 #endif
 
             if (!apr_is_empty_array(m)) {
@@ -3456,7 +3470,7 @@ static int mb_handler(request_rec *r)
         }
         /* add the redirector, in case there wasn't any mirror */
         if (!found_urls) {
-            ap_rprintf(r, "URL: http://%s%s\n", r->hostname, r->uri);
+            ap_rprintf(r, "URL: %s://%s%s%s\n", ap_http_scheme(r), thisserver, thisport, r->uri);
         }
 
 
@@ -3493,7 +3507,7 @@ static int mb_handler(request_rec *r)
                 ap_rprintf(r, "%s%s/\n", mirror->baseurl, yum->dir);
             }
         } else {
-            ap_rprintf(r, "http://%s/%s/\n", r->hostname, yum->dir);
+            ap_rprintf(r, "%s://%s%s/%s/\n", ap_http_scheme(r), thisserver, thisport, yum->dir);
         }
         setenv_give(r, "yumlist");
         return OK;
@@ -3571,20 +3585,20 @@ static int mb_handler(request_rec *r)
     /* rel=describedby */
     apr_table_addn(r->err_headers_out, "Link", 
                    apr_pstrcat(r->pool,
-                               "<http://", r->hostname, r->uri, ".meta4>; "
+                               "<", ap_http_scheme(r), "://", thisserver, thisport, r->uri, ".meta4>; "
                                "rel=describedby; type=\"application/metalink4+xml\"", 
                                NULL));
     if (hashbag && hashbag->pgp) {
         apr_table_addn(r->err_headers_out, "Link", 
                        apr_pstrcat(r->pool,
-                                   "<http://", r->hostname, r->uri, ".asc>; "
+                                   "<", ap_http_scheme(r), "://", thisserver, thisport, r->uri, ".asc>; "
                                    "rel=describedby; type=\"application/pgp-signature\"", 
                                    NULL));
     }
     if (!apr_is_empty_array(scfg->tracker_urls) && hashbag && hashbag->btihhex) {
         apr_table_addn(r->err_headers_out, "Link", 
                        apr_pstrcat(r->pool,
-                                   "<http://", r->hostname, r->uri, ".torrent>; "
+                                   "<", ap_http_scheme(r), "://", thisserver, thisport, r->uri, ".torrent>; "
                                    "rel=describedby; type=\"application/x-bittorrent\"", 
                                    NULL));
     }
