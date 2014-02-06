@@ -2035,8 +2035,8 @@ static int mb_handler(request_rec *r)
     mirrors_elsewhere    = apr_array_make(r->pool, mirror_cnt, sizeof (mirror_entry_t *));
 
 
-    /* store the results which the database yielded, taking into account which
-     * mirrors are in the same country, same reagion, or elsewhere */
+    /* store the results which the database yields, taking into account which
+     * mirrors are in the same country, same region, or elsewhere */
     /* we copy all values to pool memory, because not all database drivers
      * behave the same (see http://marc.info/?l=apr-dev&m=122982975912314&w=2 ) */
     i = 1;
