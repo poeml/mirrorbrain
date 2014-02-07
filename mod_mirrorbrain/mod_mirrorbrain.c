@@ -1839,17 +1839,16 @@ static int mb_handler(request_rec *r)
 
     /* The basedir might contain symlinks. That needs to be taken into account. 
      * See discussion in http://mirrorbrain.org/issues/issue17 */
-    ptr = realpath(cfg->mirror_base, NULL);
+    ptr = realpath(cfg->mirror_base, apr_palloc(r->pool, APR_PATH_MAX));
     if (ptr == NULL) {
         /* this should never happen, because the MirrorBrainEngine directive would never
-         * be applied to a non-existing directories */
+         * be applied to a non-existing directory */
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
                 "[mod_mirrorbrain] Document root \'%s\' does not seem to "
                 "exist. Filesystem not mounted?", cfg->mirror_base);
         return HTTP_INTERNAL_SERVER_ERROR;
     }
-    mirror_base = apr_pstrdup(r->pool, ptr);
-    free(ptr);
+    mirror_base = ptr;
 
     /* prepare the filename to look up */
     if (rep != YUMLIST) {
@@ -1859,7 +1858,7 @@ static int mb_handler(request_rec *r)
         debugLog(r, cfg, "yum path on disk: %s", filename);
     }
 
-    ptr = realpath(filename, NULL);
+    ptr = realpath(filename, apr_palloc(r->pool, APR_PATH_MAX));
     if (ptr == NULL) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
                 "[mod_mirrorbrain] Error canonicalizing filename '%s'", filename);
@@ -1867,9 +1866,8 @@ static int mb_handler(request_rec *r)
         return HTTP_NOT_FOUND;
     }
 
-    realfile = apr_pstrdup(r->pool, ptr);
+    realfile = ptr;
     debugLog(r, cfg, "Canonicalized file on disk: %s", realfile);
-    free(ptr);
 
     /* the leading directory needs to be stripped from the file path */
     /* a directory from Apache always ends in '/'; a result from realpath() doesn't */
