@@ -118,7 +118,7 @@ static int stats_post_config(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptemp,
     if (ap_find_linked_module("mod_form.c") == NULL) {
         ap_log_error(APLOG_MARK, APLOG_ERR, 0, s,
                      "[mod_stats] Module mod_form missing. Mod_form "
-                     "must be loaded in order for mod_zrkadlo to function properly");
+                     "must be loaded in order for mod_stats to function properly");
         return HTTP_INTERNAL_SERVER_ERROR;
     }
 
