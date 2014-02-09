@@ -172,7 +172,7 @@ class Conn:
                            "major" INTEGER NOT NULL,
                            "minor" INTEGER NOT NULL,
                            "patchlevel" INTEGER NOT NULL );
-                       INSERT INTO version VALUES (1, 'mirrorbrain', 2, 18, 0);
+                       INSERT INTO version VALUES (1, 'mirrorbrain', 2, 19, 0);
                     """
             SQLObject._connection.query(query)
 
