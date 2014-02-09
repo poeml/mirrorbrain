@@ -594,7 +594,7 @@ sub http_readdir
           print "$identifier: date $date\n";
           print "$identifier: size $size\n";
         }
-        $name1 =~ s{%([\da-fA-F]{2})}{pack 'c', hex $1}ge;
+        $name1 =~ s{%([\da-fA-F]{2})}{pack 'U', hex $1}ge;
         $name1 =~ s{^\./}{};
         my $dir = 1 if $pre =~ m{"\[DIR\]"};
         #print "$identifier: $pre^$name1^$date^$size\n" if $verbose > 1;
@@ -651,7 +651,7 @@ sub http_readdir
           print "$identifier: date $date\n";
           print "$identifier: size $size\n";
         }
-        $name1 =~ s{%([\da-fA-F]{2})}{pack 'c', hex $1}ge;
+        $name1 =~ s{%([\da-fA-F]{2})}{pack 'U', hex $1}ge;
         $name1 =~ s{^\./}{};
         my $dir = 1 if $pre =~ m{>Directory<};
         my $t = length($name) ? "$name/$name1" : $name1;
