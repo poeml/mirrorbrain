@@ -1,6 +1,6 @@
 /*
  * Copyright 2007,2008,2009 Peter Poeml / Novell Inc.
- * Copyright 2007,2008,2009,2010,2011,2012 Peter Poeml
+ * Copyright 2007,2008,2009,2010,2011,2012,2013,2014 Peter Poeml
  * All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -113,7 +113,7 @@
 #define APR_ARRAY_PUSH(ary,type) (*((type *)apr_array_push(ary)))
 #endif
 
-#define MOD_MIRRORBRAIN_VER "2.18.1"
+#define MOD_MIRRORBRAIN_VER "2.19.0"
 #define VERSION_COMPONENT "mod_mirrorbrain/"MOD_MIRRORBRAIN_VER
 
 /* no space for time zones is provided here */
