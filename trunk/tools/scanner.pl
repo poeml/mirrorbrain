@@ -747,7 +747,7 @@ sub http_readdir
   else {
     ## we come here, whenever we stumble into an automatic index.html 
     $contents = substr($contents, 0, 500);
-    print "$identifier: unparseable HTML index in $name\n" if $verbose;
+    print "$identifier: unparseable HTML index in /$name\n" if $verbose;
     warn Dumper $contents, "$identifier: http_readdir: unknown HTML format" if $verbose > 1;
   }
 
