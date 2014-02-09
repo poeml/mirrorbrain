@@ -3,8 +3,8 @@
 ################################################################################
 # scanner.pl -- script that crawls through mirror file trees.
 #
-# Copyright 2006,2007,2008,2009,2010,2011,2012 Martin Polster, Juergen Weigert, 
-#                                              Peter Poeml, Novell Inc.
+# Copyright 2006,2007,2008,2009,2010,2011,2012,2013,2014 
+#           Martin Polster, Juergen Weigert, Peter Poeml, Novell Inc.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License version 2
@@ -568,6 +568,12 @@ sub http_readdir
     return;
   }
   if($contents =~ s{^.*<(PRE|pre|table)>.*<(a href|A HREF)="\?(N=A|C=.*;O=)[^"]*">}{}s) {
+    ##     _                     _          
+    ##    / \   _ __   __ _  ___| |__   ___ 
+    ##   / _ \ | '_ \ / _` |/ __| '_ \ / _ \
+    ##  / ___ \| |_) | (_| | (__| | | |  __/
+    ## /_/   \_\ .__/ \__,_|\___|_| |_|\___|
+    ##         |_|                          
     ## good, we know that one. It is a standard apache dir-listing.
     ## 
     ## bad, apache shows symlinks as a copy of the file or dir they point to.
@@ -624,6 +630,12 @@ sub http_readdir
       $dbh->commit or die "$DBI::errstr";
     }
   } elsif($contents =~ s{^.*<thead>.*>Name<.*<tbody>}{}s) {
+    ##  _ _       _     _   _             _ 
+    ## | (_) __ _| |__ | |_| |_ _ __   __| |
+    ## | | |/ _` | '_ \| __| __| '_ \ / _` |
+    ## | | | (_| | | | | |_| |_| |_) | (_| |
+    ## |_|_|\__, |_| |_|\__|\__| .__/ \__,_|
+    ##      |___/              |_|          
     ## Oh look, it's a lighttpd directory index!
     $contents =~ s{</tbody>.*$}{}s;
     for my $line (split "\n", $contents) {
@@ -674,6 +686,13 @@ sub http_readdir
       $dbh->commit or die "$DBI::errstr";
     }
  } elsif($contents =~ s{^<html>.*<head><title>Index of .*<h1>Index of .*</h1><hr><pre><a href="../">../</a>}{}s) {
+    ##              _            
+    ##  _ __   __ _(_)_ __ __  __
+    ## | '_ \ / _` | | '_ \\ \/ /
+    ## | | | | (_| | | | | |>  < 
+    ## |_| |_|\__, |_|_| |_/_/\_\
+    ##        |___/              
+    ## 
     ## Oh look, it's a nginx directory index!
     $contents =~ s{<pre><a href="../">../</a>.*</pre><hr></body>$}{}s;
     for my $line (split "\n", $contents) {
@@ -750,6 +769,12 @@ sub byte_size
 
 
 
+#    _____ _____ ____  
+#   |  ___|_   _|  _ \ 
+#   | |_    | | | |_) |
+#   |  _|   | | |  __/ 
+#   |_|     |_| |_|    
+# 
 # $file_count = scalar ftp_readdir($row->{identifier}, $row->{id}, $row->{baseurl_ftp}, $ftp_timer, $start_dir);
 # first call: $ftp undefined
 sub ftp_readdir
