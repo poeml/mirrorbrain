@@ -16,6 +16,7 @@ Table of Contents
    installation/index
    mirrors
    configuration
+   usecases
    tuning
    upgrading
    developer
