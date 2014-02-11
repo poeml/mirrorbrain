@@ -299,7 +299,7 @@ you would use::
 Creating hashes
 ---------------
 
-First, add some configuration::
+First, add some configuration (example)::
 
   MirrorBrainMetalinkPublisher "openSUSE" http://download.opensuse.org
 
