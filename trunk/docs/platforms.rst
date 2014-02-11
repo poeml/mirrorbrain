@@ -12,7 +12,7 @@ overview of platform features.
 ===================================  ========  ==========  ====  ==========  ======  =======
 Debian next (Jessie)                 2.4.6     9.3         2.0     
 Debian 7.0 (Wheezy)                  2.2.22    9.1         1.05   obs        yes     stephan48
-Debian 6.0 (Squeeze)                 2.2.16    8.4         1.04    
+Debian 6.0 (Squeeze)                 2.2.16    8.4         1.04                      mod_geoip only 1.2.5, GeoIP too old for current mod_geoip
 Debian 5.0 (Lenny)                                                 
 Debian 4.0 (Etch)                                                  
 -----------------------------------  --------  ----------  ----  ----------  ------  -------
@@ -20,9 +20,9 @@ Debian 4.0 (Etch)
 Ubuntu 13.10 (Saucy Salamander)      2.4.6     9.1         2.0     
 Ubuntu 13.04 (Raring Ringtail)       2.2.22    9.1         1.05    
 Ubuntu 12.10 (Quantal Quetzal)       2.2.22    9.1         1.05                      sqlobject upstream bug was fixed in this release (#120)
-Ubuntu 12.04 LTS (Precise Pangolin)  2.2.22    9.1         1.05    
-Ubuntu 11.10 (Oneiric Ocelot)                                                2.17.0  floeff, tested on 12.04
-Ubuntu 10.04 LTS (Lucid Lynx)        2.2.14    8.4         1.04    
+Ubuntu 12.04 LTS (Precise Pangolin)  2.2.22    9.1         1.05   obs        2.28.1  floeff; mod_geoip only 1.2.5, but packaged in obs
+Ubuntu 11.10 (Oneiric Ocelot)                                                2.17.0  floeff
+Ubuntu 10.04 LTS (Lucid Lynx)        2.2.14    8.4         1.04                      mod_geoip too old, GeoIP too old for current mod_geoip
 -----------------------------------  --------  ----------  ----  ----------  ------  -------
 -----------------------------------  --------  ----------  ----  ----------  ------  -------
 openSUSE 13.1                        2.4.6     9.2         1.05                      
@@ -53,7 +53,10 @@ Suggestions for other features to track:
 
 * mod_geoip with IPv6 capability
 * see also http://mirrorbrain.org/issues/issue16
+* very old mod_geoip versions *1.1.8* didn't return continent lookup data
 
+Ubuntu mod_geoip versions: http://packages.ubuntu.com/search?keywords=mod-geoip&searchon=names 
+Debian mod_geoipip versions http://packages.debian.org/search?suite=all&searchon=names&keywords=libapache2-mod-geoip
 
 Package search URLs:
 
