@@ -35,7 +35,7 @@ These two mechanisms work together.  Let's look at them in detail now.
 1) Score value
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The ``score`` value that is assigned to each mirrir is a unitless number
+The ``score`` value that is assigned to each mirror is a unitless number
 where the absolute value doesn't matter, but the relative height in
 comparison to other mirrors makes the difference. The default value is always
 ``100``. If mirrors have the same score, they are randomly used equally
@@ -53,47 +53,36 @@ instance.
 
 Here's an example with three mirrors in different combinations of score values::
 
-  score    100 100 100
-  chance   33% 33% 33%
+  score value              100    100    100
+  percentage of requests   33%    33%    33%
 
-  score    100  50  50
-  chance   60% 20% 20%
+  score value              100     50     50
+  percentage of requests   60%    20%    20%
 
-  score    100 200  10
-  chance   25% 73%  2%
+  score value              100    200     10
+  percentage of requests   25%    73%     2%
 
 
 In real life, you might have more mirrors. The effect of score values can be
 approximated with the following formula::
 
-                   s1
-  P1 = ---------------------------- * 100
-         s1 + (s2 + s3 + s4 + ...)
+                   s
+  P = ---------------------------- * 100
+         s + (s2 + s3 + ... + sn)
 
   where
-  P1 = percentage of requests to a mirror
-  s1 = score of mirror
-  S2 ... = scores of the other mirrors
+  P = percentage of requests to a mirror
+  s = score of mirror
+  s2...sn = scores of the other mirrors
 
 
 Imagine that you have a mirror with ``score=50``, and other
 mirrors in the same country with the following scores:
-``150, 100, 100, 100, 100, 50, 50, 30``. 
+``150, 100, 100, 100, 100, 50, 50, 30``. Thus,
 
+  50 / (50 + 150+100+100+100+100+50+50+30) * 100 = 6%
 
-
-  50 / (50 + 150+100+100+100+100+50+50+30) = 0.06
-
-
-or, more general::
-  
-
-
-                    50 
-    ----------------------------------- * 100 = 6%
-     50 + 150+100+100+100+100+50+50+30
-
-Thus, about 6% of requests will routed to that mirror.
+about 6% of requests will routed to that mirror.
 
 (However, also remeber that mirrors might not always be complete mirrors, so
 if they don't have certain files, they are automatically left out from the
@@ -102,13 +91,46 @@ equation. The calculation is always file-based, and thus never static.)
 
 
 
+2) Geographical distance
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Geographical distance is calculated by an approximation that is both
+lightweight and fast, but sufficiently accurate. Similar as the score value,
+it's not about absolute numbers in a certain unit like km. It's more about
+giving mirrors a relative weight according to the distance. 
 
-.. /* the smaller, the smaller the effect of a raised prio in comparison to distance */
-.. /* 5000000 -> mirror in 200km distance is preferred already when it has prio 100
-..  * 1000000 -> mirror in 200km distance is preferred not before it has prio 300
-..  * (compared to 100 as normal priority for other mirrors, and tested in
-..  * Germany, which is a small country with many mirrors) */
-.. #define DISTANCE_PRIO 2000000
+Each mirror is rated with this formula (C code from the Apache module::
 
+  new->dist = (int) ( sqrt( pow((lat - new->lat), 2) + pow((lng - new->lng), 2) ) * 1000 );
 
+This approximation is simple enough but works around the (spherical) globe.
+
+Mirrors are then ranked against each other according to the calculated ``dist``
+values. Internally, this can all be done with simple&quick integer arithmetic.
+
+Specifically, at this point we also give the **score** some influence::
+
+  d = mirror->dist + distprio / mirror->score;
+
+where::
+
+  int distprio = DISTANCE_PRIO / arr->nelts;
+
+where ``arr->nelts`` is the number of mirrors in that particular group in that
+the ranking is calculated. ``DISTANCE_PRIO`` is defined to a number which you
+could change at compile time, but where this default value gives about the
+results I wanted::
+
+  #define DISTANCE_PRIO 2000000
+
+A comment in the code reads::
+
+  /* the smaller, the smaller the effect of a raised prio in comparison to distance */
+  /* 5000000 -> mirror in 200km distance is preferred already when it has prio 100
+   * 1000000 -> mirror in 200km distance is preferred not before it has prio 300
+   * (compared to 100 as normal priority for other mirrors, and tested in
+   * Germany, which is a small country with many mirrors) */
+
+You see, both the geographical distance and the score value work together and
+both has some influence. This prevents the choice of a mirror that's either far
+away or has a low score value, or one of them -- and vice versa.
