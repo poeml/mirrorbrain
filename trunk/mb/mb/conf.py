@@ -10,7 +10,8 @@ boolean_opts = [ 'zsync_hashes', 'chunked_hashes' ]
 
 DEFAULTS = { 'zsync_hashes': False,
              'chunked_hashes': True,
-             'chunk_size': 262144 }
+             'chunk_size': 262144,
+             'apache_documentroot': None}
 
 class Config:
     """this class sets up a number dictionaries that contain configuration 
