@@ -3,9 +3,6 @@
 # Securely write timestamped marker files
 # 
 # 
-# This script is not really usable without prior modification, due to hardcoded
-# path names and user/group IDs. Thus, you have to edit it for your needs.
-# 
 # One thing that is special is that the files ending in "invisible" will be made
 # mode 0640, others 0644.
 #
