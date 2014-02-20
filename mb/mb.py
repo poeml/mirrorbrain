@@ -1670,6 +1670,45 @@ class MirrorDoctor(cmdln.Cmdln):
                         % (opts.commit, opts.target_dir))
 
 
+
+    #@cmdln.alias('ts')
+
+    @cmdln.option('-u', '--user', dest='user', metavar='USER',
+                  help='user owning the timestamp')
+    @cmdln.option('-g', '--group', dest='group', metavar='GROUP',
+                  help='group owning the timestamp')
+    @cmdln.option('--no-docroot', action='store_true', default=False,
+                  help='do not prepend the Apache DocumentRoot')
+    def do_timestamp(self, subcmd, opts, *args):
+        """${cmd_name}: Securely  create timestamp marker files to be synced by the mirrors
+
+        There's something special: files ending in "invisible" will
+        be made mode 0640, others 0644.
+
+        The Apache DocumentRoot is prepended, if set in mirrorbrain.conf
+        (apache_documentroot setting)
+
+        Usage:
+            mb timestamps [OPTS] timestampfile1 [timestampfile2...]
+        ${cmd_option_list}
+        """
+        
+        if not args:
+            sys.exit('At least one filename is needed.')
+
+        import os
+        docroot = self.config.dbconfig.get('apache_documentroot', '')
+        if docroot and not opts.no_docroot:
+            args = [ os.path.join(docroot, i) for i in args ]
+
+        import mb.timestamps
+        mb.timestamps.create(args, user=opts.user, group=opts.group)
+
+
+
+
+
+
 if __name__ == '__main__':
     import sys
     mirrordoctor = MirrorDoctor()
