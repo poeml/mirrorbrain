@@ -44,7 +44,8 @@ def iplookup(conn, s):
             print >>sys.stderr, '\n>>> see http://mirrorbrain.org/archive/mirrorbrain/0042.html why this could\n' \
                                 '>>> could be a problem, and what to do about it. But note that this is not\n' \
                                 '>>> necessarily a problem and could actually be intended depending on the\n' \
-                                '>>> mirror\'s configuration. See http://mirrorbrain.org/issues/issue152\n'
+                                '>>> mirror\'s configuration (see http://mirrorbrain.org/issues/issue152).\n' \
+                                '>>> It\'s best to talk to the mirror\'s admins.\n'
         a = IpAddress()
         if ips: a.ip = ips[0]
         if ip6s: a.ip6 = ip6s[0]
