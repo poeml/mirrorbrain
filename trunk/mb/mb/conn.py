@@ -241,7 +241,7 @@ class Conn:
                     fromDatabase = True
                     idName = 'file_id'
             self.Hash = Hash
-        except psycopg2.ProgrammingError:
+        except (dberrors.ProgrammingError, psycopg2.ProgrammingError):
             # This is what's raised if the table hasn't been installed yet
             # Which is the case when coming from a 2.12.0 or earlier install
             # XXX This feels like being totally the wrong place for a database migration.
