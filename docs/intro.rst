@@ -6,7 +6,7 @@ This documentation describes how to install, configure and use MirrorBrain.
 It may be useful to consult the :ref:`release_notes` for changes.
 
 The detailed history of changes in the documentation itself could be looked at
-`here <http://svn.mirrorbrain.org/viewvc/mirrorbrain/trunk/docs/>`_.
+`here <https://github.com/poeml/mirrorbrain/tree/master/docs>`_.
 
 
 .. _hacking_the_docs:
@@ -29,12 +29,12 @@ file in the subversion repository. You can use this to look at the source and
 get a feeling for the way the format works.
 
 HTML is generated using the `Sphinx Python Documentation Generator`_. Every
-change in the svn repository directly becomes visible at
+change in the git repository becomes visible at
 http://mirrorbrain.org/docs/, through a post-commit hook running the generator.
 
 Check out a working copy of the source with this command::
 
-    svn checkout http://svn.mirrorbrain.org/viewvc/mirrorbrain/trunk/ mirrorbrain
+    git clone https://github.com/poeml/mirrorbrain.git
 
 The `reStructuredText Primer`_ is a helpful resource.
 
@@ -69,7 +69,7 @@ the :command:`make` command after changes, watch its output for errors or
 warnings, and reload your browser window.
 
 
-.. _`docs subdirectory`: http://svn.mirrorbrain.org/viewvc/mirrorbrain/trunk/docs/
+.. _`docs subdirectory`: https://github.com/poeml/mirrorbrain/tree/master/docs
 .. _`reStructuredText`: http://docutils.sf.net/rst.html
 .. _`Sphinx Python Documentation Generator`: http://sphinx.pocoo.org/
 .. _`reStructuredText Primer`: http://sphinx.pocoo.org/rest.html
