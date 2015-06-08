@@ -1246,8 +1246,7 @@ class MirrorDoctor(cmdln.Cmdln):
             mirror.score = int(score)
         
 
-    # the previous command name
-    @cmdln.alias('vacuum')
+
 
     @cmdln.option('-n', '--dry-run', action='store_true',
                   help='don\'t delete, but only show statistics.')
@@ -1255,7 +1254,7 @@ class MirrorDoctor(cmdln.Cmdln):
                   help='Produce less output. '
                        'Can be given multiple times.')
     def do_db(self, subcmd, opts, *args):
-        """${cmd_name}: perform database maintenance
+        """${cmd_name}: perform database maintenance, or start a shell
         
         This command needs to be called with one of the following actions:
         
