@@ -95,7 +95,7 @@ def server2dict(s):
 #
 
 class Conn:
-    def __init__(self, config, debug = False):
+    def __init__(self, config, version, debug = False):
         dbdriver = config.get('dbdriver', 'mysql')
         if dbdriver in ['Pg', 'postgres', 'postgresql']:
             dbdriver, dbport = 'postgres', '5432'
@@ -164,7 +164,7 @@ class Conn:
 
 
         except (dberrors.ProgrammingError, psycopg2.ProgrammingError):
-            print 'Your database needs to be upgraded (to 2.18.0): creating "version" table...'
+            print 'Your database needs to be upgraded (to >2.18.0): creating "version" table...'
 
             query = """CREATE TABLE version ( 
                            "id" serial NOT NULL PRIMARY KEY,
@@ -172,8 +172,8 @@ class Conn:
                            "major" INTEGER NOT NULL,
                            "minor" INTEGER NOT NULL,
                            "patchlevel" INTEGER NOT NULL );
-                       INSERT INTO version VALUES (1, 'mirrorbrain', 2, 19, 0);
-                    """
+                       INSERT INTO version VALUES (1, 'mirrorbrain', %s, %s, %s);
+                    """ % (version.major, version.minor, version.patchlevel)
             SQLObject._connection.query(query)
 
             try:
@@ -187,7 +187,20 @@ class Conn:
 
         if self.Version:
             mbversion = self.Version.select("""component = 'mirrorbrain'""")[0]
-            #print mbversion.major, mbversion.minor
+
+            if mbversion.major < version.major \
+                    or (mbversion.major == version.major \
+                        and mbversion.minor < version.minor) \
+                    or (mbversion.major == version.major \
+                        and mbversion.minor == version.minor \
+                        and mbversion.patchlevel < version.patchlevel):
+
+                print 'found database version %s.%s.%s, older than us: %s >>>>>>>> upgrading' \
+                        % (mbversion.major, mbversion.minor, mbversion.patchlevel, version)
+                query = "UPDATE version SET major=%s, minor=%s, patchlevel=%s WHERE component='mirrorbrain';" \
+                        % (version.major, version.minor, version.patchlevel)
+                SQLObject._connection.query(query)
+                print "done."
 
 
         class Server(SQLObject):

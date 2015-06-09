@@ -5,6 +5,17 @@ t_start = 0
 rsync_version = None
 
 
+class VersionParser:
+    def __init__(self, vers):
+        self.vers = vers
+        s = vers.split('.')
+        self.major = int(s[0])
+        self.minor = int(s[1])
+        self.patchlevel = int(s[2])
+    def __str__(self):
+        return self.vers
+
+
 class Afile:
     """represent a file, found during scanning"""
     def __init__(self, name, size, mtime=0, path=0):

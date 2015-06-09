@@ -25,14 +25,12 @@ import mb.geoip
 import mb.mberr
 import signal
 
-
 def catchterm(*args):
     raise mb.mberr.SignalInterrupt
 
 for name in 'SIGBREAK', 'SIGHUP', 'SIGTERM':
     num = getattr(signal, name, None)
     if num: signal.signal(num, catchterm)
-
 
 
 def lookup_mirror(self, identifier):
@@ -78,9 +76,14 @@ class MirrorDoctor(cmdln.Cmdln):
             self.options.brain_instance = os.getenv('MB', default=None)
         self.config = mb.conf.Config(conffile = self.options.configpath, instance = self.options.brain_instance)
 
+        from mb.util import VersionParser
+        version = VersionParser(__version__)
+
         # set up the database connection
         import mb.conn
-        self.conn = mb.conn.Conn(self.config.dbconfig, debug = self.options.debug)
+        self.conn = mb.conn.Conn(self.config.dbconfig, 
+                                 version = version, 
+                                 debug = self.options.debug)
 
 
     def do_instances(self, subcmd, opts):
