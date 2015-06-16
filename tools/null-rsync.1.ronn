@@ -1,0 +1,72 @@
+null-rsync(1) -- mirror a file tree to sparse files
+===================================================
+
+## SYNOPSIS
+
+`null-rsync` [<options>] <rsync_source_url> <local_path> <br>
+`null-rsync` [`--exclude`=<pattern>] [`-q`|`--quiet`] [`-v`|`--verbose`] <rsync_source_url> <local_path> <br>
+`null-rsync` [`-h`|`--help`] <br>
+`null-rsync` [`--version`]
+
+
+## DESCRIPTION
+
+null-rsync(1) mimics rsync(1), but can save massive amounts of time and
+diskspace if you need a copy of a file tree for testing purposes. If you don't
+care if the files contain zeroes, null-rsync(1) will create a filetree as a
+copy from a remote host, just like rsync does. But all files will contain only
+zeroes. Moreover, they will be created as sparse files that don't take disk
+space (besids metadata of the filesystem itself).
+
+Technically, to get the file metadata over rsync, rsync's own itemized output
+is used, because it tells us all we need to know:
+    del. rw-r--r-- *deleting   ultimate-edition-1.9-x64.iso 0 1970/01/01-01:00:00
+    recv rwxr-xr-x cd+++++++++ firefox/releases/3.0.15/ 4096 2009/10/26-19:23:12
+    recv rw-r--r-- >f+++++++++ firefox/releases/3.0.15/MD5SUMS 54256 2009/10/26-19:21:21
+
+null-rsync(1) copies all permissions and timestamps where possible. An
+exception are timestamps on symlinks, that can't be set by Python (its
+`os.utime()` implementation always follows to the target). (It *would* work if
+Python would export `utimensat()` with `AT_SYMLINK_NOFOLLOW`. See
+utimensat(2).) But it doesn't really matter.
+
+null-rsync(1) can be run again and again to synchronize the local tree with
+upstream changes.  Just like you would do with rsync(1).
+
+## SECURITY
+
+If the remote source contains world-writable directories, they are not made
+world-writable locally.
+
+## OPTIONS
+
+  * `-v`, `--verbose`:
+    Print debug messages to stderr.
+  
+  * `-q`, `--quiet`:
+    If lock can't be acquired immediately, silently quit without error.
+  
+  * `--version`:
+    Show program's version number and exit.
+  
+  * `-h`, `--help`:
+    Show command synopsis and exit.
+  
+  * `--exclude`=<pattern>:
+    Exclude files matching <pattern> (which is passed through to rsync)
+
+
+## EXAMPLES
+
+You can simply substitute a usual rsync(1) call with null-rsync(1).
+
+    null-rsync --exclude source rsync://mirrors.tds.net/debian/dists/jessie/main/ /tmp/sparse-debian-mirror
+
+
+## AUTHOR  
+
+This program was written by Peter Pöml <peter@poeml.de> in 2009-2015. 
+
+## SEE ALSO  
+
+rsync(1)

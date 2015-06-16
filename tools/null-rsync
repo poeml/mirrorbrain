@@ -2,9 +2,9 @@
 
 """
 Create a local file tree as copy from a remote server via rsync.
-All files will contain zeroes.
+All files will contain zeroes and do not use any disk space.
 
-Copyright 2009,2010,2011,2012 Peter Poeml
+Copyright 2009,2010,2011,2012,2015 Peter Poeml
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -75,17 +75,20 @@ def main():
     usage = textwrap.dedent("""\
     usage: %prog [options] RSYNC_SOURCE_URL LOCAL_PATH
 
-    Create a local file tree as copy from a remote server via rsync.
+    Create a local file tree as "copy" from a remote server via rsync.
     All files will contain zeroes.
+
+    All files will be created as sparse files, so they don't take actual space
+    in the filesystem (besides metadata of the filesystem itself).
+
+    This massively saves time and diskspace when you need some tree for testing
+    that looks like a real one.
 
     To get the file metadata over rsync, rsync's own itemized output is used,
     because it tells us all we need to know:
         del. rw-r--r-- *deleting   ultimate-edition-1.9-x64.iso 0 1970/01/01-01:00:00
         recv rwxr-xr-x cd+++++++++ firefox/releases/3.0.15/ 4096 2009/10/26-19:23:12
         recv rw-r--r-- >f+++++++++ firefox/releases/3.0.15/MD5SUMS 54256 2009/10/26-19:21:21
-
-    All files are created as sparse files, so they don't take actual space in the
-    filesystem (besides metadata).
 
     We copy all permissions and timestamps where possible. An exception are
     timestamps on symlinks, that can't be set by Python (its os.utime()

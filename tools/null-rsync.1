@@ -1,0 +1,87 @@
+.\" generated with Ronn/v0.7.3
+.\" http://github.com/rtomayko/ronn/tree/0.7.3
+.
+.TH "NULL\-RSYNC" "1" "June 2015" "" ""
+.
+.SH "NAME"
+\fBnull\-rsync\fR \- mirror a file tree to sparse files
+.
+.SH "SYNOPSIS"
+\fBnull\-rsync\fR [\fIoptions\fR] \fIrsync_source_url\fR \fIlocal_path\fR
+.
+.br
+\fBnull\-rsync\fR [\fB\-\-exclude\fR=\fIpattern\fR] [\fB\-q\fR|\fB\-\-quiet\fR] [\fB\-v\fR|\fB\-\-verbose\fR] \fIrsync_source_url\fR \fIlocal_path\fR
+.
+.br
+\fBnull\-rsync\fR [\fB\-h\fR|\fB\-\-help\fR]
+.
+.br
+\fBnull\-rsync\fR [\fB\-\-version\fR]
+.
+.SH "DESCRIPTION"
+null\-rsync(1) mimics rsync(1), but can save massive amounts of time and diskspace if you need a copy of a file tree for testing purposes\. If you don\'t care if the files contain zeroes, null\-rsync(1) will create a filetree as a copy from a remote host, just like rsync does\. But all files will contain only zeroes\. Moreover, they will be created as sparse files that don\'t take disk space (besids metadata of the filesystem itself)\.
+.
+.P
+Technically, to get the file metadata over rsync, rsync\'s own itemized output is used, because it tells us all we need to know:
+.
+.IP "" 4
+.
+.nf
+
+del\. rw\-r\-\-r\-\- *deleting   ultimate\-edition\-1\.9\-x64\.iso 0 1970/01/01\-01:00:00
+recv rwxr\-xr\-x cd+++++++++ firefox/releases/3\.0\.15/ 4096 2009/10/26\-19:23:12
+recv rw\-r\-\-r\-\- >f+++++++++ firefox/releases/3\.0\.15/MD5SUMS 54256 2009/10/26\-19:21:21
+.
+.fi
+.
+.IP "" 0
+.
+.P
+null\-rsync(1) copies all permissions and timestamps where possible\. An exception are timestamps on symlinks, that can\'t be set by Python (its \fBos\.utime()\fR implementation always follows to the target)\. (It \fIwould\fR work if Python would export \fButimensat()\fR with \fBAT_SYMLINK_NOFOLLOW\fR\. See utimensat(2)\.) But it doesn\'t really matter\.
+.
+.P
+null\-rsync(1) can be run again and again to synchronize the local tree with upstream changes\. Just like you would do with rsync(1)\.
+.
+.SH "SECURITY"
+If the remote source contains world\-writable directories, they are not made world\-writable locally\.
+.
+.SH "OPTIONS"
+.
+.TP
+\fB\-v\fR, \fB\-\-verbose\fR
+Print debug messages to stderr\.
+.
+.TP
+\fB\-q\fR, \fB\-\-quiet\fR
+If lock can\'t be acquired immediately, silently quit without error\.
+.
+.TP
+\fB\-\-version\fR
+Show program\'s version number and exit\.
+.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Show command synopsis and exit\.
+.
+.TP
+\fB\-\-exclude\fR=\fIpattern\fR
+Exclude files matching \fIpattern\fR (which is passed through to rsync)
+.
+.SH "EXAMPLES"
+You can simply substitute a usual rsync(1) call with null\-rsync(1)\.
+.
+.IP "" 4
+.
+.nf
+
+null\-rsync \-\-exclude source rsync://mirrors\.tds\.net/debian/dists/jessie/main/ /tmp/sparse\-debian\-mirror
+.
+.fi
+.
+.IP "" 0
+.
+.SH "AUTHOR"
+This program was written by Peter Pöml \fIpeter@poeml\.de\fR in 2009\-2015\.
+.
+.SH "SEE ALSO"
+rsync(1)
