@@ -10,11 +10,11 @@ overview of platform features.
 ===================================  ========  ==========  ====  ==========  ======  =======
            Platform                  Apache    PostgreSQL  ip4r   packaged   tested  remarks
 ===================================  ========  ==========  ====  ==========  ======  =======
-Debian next (Jessie)                 2.4.6     9.3         2.0     
+Debian 9.0 (next)                                                  
+Debian 8.0 (Jessie)                  2.4.10    9.4         2.0.2  obs
 Debian 7.0 (Wheezy)                  2.2.22    9.1         1.05   obs        yes     stephan48
 Debian 6.0 (Squeeze)                 2.2.16    8.4         1.04                      mod_geoip only 1.2.5, GeoIP too old for current mod_geoip
 Debian 5.0 (Lenny)                                                 
-Debian 4.0 (Etch)                                                  
 -----------------------------------  --------  ----------  ----  ----------  ------  -------
 -----------------------------------  --------  ----------  ----  ----------  ------  -------
 Ubuntu 13.10 (Saucy Salamander)      2.4.6     9.1         2.0     
@@ -25,6 +25,7 @@ Ubuntu 11.10 (Oneiric Ocelot)                                                2.1
 Ubuntu 10.04 LTS (Lucid Lynx)        2.2.14    8.4         1.04                      mod_geoip too old, GeoIP too old for current mod_geoip
 -----------------------------------  --------  ----------  ----  ----------  ------  -------
 -----------------------------------  --------  ----------  ----  ----------  ------  -------
+openSUSE 13.2                                                                        
 openSUSE 13.1                        2.4.6     9.2         1.05                      
 openSUSE 12.3                        2.2.22    9.2         1.05    
 openSUSE 12.2                        2.2.22    9.1         1.05    
@@ -60,4 +61,5 @@ Debian mod_geoipip versions http://packages.debian.org/search?suite=all&searchon
 
 Package search URLs:
 
+* https://packages.debian.org/search
 * http://packages.ubuntu.com/ and https://launchpad.net/
