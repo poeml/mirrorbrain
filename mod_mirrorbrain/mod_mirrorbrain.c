@@ -3064,20 +3064,21 @@ static int mb_handler(request_rec *r)
         }
         ap_rputs(".</p>\n\n", r);
 
-        /* Link to static map of user and mirror locations */
+        /* Link to static map of user (if position available) and mirror locations */
+        apr_array_header_t *topnine = get_n_best_mirrors(r, 9, mirrors_same_prefix, mirrors_same_as, 
+                                                         mirrors_same_country, mirrors_same_region, 
+                                                         mirrors_elsewhere);
+        mirrorp = (mirror_entry_t **)topnine->elts;
+        ap_rprintf(r, "<p><a href=\"http://maps.google.com/maps/api/staticmap?size=640x512&amp;"
+                      "visual_refresh=true&amp;scale=2&amp;maptype=roadmap&amp;sensor=false");
         if (lat != 0 && lng != 0) {
-            apr_array_header_t *topten = get_n_best_mirrors(r, 9, mirrors_same_prefix, mirrors_same_as, 
-                                                             mirrors_same_country, mirrors_same_region, 
-                                                             mirrors_elsewhere);
-            mirrorp = (mirror_entry_t **)topten->elts;
-            ap_rprintf(r, "<p><a href=\"http://maps.google.com/maps/api/staticmap?size=640x512&amp;"
-                          "visual_refresh=true&amp;scale=2&amp;maptype=roadmap&amp;sensor=false&amp;markers=color:red|%f,%f", lat, lng);
-            for (i = 0; i < topten->nelts; i++) {
-                mirror = mirrorp[i];
-                ap_rprintf(r, "&amp;markers=color:yellow|label:%d|%f,%f", i+1, mirror->lat, mirror->lng);
-            }
-            ap_rputs("\">Map showing the closest mirrors</a></p>\n\n", r);
+            ap_rprintf(r, "&amp;markers=color:red|%f,%f", lat, lng);
         }
+        for (i = 0; i < topnine->nelts; i++) {
+            mirror = mirrorp[i];
+            ap_rprintf(r, "&amp;markers=color:yellow|label:%d|%f,%f", i+1, mirror->lat, mirror->lng);
+        }
+        ap_rputs("\">Map showing the closest mirrors</a></p>\n\n", r);
 
         if ((mirror_cnt <= 0) || (!mirrors_same_prefix->nelts && !mirrors_same_as->nelts 
                                   && !mirrors_same_country->nelts && !mirrors_same_region->nelts 
