@@ -1775,25 +1775,27 @@ static int mb_handler(request_rec *r)
 
 
 
-    country_code = apr_table_get(r->subprocess_env, "GEOIP_COUNTRY_CODE");
-    country_name = apr_table_get(r->subprocess_env, "GEOIP_COUNTRY_NAME");
-    continent_code = apr_table_get(r->subprocess_env, "GEOIP_CONTINENT_CODE");
-    slat = apr_table_get(r->subprocess_env, "GEOIP_LATITUDE");
-    slng = apr_table_get(r->subprocess_env, "GEOIP_LONGITUDE");
+    /* IPv6 is experimentally supported in mod_geoip >= 1.2.7 and GeoIP >= 1.4.8
+     * Unfortunately, the API returns IPv6 matches in different variables, so
+     * we always have to check two variables. Since I hate copy&paste, we
+     * cheat with a macro: */
+#define GETGEOIPV6HELPER(v, e) \
+    v = apr_table_get(r->subprocess_env, e); \
+    if (!v) { \
+        v = apr_table_get(r->subprocess_env, e "_V6"); \
+    }
+    GETGEOIPV6HELPER(country_code, "GEOIP_COUNTRY_CODE");
+    GETGEOIPV6HELPER(country_name, "GEOIP_COUNTRY_NAME");
+    GETGEOIPV6HELPER(continent_code, "GEOIP_CONTINENT_CODE");
+    GETGEOIPV6HELPER(slat, "GEOIP_LATITUDE");
+    GETGEOIPV6HELPER(slng, "GEOIP_LONGITUDE");
     if (slat && slng) { 
         lat = atof(slat);
         lng = atof(slng);
     };
-    state_id = apr_table_get(r->subprocess_env, "GEOIP_REGION");
-    state_name = apr_table_get(r->subprocess_env, "GEOIP_REGION_NAME");
+    GETGEOIPV6HELPER(state_id, "GEOIP_REGION");
+    GETGEOIPV6HELPER(state_name, "GEOIP_REGION_NAME");
 
-    /* IPv6 is experimentally supported in mod_geoip >= 1.2.7 and GeoIP >= 1.4.8 */
-    if (!country_code) 
-        country_code = apr_table_get(r->subprocess_env, "GEOIP_COUNTRY_CODE_V6");
-    if (!country_name) 
-        country_name = apr_table_get(r->subprocess_env, "GEOIP_COUNTRY_NAME_V6");
-    if (!continent_code) 
-        continent_code = apr_table_get(r->subprocess_env, "GEOIP_CONTINENT_CODE_V6");
 
     if (!country_code) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] could not resolve country");
@@ -3064,20 +3066,21 @@ static int mb_handler(request_rec *r)
         }
         ap_rputs(".</p>\n\n", r);
 
-        /* Link to static map of user and mirror locations */
+        /* Link to static map of user (if position available) and mirror locations */
+        apr_array_header_t *topnine = get_n_best_mirrors(r, 9, mirrors_same_prefix, mirrors_same_as, 
+                                                         mirrors_same_country, mirrors_same_region, 
+                                                         mirrors_elsewhere);
+        mirrorp = (mirror_entry_t **)topnine->elts;
+        ap_rprintf(r, "<p><a href=\"http://maps.google.com/maps/api/staticmap?size=640x512&amp;"
+                      "visual_refresh=true&amp;scale=2&amp;maptype=roadmap&amp;sensor=false");
         if (lat != 0 && lng != 0) {
-            apr_array_header_t *topten = get_n_best_mirrors(r, 9, mirrors_same_prefix, mirrors_same_as, 
-                                                             mirrors_same_country, mirrors_same_region, 
-                                                             mirrors_elsewhere);
-            mirrorp = (mirror_entry_t **)topten->elts;
-            ap_rprintf(r, "<p><a href=\"http://maps.google.com/maps/api/staticmap?size=640x512&amp;"
-                          "visual_refresh=true&amp;scale=2&amp;maptype=roadmap&amp;sensor=false&amp;markers=color:red|%f,%f", lat, lng);
-            for (i = 0; i < topten->nelts; i++) {
-                mirror = mirrorp[i];
-                ap_rprintf(r, "&amp;markers=color:yellow|label:%d|%f,%f", i+1, mirror->lat, mirror->lng);
-            }
-            ap_rputs("\">Map showing the closest mirrors</a></p>\n\n", r);
+            ap_rprintf(r, "&amp;markers=color:red|%f,%f", lat, lng);
         }
+        for (i = 0; i < topnine->nelts; i++) {
+            mirror = mirrorp[i];
+            ap_rprintf(r, "&amp;markers=color:yellow|label:%d|%f,%f", i+1, mirror->lat, mirror->lng);
+        }
+        ap_rputs("\">Map showing the closest mirrors</a></p>\n\n", r);
 
         if ((mirror_cnt <= 0) || (!mirrors_same_prefix->nelts && !mirrors_same_as->nelts 
                                   && !mirrors_same_country->nelts && !mirrors_same_region->nelts 
