@@ -136,7 +136,7 @@
 
 #define DEFAULT_QUERY "SELECT id, identifier, region, country, " \
                              "lat, lng, " \
-                             "asn, serverpfx.prefix, score, baseurl, " \
+                             "asn, prefix, score, baseurl, " \
                              "region_only, country_only, " \
                              "as_only, prefix_only, " \
                              "other_countries, file_maxsize " \
