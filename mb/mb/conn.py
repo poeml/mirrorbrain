@@ -13,8 +13,6 @@ baseurlFtp     : %(baseurlFtp)s
 baseurlRsync   : %(baseurlRsync)s
 region         : %(region)s
 country        : %(country)s
-asn            : %(asn)s
-prefix         : %(prefix)s
 lat,lng        : %(lat)s,%(lng)s
 regionOnly     : %(regionOnly)s
 countryOnly    : %(countryOnly)s
@@ -40,8 +38,6 @@ server_editable_attrs = [ 'baseurl',
                           'baseurlRsync',
                           'region',
                           'country',
-                          'asn',
-                          'prefix',
                           'lat',
                           'lng',
                           'regionOnly',
@@ -68,8 +64,6 @@ def server2dict(s):
                 baseurlRsync  = s.baseurlRsync,
                 region        = s.region,
                 country       = s.country,
-                asn           = s.asn,
-                prefix        = s.prefix,
                 regionOnly    = s.regionOnly,
                 countryOnly   = s.countryOnly,
                 asOnly        = s.asOnly,
