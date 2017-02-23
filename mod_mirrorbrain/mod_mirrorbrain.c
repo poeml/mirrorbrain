@@ -146,7 +146,7 @@
                           "(SELECT mirrors " \
                            "FROM filearr " \
                            "WHERE path = %s)::smallint[]) " \
-                      "AND family(iprange(serverpfx.prefix)) = family(ipaddress(%s)) " \
+                      "AND family(serverpfx.prefix) = family(ipaddress(%s)) " \
                       "AND enabled AND status_baseurl AND score > 0"
 #define DEFAULT_QUERY_HASH "SELECT file_id, md5hex, sha1hex, sha256hex, " \
                                   "sha1piecesize, sha1pieceshex, btihhex, pgp, " \
