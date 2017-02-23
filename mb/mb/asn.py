@@ -51,23 +51,34 @@ def iplookup(conn, s):
         if ip6s: a.ip6 = ip6s[0]
         
 
-    if not a.ip:
+    if not a.ip and not a.ip6:
         return a
     query = """SELECT pfx, asn \
                    FROM pfx2asn \
-                   WHERE pfx >>= ip4r('%s') \
-                   ORDER BY ip4r_size(pfx) \
-                   LIMIT 1""" % a.ip
+                   WHERE pfx >>= ipaddress('%s') \
+                   ORDER BY @ pfx \
+                   LIMIT 1"""
 
     try:
-        res = conn.Pfx2asn._connection.queryAll(query)
+        res = conn.Pfx2asn._connection.queryAll(query % a.ip)
     except AttributeError:
         # we get this error if mod_asn isn't installed as well
         return a
 
-    if len(res) != 1:
-        return a
-    (a.prefix, a.asn) = res[0]
+    if len(res) == 1:
+        (a.prefix, a.asn) = res[0]
+
+    res = ""
+    if a.ip6:
+        try:
+            res = conn.Pfx2asn._connection.queryAll(query % a.ip6)
+        except ValueError:
+            # we get this error if mod_asn isn't installed as well
+            return a
+
+    if len(res) == 1:
+        (a.prefix6, a.asn6) = res[0]
+
     return a
 
 def asn_prefixes(conn, asn):

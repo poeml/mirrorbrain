@@ -177,9 +177,10 @@ class MirrorDoctor(cmdln.Cmdln):
         lat, lng = mb.geoip.lookup_coordinates(host)
 
         r = mb.asn.iplookup(self.conn, host)
-        asn, prefix = r.asn, r.prefix
+        asn, prefix, prefix6 = r.asn, r.prefix, r.prefix6
         if not asn: asn = 0
         if not prefix: prefix = ''
+        if not prefix6: prefix6 = ''
 
         if opts.region == '--' or opts.country == '--':
             raise ValueError('Region lookup failed. Use the -c and -r option.')
@@ -190,8 +191,6 @@ class MirrorDoctor(cmdln.Cmdln):
                              baseurlRsync = opts.rsync or '',
                              region       = opts.region,
                              country      = opts.country,
-                             asn          = asn,
-                             prefix       = prefix,
                              lat          = lat or 0,
                              lng          = lng or 0,
                              score        = opts.score,
@@ -356,7 +355,8 @@ class MirrorDoctor(cmdln.Cmdln):
         elif opts.prefix:
             print r.prefix
         else:
-            print '%s (AS%s) %s' % (r.prefix, r.asn, r.ip6)
+            if r.ip: print 'IPv4: address: %s - Prefix: %s (AS%s) ' % (r.ip, r.prefix, r.asn)
+            if r.ip6: print 'IPv6: address: %s - Prefix: %s (AS%s) ' % (r.ip6, r.prefix6, r.asn6)
         if opts.all_prefixes:
             r2 = mb.asn.asn_prefixes(self.conn, r.asn)
             print ', '.join(r2)
