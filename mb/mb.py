@@ -180,12 +180,6 @@ class MirrorDoctor(cmdln.Cmdln):
             opts.country = mb.geoip.lookup_country_code(host)
         lat, lng = mb.geoip.lookup_coordinates(host)
 
-        r = mb.asn.iplookup(self.conn, host)
-        asn, prefix, prefix6 = r.asn, r.prefix, r.prefix6
-        if not asn: asn = 0
-        if not prefix: prefix = ''
-        if not prefix6: prefix6 = ''
-
         if opts.region == '--' or opts.country == '--':
             raise ValueError('Region lookup failed. Use the -c and -r option.')
 
@@ -213,6 +207,11 @@ class MirrorDoctor(cmdln.Cmdln):
                              regionOnly   = opts.region_only or 0,
                              asOnly       = opts.as_only or 0,
                              prefixOnly   = opts.prefix_only or 0)
+
+        # Squeze in an 'all' option for to do a full update of the ip attributes
+        opts.all = True
+        do_updates = self.do_update(None, opts, identifier);
+
         if self.options.debug:
             print s
 
