@@ -82,7 +82,8 @@ def server2dict(s):
                 lat           = s.lat,
                 lng           = s.lng,
                 operatorName  = s.operatorName,
-                operatorUrl   = s.operatorUrl)
+                operatorUrl   = s.operatorUrl,
+                Connections   = s.connections)
 
 #
 # setup database connection
@@ -202,6 +203,12 @@ class Conn:
             class sqlmeta:
                 fromDatabase = True
         self.Server = Server
+
+        class Serverpfx(SQLObject):
+            """the serverpfx table"""
+            class sqlmeta:
+                fromDatabase = True
+        self.Serverpfx = Serverpfx
 
         class Filearr(SQLObject):
             """the file table"""
@@ -360,6 +367,11 @@ def servers_match(server, match):
         servers = server.select("""identifier LIKE '%%%s%%'""" % match)
 
     return list(servers)
+
+def server_connections(serverpfx, serverid):
+    connections = serverpfx.select("""serverid = '%s'""" % serverid)
+
+    return list(connections)
 
 
 
