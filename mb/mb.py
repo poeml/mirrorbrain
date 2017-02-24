@@ -466,14 +466,16 @@ class MirrorDoctor(cmdln.Cmdln):
                         if i.prefix != pfx:
                             print '%s: updating network prefix (%s -> %s)' \
                                 % (mirror.identifier, i.prefix, pfx)
-                        if not opts.dry_run:
-                            i.prefix = pfx
+                            if not opts.dry_run and pfx:
+                                i.prefix = pfx
                     for pfx in res.prefix, res.prefix6:
                         if not pfx: continue
                         if af_from_string(pfx) == socket.AF_INET:
                             asn = res.asn
                         elif af_from_string(pfx) == socket.AF_INET6:
                             asn = res.asn6
+                        print '%s: adding network prefix: %s (AS%s)' \
+                            % (mirror.identifier, pfx, asn)
                         s = self.conn.Serverpfx(serverid = mirror.id,
                                                 prefix   = pfx,
                                                 asn      = asn)
