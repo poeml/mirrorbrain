@@ -113,9 +113,10 @@ CREATE TABLE "server" (
 );
 
 CREATE TABLE serverpfx (
+       "pfxid" serial PRIMARY KEY,
        "serverid" integer NOT NULL,
-       "prefix" iprange NOT NULL
-       "asn" integer NOT NULL,
+       "prefix" iprange NOT NULL,
+       "asn" integer NOT NULL
 );
 
 CREATE INDEX "server_enabled_status_baseurl_score_key" ON "server" (
