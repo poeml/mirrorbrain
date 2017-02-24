@@ -174,14 +174,23 @@ class MirrorDoctor(cmdln.Cmdln):
         scheme, host, path, a, b, c = urlparse.urlparse(opts.http)
         if ':' in host:
             host, port = host.split(':')
+        res = mb.asn.iplookup(self.conn, host)
         if not opts.region:
-            opts.region = mb.geoip.lookup_region_code(host)
+            if res.ip:
+                opts.region = mb.geoip.lookup_region_code(res.ip)
+            elif res.ip6:
+                opts.region = mb.geoip.lookup_region_code(res.ip6)
         if not opts.country:
-            opts.country = mb.geoip.lookup_country_code(host)
+           if res.ip:
+                opts.country = mb.geoip.lookup_country_code(res.ip)
+           elif res.ip6:
+                opts.country = mb.geoip.lookup_country_code(res.ip6)
+
         lat, lng = mb.geoip.lookup_coordinates(host)
 
         if opts.region == '--' or opts.country == '--':
-            print('Region lookup failed. Use the -c and -r option.')
+            print('Detected geolocation: country = %s / region = %s' % (opts.country, opts.region))
+            print('Region lookup incomplete. Use the -c and/or -r option to supply missing information.')
             sys.exit()
 
         s = self.conn.Server(identifier   = identifier,
