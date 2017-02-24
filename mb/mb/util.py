@@ -108,7 +108,10 @@ def hostname_from_url(url):
     return h
 
 def af_from_string(s):
-    return socket.getaddrinfo(s[:s.find('/')], 0)[0][0]
+    right = s.find('/')
+    if right < 0: right = len(s)
+
+    return socket.getaddrinfo(s[:right], 0)[0][0]
 
 
 def dgst(file):
