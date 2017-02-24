@@ -2,6 +2,7 @@ import sys
 import os
 from subprocess import Popen, PIPE
 import errno
+from mb.util import af_from_string
 
 ENV = {'PATH': ':'.join([os.getenv('PATH'), '/usr/share/mirrorbrain'])}
 
@@ -31,7 +32,10 @@ for i in databases6:
 
 
 def lookup_country_code(addr):
-    out = Popen(['geoiplookup', '-f', database, addr], env=ENV, stdout=PIPE).communicate()[0]
+    if af_from_string(addr) == 10:
+        out = Popen(['geoiplookup6', '-f', database6, addr], env=ENV, stdout=PIPE).communicate()[0]
+    else:
+        out = Popen(['geoiplookup', '-f', database, addr], env=ENV, stdout=PIPE).communicate()[0]
     out = out.split(':')[1].strip().split(',')[0]
 
     return out.lower()
