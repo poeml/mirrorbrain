@@ -40,6 +40,8 @@ def lookup_mirror(self, identifier):
     if len(r) == 0:
         sys.exit('Not found.')
     elif len(r) == 1:
+        # Only one server found - let's also get ASN information
+        r[0].connections = mb.conn.server_connections(self.conn.Serverpfx, r[0].id)
         return r[0]
     else:
         print 'Found multiple matching mirrors:'
@@ -323,6 +325,9 @@ class MirrorDoctor(cmdln.Cmdln):
 
         mirror = lookup_mirror(self, identifier)
         print mb.conn.server_show_template % mb.conn.server2dict(mirror)
+        print "The servers registered connectivity Prefixes and corresponding ASN"
+        for i in mirror.connections:
+            print "Prefix: %s (AS%s)" % (i.prefix, i.asn)
 
 
     @cmdln.option('--all-prefixes', action='store_true',
