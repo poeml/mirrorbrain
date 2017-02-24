@@ -209,8 +209,9 @@ class MirrorDoctor(cmdln.Cmdln):
                              asOnly       = opts.as_only or 0,
                              prefixOnly   = opts.prefix_only or 0)
 
-        # Squeze in an 'all' option for to do a full update of the ip attributes
-        opts.all = True
+        # Squeze in options for the do_update call: only update prefix and asn (we already did the rest)
+        opts.all = opts.coordinates = opts.country = opts.region = opts.dry_run = False
+        opts.prefix = opts.asn = True
         do_updates = self.do_update(None, opts, identifier);
 
         if self.options.debug:
