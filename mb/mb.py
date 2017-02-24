@@ -23,7 +23,9 @@ __url__ = 'http://mirrorbrain.org'
 import cmdln
 import mb.geoip
 import mb.mberr
+from mb.util import af_from_string
 import signal
+import socket
 
 def catchterm(*args):
     raise mb.mberr.SignalInterrupt
@@ -432,6 +434,8 @@ class MirrorDoctor(cmdln.Cmdln):
         for mirror in mirrors:
             hostname = hostname_from_url(mirror.baseurl)
 
+            connections = mb.conn.server_connections(self.conn.Serverpfx, mirror.id)
+
             #if opts.prefix or opts.asn:
             try:
                 res = iplookup(self.conn, hostname)
@@ -439,7 +443,6 @@ class MirrorDoctor(cmdln.Cmdln):
                 print '%s:' % mirror.identifier, e.msg
                 #print '%s: without DNS lookup, no further lookups are possible' % mirror.identifier
                 continue
-
 
             if res:
                 if mirror.ipv6Only != res.ipv6Only():
@@ -449,18 +452,36 @@ class MirrorDoctor(cmdln.Cmdln):
                         mirror.ipv6Only = res.ipv6Only()
 
             if opts.prefix and res:
-                if not res.prefix:
-                    print '%s: STRANGE! There\'s no prefix containing this hosts IP address (%s)...' \
-                            % (mirror.identifier, res.ip)
-                elif mirror.prefix != res.prefix:
-                    print '%s: updating network prefix (%s -> %s)' \
-                        % (mirror.identifier, mirror.prefix, res.prefix)
-                    if not opts.dry_run:
-                        mirror.prefix = res.prefix
+                if not (res.prefix or res.prefix6):
+                    print '%s: STRANGE! There\'s no prefix containing this hosts IP address(es) (ipv4: %s / ipv6: %s)...' \
+                            % (mirror.identifier, res.ip, res.ip6)
+                else:
+                    for i in connections:
+                        if af_from_string(i.prefix) == socket.AF_INET:
+                            pfx = res.prefix
+                            res.prefix = None
+                        else:
+                            pfx = res.prefix6
+                            res.prefix6=None
+                        if i.prefix != pfx:
+                            print '%s: updating network prefix (%s -> %s)' \
+                                % (mirror.identifier, i.prefix, pfx)
+                        if not opts.dry_run:
+                            i.prefix = pfx
+                    for pfx in res.prefix, res.prefix6:
+                        if not pfx: continue
+                        if af_from_string(pfx) == socket.AF_INET:
+                            asn = res.asn
+                        elif af_from_string(pfx) == socket.AF_INET6:
+                            asn = res.asn6
+                        s = self.conn.Serverpfx(serverid = mirror.id,
+                                                prefix   = pfx,
+                                                asn      = asn)
+
             if opts.asn and res:
-                if not res.asn:
-                    print '%s: STRANGE! There\'s no ASN containing this hosts IP address (%s)...' \
-                            % (mirror.identifier, res.ip)
+                if not (res.asn or res.asn6):
+                    print '%s: STRANGE! There\'s no ASN containing this hosts IP address (v4: %s / v6: %s)...' \
+                            % (mirror.identifier, res.ip, res.ip6)
                 elif mirror.asn != res.asn:
                     print '%s: updating autonomous system number (%s -> %s)' \
                         % (mirror.identifier, mirror.asn, res.asn)
