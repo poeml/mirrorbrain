@@ -325,9 +325,11 @@ class MirrorDoctor(cmdln.Cmdln):
 
         mirror = lookup_mirror(self, identifier)
         print mb.conn.server_show_template % mb.conn.server2dict(mirror)
-        print "The servers registered connectivity Prefixes and corresponding ASN"
-        for i in mirror.connections:
-            print "Prefix: %s (AS%s)" % (i.prefix, i.asn)
+        if len(mirror.connections) > 0:
+            print "-------- Connectivity---------"
+            for i in mirror.connections:
+                print "Prefix: %s (AS%s)" % (i.prefix, i.asn)
+            print "-------- Connectivity---------"
 
 
     @cmdln.option('--all-prefixes', action='store_true',
