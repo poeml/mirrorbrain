@@ -181,7 +181,8 @@ class MirrorDoctor(cmdln.Cmdln):
         lat, lng = mb.geoip.lookup_coordinates(host)
 
         if opts.region == '--' or opts.country == '--':
-            raise ValueError('Region lookup failed. Use the -c and -r option.')
+            print('Region lookup failed. Use the -c and -r option.')
+            sys.exit()
 
         s = self.conn.Server(identifier   = identifier,
                              baseurl      = opts.http,
