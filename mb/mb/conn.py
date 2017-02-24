@@ -207,6 +207,7 @@ class Conn:
         class Serverpfx(SQLObject):
             """the serverpfx table"""
             class sqlmeta:
+                idName = 'pfxid'
                 fromDatabase = True
         self.Serverpfx = Serverpfx
 
