@@ -486,11 +486,19 @@ class MirrorDoctor(cmdln.Cmdln):
                 if not (res.asn or res.asn6):
                     print '%s: STRANGE! There\'s no ASN containing this hosts IP address (v4: %s / v6: %s)...' \
                             % (mirror.identifier, res.ip, res.ip6)
-                elif mirror.asn != res.asn:
-                    print '%s: updating autonomous system number (%s -> %s)' \
-                        % (mirror.identifier, mirror.asn, res.asn)
-                    if not opts.dry_run:
-                        mirror.asn = res.asn
+                else:
+                    for i in connections:
+                        if af_from_string(i.prefix) == socket.AF_INET:
+                            asn = res.asn
+                            prefix = res.prefix
+                        else:
+                            asn = res.asn6
+                            prefix = res.prefix6
+                        if i.prefix == prefix and i.asn != asn:
+                            print '%s: updating autonomous system number for prefix "%s" (%s -> %s)' \
+                            % (mirror.identifier, i.prefix, i.asn, asn)
+                            if not opts.dry_run:
+                                i.asn = asn
 
             if opts.coordinates:
                 lat, lng = mb.geoip.lookup_coordinates(hostname)
