@@ -37,6 +37,7 @@ class IpAddress:
         self.asn = None
         self.asn6 = None
         self.prefix = None
+        self.prefix6 = None
     def ipv6Only(self):
         if self.ip6 and not self.ip:
             return True
