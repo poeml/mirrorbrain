@@ -283,6 +283,9 @@ class MirrorDoctor(cmdln.Cmdln):
         else:
             mirrors = self.conn.Server.select()
 
+
+        from sqlobject.sqlbuilder import Select
+
         for mirror in mirrors:
             s = []
             s.append('%-30s' % mirror.identifier)
@@ -295,9 +298,15 @@ class MirrorDoctor(cmdln.Cmdln):
             if opts.other_countries:
                 s.append('%2s' % mirror.otherCountries)
             if opts.asn:
-                s.append('%5s' % mirror.asn)
+                query=Select([self.conn.Serverpfx.q.asn], where=self.conn.Serverpfx.q.serverid==mirror.id, distinct=True)
+                connections = self.conn.Serverpfx._connection.queryAll(self.conn.Serverpfx._connection.sqlrepr(query))
+                for i in connections:
+                    s.append('%5s' % i)
             if opts.prefix:
-                s.append('%-19s' % mirror.prefix)
+                query=Select([self.conn.Serverpfx.q.prefix], where=self.conn.Serverpfx.q.serverid==mirror.id, distinct=True)
+                connections = self.conn.Serverpfx._connection.queryAll(self.conn.Serverpfx._connection.sqlrepr(query))
+                for i in connections:
+                    s.append('%5s' % i)
             if opts.http_url:
                 s.append('%-55s' % mirror.baseurl)
             if opts.ftp_url:
