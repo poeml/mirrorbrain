@@ -298,11 +298,13 @@ class MirrorDoctor(cmdln.Cmdln):
             if opts.other_countries:
                 s.append('%2s' % mirror.otherCountries)
             if opts.asn:
+                s.append("ASNs:")
                 query=Select([self.conn.Serverpfx.q.asn], where=self.conn.Serverpfx.q.serverid==mirror.id, distinct=True)
                 connections = self.conn.Serverpfx._connection.queryAll(self.conn.Serverpfx._connection.sqlrepr(query))
                 for i in connections:
                     s.append('%5s' % i)
             if opts.prefix:
+                s.append("Prefixes:")
                 query=Select([self.conn.Serverpfx.q.prefix], where=self.conn.Serverpfx.q.serverid==mirror.id, distinct=True)
                 connections = self.conn.Serverpfx._connection.queryAll(self.conn.Serverpfx._connection.sqlrepr(query))
                 for i in connections:
