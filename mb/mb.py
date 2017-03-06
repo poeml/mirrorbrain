@@ -855,7 +855,7 @@ class MirrorDoctor(cmdln.Cmdln):
 
         mirrors_to_scan = []
         mirrors_skipped = []
-        if not opts.directory or len(mirrors) == 1:
+        if not opts.directory:
             mirrors_to_scan = [ i for i in mirrors ]
         else:
             print 'Checking for existance of %r directory' % opts.directory
@@ -889,7 +889,7 @@ class MirrorDoctor(cmdln.Cmdln):
         if self.options.debug:
             print cmd
         
-        if opts.directory and len(mirrors) != 1:
+        if opts.directory:
             print 'Completed in', mb.util.timer_elapsed()
             mb.util.timer_start()
 
