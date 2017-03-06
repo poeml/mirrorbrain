@@ -948,6 +948,8 @@ class MirrorDoctor(cmdln.Cmdln):
                              'subdirectory -- see examples)')
     @cmdln.option('-t', '--target-dir', metavar='PATH',
                         help='set the target directory (required)')
+    @cmdln.option('-z', '--zsync-mask', metavar='REGEX',
+                        help='regular expression to select files to create zsync hashes for')
     @cmdln.option('-v', '--verbose', action='store_true',
                         help='show more information')
     def do_makehashes(self, subcmd, opts, startdir):
@@ -1020,6 +1022,8 @@ class MirrorDoctor(cmdln.Cmdln):
             opts.ignore_mask = re.compile(opts.ignore_mask)
         if opts.file_mask: 
             opts.file_mask = re.compile(opts.file_mask)
+        if opts.zsync_mask:
+            opts.zsync_mask = re.compile(opts.zsync_mask)
 
         unlinked_files = unlinked_dirs = 0
 
@@ -1104,6 +1108,12 @@ class MirrorDoctor(cmdln.Cmdln):
                 if opts.ignore_mask and re.match(opts.ignore_mask, src):
                     continue
 
+                do_chunked_with_zsync = False
+                chunk_size = self.config.dbconfig.get('chunk_size')
+                if opts.zsync_mask and self.config.dbconfig.get('chunked_hashes') and re.match(opts.zsync_mask, src):
+                    do_chunked_with_zsync = True
+                    chunk_size = 65536
+
                 # stat only once
                 try:
                     hasheable = mb.hashes.Hasheable(src_basename, 
@@ -1112,7 +1122,8 @@ class MirrorDoctor(cmdln.Cmdln):
                                                     base_dir=opts.base_dir,
                                                     do_zsync_hashes=self.config.dbconfig.get('zsync_hashes'),
                                                     do_chunked_hashes=self.config.dbconfig.get('chunked_hashes'),
-                                                    chunk_size=self.config.dbconfig.get('chunk_size'))
+                                                    chunk_size=chunk_size,
+                                                    do_chunked_with_zsync=do_chunked_with_zsync)
                 except OSError, e:
                     if e.errno == errno.ENOENT:
                         sys.stderr.write('File vanished: %r\n' % src)

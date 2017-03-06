@@ -32,7 +32,7 @@ class Hasheable:
     """represent a file and its metadata"""
     def __init__(self, basename, src_dir=None, dst_dir=None,
                  base_dir=None, do_zsync_hashes=False,
-                 do_chunked_hashes=True, chunk_size=DEFAULT_PIECESIZE):
+                 do_chunked_hashes=True, chunk_size=DEFAULT_PIECESIZE, do_chunked_with_zsync=False):
         self.basename = basename
         if src_dir:
             self.src_dir = src_dir
@@ -58,6 +58,7 @@ class Hasheable:
         self.hb = HashBag(src=self.src, parent=self)
         self.hb.do_zsync_hashes = do_zsync_hashes
         self.hb.do_chunked_hashes = do_chunked_hashes
+        self.hb.do_chunked_with_zsync = do_chunked_with_zsync
         self.hb.chunk_size = chunk_size
 
     def islink(self):
@@ -115,6 +116,9 @@ class Hasheable:
             conn.mycursor = conn.Hash._connection.getConnection().cursor()
         c = conn.mycursor
 
+        if self.hb.chunk_size == 0 or (self.size + self.hb.chunk_size - 1) / (self.hb.chunk_size - 1) != len(self.hb.pieceshex):
+            self.hb.zsyncpieceshex = []
+
 
         c.execute("SELECT id FROM filearr WHERE path = %s LIMIT 1",
                   [self.src_rel])
@@ -163,7 +167,7 @@ class Hasheable:
                        self.hb.sha1hex or '',
                        self.hb.sha256hex or '',
                        self.hb.chunk_size,
-                       ''.join(self.hb.pieceshex),
+                       ''.join(self.hb.pieceshex) + ''.join(self.hb.zsyncpieceshex),
                        self.hb.btihhex or '',
                        self.hb.pgp or '',
                        self.hb.zblocksize,
@@ -201,7 +205,7 @@ class Hasheable:
                          WHERE file_id = %s""",
                       [int(self.mtime), self.size,
                        self.hb.md5hex or '', self.hb.sha1hex or '', self.hb.sha256hex or '',
-                       self.hb.chunk_size, ''.join(self.hb.pieceshex),
+                       self.hb.chunk_size, ''.join(self.hb.pieceshex) + ''.join(self.hb.zsyncpieceshex),
                        self.hb.btihhex or '',
                        self.hb.pgp or '', 
                        self.hb.zblocksize,
@@ -238,6 +242,7 @@ class HashBag:
         self.npieces = 0
         self.pieces = []
         self.pieceshex = []
+        self.zsyncpieceshex = []
         self.btih = None
         self.btihhex = None
 
@@ -290,6 +295,8 @@ class HashBag:
             if self.do_chunked_hashes:
                 self.pieces.append(sha1.sha1(buf).digest())
                 self.pieceshex.append(sha1.sha1(buf).hexdigest())
+                if self.do_chunked_with_zsync:
+                    self.zsyncpieceshex.append(self.get_zsync_digest(buf, self.chunk_size));
 
             if self.do_zsync_hashes:
                 self.zs_get_block_sums(buf)
@@ -416,6 +423,11 @@ class HashBag:
                 self.zsums.append( r[-self.zrsum_len:] )      # save only some trailing bytes
                 self.zsums.append( c[0:self.zchecksum_len] )  # save only some leading bytes
 
+    def get_zsync_digest(self, buf, blocksize):
+        if len(buf) < blocksize:
+            buf = buf + ( '\x00' * ( blocksize - len(buf) ) )
+        r = zsync.rsum06(buf)
+        return "%02x%02x%02x%02x" % (ord(r[3]), ord(r[2]), ord(r[1]), ord(r[0]))
 
     def calc_btih(self):
         """ calculate a bittorrent information hash (btih) """

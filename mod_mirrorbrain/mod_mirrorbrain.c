@@ -122,6 +122,7 @@
 #define MD5_DIGESTSIZE 16
 #define SHA1_DIGESTSIZE 20
 #define SHA256_DIGESTSIZE 32
+#define ZSYNC_DIGESTSIZE 4
 
 #ifdef WITH_MEMCACHE
 #define DEFAULT_MEMCACHED_LIFETIME 600
@@ -227,6 +228,7 @@ struct hashbag {
     const char *sha256hex;
     int sha1piecesize;
     apr_array_header_t *sha1pieceshex;
+    apr_array_header_t *zsyncpieceshex;
     const char *btihhex;
     const char *pgp;
     int zblocksize;
@@ -1183,6 +1185,7 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
     h->sha256hex = NULL;
     h->sha1piecesize = 0;
     h->sha1pieceshex = NULL;
+    h->zsyncpieceshex = NULL;
     h->btihhex = NULL;
     h->pgp = NULL;
     h->zblocksize = 0;
@@ -1261,17 +1264,25 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
 
             /* split the string into an array of the actual pieces */
 
-            apr_off_t n = r->finfo.size / h->sha1piecesize;
+            apr_off_t n = (r->finfo.size  + h->sha1piecesize - 1) / h->sha1piecesize;
             // XXX ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] dbd: %" APR_INT64_T_FMT " sha1 pieces", n);
 
             h->sha1pieceshex = apr_array_make(r->pool, n, sizeof(const char *));
             int max = strlen(val);
             int i;
-            for (i = 0; (i <= n); i++) {
+            for (i = 0; i < n; i++) {
                 if (((i + 1) * SHA1_DIGESTSIZE*2) > max)
                         break;
                 APR_ARRAY_PUSH(h->sha1pieceshex, char *) = apr_pstrndup(r->pool, 
                         val + (i * SHA1_DIGESTSIZE * 2), (SHA1_DIGESTSIZE * 2));
+            }
+            // check if we have extra zsync data appended
+            if (max == (SHA1_DIGESTSIZE + ZSYNC_DIGESTSIZE) * 2 * n) {
+                h->zsyncpieceshex = apr_array_make(r->pool, n, sizeof(const char *));
+                for (i = 0; i < n; i++) {
+                    APR_ARRAY_PUSH(h->zsyncpieceshex, char *) = apr_pstrndup(r->pool, 
+                            val + (n * SHA1_DIGESTSIZE * 2) + (i * ZSYNC_DIGESTSIZE * 2), (ZSYNC_DIGESTSIZE * 2));
+                }
             }
         }
     }
@@ -2689,7 +2700,18 @@ static int mb_handler(request_rec *r)
                         ap_rprintf(r, "    <hash type=\"sha-1\">%s</hash>\n", hashbag->sha1hex);
                     if (hashbag->sha256hex)
                         ap_rprintf(r, "    <hash type=\"sha-256\">%s</hash>\n", hashbag->sha256hex);
+                    if (hashbag->zsyncpieceshex 
+                        && (hashbag->sha1piecesize > 0) 
+                        && !apr_is_empty_array(hashbag->zsyncpieceshex)) {
+                        ap_rprintf(r, "    <pieces length=\"%d\" type=\"zsync\">\n", 
+                                   hashbag->sha1piecesize);
 
+                        char **p = (char **)hashbag->zsyncpieceshex->elts;
+                        for (i = 0; i < hashbag->zsyncpieceshex->nelts; i++) {
+                            ap_rprintf(r, "      <hash>%s</hash>\n", p[i]);
+                        }
+                        ap_rputs("    </pieces>\n", r);
+                    }
                     if (hashbag->sha1pieceshex 
                         && (hashbag->sha1piecesize > 0) 
                         && !apr_is_empty_array(hashbag->sha1pieceshex)) {
@@ -2720,7 +2742,18 @@ static int mb_handler(request_rec *r)
                         ap_rprintf(r, "        <hash type=\"sha1\">%s</hash>\n", hashbag->sha1hex);
                     if (hashbag->sha256hex)
                         ap_rprintf(r, "        <hash type=\"sha256\">%s</hash>\n", hashbag->sha256hex);
+                    if (hashbag->zsyncpieceshex 
+                        && (hashbag->sha1piecesize > 0) 
+                        && !apr_is_empty_array(hashbag->zsyncpieceshex)) {
+                        ap_rprintf(r, "        <pieces length=\"%d\" type=\"zsync\">\n", 
+                                   hashbag->sha1piecesize);
 
+                        char **p = (char **)hashbag->zsyncpieceshex->elts;
+                        for (i = 0; i < hashbag->zsyncpieceshex->nelts; i++) {
+                            ap_rprintf(r, "          <hash piece=\"%d\">%s</hash>\n", i, p[i]);
+                        }
+                        ap_rputs("        </pieces>\n", r);
+                    }
                     if (hashbag->sha1pieceshex 
                         && (hashbag->sha1piecesize > 0) 
                         && !apr_is_empty_array(hashbag->sha1pieceshex)) {
