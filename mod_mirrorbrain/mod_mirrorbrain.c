@@ -1581,6 +1581,13 @@ static int mb_handler(request_rec *r)
     /* We might be running as a backend which sees client IPs only through HTTP
      * headers */
     clientip = apr_table_get(r->subprocess_env, "GEOIP_ADDR");
+    if (!clientip) {
+#if MODULE_MAGIC_NUMBER_MAJOR >= 20111025
+      clientip = apr_pstrdup(r->pool, r->useragent_ip);
+#else 
+      clientip = apr_pstrdup(r->pool, r->connection->remote_ip);
+#endif
+    }
     rv = apr_sockaddr_info_get(&clientaddr, clientip, APR_UNSPEC, 0, 0, r->pool);
     if(APR_STATUS_IS_EINVAL(rv) || (rv != APR_SUCCESS)) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] "
