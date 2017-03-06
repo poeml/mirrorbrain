@@ -2023,8 +2023,7 @@ static int mb_handler(request_rec *r)
             return DECLINED;
         }
     }
-
-    if (dbd) {
+    if (dbd && res) {
         mirror_cnt = apr_dbd_num_tuples(dbd->driver, res);
     }
 
