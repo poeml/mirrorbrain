@@ -157,7 +157,7 @@ def dir_filelist(conn, path):
                    FROM filearr 
                LEFT JOIN hash 
                    ON hash.file_id = filearr.id 
-               WHERE filearr.path ~ '^""" + util.pgsql_regexp_esc(path) +"""/[^/]*$'""" 
+               WHERE filearr.dirname = '%s/'""" % util.pgsql_regexp_esc(path)
 
     result = conn.Server._connection.queryAll(query)
     return result
