@@ -21,6 +21,9 @@ def delete_mirror(conn, mirror):
                    % (m.id, m.id)
     conn.Server._connection.queryAll(query)
 
+    # Delete relates prefix and asn values for the server
+    conn.Serverpfx._connection.query("DELETE from serverpfx where serverid=%d" % m.id);
+
     conn.Server.delete(m.id)
 
 

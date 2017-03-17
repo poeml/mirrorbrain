@@ -23,7 +23,9 @@ __url__ = 'http://mirrorbrain.org'
 import cmdln
 import mb.geoip
 import mb.mberr
+from mb.util import af_from_string
 import signal
+import socket
 
 def catchterm(*args):
     raise mb.mberr.SignalInterrupt
@@ -40,6 +42,8 @@ def lookup_mirror(self, identifier):
     if len(r) == 0:
         sys.exit('Not found.')
     elif len(r) == 1:
+        # Only one server found - let's also get ASN information
+        r[0].connections = mb.conn.server_connections(self.conn.Serverpfx, r[0].id)
         return r[0]
     else:
         print 'Found multiple matching mirrors:'
@@ -170,19 +174,24 @@ class MirrorDoctor(cmdln.Cmdln):
         scheme, host, path, a, b, c = urlparse.urlparse(opts.http)
         if ':' in host:
             host, port = host.split(':')
+        res = mb.asn.iplookup(self.conn, host)
         if not opts.region:
-            opts.region = mb.geoip.lookup_region_code(host)
+            if res.ip:
+                opts.region = mb.geoip.lookup_region_code(res.ip)
+            elif res.ip6:
+                opts.region = mb.geoip.lookup_region_code(res.ip6)
         if not opts.country:
-            opts.country = mb.geoip.lookup_country_code(host)
+           if res.ip:
+                opts.country = mb.geoip.lookup_country_code(res.ip)
+           elif res.ip6:
+                opts.country = mb.geoip.lookup_country_code(res.ip6)
+
         lat, lng = mb.geoip.lookup_coordinates(host)
 
-        r = mb.asn.iplookup(self.conn, host)
-        asn, prefix = r.asn, r.prefix
-        if not asn: asn = 0
-        if not prefix: prefix = ''
-
         if opts.region == '--' or opts.country == '--':
-            raise ValueError('Region lookup failed. Use the -c and -r option.')
+            print('Detected geolocation: country = %s / region = %s' % (opts.country, opts.region))
+            print('Region lookup incomplete. Use the -c and/or -r option to supply missing information.')
+            sys.exit()
 
         s = self.conn.Server(identifier   = identifier,
                              baseurl      = opts.http,
@@ -190,8 +199,6 @@ class MirrorDoctor(cmdln.Cmdln):
                              baseurlRsync = opts.rsync or '',
                              region       = opts.region,
                              country      = opts.country,
-                             asn          = asn,
-                             prefix       = prefix,
                              lat          = lat or 0,
                              lng          = lng or 0,
                              score        = opts.score,
@@ -210,6 +217,12 @@ class MirrorDoctor(cmdln.Cmdln):
                              regionOnly   = opts.region_only or 0,
                              asOnly       = opts.as_only or 0,
                              prefixOnly   = opts.prefix_only or 0)
+
+        # Squeze in options for the do_update call: only update prefix and asn (we already did the rest)
+        opts.all = opts.coordinates = opts.country = opts.region = opts.dry_run = False
+        opts.prefix = opts.asn = True
+        do_updates = self.do_update(None, opts, identifier);
+
         if self.options.debug:
             print s
 
@@ -270,6 +283,9 @@ class MirrorDoctor(cmdln.Cmdln):
         else:
             mirrors = self.conn.Server.select()
 
+
+        from sqlobject.sqlbuilder import Select
+
         for mirror in mirrors:
             s = []
             s.append('%-30s' % mirror.identifier)
@@ -282,9 +298,15 @@ class MirrorDoctor(cmdln.Cmdln):
             if opts.other_countries:
                 s.append('%2s' % mirror.otherCountries)
             if opts.asn:
-                s.append('%5s' % mirror.asn)
+                query=Select([self.conn.Serverpfx.q.asn], where=self.conn.Serverpfx.q.serverid==mirror.id, distinct=True)
+                connections = self.conn.Serverpfx._connection.queryAll(self.conn.Serverpfx._connection.sqlrepr(query))
+                for i in connections:
+                    s.append('%5s' % i)
             if opts.prefix:
-                s.append('%-19s' % mirror.prefix)
+                query=Select([self.conn.Serverpfx.q.prefix], where=self.conn.Serverpfx.q.serverid==mirror.id, distinct=True)
+                connections = self.conn.Serverpfx._connection.queryAll(self.conn.Serverpfx._connection.sqlrepr(query))
+                for i in connections:
+                    s.append('%5s' % i)
             if opts.http_url:
                 s.append('%-55s' % mirror.baseurl)
             if opts.ftp_url:
@@ -324,6 +346,11 @@ class MirrorDoctor(cmdln.Cmdln):
 
         mirror = lookup_mirror(self, identifier)
         print mb.conn.server_show_template % mb.conn.server2dict(mirror)
+        if len(mirror.connections) > 0:
+            print "-------- Connectivity---------"
+            for i in mirror.connections:
+                print "Prefix: %s (AS%s)" % (i.prefix, i.asn)
+            print "-------- Connectivity---------"
 
 
     @cmdln.option('--all-prefixes', action='store_true',
@@ -356,7 +383,8 @@ class MirrorDoctor(cmdln.Cmdln):
         elif opts.prefix:
             print r.prefix
         else:
-            print '%s (AS%s) %s' % (r.prefix, r.asn, r.ip6)
+            if r.ip: print 'IPv4: address: %s - Prefix: %s (AS%s) ' % (r.ip, r.prefix, r.asn)
+            if r.ip6: print 'IPv6: address: %s - Prefix: %s (AS%s) ' % (r.ip6, r.prefix6, r.asn6)
         if opts.all_prefixes:
             r2 = mb.asn.asn_prefixes(self.conn, r.asn)
             print ', '.join(r2)
@@ -425,6 +453,8 @@ class MirrorDoctor(cmdln.Cmdln):
         for mirror in mirrors:
             hostname = hostname_from_url(mirror.baseurl)
 
+            connections = mb.conn.server_connections(self.conn.Serverpfx, mirror.id)
+
             #if opts.prefix or opts.asn:
             try:
                 res = iplookup(self.conn, hostname)
@@ -432,7 +462,6 @@ class MirrorDoctor(cmdln.Cmdln):
                 print '%s:' % mirror.identifier, e.msg
                 #print '%s: without DNS lookup, no further lookups are possible' % mirror.identifier
                 continue
-
 
             if res:
                 if mirror.ipv6Only != res.ipv6Only():
@@ -442,23 +471,53 @@ class MirrorDoctor(cmdln.Cmdln):
                         mirror.ipv6Only = res.ipv6Only()
 
             if opts.prefix and res:
-                if not res.prefix:
-                    print '%s: STRANGE! There\'s no prefix containing this hosts IP address (%s)...' \
-                            % (mirror.identifier, res.ip)
-                elif mirror.prefix != res.prefix:
-                    print '%s: updating network prefix (%s -> %s)' \
-                        % (mirror.identifier, mirror.prefix, res.prefix)
-                    if not opts.dry_run:
-                        mirror.prefix = res.prefix
+                if not (res.prefix or res.prefix6):
+                    print '%s: STRANGE! There\'s no prefix containing this hosts IP address(es) (ipv4: %s / ipv6: %s)...' \
+                            % (mirror.identifier, res.ip, res.ip6)
+                else:
+                    for i in connections:
+                        if af_from_string(i.prefix) == socket.AF_INET:
+                            pfx = res.prefix
+                            res.prefix = None
+                        else:
+                            pfx = res.prefix6
+                            res.prefix6=None
+                        if i.prefix != pfx:
+                            print '%s: updating network prefix (%s -> %s)' \
+                                % (mirror.identifier, i.prefix, pfx)
+                            if not opts.dry_run:
+                                if pfx:
+                                    i.prefix = pfx
+                                else: i.destroySelf()
+                    for pfx in res.prefix, res.prefix6:
+                        if not pfx: continue
+                        if af_from_string(pfx) == socket.AF_INET:
+                            asn = res.asn
+                        elif af_from_string(pfx) == socket.AF_INET6:
+                            asn = res.asn6
+                        print '%s: adding network prefix: %s (AS%s)' \
+                            % (mirror.identifier, pfx, asn)
+                        s = self.conn.Serverpfx(serverid = mirror.id,
+                                                prefix   = pfx,
+                                                asn      = asn)
+
             if opts.asn and res:
-                if not res.asn:
-                    print '%s: STRANGE! There\'s no ASN containing this hosts IP address (%s)...' \
-                            % (mirror.identifier, res.ip)
-                elif mirror.asn != res.asn:
-                    print '%s: updating autonomous system number (%s -> %s)' \
-                        % (mirror.identifier, mirror.asn, res.asn)
-                    if not opts.dry_run:
-                        mirror.asn = res.asn
+                if not (res.asn or res.asn6):
+                    print '%s: STRANGE! There\'s no ASN containing this hosts IP address (v4: %s / v6: %s)...' \
+                            % (mirror.identifier, res.ip, res.ip6)
+                else:
+                    for i in connections:
+                        if af_from_string(i.prefix) == socket.AF_INET:
+                            asn = res.asn
+                            prefix = res.prefix
+                        else:
+                            asn = res.asn6
+                            prefix = res.prefix6
+                        if i.prefix == prefix and i.asn != asn:
+                            print '%s: updating autonomous system number for prefix "%s" (%s -> %s)' \
+                            % (mirror.identifier, i.prefix, i.asn, asn)
+                            if not opts.dry_run:
+                                i.asn = asn
 
             if opts.coordinates:
                 lat, lng = mb.geoip.lookup_coordinates(hostname)
