@@ -1,5 +1,6 @@
 import sys, os
 import time
+import socket
 
 t_start = 0
 rsync_version = None
@@ -34,7 +35,9 @@ class IpAddress:
         self.ip = None
         self.ip6 = None
         self.asn = None
+        self.asn6 = None
         self.prefix = None
+        self.prefix6 = None
     def ipv6Only(self):
         if self.ip6 and not self.ip:
             return True
@@ -43,7 +46,7 @@ class IpAddress:
     def __str__(self):
         r = '%s (%s AS%s)' % (self.ip, self.prefix, self.asn)
         if self.ip6:
-            r += ' %s' % self.ip6
+            r += ' %s (%s AS%s)' % (self.ip6, self.prefix6, self.asn6)
 
 
 class Sample:
@@ -103,6 +106,12 @@ def hostname_from_url(url):
     if ':' in h:
         h = h.split(':')[0]
     return h
+
+def af_from_string(s):
+    right = s.find('/')
+    if right < 0: right = len(s)
+
+    return socket.getaddrinfo(s[:right], 0)[0][0]
 
 
 def dgst(file):

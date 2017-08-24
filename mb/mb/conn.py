@@ -13,8 +13,6 @@ baseurlFtp     : %(baseurlFtp)s
 baseurlRsync   : %(baseurlRsync)s
 region         : %(region)s
 country        : %(country)s
-asn            : %(asn)s
-prefix         : %(prefix)s
 lat,lng        : %(lat)s,%(lng)s
 regionOnly     : %(regionOnly)s
 countryOnly    : %(countryOnly)s
@@ -40,8 +38,6 @@ server_editable_attrs = [ 'baseurl',
                           'baseurlRsync',
                           'region',
                           'country',
-                          'asn',
-                          'prefix',
                           'lat',
                           'lng',
                           'regionOnly',
@@ -68,8 +64,6 @@ def server2dict(s):
                 baseurlRsync  = s.baseurlRsync,
                 region        = s.region,
                 country       = s.country,
-                asn           = s.asn,
-                prefix        = s.prefix,
                 regionOnly    = s.regionOnly,
                 countryOnly   = s.countryOnly,
                 asOnly        = s.asOnly,
@@ -88,7 +82,8 @@ def server2dict(s):
                 lat           = s.lat,
                 lng           = s.lng,
                 operatorName  = s.operatorName,
-                operatorUrl   = s.operatorUrl)
+                operatorUrl   = s.operatorUrl,
+                Connections   = s.connections)
 
 #
 # setup database connection
@@ -208,6 +203,13 @@ class Conn:
             class sqlmeta:
                 fromDatabase = True
         self.Server = Server
+
+        class Serverpfx(SQLObject):
+            """the serverpfx table"""
+            class sqlmeta:
+                idName = 'pfxid'
+                fromDatabase = True
+        self.Serverpfx = Serverpfx
 
         class Filearr(SQLObject):
             """the file table"""
@@ -366,6 +368,11 @@ def servers_match(server, match):
         servers = server.select("""identifier LIKE '%%%s%%'""" % match)
 
     return list(servers)
+
+def server_connections(serverpfx, serverid):
+    connections = serverpfx.select("""serverid = '%s'""" % serverid)
+
+    return list(connections)
 
 
 

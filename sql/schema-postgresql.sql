@@ -92,8 +92,6 @@ CREATE TABLE "server" (
         "status_baseurl" boolean NOT NULL,
         "region"  varchar(2) NOT NULL,
         "country" varchar(2) NOT NULL,
-        "asn" integer NOT NULL,
-        "prefix" varchar(18) NOT NULL,
         "ipv6_only" boolean NOT NULL default 'f',
         "score" smallint NOT NULL,
         "scan_fpm" integer NOT NULL,
@@ -112,6 +110,13 @@ CREATE TABLE "server" (
         "prefix_only" boolean NOT NULL,
         "other_countries" varchar(512) NOT NULL,
         "file_maxsize" integer NOT NULL default 0
+);
+
+CREATE TABLE serverpfx (
+       "pfxid" serial PRIMARY KEY,
+       "serverid" integer NOT NULL,
+       "prefix" iprange NOT NULL,
+       "asn" integer NOT NULL
 );
 
 CREATE INDEX "server_enabled_status_baseurl_score_key" ON "server" (
