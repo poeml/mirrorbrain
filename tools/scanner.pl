@@ -1448,7 +1448,7 @@ sub largefile_check
       print localtime(time) . " $identifier: Moved to ftp location, assuming success if followed\n" if $verbose >= 1;
       goto all_ok;
     }
-    if($result->header('location') =~ m{^http:.*}) {
+    if($result->header('location') =~ m{^https?:.*}) {
       print localtime(time) . " $identifier: [RECURSE] Moved to other http location, recursing scan...\n" if $verbose >= 1;
       return largefile_check($id, $result->header('location'), $size, $recurse+1);
     }
