@@ -1118,7 +1118,7 @@ sub rsync_readdir
   $peer->{counter} = 0;
   $path .= "/". $d if length $d;
   eval{
-    rsync_get_filelist($identifier, $peer, $path, 0, \&rsync_cb, $peer)
+    rsync_get_filelist($identifier, $peer, $path, 0, \&rsync_cb, $peer, 1)
   };
   return $peer->{counter};
 }
@@ -1198,7 +1198,7 @@ sub muxread
 
 sub rsync_get_filelist
 {
-  my ($identifier, $peer, $syncroot, $norecurse, $callback, $priv) = @_;
+  my ($identifier, $peer, $syncroot, $norecurse, $callback, $priv, $sorted) = @_;
   my $syncaddr = $peer->{addr};
   my $syncport = $peer->{port};
 
@@ -1308,7 +1308,14 @@ sub rsync_get_filelist
       print "$name: unknown mode: $mode\n";
       next;
     }
-    if($callback) {
+    # sort and process buffer when folder changes
+    if ($callback && $sorted && !($mmode & 0x1000)) {
+        for my $file (sort {$a->[0] cmp $b->[0]} @filelist) {
+            &$callback($priv, $file->[0], $file->[1], $file->[2], $file->[3], $file->[4]);
+        }
+        @filelist = ();
+    }
+    if(!$sorted && $callback) {
       &$callback($priv, $name, $len, $mmode, $mtime);
     }
     else {
@@ -1324,8 +1331,15 @@ sub rsync_get_filelist
     swrite(*S, pack('V', -1));    # goodbye
   }
   close(S);
+  if ($callback && $sorted) {
+    # sort and process remaining buffer
+    for my $file (sort {$a->[0] cmp $b->[0]} @filelist) {
+      &$callback($priv, $file->[0], $file->[1], $file->[2], $file->[3]);
+    }
+  }
   return undef if $callback;
-  return @filelist;
+  return @filelist unless $sorted;
+  return sort {$a->[0] cmp $b->[0]} @filelist;
 }
 
 
