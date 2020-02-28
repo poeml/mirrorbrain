@@ -1309,8 +1309,7 @@ sub rsync_get_filelist
       next;
     }
     if($callback) {
-      my $r = &$callback($priv, $name, $len, $mmode, $mtime);
-      push @filelist, $r if $r;
+      &$callback($priv, $name, $len, $mmode, $mtime);
     }
     else {
       push @filelist, [$name, $len, $mmode, $mtime];
@@ -1325,6 +1324,7 @@ sub rsync_get_filelist
     swrite(*S, pack('V', -1));    # goodbye
   }
   close(S);
+  return undef if $callback;
   return @filelist;
 }
 
