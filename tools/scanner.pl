@@ -1045,7 +1045,7 @@ sub getfileid
 # callback function
 sub rsync_cb
 {
-  my ($priv, $name, $len, $mode, $mtime, @info) = @_;
+  my ($priv, $name, $len, $mode, $mtime) = @_;
   return 0 if $name eq '.' or $name eq '..';
   my $r = 0;
 
@@ -1072,7 +1072,7 @@ sub rsync_cb
           }
         }
 
-        $r = [$name, $len, $mode, $mtime, @info];
+        $r = [$name, $len, $mode, $mtime];
         printf "%s: rsync ADD: %03o %12.0f %-25s %-50s\n", $priv->{identifier}, ($mode & 0777), $len, scalar(localtime $mtime), $name if $verbose > 2;
       }
     }
@@ -1296,7 +1296,6 @@ sub rsync_get_filelist
     }
     $mtime = unpack('V', muxread($identifier, *S, 4)) unless $flags & 0x80;
     $mode = unpack('V', muxread($identifier, *S, 4)) unless $flags & 0x02;
-    my @info = ();
     my $mmode = $mode & 07777;
     if(($mode & 0170000) == 0100000) {
       $mmode |= 0x1000;
@@ -1304,18 +1303,17 @@ sub rsync_get_filelist
       $mmode |= 0x0000;
     } elsif (($mode & 0170000) == 0120000) {
       $mmode |= 0x2000;
-      my $ln = muxread($identifier, *S, unpack('V', muxread($identifier, *S, 4)));
-      @info = ($ln);
+      muxread($identifier, *S, unpack('V', muxread($identifier, *S, 4)));
     } else {
       print "$name: unknown mode: $mode\n";
       next;
     }
     if($callback) {
-      my $r = &$callback($priv, $name, $len, $mmode, $mtime, @info);
+      my $r = &$callback($priv, $name, $len, $mmode, $mtime);
       push @filelist, $r if $r;
     }
     else {
-      push @filelist, [$name, $len, $mmode, $mtime, @info];
+      push @filelist, [$name, $len, $mmode, $mtime];
     }
   }
   my $io_error = unpack('V', muxread($identifier, *S, 4));
