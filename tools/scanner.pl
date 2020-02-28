@@ -340,7 +340,7 @@ for my $row (@scan_list) {
 
 
   #$sql = "SELECT COUNT(*) FROM temp1";
-  $sql = "SELECT COUNT(mirr_del_byid($row->{id}, id)) FROM temp1";
+  $sql = "SELECT COUNT(mirr_del_byid($row->{id}, id) order by id) FROM temp1";
   print "$sql\n" if $sqlverbose;
   $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
   my $purge_file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
