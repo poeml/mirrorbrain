@@ -142,12 +142,11 @@
                              "as_only, prefix_only, " \
                              "other_countries, file_maxsize " \
                       "FROM server " \
-                      "JOIN serverpfx on id = serverid " \
+                      "LEFT JOIN serverpfx ON id = serverid AND family(serverpfx.prefix) = family(ipaddress(%s)) " \
                       "WHERE id::smallint = any(" \
                           "(SELECT mirrors " \
                            "FROM filearr " \
                            "WHERE path = %s)::smallint[]) " \
-                      "AND family(serverpfx.prefix) = family(ipaddress(%s)) " \
                       "AND enabled AND status_baseurl AND score > 0"
 #define DEFAULT_QUERY_HASH "SELECT file_id, md5hex, sha1hex, sha256hex, " \
                                   "sha1piecesize, sha1pieceshex, btihhex, pgp, " \
@@ -2027,7 +2026,7 @@ static int mb_handler(request_rec *r)
                       without it the mysql driver doesn't return results
                       once apr_dbd_num_tuples() has been called; 
                       apr_dbd_get_row() will only return -1 after that. */
-                filename, clientip, NULL) != 0) {
+                clientip, filename, NULL) != 0) {
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
                 "[mod_mirrorbrain] Error looking up %s in database", filename);
         if (apr_is_empty_array(cfg->fallbacks)) {

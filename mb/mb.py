@@ -185,8 +185,9 @@ class MirrorDoctor(cmdln.Cmdln):
                 opts.country = mb.geoip.lookup_country_code(res.ip)
            elif res.ip6:
                 opts.country = mb.geoip.lookup_country_code(res.ip6)
-
-        lat, lng = mb.geoip.lookup_coordinates(host)
+        lat, lng = 0, 0
+        if mb.geoip.database or mb.geoip.database6:
+            lat, lng = mb.geoip.lookup_coordinates(host)
 
         if opts.region == '--' or opts.country == '--':
             print('Detected geolocation: country = %s / region = %s' % (opts.country, opts.region))
