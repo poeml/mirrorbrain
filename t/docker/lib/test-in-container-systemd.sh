@@ -15,7 +15,19 @@
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, see <http://www.gnu.org/licenses/>.
 
-testcase=$1
+initscript=$1
+testcase=$2
+
+[ -n "$testcase" ] || {
+  testcase=$initscript
+  initscript=""
+}
+
+[ -n "$testcase" ] || {
+  echo "No testcase provided"
+  exit 1
+}
+
 set -eo pipefail
 
 [ -n "$testcase" ] || (echo No testcase provided; exit 1) >&2
@@ -70,7 +82,7 @@ done
 docker exec "$containername" pwd >& /dev/null || (echo Cannot start container; exit 1 ) >&2
 
 echo "$*"
-echo 'bash -xe /opt/project/t/docker/lib/init-mirrorbrain.sh' | docker exec -i "$containername" bash -x
+[ -z $initscript ] || echo "bash -xe /opt/project/t/docker/$initscript" | docker exec -i "$containername" bash -x
 
 set +e
 docker cp lib/common.sh "$containername":/lib

@@ -14,6 +14,9 @@ RUN sudo -u postgres /usr/share/postgresql/postgresql-script start && \
     sudo -u postgres /usr/share/postgresql/postgresql-script stop
 
 RUN sed -i 's,127.0.0.1/32            ident,127.0.0.1/32            password,' /var/lib/pgsql/data/pg_hba.conf
+RUN sed -i 's,\#log_min_duration_statement = -1,log_min_duration_statement = 500,' /var/lib/pgsql/data/postgresql.conf
+RUN sed -i 's,\#log_lock_waits = off,log_lock_waits = on,' /var/lib/pgsql/data/postgresql.conf
+RUN sed -i 's,\#deadlock_timeout = 1s,deadlock_timeout = 10,' /var/lib/pgsql/data/postgresql.conf
 
 ADD mirrorbrain.conf /etc/mirrorbrain.conf
 RUN chmod 0640 /etc/mirrorbrain.conf

@@ -43,26 +43,9 @@ setup_vhost() {
 
 setup_vhost MAIN $((port++))
 
-mirrors='mirrorA mirrorB mirrorC'
-
-for site in $mirrors; do
-    setup_vhost $site $((port++))
-done
-
 a2enmod form
 a2enmod geoip
 a2enmod dbd
-a2enmod mirrorbrain
-systemctl start apache2
-
-port=80
-curl -s 127.0.0.1:80 | grep downloads
+# a2enmod mirrorbrain
 
 mb makehashes /srv/www/vhosts/MAIN -t /srv/hashes/srv/www/vhosts/MAIN
-
-for site in $mirrors; do
-    : $((port++))
-    mb new $site --http http://127.0.0.1:$port --rsync rsync://127.0.0.1/$site/downloads --region NA --country us
-    mb scan --enable $site
-    curl -s 127.0.0.1:$port | grep downloads
-done

@@ -1,4 +1,4 @@
-#!lib/test-in-container-systemd.sh
+#!lib/test-in-container-systemd.sh lib/init/3-local-mirrors.sh
 
 set -ex
 source lib/common.sh
