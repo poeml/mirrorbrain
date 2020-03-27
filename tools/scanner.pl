@@ -1082,6 +1082,9 @@ sub rsync_cb
   }
   elsif($mode == 0755) {
     printf "%s: rsync dir: %03o %12.0f %-25s %-50s\n", $priv->{identifier}, ($mode & 0777), $len, scalar(localtime $mtime), $name if $verbose > 1;
+    if($do_transaction) { # commit every directory to reduce chance of deadlocks
+      $dbh->commit or die "$DBI::errstr";
+    }
   }
   elsif($mode == 020777) {
     printf "%s: rsync link: %03o %12.0f %-25s %-50s\n", $priv->{identifier}, ($mode & 0777), $len, scalar(localtime $mtime), $name if $verbose > 2;
