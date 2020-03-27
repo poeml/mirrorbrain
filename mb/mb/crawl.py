@@ -1,8 +1,10 @@
 
 
+from mechanize import Browser
 import sys
 import os
 import re
+
 
 def get_filelist(url):
     child_stdin, child_stdout, child_stderr = os.popen3(['rsync', '-r', url])
@@ -19,7 +21,7 @@ def get_filelist(url):
         try:
             mode, size, date, time, name = line.split(None, 4)
         except:
-            print repr(line)
+            print (repr(line))
             import sys
             sys.exit(1)
         name = name.rstrip()
@@ -29,7 +31,7 @@ def get_filelist(url):
 
         elif mode.startswith('-'):
             d, p = os.path.split(name)
-            if not d: 
+            if not d:
                 d = '.'
             dirs[d].files.append(p)
 
@@ -38,16 +40,12 @@ def get_filelist(url):
             continue
         else:
             # something unknown...
-            print 'skipping', line
-            
+            print ('skipping', line)
+
     err = child_stderr.read()
 
     return dirs, err
 
-
-
-
-from mechanize import Browser
 
 burl, url = sys.argv[1], sys.argv[2]
 #burl_len = len('http://widehat.opensuse.org/')
@@ -59,24 +57,24 @@ br = Browser()
 br.open(url)
 
 
-print 'directories:'
+print ('directories:')
 for link in br.links(url_regex=re.compile(r"""
         ^(?!(http|mailto|\?|/)) 
         .*
         /$
         """, re.X)):
-    #print link.url
-    print link.base_url[burl_len:] + link.url
+    # print (link.url)
+    print (link.base_url[burl_len:] + link.url)
 
-print
-print 'files:'
+print ()
+print ('files:')
 for link in br.links(url_regex=re.compile(r"""
         ^(?!(http|mailto|\?|/))
         .*
         [^/]$
         """, re.X)):
-    #print link
-    print link.base_url[burl_len:] + link.url
+    # print (link)
+    print (link.base_url[burl_len:] + link.url)
 
 for line in get_filelist('rsync.opensuse.org::opensuse-updates'):
-    print line
+    print (line)

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # encoding: utf-8
 
 """
@@ -19,7 +19,6 @@ __license__ = 'GPL'
 __url__ = 'http://mirrorbrain.org'
 
 
-
 import cmdln
 import mb.geoip
 import mb.mberr
@@ -27,12 +26,15 @@ from mb.util import af_from_string
 import signal
 import socket
 
+
 def catchterm(*args):
     raise mb.mberr.SignalInterrupt
 
+
 for name in 'SIGBREAK', 'SIGHUP', 'SIGTERM':
     num = getattr(signal, name, None)
-    if num: signal.signal(num, catchterm)
+    if num:
+        signal.signal(num, catchterm)
 
 
 def lookup_mirror(self, identifier):
@@ -43,14 +45,14 @@ def lookup_mirror(self, identifier):
         sys.exit('Not found.')
     elif len(r) == 1:
         # Only one server found - let's also get ASN information
-        r[0].connections = mb.conn.server_connections(self.conn.Serverpfx, r[0].id)
+        r[0].connections = mb.conn.server_connections(
+            self.conn.Serverpfx, r[0].id)
         return r[0]
     else:
-        print 'Found multiple matching mirrors:'
+        print('Found multiple matching mirrors:')
         for i in r:
-            print i.identifier
+            print(i.identifier)
         sys.exit(1)
-
 
 
 class MirrorDoctor(cmdln.Cmdln):
@@ -64,31 +66,31 @@ class MirrorDoctor(cmdln.Cmdln):
                                   '(default: /etc/mirrorbrain.conf)')
         optparser.add_option('-d', '--debug', action='store_true',
                              help='print info useful for debugging')
-        optparser.add_option('-b', '--brain-instance', 
+        optparser.add_option('-b', '--brain-instance',
                              help='the mirrorbrain instance to use. '
                                   'Corresponds to a section in '
                                   '/etc/mirrorbrain.conf which is named the same. '
                                   'Can also specified via environment variable MB.')
         return optparser
 
-
     def postoptparse(self):
         """runs after parsing global options"""
 
-        import os, mb.conf
+        import os
+        import mb.conf
         if not self.options.brain_instance:
             self.options.brain_instance = os.getenv('MB', default=None)
-        self.config = mb.conf.Config(conffile = self.options.configpath, instance = self.options.brain_instance)
+        self.config = mb.conf.Config(
+            conffile=self.options.configpath, instance=self.options.brain_instance)
 
         from mb.util import VersionParser
         version = VersionParser(__version__)
 
         # set up the database connection
         import mb.conn
-        self.conn = mb.conn.Conn(self.config.dbconfig, 
-                                 version = version, 
-                                 debug = self.options.debug)
-
+        self.conn = mb.conn.Conn(self.config.dbconfig,
+                                 version=version,
+                                 debug=self.options.debug)
 
     def do_instances(self, subcmd, opts):
         """${cmd_name}: list all configured mirrorbrain instances 
@@ -97,46 +99,40 @@ class MirrorDoctor(cmdln.Cmdln):
         ${cmd_option_list}
         """
         for i in self.config.instances:
-            print i
-
+            print(i)
 
     @cmdln.option('--prefix-only', action='store_true',
-                        help='set the mirror to handle only its network prefix')
+                  help='set the mirror to handle only its network prefix')
     @cmdln.option('--as-only', action='store_true',
-                        help='set the mirror to handle only its autonomous system')
+                  help='set the mirror to handle only its autonomous system')
     @cmdln.option('--country-only', action='store_true',
-                        help='set the mirror to handle only its country')
+                  help='set the mirror to handle only its country')
     @cmdln.option('--region-only', action='store_true',
-                        help='set the mirror to handle only its region')
+                  help='set the mirror to handle only its region')
     @cmdln.option('-C', '--comment', metavar='ARG',
                         help='comment string')
-
     @cmdln.option('--operator-name', metavar='ARG',
-                        help='name of the organization operating the mirror')
+                  help='name of the organization operating the mirror')
     @cmdln.option('--operator-url', metavar='ARG',
-                        help='URL of the organization operating the mirror')
+                  help='URL of the organization operating the mirror')
     @cmdln.option('-a', '--admin', metavar='ARG',
                         help='admins\'s name')
     @cmdln.option('-e', '--admin-email', metavar='ARG',
                         help='admins\'s email address')
-
     @cmdln.option('-s', '--score', default=100, metavar='ARG',
                         help='priority of this mirror, defaults to 100 (depreciated. Use --prio)')
     @cmdln.option('-p', '--prio', default=100, metavar='ARG',
                         help='priority of this mirror, defaults to 100')
-
     @cmdln.option('-F', '--ftp', metavar='URL',
                         help='FTP base URL')
     @cmdln.option('-R', '--rsync', metavar='URL',
-            help='rsync base URL (starting with rsync://)')
+                  help='rsync base URL (starting with rsync://)')
     @cmdln.option('-H', '--http', metavar='URL',
                         help='HTTP base URL')
-
     @cmdln.option('-r', '--region', metavar='ARG',
                         help='two-letter region code, e.g. EU')
     @cmdln.option('-c', '--country', metavar='ARG',
                         help='two-letter country code, e.g. DE')
-
     def do_new(self, subcmd, opts, identifier):
         """${cmd_name}: insert a new mirror into the database
 
@@ -157,10 +153,10 @@ class MirrorDoctor(cmdln.Cmdln):
         import urlparse
         import mb.asn
 
-
         try:
             # does an existing mirror have the same identifier? They must be unique.
-            m = self.conn.Server.select(self.conn.Server.q.identifier == identifier)[0]
+            m = self.conn.Server.select(
+                self.conn.Server.q.identifier == identifier)[0]
         except IndexError:
             pass
         else:
@@ -181,75 +177,76 @@ class MirrorDoctor(cmdln.Cmdln):
             elif res.ip6:
                 opts.region = mb.geoip.lookup_region_code(res.ip6)
         if not opts.country:
-           if res.ip:
+            if res.ip:
                 opts.country = mb.geoip.lookup_country_code(res.ip)
-           elif res.ip6:
+            elif res.ip6:
                 opts.country = mb.geoip.lookup_country_code(res.ip6)
 
         lat, lng = mb.geoip.lookup_coordinates(host)
 
         if opts.region == '--' or opts.country == '--':
-            print('Detected geolocation: country = %s / region = %s' % (opts.country, opts.region))
-            print('Region lookup incomplete. Use the -c and/or -r option to supply missing information.')
+            print('Detected geolocation: country = %s / region = %s' %
+                  (opts.country, opts.region))
+            print(
+                'Region lookup incomplete. Use the -c and/or -r option to supply missing information.')
             sys.exit()
 
-        s = self.conn.Server(identifier   = identifier,
-                             baseurl      = opts.http,
-                             baseurlFtp   = opts.ftp or '',
-                             baseurlRsync = opts.rsync or '',
-                             region       = opts.region,
-                             country      = opts.country,
-                             lat          = lat or 0,
-                             lng          = lng or 0,
-                             score        = opts.score,
-                             enabled      = 0,
-                             statusBaseurl = 0,
-                             admin        = opts.admin or '',
-                             adminEmail   = opts.admin_email or '',
-                             operatorName = opts.operator_name or '',
-                             operatorUrl  = opts.operator_url or '',
-                             otherCountries = '',
-                             publicNotes  = '',
-                             comment      = opts.comment \
-                               or 'Added - %s' % time.ctime(),
-                             scanFpm      = 0,
-                             countryOnly  = opts.country_only or 0,
-                             regionOnly   = opts.region_only or 0,
-                             asOnly       = opts.as_only or 0,
-                             prefixOnly   = opts.prefix_only or 0)
+        s = self.conn.Server(identifier=identifier,
+                             baseurl=opts.http,
+                             baseurlFtp=opts.ftp or '',
+                             baseurlRsync=opts.rsync or '',
+                             region=opts.region,
+                             country=opts.country,
+                             lat=lat or 0,
+                             lng=lng or 0,
+                             score=opts.score,
+                             enabled=0,
+                             statusBaseurl=0,
+                             admin=opts.admin or '',
+                             adminEmail=opts.admin_email or '',
+                             operatorName=opts.operator_name or '',
+                             operatorUrl=opts.operator_url or '',
+                             otherCountries='',
+                             publicNotes='',
+                             comment=opts.comment
+                             or 'Added - %s' % time.ctime(),
+                             scanFpm=0,
+                             countryOnly=opts.country_only or 0,
+                             regionOnly=opts.region_only or 0,
+                             asOnly=opts.as_only or 0,
+                             prefixOnly=opts.prefix_only or 0)
 
         # Squeze in options for the do_update call: only update prefix and asn (we already did the rest)
         opts.all = opts.coordinates = opts.country = opts.region = opts.dry_run = False
         opts.prefix = opts.asn = True
-        do_updates = self.do_update(None, opts, identifier);
+        do_updates = self.do_update(None, opts, identifier)
 
         if self.options.debug:
-            print s
-
+            print(s)
 
     @cmdln.option('--number-of-files', '-N', action='store_true',
-                        help='display number of files the mirror is known to have')
+                  help='display number of files the mirror is known to have')
     @cmdln.option('--prefix-only', action='store_true',
-                        help='display whether the mirror is configured to handle only its network prefix')
+                  help='display whether the mirror is configured to handle only its network prefix')
     @cmdln.option('--as-only', action='store_true',
-                        help='display whether the mirror is configured to handle only its autonomous system')
+                  help='display whether the mirror is configured to handle only its autonomous system')
     @cmdln.option('--country-only', action='store_true',
-                        help='display whether the mirror is configured to handle only its country')
+                  help='display whether the mirror is configured to handle only its country')
     @cmdln.option('--region-only', action='store_true',
-                        help='display whether the mirror is configured to handle only its region')
+                  help='display whether the mirror is configured to handle only its region')
     @cmdln.option('--other-countries', action='store_true',
-                        help='also display other countries that '
-                             'a mirror is configured to handle')
+                  help='also display other countries that '
+                  'a mirror is configured to handle')
     @cmdln.option('--country', action='store_true',
-                        help='also display the country')
+                  help='also display the country')
     @cmdln.option('--region', action='store_true',
-                        help='also display the region')
+                  help='also display the region')
     @cmdln.option('--prefix', action='store_true',
-                        help='also display the network prefix')
+                  help='also display the network prefix')
     @cmdln.option('--asn', action='store_true',
-                        help='also display the AS')
+                  help='also display the AS')
     @cmdln.option('--prio', action='store_true',
-                        help='also display priorities')
+                  help='also display priorities')
     @cmdln.option('-R', '--rsync-url', action='store_true',
                         help='also display the rsync URL')
     @cmdln.option('-F', '--ftp-url', action='store_true',
@@ -257,14 +254,14 @@ class MirrorDoctor(cmdln.Cmdln):
     @cmdln.option('-H', '--http-url', action='store_true',
                         help='also display the HTTP URL')
     @cmdln.option('--disabled', action='store_true',
-                        help='show only disabled mirrors')
+                  help='show only disabled mirrors')
     @cmdln.option('-a', '--show-disabled', action='store_true',
                         help='do not hide disabled mirrors')
     @cmdln.option('-c', metavar='XY',
-                        help='show only mirrors whose country matches XY')
+                  help='show only mirrors whose country matches XY')
     @cmdln.option('-r', metavar='XY',
-                        help='show only mirrors whose region matches XY '
-                        '(possible values: sa,na,oc,af,as,eu)')
+                  help='show only mirrors whose region matches XY '
+                  '(possible values: sa,na,oc,af,as,eu)')
     # @cmdln.alias('ls') ?
     def do_list(self, subcmd, opts, *args):
         """${cmd_name}: list mirrors
@@ -274,15 +271,16 @@ class MirrorDoctor(cmdln.Cmdln):
         ${cmd_option_list}
         """
         if opts.c:
-            mirrors = self.conn.Server.select("""country LIKE '%%%s%%'""" % opts.c)
+            mirrors = self.conn.Server.select(
+                """country LIKE '%%%s%%'""" % opts.c)
         elif opts.r:
-            mirrors = self.conn.Server.select("""region LIKE '%%%s%%'""" % opts.r)
+            mirrors = self.conn.Server.select(
+                """region LIKE '%%%s%%'""" % opts.r)
         elif args:
             import mb.conn
             mirrors = mb.conn.servers_match(self.conn.Server, args[0])
         else:
             mirrors = self.conn.Server.select()
-
 
         from sqlobject.sqlbuilder import Select
 
@@ -299,14 +297,18 @@ class MirrorDoctor(cmdln.Cmdln):
                 s.append('%2s' % mirror.otherCountries)
             if opts.asn:
                 s.append("ASNs:")
-                query=Select([self.conn.Serverpfx.q.asn], where=self.conn.Serverpfx.q.serverid==mirror.id, distinct=True)
-                connections = self.conn.Serverpfx._connection.queryAll(self.conn.Serverpfx._connection.sqlrepr(query))
+                query = Select([self.conn.Serverpfx.q.asn],
+                               where=self.conn.Serverpfx.q.serverid == mirror.id, distinct=True)
+                connections = self.conn.Serverpfx._connection.queryAll(
+                    self.conn.Serverpfx._connection.sqlrepr(query))
                 for i in connections:
                     s.append('%5s' % i)
             if opts.prefix:
                 s.append("Prefixes:")
-                query=Select([self.conn.Serverpfx.q.prefix], where=self.conn.Serverpfx.q.serverid==mirror.id, distinct=True)
-                connections = self.conn.Serverpfx._connection.queryAll(self.conn.Serverpfx._connection.sqlrepr(query))
+                query = Select([self.conn.Serverpfx.q.prefix],
+                               where=self.conn.Serverpfx.q.serverid == mirror.id, distinct=True)
+                connections = self.conn.Serverpfx._connection.queryAll(
+                    self.conn.Serverpfx._connection.sqlrepr(query))
                 for i in connections:
                     s.append('%5s' % i)
             if opts.http_url:
@@ -326,18 +328,18 @@ class MirrorDoctor(cmdln.Cmdln):
                 s.append('prefix_only=%s' % mirror.prefixOnly)
             if opts.number_of_files:
                 import mb.core
-                s.append('nfiles=%s' % mb.core.mirror_get_nfiles(self.conn, mirror))
+                s.append('nfiles=%s' %
+                         mb.core.mirror_get_nfiles(self.conn, mirror))
             s = ' '.join(s)
 
             if opts.show_disabled:
-                print s
+                print(s)
             elif opts.disabled:
                 if not mirror.enabled:
-                    print s
+                    print(s)
             else:
                 if mirror.enabled:
-                    print s
-
+                    print(s)
 
     def do_show(self, subcmd, opts, identifier):
         """${cmd_name}: show a mirror entry
@@ -347,16 +349,15 @@ class MirrorDoctor(cmdln.Cmdln):
         """
 
         mirror = lookup_mirror(self, identifier)
-        print mb.conn.server_show_template % mb.conn.server2dict(mirror)
+        print(mb.conn.server_show_template % mb.conn.server2dict(mirror))
         if len(mirror.connections) > 0:
-            print "-------- Connectivity---------"
+            print("-------- Connectivity---------")
             for i in mirror.connections:
-                print "Prefix: %s (AS%s)" % (i.prefix, i.asn)
-            print "-------- Connectivity---------"
-
+                print("Prefix: %s (AS%s)" % (i.prefix, i.asn))
+            print("-------- Connectivity---------")
 
     @cmdln.option('--all-prefixes', action='store_true',
-                        help='show all prefixes handled by this AS')
+                  help='show all prefixes handled by this AS')
     @cmdln.option('-p', '--prefix', action='store_true',
                         help='print the network prefix')
     @cmdln.option('-a', '--asn', action='store_true',
@@ -381,25 +382,28 @@ class MirrorDoctor(cmdln.Cmdln):
         r = mb.asn.iplookup(self.conn, ip)
 
         if opts.asn:
-            print r.asn
+            print(r.asn)
         elif opts.prefix:
-            print r.prefix
+            print(r.prefix)
         else:
-            if r.ip: print 'IPv4: address: %s - Prefix: %s (AS%s) ' % (r.ip, r.prefix, r.asn)
-            if r.ip6: print 'IPv6: address: %s - Prefix: %s (AS%s) ' % (r.ip6, r.prefix6, r.asn6)
+            if r.ip:
+                print('IPv4: address: %s - Prefix: %s (AS%s) ' %
+                      (r.ip, r.prefix, r.asn))
+            if r.ip6:
+                print('IPv6: address: %s - Prefix: %s (AS%s) ' %
+                      (r.ip6, r.prefix6, r.asn6))
         if opts.all_prefixes:
             r2 = mb.asn.asn_prefixes(self.conn, r.asn)
-            print ', '.join(r2)
-
+            print(', '.join(r2))
 
     @cmdln.option('--all-mirrors', action='store_true',
-                        help='update *all* mirrors (also disabled ones)')
+                  help='update *all* mirrors (also disabled ones)')
     @cmdln.option('-A', '--all', action='store_true',
                         help='update all metadata (same as "-c -a -p --country --region")')
     @cmdln.option('--region', action='store_true',
-                        help='update the region setting with a fresh GeoIP lookup')
+                  help='update the region setting with a fresh GeoIP lookup')
     @cmdln.option('--country', action='store_true',
-                        help='update the country setting with a fresh GeoIP lookup')
+                  help='update the country setting with a fresh GeoIP lookup')
     @cmdln.option('-p', '--prefix', action='store_true',
                         help='update the network prefix')
     @cmdln.option('-a', '--asn', action='store_true',
@@ -429,15 +433,16 @@ class MirrorDoctor(cmdln.Cmdln):
             opts.asn = opts.prefix = opts.coordinates = opts.country = opts.region = True
 
         if not (opts.asn or opts.prefix or opts.coordinates or opts.country or opts.region):
-            sys.exit('At least one of -c, -a, -p, --country, --region must be given as option.')
+            sys.exit(
+                'At least one of -c, -a, -p, --country, --region must be given as option.')
 
         #r = mb.asn.iplookup(self.conn, ip)
 
-        #if opts.asn:
+        # if opts.asn:
         #    print r.asn
-        #elif opts.prefix:
+        # elif opts.prefix:
         #    print r.prefix
-        #else:
+        # else:
         #    print '%s (AS%s)' % (r.prefix, r.asn)
 
         mirrors = []
@@ -449,33 +454,34 @@ class MirrorDoctor(cmdln.Cmdln):
                 mirrors = self.conn.Server.select()
             else:
                 mirrors = self.conn.Server.select(
-                             AND(self.conn.Server.q.statusBaseurl, 
-                                 self.conn.Server.q.enabled))
+                    AND(self.conn.Server.q.statusBaseurl,
+                        self.conn.Server.q.enabled))
 
         for mirror in mirrors:
             hostname = hostname_from_url(mirror.baseurl)
 
-            connections = mb.conn.server_connections(self.conn.Serverpfx, mirror.id)
+            connections = mb.conn.server_connections(
+                self.conn.Serverpfx, mirror.id)
 
-            #if opts.prefix or opts.asn:
+            # if opts.prefix or opts.asn:
             try:
                 res = iplookup(self.conn, hostname)
-            except mb.mberr.NameOrServiceNotKnown, e:
-                print '%s:' % mirror.identifier, e.msg
-                #print '%s: without DNS lookup, no further lookups are possible' % mirror.identifier
+            except mb.mberr.NameOrServiceNotKnown as e:
+                print('%s:' % mirror.identifier, e.msg)
+                #print ('%s: without DNS lookup, no further lookups are possible' % mirror.identifier)
                 continue
 
             if res:
                 if mirror.ipv6Only != res.ipv6Only():
-                    print '%s: updating ipv6Only flag (%s -> %s)' \
-                        % (mirror.identifier, mirror.ipv6Only, res.ipv6Only())
+                    print('%s: updating ipv6Only flag (%s -> %s)'
+                          % (mirror.identifier, mirror.ipv6Only, res.ipv6Only()))
                     if not opts.dry_run:
                         mirror.ipv6Only = res.ipv6Only()
 
             if opts.prefix and res:
                 if not (res.prefix or res.prefix6):
-                    print '%s: STRANGE! There\'s no prefix containing this hosts IP address(es) (ipv4: %s / ipv6: %s)...' \
-                            % (mirror.identifier, res.ip, res.ip6)
+                    print('%s: STRANGE! There\'s no prefix containing this hosts IP address(es) (ipv4: %s / ipv6: %s)...'
+                          % (mirror.identifier, res.ip, res.ip6))
                 else:
                     for i in connections:
                         if af_from_string(i.prefix) == socket.AF_INET:
@@ -483,30 +489,32 @@ class MirrorDoctor(cmdln.Cmdln):
                             res.prefix = None
                         else:
                             pfx = res.prefix6
-                            res.prefix6=None
+                            res.prefix6 = None
                         if i.prefix != pfx:
-                            print '%s: updating network prefix (%s -> %s)' \
-                                % (mirror.identifier, i.prefix, pfx)
+                            print('%s: updating network prefix (%s -> %s)'
+                                  % (mirror.identifier, i.prefix, pfx))
                             if not opts.dry_run:
                                 if pfx:
                                     i.prefix = pfx
-                                else: i.destroySelf()
+                                else:
+                                    i.destroySelf()
                     for pfx in res.prefix, res.prefix6:
-                        if not pfx: continue
+                        if not pfx:
+                            continue
                         if af_from_string(pfx) == socket.AF_INET:
                             asn = res.asn
                         elif af_from_string(pfx) == socket.AF_INET6:
                             asn = res.asn6
-                        print '%s: adding network prefix: %s (AS%s)' \
-                            % (mirror.identifier, pfx, asn)
-                        s = self.conn.Serverpfx(serverid = mirror.id,
-                                                prefix   = pfx,
-                                                asn      = asn)
+                        print('%s: adding network prefix: %s (AS%s)'
+                              % (mirror.identifier, pfx, asn))
+                        s = self.conn.Serverpfx(serverid=mirror.id,
+                                                prefix=pfx,
+                                                asn=asn)
 
             if opts.asn and res:
                 if not (res.asn or res.asn6):
-                    print '%s: STRANGE! There\'s no ASN containing this hosts IP address (v4: %s / v6: %s)...' \
-                            % (mirror.identifier, res.ip, res.ip6)
+                    print('%s: STRANGE! There\'s no ASN containing this hosts IP address (v4: %s / v6: %s)...'
+                          % (mirror.identifier, res.ip, res.ip6))
                 else:
                     for i in connections:
                         if af_from_string(i.prefix) == socket.AF_INET:
@@ -516,36 +524,34 @@ class MirrorDoctor(cmdln.Cmdln):
                             asn = res.asn6
                             prefix = res.prefix6
                         if i.prefix == prefix and i.asn != asn:
-                            print '%s: updating autonomous system number for prefix "%s" (%s -> %s)' \
-                            % (mirror.identifier, i.prefix, i.asn, asn)
+                            print('%s: updating autonomous system number for prefix "%s" (%s -> %s)'
+                                  % (mirror.identifier, i.prefix, i.asn, asn))
                             if not opts.dry_run:
                                 i.asn = asn
 
             if opts.coordinates:
                 lat, lng = mb.geoip.lookup_coordinates(hostname)
                 if float(mirror.lat or 0) != lat or float(mirror.lng or 0) != lng:
-                    print '%s: updating geographical coordinates (%s %s -> %s %s)' \
-                        % (mirror.identifier, mirror.lat, mirror.lng, lat, lng)
+                    print('%s: updating geographical coordinates (%s %s -> %s %s)'
+                          % (mirror.identifier, mirror.lat, mirror.lng, lat, lng))
                     if not opts.dry_run:
                         mirror.lat, mirror.lng = lat, lng
 
             if opts.region:
                 region = mb.geoip.lookup_region_code(hostname)
                 if mirror.region != region:
-                    print '%s: updating region (%s -> %s)' \
-                        % (mirror.identifier, mirror.region, region)
+                    print('%s: updating region (%s -> %s)'
+                          % (mirror.identifier, mirror.region, region))
                     if not opts.dry_run:
                         mirror.region = region
 
             if opts.country:
                 country = mb.geoip.lookup_country_code(hostname)
                 if mirror.country != country:
-                    print '%s: updating country (%s -> %s)' \
-                        % (mirror.identifier, mirror.country, country)
+                    print('%s: updating country (%s -> %s)'
+                          % (mirror.identifier, mirror.country, country))
                     if not opts.dry_run:
                         mirror.country = country
-
-
 
     def do_test(self, subcmd, opts, identifier):
         """${cmd_name}: test if a mirror is working
@@ -561,17 +567,16 @@ class MirrorDoctor(cmdln.Cmdln):
         mirror = lookup_mirror(self, identifier)
         import mb.testmirror
         r = mb.testmirror.access_http(mirror.identifier, mirror.baseurl)
-        print r
-        print 'content: %r...' % r.content[:240]
-
+        print(r)
+        print('content: %r...' % r.content[:240])
 
     @cmdln.option('--content', action='store_true',
-                        help='download and show the content')
+                  help='download and show the content')
     @cmdln.option('--md5', action='store_true',
-                        help='download and show the md5 sum')
+                  help='download and show the md5 sum')
     @cmdln.option('--urls', dest='url_type', metavar='TYPE', default='scan',
-                        help='type of URLs to be probed (scan|http|all). Default: scan.')
-    @cmdln.option('-m', '--mirror', 
+                  help='type of URLs to be probed (scan|http|all). Default: scan.')
+    @cmdln.option('-m', '--mirror',
                         help='probe only on this mirror')
     @cmdln.option('-a', '--all-mirrors', action='store_true',
                         help='test also on mirrors which are marked disabled')
@@ -610,18 +615,18 @@ class MirrorDoctor(cmdln.Cmdln):
         mb.testmirror.dont_use_proxies()
 
         if opts.mirror:
-            mirrors = [ lookup_mirror(self, opts.mirror) ]
+            mirrors = [lookup_mirror(self, opts.mirror)]
         elif opts.all_mirrors:
             mirrors = self.conn.Server.select()
         else:
             mirrors = self.conn.Server.select(
-                         AND(self.conn.Server.q.statusBaseurl, 
-                             self.conn.Server.q.enabled))
+                AND(self.conn.Server.q.statusBaseurl,
+                    self.conn.Server.q.enabled))
 
         try:
-            mirrors_have_file = mb.testmirror.mirrors_have_file(mirrors, filename, 
-                                                               url_type=opts.url_type, get_digest=opts.md5,
-                                                               get_content=opts.content)
+            mirrors_have_file = mb.testmirror.mirrors_have_file(mirrors, filename,
+                                                                url_type=opts.url_type, get_digest=opts.md5,
+                                                                get_content=opts.content)
             print
             found_mirrors = 0
             for mirror in mirrors:
@@ -634,19 +639,18 @@ class MirrorDoctor(cmdln.Cmdln):
                         s += " %s" % sample.probeurl
                         if sample.http_code:
                             s += " http=%s" % (sample.http_code)
-                        print s
+                        print(s)
                         if opts.content and sample.content:
-                            print repr(sample.content)
+                            print(repr(sample.content))
 
-                        if sample.has_file: found_mirrors += 1
+                        if sample.has_file:
+                            found_mirrors += 1
 
         except KeyboardInterrupt:
             print >>sys.stderr, 'interrupted!'
             return 1
 
-        print 'Found:', found_mirrors
-
-
+        print('Found:', found_mirrors)
 
     def do_edit(self, subcmd, opts, identifier):
         """${cmd_name}: edit a mirror's database entry in $EDITOR/$VISUAL
@@ -656,7 +660,7 @@ class MirrorDoctor(cmdln.Cmdln):
         ${cmd_option_list}
         """
         mirror = lookup_mirror(self, identifier)
-        
+
         import mb.conn
         old_dict = mb.conn.server2dict(mirror)
         old = mb.conn.server_show_template % old_dict
@@ -670,7 +674,7 @@ class MirrorDoctor(cmdln.Cmdln):
 """
         new = mb.util.edit_file(old, boilerplate=boilerplate)
         if not new:
-            print 'Quitting.'
+            print('Quitting.')
         else:
             new_dict = mb.conn.servertext2dict(new)
 
@@ -678,28 +682,30 @@ class MirrorDoctor(cmdln.Cmdln):
                 if not old_dict[i] and not new_dict[i]:
                     continue
 
-                if ( old_dict[i] and not new_dict[i] ) or \
-                   ( str(old_dict[i]) != new_dict[i] ):
+                if (old_dict[i] and not new_dict[i]) or \
+                   (str(old_dict[i]) != new_dict[i]):
 
                     if not new_dict[i]:
-                        print 'unsetting %s (was: %r)' % (i, old_dict[i])
+                        print ('unsetting %s (was: %r)' % (i, old_dict[i]))
                     else:
-                        print 'changing %s from %r to %r' % (i, old_dict[i], new_dict[i])
+                        print ('changing %s from %r to %r' % (i, old_dict[i], new_dict[i]))
 
                     a = new_dict[i]
-                    if a == 'False': a = False
-                    if a == 'True': a = True
-                    if a == None: a = ''
-                    if type(getattr(mirror, i)) in [type(1L), type(1), bool]:
-                        try:
-                            a = int(a)
-                        except ValueError:
-                            a = 0
+                    if a == 'False':
+                        a = False
+                    if a == 'True':
+                        a = True
+                    if a == None:
+                        a = ''
+                    # TODO
+                    #if type(getattr(mirror, i)) in [type(1L), type(1), bool]:
+                    #    try:
+                    #        a = int(a)
+                    #    except ValueError:
+                    #        a = 0
                     setattr(mirror, i, a)
-                #else:
+                # else:
                 #    print 'unchanged: %s' % i
-
-
 
     @cmdln.option('-e', '--edit', action='store_true',
                         help='edit the markers in $EDITOR')
@@ -719,21 +725,17 @@ class MirrorDoctor(cmdln.Cmdln):
         """
         markers = self.conn.Marker.select()
 
-
-        
-        old = [ '%s %s %s' \
-                % (i.subtreeName, 
-                   opts.delimiter, 
-                   ' '.join(i.markers.split())) 
-                for i in markers ]
+        old = ['%s %s %s'
+               % (i.subtreeName,
+                   opts.delimiter,
+                   ' '.join(i.markers.split()))
+               for i in markers]
         old = '\n'.join(old) + '\n'
-
 
         # list only
         if not opts.edit:
-            print old
+            print (old)
             sys.exit(0)
-        
 
         import mb.util
         boilerplate = """\
@@ -745,12 +747,12 @@ class MirrorDoctor(cmdln.Cmdln):
 # PPC     %(delim)s ppc/factory/repo/oss/content
 # BS      %(delim)s repositories/server:mail.repo repositories/Apache.repo
 
-""" % { 'delim': opts.delimiter }
+""" % {'delim': opts.delimiter}
 
         new = mb.util.edit_file(old, boilerplate=boilerplate)
 
         if not new:
-            print 'Quitting.'
+            print ('Quitting.')
         else:
 
             # delete all markers
@@ -768,10 +770,8 @@ class MirrorDoctor(cmdln.Cmdln):
                 except:
                     sys.exit('Parse error')
 
-                s = self.conn.Marker(subtreeName = name.strip(),
-                                     markers = ' '.join(markers.split()))
-
-
+                s = self.conn.Marker(subtreeName=name.strip(),
+                                     markers=' '.join(markers.split()))
 
     def do_delete(self, subcmd, opts, identifier):
         """${cmd_name}: delete a mirror from the database
@@ -779,13 +779,12 @@ class MirrorDoctor(cmdln.Cmdln):
         ${cmd_usage}
         ${cmd_option_list}
         """
-        
+
         if not identifier:
             sys.exit('need to specify identifier')
 
         import mb.core
         mb.core.delete_mirror(self.conn, identifier)
-
 
     @cmdln.option('-C', '--comment', metavar='ARG',
                         help='comment string to append')
@@ -795,13 +794,13 @@ class MirrorDoctor(cmdln.Cmdln):
         ${cmd_usage}
         ${cmd_option_list}
         """
-        
+
         if not opts.comment:
             sys.exit('need to specify comment to add')
 
         mirror = lookup_mirror(self, identifier)
-        mirror.comment = ' '.join([mirror.comment or '', '\n\n' + opts.comment])
-
+        mirror.comment = ' '.join(
+            [mirror.comment or '', '\n\n' + opts.comment])
 
     def do_enable(self, subcmd, opts, identifier):
         """${cmd_name}: enable a mirror 
@@ -809,10 +808,9 @@ class MirrorDoctor(cmdln.Cmdln):
         ${cmd_usage}
         ${cmd_option_list}
         """
-        
+
         mirror = lookup_mirror(self, identifier)
         mirror.enabled = 1
-
 
     def do_disable(self, subcmd, opts, identifier):
         """${cmd_name}: disable a mirror
@@ -820,11 +818,10 @@ class MirrorDoctor(cmdln.Cmdln):
         ${cmd_usage}
         ${cmd_option_list}
         """
-        
+
         mirror = lookup_mirror(self, identifier)
         mirror.statusBaseurl = 0
         mirror.enabled = 0
-
 
     def do_rename(self, subcmd, opts, identifier, new_identifier):
         """${cmd_name}: rename a mirror's identifier
@@ -832,10 +829,9 @@ class MirrorDoctor(cmdln.Cmdln):
         ${cmd_usage}
         ${cmd_option_list}
         """
-        
+
         mirror = lookup_mirror(self, identifier)
         mirror.identifier = new_identifier
-
 
     @cmdln.option('--sql-debug', action='store_true',
                   help='Show SQL statements for debugging purposes.')
@@ -891,25 +887,26 @@ class MirrorDoctor(cmdln.Cmdln):
         if opts.directory:
             cmd.append('-d %s' % opts.directory)
         if opts.jobs:
-            cmd += [ '-j', opts.jobs ]
+            cmd += ['-j', opts.jobs]
         if opts.enable or args:
             cmd.append('-f')
 
-        cmd += [ '-I %s' % i for i in 
-                 self.config.dbconfig.get('scan_top_include', '').split() ]
-        cmd += [ '--exclude %s' % i for i in 
-                 self.config.dbconfig.get('scan_exclude', '').split() ]
-        cmd += [ '--exclude-rsync %s' % i for i in 
-                 self.config.dbconfig.get('scan_exclude_rsync', '').split() ]
+        cmd += ['-I %s' % i for i in
+                self.config.dbconfig.get('scan_top_include', '').split()]
+        cmd += ['--exclude %s' % i for i in
+                self.config.dbconfig.get('scan_exclude', '').split()]
+        cmd += ['--exclude-rsync %s' % i for i in
+                self.config.dbconfig.get('scan_exclude_rsync', '').split()]
 
         if not opts.all and not args:
-            sys.exit('No mirrors specified for scanning. Either give identifiers, or use -a [-j N].')
+            sys.exit(
+                'No mirrors specified for scanning. Either give identifiers, or use -a [-j N].')
 
         mirrors = []
         if opts.all:
             mirrors = self.conn.Server.select(
-                         AND(self.conn.Server.q.statusBaseurl, 
-                             self.conn.Server.q.enabled))
+                AND(self.conn.Server.q.statusBaseurl,
+                    self.conn.Server.q.enabled))
         else:
             for arg in args:
                 mirrors.append(lookup_mirror(self, arg))
@@ -917,41 +914,41 @@ class MirrorDoctor(cmdln.Cmdln):
         mirrors_to_scan = []
         mirrors_skipped = []
         if not opts.directory:
-            mirrors_to_scan = [ i for i in mirrors ]
+            mirrors_to_scan = [i for i in mirrors]
         else:
-            print 'Checking for existance of %r directory' % opts.directory
-            mirrors_have_file = mb.testmirror.mirrors_have_file(mirrors, opts.directory, url_type='scan')
-            print
+            print ('Checking for existance of %r directory' % opts.directory)
+            mirrors_have_file = mb.testmirror.mirrors_have_file(
+                mirrors, opts.directory, url_type='scan')
+            print()
             for mirror in mirrors:
                 for sample in mirrors_have_file:
                     if mirror.identifier == sample.identifier:
                         if sample.has_file:
                             if self.options.debug:
-                                print '%s: scheduling scan.' % mirror.identifier
+                                print ('%s: scheduling scan.' % mirror.identifier)
                             mirrors_to_scan.append(mirror)
                         else:
                             if self.options.debug:
-                                print '%s: directory %s not found. Skipping.' % (mirror.identifier, opts.directory)
+                                print ('%s: directory %s not found. Skipping.' % (mirror.identifier, opts.directory))
                             mirrors_skipped.append(mirror.identifier)
 
             if len(mirrors_to_scan):
-                print 'Scheduling scan on:'
-                print textwrap.fill(', '.join([ i.identifier for i in mirrors_to_scan ]),
-                                    initial_indent='    ', subsequent_indent='  ')
-
+                print ('Scheduling scan on:')
+                print (textwrap.fill(', '.join([i.identifier for i in mirrors_to_scan]),
+                                     initial_indent='    ', subsequent_indent='  '))
 
         if not len(mirrors_to_scan):
-            print 'No mirror to scan. Exiting.'
+            print ('No mirror to scan. Exiting.')
             sys.exit(0)
 
-        cmd += [ mirror.identifier for mirror in mirrors_to_scan ]
+        cmd += [mirror.identifier for mirror in mirrors_to_scan]
 
         cmd = ' '.join(cmd)
         if self.options.debug:
-            print cmd
-        
+            print (cmd)
+
         if opts.directory:
-            print 'Completed in', mb.util.timer_elapsed()
+            print ('Completed in', mb.util.timer_elapsed())
             mb.util.timer_start()
 
         sys.stdout.flush()
@@ -965,38 +962,38 @@ class MirrorDoctor(cmdln.Cmdln):
             tt = time.ctime()
             comment = ('*** scanned and enabled at %s.' % tt)
             for mirror in mirrors_to_scan:
-                mirror.comment = ' '.join([mirror.comment or '', '\n\n' + comment])
+                mirror.comment = ' '.join(
+                    [mirror.comment or '', '\n\n' + comment])
 
-                print '%s %s: testing status of base URL...' % (tt, mirror.identifier)
-                t = mb.testmirror.access_http(mirror.identifier, mirror.baseurl)
+                print ('%s %s: testing status of base URL...' % (tt, mirror.identifier))
+                t = mb.testmirror.access_http(
+                    mirror.identifier, mirror.baseurl)
                 if t.http_code == 200:
                     mirror.statusBaseurl = 1
                     mirror.enabled = 1
-                    print '%s %s: OK. Mirror is online now.' % (tt, mirror.identifier)
+                    print ('%s %s: OK. Mirror is online now.' % (tt, mirror.identifier))
                 else:
-                    print '%s %s: Error: base URL does not work: %s' \
-                            % (tt, mirror.identifier, mirror.baseurl)
+                    print ('%s %s: Error: base URL does not work: %s' \
+                        % (tt, mirror.identifier, mirror.baseurl))
 
         sys.stdout.flush()
         if opts.directory and len(mirrors_skipped):
-            print 'Skipped mirrors:'
-            print textwrap.fill(', '.join(mirrors_skipped),
-                                initial_indent='    ', subsequent_indent='  ')
+            print ('Skipped mirrors:')
+            print (textwrap.fill(', '.join(mirrors_skipped),
+                                initial_indent='    ', subsequent_indent='  '))
 
         if opts.quietness < 2:
-            print 'Completed in', mb.util.timer_elapsed()
-
-
+            print ('Completed in', mb.util.timer_elapsed())
 
     @cmdln.option('--force', action='store_true',
-                        help='force refreshing all cached hashes')
+                  help='force refreshing all cached hashes')
     @cmdln.option('-n', '--dry-run', action='store_true',
                         help='don\'t actually do anything, just show what would be done')
     @cmdln.option('--copy-permissions', action='store_true',
-                        help='copy the permissions of directories and files '
-                             'to the hashes files. Normally, this should not '
-                             'be needed, because the hash files don\'t contain '
-                             'any reversible information.')
+                  help='copy the permissions of directories and files '
+                  'to the hashes files. Normally, this should not '
+                  'be needed, because the hash files don\'t contain '
+                  'any reversible information.')
     @cmdln.option('-f', '--file-mask', metavar='REGEX',
                         help='regular expression to select files to create hashes for')
     @cmdln.option('-i', '--ignore-mask', metavar='REGEX',
@@ -1029,7 +1026,7 @@ class MirrorDoctor(cmdln.Cmdln):
 
         Hash only the subdirectory extended/iso/de:
             mb makehashes -t /srv/metalink-hashes/srv/ooo -b /srv/ooo /srv/ooo/extended/iso/de
-        
+
         Further examples:
             mb makehashes \\
             -t /srv/metalink-hashes/srv/ftp/pub/opensuse/repositories/home:/poeml \\
@@ -1075,13 +1072,13 @@ class MirrorDoctor(cmdln.Cmdln):
         opts.base_dir = re.sub(double_slashes, '/', opts.base_dir)
 
         if not os.path.exists(startdir):
-            sys.exit('STARTDIR %r does not exist' % startdir) 
+            sys.exit('STARTDIR %r does not exist' % startdir)
 
         directories_todo = [startdir]
 
-        if opts.ignore_mask: 
+        if opts.ignore_mask:
             opts.ignore_mask = re.compile(opts.ignore_mask)
-        if opts.file_mask: 
+        if opts.file_mask:
             opts.file_mask = re.compile(opts.file_mask)
         if opts.zsync_mask:
             opts.zsync_mask = re.compile(opts.zsync_mask)
@@ -1093,37 +1090,37 @@ class MirrorDoctor(cmdln.Cmdln):
 
             try:
                 src_dir_mode = os.stat(src_dir).st_mode
-            except OSError, e:
+            except OSError as e:
                 if e.errno == errno.ENOENT:
                     sys.stderr.write('Directory vanished: %r\n' % src_dir)
                     continue
 
-            dst_dir = os.path.join(opts.target_dir, src_dir[len(opts.base_dir):].lstrip('/'))
+            dst_dir = os.path.join(
+                opts.target_dir, src_dir[len(opts.base_dir):].lstrip('/'))
             dst_dir_db = src_dir[len(opts.base_dir):].lstrip('/')
-            #print dst_dir_db
+            # print dst_dir_db
 
             if not opts.dry_run:
                 if not os.path.isdir(dst_dir):
-                    os.makedirs(dst_dir, mode = 0755)
+                    os.makedirs(dst_dir, mode=0o0755)
                 if opts.copy_permissions:
                     os.chmod(dst_dir, src_dir_mode)
                 else:
-                    os.chmod(dst_dir, 0755)
+                    os.chmod(dst_dir, 0o0755)
 
             try:
                 dst_names = os.listdir(dst_dir)
                 dst_names.sort()
-                dst_names_db = [ (os.path.basename(i), j) 
-                                 for i, j in mb.files.dir_filelist(self.conn, dst_dir_db)]
+                dst_names_db = [(os.path.basename(i), j)
+                                for i, j in mb.files.dir_filelist(self.conn, dst_dir_db)]
                 dst_names_db_dict = dict(dst_names_db)
                 dst_names_db_keys = dst_names_db_dict.keys()
-                #print dst_names_db_keys
-            except OSError, e:
+                # print dst_names_db_keys
+            except OSError as e:
                 if e.errno == errno.ENOENT:
                     sys.exit('\nSorry, cannot really continue in dry-run mode, because directory %r does not exist.\n'
                              'You might want to create it:\n'
                              '  mkdir %s' % (dst_dir, dst_dir))
-
 
             # a set offers the fastest access for "foo in ..." lookups
             try:
@@ -1133,7 +1130,7 @@ class MirrorDoctor(cmdln.Cmdln):
                 src_basenames = []
 
             if opts.verbose:
-                print 'Examining directory', src_dir
+                print ('Examining directory', src_dir)
 
             dst_keep_db = set()
             dst_keep = set()
@@ -1147,21 +1144,20 @@ class MirrorDoctor(cmdln.Cmdln):
                     fcntl.lockf(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
                     try:
                         os.stat(lockfile)
-                    except OSError, e: 
+                    except OSError as e:
                         if e.errno == errno.ENOENT:
                             if opts.verbose:
-                                print '====== skipping %s, which we were about to lock' % lockfile
+                                print ('====== skipping %s, which we were about to lock' % lockfile)
                             continue
 
                 if opts.verbose:
-                    print 'locked %s' % lockfile
-            except IOError, e:
-                if e.errno in [ errno.EAGAIN, errno.EACCES, errno.EWOULDBLOCK ]:
-                    print 'Skipping %r, which is locked' % src_dir
+                    print ('locked %s' % lockfile)
+            except IOError as e:
+                if e.errno in [errno.EAGAIN, errno.EACCES, errno.EWOULDBLOCK]:
+                    print ('Skipping %r, which is locked' % src_dir)
                     continue
                 else:
                     raise
-
 
             for src_basename in sorted(src_basenames):
                 src = os.path.join(src_dir, src_basename)
@@ -1177,34 +1173,36 @@ class MirrorDoctor(cmdln.Cmdln):
 
                 # stat only once
                 try:
-                    hasheable = mb.hashes.Hasheable(src_basename, 
-                                                    src_dir=src_dir, 
+                    hasheable = mb.hashes.Hasheable(src_basename,
+                                                    src_dir=src_dir,
                                                     dst_dir=dst_dir,
                                                     base_dir=opts.base_dir,
-                                                    do_zsync_hashes=self.config.dbconfig.get('zsync_hashes'),
-                                                    do_chunked_hashes=self.config.dbconfig.get('chunked_hashes'),
+                                                    do_zsync_hashes=self.config.dbconfig.get(
+                                                        'zsync_hashes'),
+                                                    do_chunked_hashes=self.config.dbconfig.get(
+                                                        'chunked_hashes'),
                                                     chunk_size=chunk_size,
                                                     do_chunked_with_zsync=do_chunked_with_zsync)
-                except OSError, e:
+                except OSError as e:
                     if e.errno == errno.ENOENT:
                         sys.stderr.write('File vanished: %r\n' % src)
                         continue
 
                 if hasheable.islink():
                     if opts.verbose:
-                        print 'ignoring link', src
+                        print ('ignoring link', src)
                     continue
 
                 elif hasheable.isreg():
                     if not opts.file_mask or re.match(opts.file_mask, src_basename):
-                        #if opts.verbose:
+                        # if opts.verbose:
                         #    print 'dst:', dst
-                        hasheable.check_file(verbose=opts.verbose, 
-                                            dry_run=opts.dry_run, 
-                                            force=opts.force, 
-                                            copy_permissions=opts.copy_permissions)
+                        hasheable.check_file(verbose=opts.verbose,
+                                             dry_run=opts.dry_run,
+                                             force=opts.force,
+                                             copy_permissions=opts.copy_permissions)
                         hasheable.check_db(conn=self.conn,
-                                           verbose=opts.verbose, 
+                                           verbose=opts.verbose,
                                            dry_run=opts.dry_run,
                                            force=opts.force)
                         dst_keep.add(hasheable.dst_basename)
@@ -1215,82 +1213,78 @@ class MirrorDoctor(cmdln.Cmdln):
                     dst_keep.add(hasheable.basename)
                     dst_keep_db.add(hasheable.basename)
 
-
             dst_remove = set(dst_names) - dst_keep
-            #print 'old', dst_remove
+            # print ('old', dst_remove)
             dst_remove_db = set(dst_names_db_keys) - dst_keep_db
-            #print 'new', dst_remove_db
+            # print ('new', dst_remove_db)
 
-            # print 'files to keep:'
-            # print dst_keep
-            # print
-            # print 'files to remove:'
-            # print dst_remove
+            # print ('files to keep:')
+            # print (dst_keep)
+            # print ()
+            # print ('files to remove:')
+            # print (dst_remove)
             # print
 
             for i in sorted(dst_remove):
                 i_path = os.path.join(dst_dir, i)
-                #print i_path
+                # print (i_path)
 
                 if (opts.ignore_mask and re.match(opts.ignore_mask, i_path)):
-                    print 'ignoring, not removing %s', i_path
+                    print ('ignoring, not removing %s', i_path)
                     continue
 
                 if os.path.isdir(i_path):
-                    print 'Recursively removing obsolete directory %r' % i_path
-                    if not opts.dry_run: 
+                    print ('Recursively removing obsolete directory %r' % i_path)
+                    if not opts.dry_run:
                         try:
                             shutil.rmtree(i_path)
-                        except OSError, e:
+                        except OSError as e:
                             if e.errno == errno.EACCES:
-                                sys.stderr.write('Recursive removing failed for %r (%s). Ignoring.\n' \
-                                                    % (i_path, os.strerror(e.errno)))
+                                sys.stderr.write('Recursive removing failed for %r (%s). Ignoring.\n'
+                                                 % (i_path, os.strerror(e.errno)))
                             else:
-                                sys.exit('Recursive removing failed for %r: %s\n' \
-                                                    % (i_path, os.strerror(e.errno)))
+                                sys.exit('Recursive removing failed for %r: %s\n'
+                                         % (i_path, os.strerror(e.errno)))
 
                         relpath = os.path.join(dst_dir_db, i)
-                        print 'Recursively removing hashes in database: %s/*' % relpath
+                        print ('Recursively removing hashes in database: %s/*' % relpath)
                         mb.files.hashes_dir_delete(self.conn, relpath)
 
                     unlinked_dirs += 1
-                    
+
                 else:
-                    print 'Unlinking obsolete %r' % i_path
-                    if not opts.dry_run: 
+                    print ('Unlinking obsolete %r' % i_path)
+                    if not opts.dry_run:
                         try:
                             os.unlink(i_path)
-                        except OSError, e:
+                        except OSError as e:
                             if e.errno != errno.ENOENT:
-                                sys.stderr.write('Unlink failed for %r: %s\n' \
-                                                    % (i_path, os.strerror(e.errno)))
+                                sys.stderr.write('Unlink failed for %r: %s\n'
+                                                 % (i_path, os.strerror(e.errno)))
                     unlinked_files += 1
             ids_to_delete = []
             for i in sorted(dst_remove_db):
                 relpath = os.path.join(dst_dir_db, i)
                 dbid = dst_names_db_dict.get(i)
                 if dbid:
-                    print 'Obsolete hash in db: %r (id %s)' % (relpath, dbid)
+                    print ('Obsolete hash in db: %r (id %s)' % (relpath, dbid))
                     ids_to_delete.append(dbid)
                 else:
-                    pass # not in the hash table
+                    pass  # not in the hash table
 
             if len(ids_to_delete):
-                print 'Deleting %s obsolete hashes from hash table' % len(ids_to_delete)
+                print ('Deleting %s obsolete hashes from hash table' % len(ids_to_delete))
                 if not opts.dry_run:
                     mb.files.hashes_list_delete(self.conn, ids_to_delete)
 
             if opts.verbose:
-                print 'unlocking', lockfile 
+                print ('unlocking', lockfile)
             if not opts.dry_run:
                 os.unlink(lockfile)
                 lock.close()
 
-        if  unlinked_files or unlinked_dirs:
-            print 'Unlinked %s files, %d directories.' % (unlinked_files, unlinked_dirs)
-
-
-
+        if unlinked_files or unlinked_dirs:
+            print ('Unlinked %s files, %d directories.' % (unlinked_files, unlinked_dirs))
 
     def do_score(self, subcmd, opts, *args):
         """${cmd_name}: show or change the score of a mirror
@@ -1310,18 +1304,15 @@ class MirrorDoctor(cmdln.Cmdln):
             score = args[1]
         else:
             sys.exit('Wrong number of arguments.')
-        
+
         mirror = lookup_mirror(self, identifier)
 
         if not score:
-            print mirror.score
+            print (mirror.score)
         else:
-            print 'Changing score for %s: %s -> %s' \
-                    % (mirror.identifier, mirror.score, score)
+            print ('Changing score for %s: %s -> %s' \
+                % (mirror.identifier, mirror.score, score))
             mirror.score = int(score)
-        
-
-
 
     @cmdln.option('-n', '--dry-run', action='store_true',
                   help='don\'t delete, but only show statistics.')
@@ -1330,9 +1321,9 @@ class MirrorDoctor(cmdln.Cmdln):
                        'Can be given multiple times.')
     def do_db(self, subcmd, opts, *args):
         """${cmd_name}: perform database maintenance, or start a shell
-        
+
         This command needs to be called with one of the following actions:
-        
+
         vacuum
           Clean up unreferenced
           files from the mirror database.
@@ -1363,9 +1354,9 @@ class MirrorDoctor(cmdln.Cmdln):
         # this subcommand was renamed from "mb vacuum" to "mb db <action>"
         # let's keep the old way working
         if subcmd == 'vacuum':
-                mb.dbmaint.stale(self.conn, opts.quietness)
-                mb.dbmaint.vacuum(self.conn, opts.quietness)
-                sys.exit(0)
+            mb.dbmaint.stale(self.conn, opts.quietness)
+            mb.dbmaint.vacuum(self.conn, opts.quietness)
+            sys.exit(0)
 
         if len(args) < 1:
             sys.exit('Too few arguments.')
@@ -1385,18 +1376,13 @@ class MirrorDoctor(cmdln.Cmdln):
         else:
             sys.exit('unknown action %r' % action)
 
-
-
-
-
-
     @cmdln.option('-u', '--url', action='store_true',
                         help='show the URL on the mirror')
     @cmdln.option('-p', '--probe', action='store_true',
                         help='probe the file')
     @cmdln.option('--md5', action='store_true',
-                        help='show md5 hash of probed file')
-    @cmdln.option('-m', '--mirror', 
+                  help='show md5 hash of probed file')
+    @cmdln.option('-m', '--mirror',
                   help='apply operation to this mirror')
     def do_file(self, subcmd, opts, action, path):
         """${cmd_name}: operations on files: ls/rm/add
@@ -1420,7 +1406,7 @@ class MirrorDoctor(cmdln.Cmdln):
         ${cmd_usage}
         ${cmd_option_list}
         """
-        
+
         if path.startswith('/'):
             path = path[1:]
 
@@ -1444,7 +1430,8 @@ class MirrorDoctor(cmdln.Cmdln):
             rows = mb.files.ls(self.conn, path)
 
             if opts.probe:
-                samples = mb.testmirror.lookups_probe(rows, get_digest=opts.md5, get_content=False)
+                samples = mb.testmirror.lookups_probe(
+                    rows, get_digest=opts.md5, get_content=False)
                 print
             else:
                 samples = []
@@ -1455,25 +1442,24 @@ class MirrorDoctor(cmdln.Cmdln):
                         # this is a stale entry, which will be vacuumed out
                         # next time the vacuumizer runs.
                         continue
-                    print '%s %s %4d %s %s %-30s ' % \
-                            (row['region'].lower(), row['country'].lower(),
-                             row['score'], 
-                             row['enabled'] == 1 and 'ok      ' or 'disabled',
-                             row['status_baseurl'] == 1 and 'ok  ' or 'dead',
-                             row['identifier']),
+                    print ('%s %s %4d %s %s %-30s ' % \
+                        (row['region'].lower(), row['country'].lower(),
+                         row['score'],
+                         row['enabled'] == 1 and 'ok      ' or 'disabled',
+                         row['status_baseurl'] == 1 and 'ok  ' or 'dead',
+                         row['identifier'])),
                     for sample in samples:
                         if row['identifier'] == sample.identifier:
                             if opts.probe:
-                                print '%3s' % (sample.http_code or '   '),
+                                print ('%3s' % (sample.http_code or '   '),)
                             if opts.probe and opts.md5:
-                                print (sample.digest or ' ' * 32),
+                                print(sample.digest or ' ' * 32),
                     if opts.url:
-                        print row['baseurl'].rstrip('/') + '/' + row['path'],
+                        print (row['baseurl'].rstrip('/') + '/' + row['path'],)
                     print
             except KeyboardInterrupt:
                 print >>sys.stderr, 'interrupted!'
                 return 1
-
 
         elif action == 'add':
             mb.files.add(self.conn, path, mirror)
@@ -1483,7 +1469,6 @@ class MirrorDoctor(cmdln.Cmdln):
 
         else:
             sys.exit('ACTION must be either ls, rm or add.')
-
 
     @cmdln.option('-s', dest='segments', metavar='N', default=2,
                   help='show up to N distinct path segments.')
@@ -1516,7 +1501,7 @@ class MirrorDoctor(cmdln.Cmdln):
             mb dirs [OPTS] [MIRROR]
         ${cmd_option_list}
         """
-        
+
         import mb.files
 
         if args:
@@ -1526,14 +1511,13 @@ class MirrorDoctor(cmdln.Cmdln):
 
         if opts.dirpath:
             for i in mb.files.dir_show_mirrors(self.conn, opts.dirpath):
-                print i[0]
+                print (i[0])
         elif opts.missingdirpath:
             for i in mb.files.dir_show_mirrors(self.conn, opts.missingdirpath, missing=True):
-                print i[0]
+                print (i[0])
         else:
             for i in mb.files.dir_ls(self.conn, segments=opts.segments, mirror=mirror):
-                print i[0]
-
+                print (i[0])
 
     @cmdln.option('-c', '--caption', metavar='STRING',
                   help='insert this string as table caption')
@@ -1564,7 +1548,7 @@ class MirrorDoctor(cmdln.Cmdln):
 
         Generate a tabular mirror list, showing which subtree is
         listed on which mirrors.
-        
+
         The presence of a particular subtree on the mirrors is determined
         by looking for "marker files", which are defined in the database for
         this purpose.
@@ -1574,19 +1558,18 @@ class MirrorDoctor(cmdln.Cmdln):
             mb mirrorlist [IDENTIFIER]
         ${cmd_option_list}
         """
-        
+
         markers = self.conn.Marker.select()
 
         if opts.filter:
             import re
             p = re.compile(opts.filter)
-            markers = [ i for i in markers if p.match(i.subtreeName) ]
+            markers = [i for i in markers if p.match(i.subtreeName)]
 
         if opts.list_markers:
             for i in markers:
-                print '%-20s    %r' % (i.subtreeName, i.markers.split())
+                print ('%-20s    %r' % (i.subtreeName, i.markers.split()))
             sys.exit(0)
-        
 
         if args:
             import mb.conn
@@ -1604,9 +1587,8 @@ class MirrorDoctor(cmdln.Cmdln):
         if opts.format not in mb.mirrorlists.supported:
             sys.exit('format %r not supported' % opts.format)
 
-        mb.mirrorlists.genlist(conn=self.conn, opts=opts, mirrors=mirrors, markers=markers, format=opts.format)
-
-
+        mb.mirrorlists.genlist(
+            conn=self.conn, opts=opts, mirrors=mirrors, markers=markers, format=opts.format)
 
     @cmdln.option('--project', metavar='PROJECT',
                   help='(only for django format) Specify a project name (previously corresponding to a MirrorBrain instance).')
@@ -1615,7 +1597,7 @@ class MirrorDoctor(cmdln.Cmdln):
     @cmdln.option('--target-dir', metavar='PATH',
                   help='For the "vcs" output format, specify a target directory to place files into')
     @cmdln.option('--format', metavar='FORMAT',
-            help='Specify the output format: [django|postgresql|mirmon|mirmon-apache|vcs]')
+                  help='Specify the output format: [django|postgresql|mirmon|mirmon-apache|vcs]')
     def do_export(self, subcmd, opts, *args):
         """${cmd_name}: export the mirror list as text file
 
@@ -1653,41 +1635,45 @@ class MirrorDoctor(cmdln.Cmdln):
             sys.exit('You need to specify an output format. See --help output.')
 
         if opts.format == 'django' and not opts.project:
-            sys.exit('For Django ORM format, specify a project name (roughly corresponding to a MirrorBrain instance) name with --project')
+            sys.exit(
+                'For Django ORM format, specify a project name (roughly corresponding to a MirrorBrain instance) name with --project')
         if opts.format == 'vcs' and not opts.target_dir:
-            sys.exit('To export for a version control system, specify a target directory')
+            sys.exit(
+                'To export for a version control system, specify a target directory')
 
         if opts.format == 'django':
-            print mb.exports.django_header
+            print (mb.exports.django_header)
 
             # FIXME: add new fields: operator_name, operator_url, public_notes
-            print """Project(name='%s').save()""" % opts.project
+            print ("""Project(name='%s').save()""" % opts.project)
 
         elif opts.format == 'postgresql':
-            print mb.exports.postgresql_header
+            print (mb.exports.postgresql_header)
 
         elif opts.format in ['mirmon', 'mirmon-apache']:
             pass
 
         elif opts.format == 'vcs':
-            import os, os.path
+            import os
+            import os.path
             if not os.path.exists(opts.target_dir):
-                os.makedirs(opts.target_dir, 0750)
+                os.makedirs(opts.target_dir, 0o0750)
             os.chdir(opts.target_dir)
             if not os.path.isdir('.svn'):
-                sys.exit('%r doesn\'t seem to be a Subversion working copy' % opts.target_dir)
+                sys.exit(
+                    '%r doesn\'t seem to be a Subversion working copy' % opts.target_dir)
             for i in os.listdir('.'):
-                if i.startswith('.'): continue
+                if i.startswith('.'):
+                    continue
                 os.unlink(i)
 
         else:
             sys.exit('unknown format %r' % opts.format)
 
-
         mirrors = self.conn.Server.select()
         for m in mirrors:
             if m.comment == None:
-                #print 'null comment', m
+                # print ('null comment', m)
                 m.comment = ''
             d = mb.conn.server2dict(m)
             d.update(dict(project=opts.project))
@@ -1695,17 +1681,19 @@ class MirrorDoctor(cmdln.Cmdln):
             #print >>sys.stderr, d
 
             # replace None's
-            #for i in mb.conn.server_editable_attrs:
+            # for i in mb.conn.server_editable_attrs:
             for i in ['asn', 'prefix', 'asOnly', 'prefixOnly', 'lat', 'lng', 'scanFpm']:
-                if d[i] == None: d[i] = '0'
+                if d[i] == None:
+                    d[i] = '0'
             for i in ['prefix', 'baseurlRsync', 'admin', 'adminEmail']:
-                if d[i] == None: d[i] = ''
+                if d[i] == None:
+                    d[i] = ''
 
             if opts.format == 'django':
-                print mb.exports.django_template % d
+                print (mb.exports.django_template % d)
 
             elif opts.format == 'postgresql':
-                print mb.exports.postgresql_template % d
+                print (mb.exports.postgresql_template % d)
 
             elif opts.format in ['mirmon', 'mirmon-apache']:
                 if opts.format == 'mirmon':
@@ -1715,19 +1703,20 @@ class MirrorDoctor(cmdln.Cmdln):
 
                 if not m.enabled:
                     continue
-                for proto, urlname in [('http', 'baseurl'), 
+                for proto, urlname in [('http', 'baseurl'),
                                        ('ftp', 'baseurlFtp'),
                                        ('rsync', 'baseurlRsync')]:
                     if d[urlname]:
-                        print mirmon_template \
-                                % dict(proto=proto, 
-                                       url=d[urlname], 
-                                       adminEmail=d['adminEmail'],
-                                       country=d['country'])
+                        print (mirmon_template \
+                            % dict(proto=proto,
+                                   url=d[urlname],
+                                   adminEmail=d['adminEmail'],
+                                   country=d['country']))
 
             elif opts.format == 'vcs':
                 s = mb.conn.server_show_template % mb.conn.server2dict(m)
-                s = '\n'.join([ i for i in s.splitlines() if not i.startswith('statusBaseurl') ]) + '\n'
+                s = '\n'.join([i for i in s.splitlines()
+                               if not i.startswith('statusBaseurl')]) + '\n'
                 open(m.identifier, 'w').write(s)
 
         if opts.format == 'vcs' and opts.commit:
@@ -1740,12 +1729,10 @@ class MirrorDoctor(cmdln.Cmdln):
                 elif state == '?':
                     os.system('%s add %s > /dev/null' % (opts.commit, i))
 
-            os.system('%s commit -m "autocommit by mb" %s > /dev/null' \
-                        % (opts.commit, opts.target_dir))
+            os.system('%s commit -m "autocommit by mb" %s > /dev/null'
+                      % (opts.commit, opts.target_dir))
 
-
-
-    #@cmdln.alias('ts')
+    # @cmdln.alias('ts')
 
     @cmdln.option('-u', '--user', dest='user', metavar='USER',
                   help='user owning the timestamp')
@@ -1766,21 +1753,17 @@ class MirrorDoctor(cmdln.Cmdln):
             mb timestamps [OPTS] timestampfile1 [timestampfile2...]
         ${cmd_option_list}
         """
-        
+
         if not args:
             sys.exit('At least one filename is needed.')
 
         import os
         docroot = self.config.dbconfig.get('apache_documentroot', '')
         if docroot and not opts.no_docroot:
-            args = [ os.path.join(docroot, i) for i in args ]
+            args = [os.path.join(docroot, i) for i in args]
 
         import mb.timestamps
         mb.timestamps.create(args, user=opts.user, group=opts.group)
-
-
-
-
 
 
 if __name__ == '__main__':
@@ -1801,12 +1784,11 @@ if __name__ == '__main__':
         print >>sys.stderr, 'aborted.'
         r = 1
 
-    except (mb.mberr.ConfigError, 
+    except (mb.mberr.ConfigError,
             mb.mberr.NoConfigfile,
             mb.mberr.MirrorNotFoundError,
-            mb.mberr.SocketError), e:
+            mb.mberr.SocketError) as e:
         print >>sys.stderr, e.msg
         r = 1
 
     sys.exit(r)
-

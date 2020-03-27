@@ -1,12 +1,13 @@
 import mb.mberr
 
+
 class Directory:
     def __init__(self, name):
         self.name = name
         self.files = []
 
     def __str__(self):
-        #return '%s:\n%s' % (self.name, '\n'.join(self.files))
+        # return '%s:\n%s' % (self.name, '\n'.join(self.files))
         return '%-45s: %6s files' % (self.name, int(len(self.files)))
 
 
@@ -18,11 +19,12 @@ def delete_mirror(conn, mirror):
         raise mb.mberr.MirrorNotFoundError(mirror)
 
     query = """SELECT mirr_del_byid(%d, id) FROM filearr WHERE %s = ANY(mirrors)""" \
-                   % (m.id, m.id)
+        % (m.id, m.id)
     conn.Server._connection.queryAll(query)
 
     # Delete relates prefix and asn values for the server
-    conn.Serverpfx._connection.query("DELETE from serverpfx where serverid=%d" % m.id);
+    conn.Serverpfx._connection.query(
+        "DELETE from serverpfx where serverid=%d" % m.id)
 
     conn.Server.delete(m.id)
 
@@ -30,4 +32,3 @@ def delete_mirror(conn, mirror):
 def mirror_get_nfiles(conn, mirror):
     query = """SELECT mirr_get_nfiles(%d)""" % (mirror.id)
     return conn.Server._connection.queryAll(query)[0]
-

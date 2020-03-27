@@ -33,71 +33,74 @@ adminEmail     : %(adminEmail)s
 """
 
 
-server_editable_attrs = [ 'baseurl',
-                          'baseurlFtp',
-                          'baseurlRsync',
-                          'region',
-                          'country',
-                          'lat',
-                          'lng',
-                          'regionOnly',
-                          'countryOnly',
-                          'asOnly',
-                          'prefixOnly',
-                          'otherCountries',
-                          'fileMaxsize',
-                          'score',
-                          'publicNotes',
-                          'enabled',
-                          'statusBaseurl',
-                          'admin',
-                          'adminEmail',
-                          'operatorName',
-                          'operatorUrl',
-                          'comment' ]
+server_editable_attrs = ['baseurl',
+                         'baseurlFtp',
+                         'baseurlRsync',
+                         'region',
+                         'country',
+                         'lat',
+                         'lng',
+                         'regionOnly',
+                         'countryOnly',
+                         'asOnly',
+                         'prefixOnly',
+                         'otherCountries',
+                         'fileMaxsize',
+                         'score',
+                         'publicNotes',
+                         'enabled',
+                         'statusBaseurl',
+                         'admin',
+                         'adminEmail',
+                         'operatorName',
+                         'operatorUrl',
+                         'comment']
+
 
 def server2dict(s):
-    return dict(identifier    = s.identifier,
-                id            = s.id,
-                baseurl       = s.baseurl,
-                baseurlFtp    = s.baseurlFtp,
-                baseurlRsync  = s.baseurlRsync,
-                region        = s.region,
-                country       = s.country,
-                regionOnly    = s.regionOnly,
-                countryOnly   = s.countryOnly,
-                asOnly        = s.asOnly,
-                prefixOnly    = s.prefixOnly,
-                ipv6Only      = s.ipv6Only,
-                otherCountries = s.otherCountries,
-                fileMaxsize   = s.fileMaxsize,
-                score         = s.score,
-                scanFpm       = s.scanFpm,
-                publicNotes   = s.publicNotes,
-                enabled       = s.enabled,
-                statusBaseurl = s.statusBaseurl,
-                comment       = s.comment,
-                admin         = s.admin,
-                adminEmail    = s.adminEmail,
-                lat           = s.lat,
-                lng           = s.lng,
-                operatorName  = s.operatorName,
-                operatorUrl   = s.operatorUrl,
-                Connections   = s.connections)
+    return dict(identifier=s.identifier,
+                id=s.id,
+                baseurl=s.baseurl,
+                baseurlFtp=s.baseurlFtp,
+                baseurlRsync=s.baseurlRsync,
+                region=s.region,
+                country=s.country,
+                regionOnly=s.regionOnly,
+                countryOnly=s.countryOnly,
+                asOnly=s.asOnly,
+                prefixOnly=s.prefixOnly,
+                ipv6Only=s.ipv6Only,
+                otherCountries=s.otherCountries,
+                fileMaxsize=s.fileMaxsize,
+                score=s.score,
+                scanFpm=s.scanFpm,
+                publicNotes=s.publicNotes,
+                enabled=s.enabled,
+                statusBaseurl=s.statusBaseurl,
+                comment=s.comment,
+                admin=s.admin,
+                adminEmail=s.adminEmail,
+                lat=s.lat,
+                lng=s.lng,
+                operatorName=s.operatorName,
+                operatorUrl=s.operatorUrl,
+                Connections=s.connections)
 
 #
 # setup database connection
 #
 
+
 class Conn:
-    def __init__(self, config, version, debug = False):
+    def __init__(self, config, version, debug=False):
         dbdriver = config.get('dbdriver', 'mysql')
         if dbdriver in ['Pg', 'postgres', 'postgresql']:
             dbdriver, dbport = 'postgres', '5432'
-            try: 
+            try:
                 import psycopg2
-            except: 
-                sys.exit('To use mb with PostgreSQL, you need the pcycopg2 Python module installed.')
+            except:
+                sys.exit(
+                    'To use mb with PostgreSQL, you need the pcycopg2 Python module installed.')
             try:
                 config['dbpass']
             except:
@@ -129,15 +132,13 @@ class Conn:
             sys.exit('database driver %r not known' % dbdriver)
 
         uri_str = dbdriver + '://%s:%s@%s:%s/%s'
-        #if options.loglevel == 'DEBUG':
+        # if options.loglevel == 'DEBUG':
         #    uri_str += '?debug=1'
-        self.uri = uri_str % (config['dbuser'], config['dbpass'], 
-                              config['dbhost'], config.get('dbport', dbport), 
+        self.uri = uri_str % (config['dbuser'], config['dbpass'],
+                              config['dbhost'], config.get('dbport', dbport),
                               config['dbname'])
 
         sqlhub.processConnection = connectionForURI(self.uri)
-
-
 
         # upgrade things in the database, if needed
         self.Version = None
@@ -147,19 +148,19 @@ class Conn:
                 class sqlmeta:
                     fromDatabase = True
             self.Version = Version
-            
+
             # 2.17.0 shipped with an SQL schema where the version table didn't contain an "id" column
             # sqlobject doesn't like that, so let's re-create the table properly...
             try:
-                dbversion = self.Version.select("""component = 'mirrorbrain'""")[0]
+                dbversion = self.Version.select(
+                    """component = 'mirrorbrain'""")[0]
             except (dberrors.ProgrammingError, psycopg2.ProgrammingError):
                 query = "drop table version;"
                 SQLObject._connection.query(query)
                 raise
 
-
         except (dberrors.ProgrammingError, psycopg2.ProgrammingError):
-            print 'Your database needs to be upgraded (to >2.18.0): creating "version" table...'
+            print ('Your database needs to be upgraded (to >2.18.0): creating "version" table...')
 
             query = """CREATE TABLE version ( 
                            "id" serial NOT NULL PRIMARY KEY,
@@ -173,30 +174,29 @@ class Conn:
 
             try:
                 # the following modification came with 2.17.0
-                print "checking server table if ipv6_only column exists...",
+                print ("checking server table if ipv6_only column exists...",)
                 query = "ALTER TABLE server ADD COLUMN ipv6_only boolean NOT NULL default 'f';"
                 SQLObject._connection.query(query)
-                print "created."
+                print ("created.")
             except (dberrors.ProgrammingError, psycopg2.ProgrammingError):
-                print "already there."
+                print ("already there.")
 
         if self.Version:
             mbversion = self.Version.select("""component = 'mirrorbrain'""")[0]
 
             if mbversion.major < version.major \
-                    or (mbversion.major == version.major \
+                    or (mbversion.major == version.major
                         and mbversion.minor < version.minor) \
-                    or (mbversion.major == version.major \
-                        and mbversion.minor == version.minor \
+                    or (mbversion.major == version.major
+                        and mbversion.minor == version.minor
                         and mbversion.patchlevel < version.patchlevel):
 
-                print 'found database version %s.%s.%s, older than us: %s >>>>>>>> upgrading' \
-                        % (mbversion.major, mbversion.minor, mbversion.patchlevel, version)
+                print ('found database version %s.%s.%s, older than us: %s >>>>>>>> upgrading' \
+                    % (mbversion.major, mbversion.minor, mbversion.patchlevel, version))
                 query = "UPDATE version SET major=%s, minor=%s, patchlevel=%s WHERE component='mirrorbrain';" \
                         % (version.major, version.minor, version.patchlevel)
                 SQLObject._connection.query(query)
-                print "done."
-
+                print ("done.")
 
         class Server(SQLObject):
             """the server table"""
@@ -319,8 +319,9 @@ class Conn:
             """
             Filearr._connection.query(query)
             print >>sys.stderr, '>>> Done.'
-            print >>sys.stderr 
+            print >>sys.stderr
             # now try again
+
             class Hash(SQLObject):
                 """the hashes table"""
                 class sqlmeta:
@@ -338,8 +339,8 @@ def servertext2dict(s):
 
     new_attrs = dict()
     for a in mb.conn.server_editable_attrs:
-        m = re.search(r'^%s *: *(.*)' % a, 
-            s, re.MULTILINE)
+        m = re.search(r'^%s *: *(.*)' % a,
+                      s, re.MULTILINE)
         if m:
             if m.group(1) != 'None':
                 new_attrs[a] = m.group(1).rstrip()
@@ -359,7 +360,7 @@ def servertext2dict(s):
         new_attrs['lng'] = m.group(2)
 
     return new_attrs
-    
+
 
 def servers_match(server, match):
     servers = server.select("""identifier = '%s'""" % match)
@@ -369,10 +370,8 @@ def servers_match(server, match):
 
     return list(servers)
 
+
 def server_connections(serverpfx, serverid):
     connections = serverpfx.select("""serverid = '%s'""" % serverid)
 
     return list(connections)
-
-
-

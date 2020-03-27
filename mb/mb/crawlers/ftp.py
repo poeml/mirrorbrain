@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 import os
 import sys
 import socket
@@ -16,10 +14,10 @@ socket.setdefaulttimeout(120)
 
 def line2File(line):
     """parse line from FTP LIST reply and return the filename
-    
+
     Most FTP servers send lines with 9 parts, where the last is the filename
     (and the name could have spaces...)
-    
+
     Some servers return one part less"""
     parts = line.split()
     if len(parts) == 9:
@@ -59,9 +57,8 @@ def gen_ftp(url):
         # queue of directories to look into
         queue = [start_dir]
         directory = start_dir
-        #print '--> changing to', directory
-        #ftp.cwd(directory)
-
+        # print '--> changing to', directory
+        # ftp.cwd(directory)
 
         # walk directories non-recursively
         # http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/435875
@@ -85,7 +82,7 @@ def gen_ftp(url):
             if DEBUG:
                 print 'files: ', len(listing)
             for line in listing:
-                
+
                 if line.startswith('-'):
                     f = line2File(line)
                     f.path = os.path.join(directory[len(start_dir):], f.name)
@@ -108,6 +105,3 @@ def gen_ftp(url):
 
     except socket.error, e:
         raise SocketError(url, e.__str__())
-
-
-

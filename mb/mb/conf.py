@@ -6,12 +6,13 @@ import re
 import mb.mberr
 
 
-boolean_opts = [ 'zsync_hashes', 'chunked_hashes' ]
+boolean_opts = ['zsync_hashes', 'chunked_hashes']
 
-DEFAULTS = { 'zsync_hashes': False,
-             'chunked_hashes': True,
-             'chunk_size': 262144,
-             'apache_documentroot': None}
+DEFAULTS = {'zsync_hashes': False,
+            'chunked_hashes': True,
+            'chunk_size': 262144,
+            'apache_documentroot': None}
+
 
 class Config:
     """this class sets up a number dictionaries that contain configuration 
@@ -33,13 +34,13 @@ class Config:
 
         if not os.path.exists(conffile):
             raise mb.mberr.NoConfigfile(conffile, 'No config file found. Please refer to:\n'
-                    'http://mirrorbrain.org/docs/installation/initial_config/#create-mirrorbrain-conf')
+                                        'http://mirrorbrain.org/docs/installation/initial_config/#create-mirrorbrain-conf')
 
         cp = ConfigParser.SafeConfigParser()
         try:
             cp.read(conffile)
-        except ConfigParser.ParsingError, e:
-            print e
+        except ConfigParser.ParsingError as e:
+            print (e)
             sys.exit(2)
 
         #
@@ -49,15 +50,16 @@ class Config:
 
         # transform 'str1, str2, str3' form into a list
         re_clist = re.compile('[, ]+')
-        self.general['instances'] = [ i.strip() for i in re_clist.split(self.general['instances'].strip()) ]
+        self.general['instances'] = [i.strip()
+                                     for i in re_clist.split(self.general['instances'].strip())]
         self.instances = self.general['instances']
 
         self.instance = instance or self.instances[0]
 
         if not self.instance in self.instances:
-            raise KeyError('Config error: \'%s\' is not listed in instances' \
-                      % self.instance)
-            
+            raise KeyError('Config error: \'%s\' is not listed in instances'
+                           % self.instance)
+
         #
         # collect the database auth sections
         #
@@ -69,13 +71,14 @@ class Config:
             for b in boolean_opts:
                 try:
                     self.general[i][b] = cp.getboolean(i, b)
-                except ValueError, e:
-                    raise mb.mberr.ConfigError('cannot parse setting in [%s] section: %r' % (i, b + str(e)), conffile)
-                except ConfigParser.NoOptionError, e:
+                except ValueError as e:
+                    raise mb.mberr.ConfigError(
+                        'cannot parse setting in [%s] section: %r' % (i, b + str(e)), conffile)
+                except ConfigParser.NoOptionError as e:
                     pass
             # set default values where the config didn't define anything
             for d in DEFAULTS:
-                try: 
+                try:
                     self.general[i][d]
                 except:
                     self.general[i][d] = DEFAULTS[d]
@@ -85,10 +88,7 @@ class Config:
                 # must be a multiple of 2048 and 4096 for zsync checksumming
                 assert self.general[i]['chunk_size'] % 4096 == 0
 
-
-
-
-        # all database configs are accessible via self.general, but 
+        # all database configs are accessible via self.general, but
         # let's put the one of the chosen instance into
         # self.dbconfig
         self.dbconfig = self.general[self.instance]
@@ -97,5 +97,3 @@ class Config:
         # take care of the [mirrorprobe] section
         #
         self.mirrorprobe = dict(cp.items('mirrorprobe'))
-
-

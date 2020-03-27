@@ -4,7 +4,6 @@ def iplookup(conn, s):
     from mb.util import IpAddress
     import mb.mberr
 
-
     if s[0].isdigit():
         a = IpAddress()
         if ':' in s:
@@ -13,7 +12,8 @@ def iplookup(conn, s):
             a.ip = s
 
     else:
-        import sys, socket
+        import sys
+        import socket
         ips = []
         ip6s = []
         try:
@@ -25,16 +25,15 @@ def iplookup(conn, s):
                 else:
                     if sa[0] not in ips:
                         ips.append(sa[0])
-        except socket.error, e:
+        except socket.error as e:
             if e[0] == socket.EAI_NONAME:
                 raise mb.mberr.NameOrServiceNotKnown(s)
             else:
-                print 'socket error msg:', str(e)
+                print ('socket error msg:', str(e))
                 return None
 
-
-        #print ips
-        #print ip6s
+        # print (ips)
+        # print (ip6s)
         if len(ips) > 1 or len(ip6s) > 1:
             print >>sys.stderr, '>>> warning: %r resolves to multiple IP addresses: ' % s,
             if len(ips) > 1:
@@ -47,9 +46,10 @@ def iplookup(conn, s):
                                 '>>> mirror\'s configuration (see http://mirrorbrain.org/issues/issue152).\n' \
                                 '>>> It\'s best to talk to the mirror\'s admins.\n'
         a = IpAddress()
-        if ips: a.ip = ips[0]
-        if ip6s: a.ip6 = ip6s[0]
-        
+        if ips:
+            a.ip = ips[0]
+        if ip6s:
+            a.ip6 = ip6s[0]
 
     if not a.ip and not a.ip6:
         return a
@@ -82,6 +82,7 @@ def iplookup(conn, s):
 
     return a
 
+
 def asn_prefixes(conn, asn):
 
     query = """SELECT pfx \
@@ -89,5 +90,5 @@ def asn_prefixes(conn, asn):
                    WHERE asn='%s'""" % asn
 
     res = conn.Pfx2asn._connection.queryAll(query)
-    l = [ i[0] for i in res ]
+    l = [i[0] for i in res]
     return l

@@ -4,7 +4,8 @@ import os
 import sys
 import time
 import tempfile
-import pwd, grp
+import pwd
+import grp
 
 explanation = """
 Should you wonder about this file, it supplies timestamps that can be
@@ -24,14 +25,14 @@ Thanks.
 
 """
 
+
 def create(tstamps, user=None, group=None):
 
     epoch = int(time.time())
     utc = time.strftime("%a, %d %b %Y %H:%M:%S UTC", time.gmtime())
 
-
     if user:
-        user = pwd.getpwnam(user).pw_uid 
+        user = pwd.getpwnam(user).pw_uid
     else:
         user = os.geteuid()
 
@@ -43,29 +44,28 @@ def create(tstamps, user=None, group=None):
     for tstamp in tstamps:
         try:
             # we might write in a directory not owned by root
-            (fd, tmpfilename) = tempfile.mkstemp(prefix = os.path.basename(tstamp), 
-                                                 dir = os.path.dirname(tstamp))
-        except OSError, e:
+            (fd, tmpfilename) = tempfile.mkstemp(prefix=os.path.basename(tstamp),
+                                                 dir=os.path.dirname(tstamp))
+        except OSError as e:
             sys.exit(e)
 
         if tstamp.endswith('invisible'):
-            mode = 0640
+            mode = 0o0640
         else:
-            mode = 0644
+            mode = 0o0644
 
         try:
-            os.chown(tmpfilename, 
-                     user, 
+            os.chown(tmpfilename,
+                     user,
                      group)
-        except OSError, e:
+        except OSError as e:
             sys.exit(e)
 
         os.chmod(tmpfilename, mode)
-        
+
         f = os.fdopen(fd, 'w')
         f.write('%s\n%s\n\n' % (epoch, utc))
         f.write(explanation)
         f.close()
 
         os.rename(tmpfilename, tstamp)
-

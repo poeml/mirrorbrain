@@ -2,10 +2,11 @@ from sqlobject.sqlbuilder import AND
 
 from mb import util
 
+
 def has_file(conn, path, mirror_id):
     """check if file 'path' exists on mirror 'mirror_id'
     by looking at the database.
-    
+
     path can contain wildcards, which will result in a LIKE match.
     """
     if path.find('*') >= 0 or path.find('%') >= 0:
@@ -15,7 +16,7 @@ def has_file(conn, path, mirror_id):
         oprtr = '='
 
     query = "SELECT path FROM filearr WHERE path %s '%s' AND %s = ANY(mirrors)" \
-                  % (oprtr, path, mirror_id)
+        % (oprtr, path, mirror_id)
     result = conn.Server._connection.queryAll(query)
 
     return result
@@ -42,7 +43,7 @@ def check_for_marker_files(conn, markers, mirror_id):
 
 def ls(conn, path):
     """If path contains a wildcard (* or %): 
-    
+
     Return all paths known to the database that start match the given path
     argument (containing wildcards).
 
@@ -72,13 +73,13 @@ def ls(conn, path):
     files = []
     # ugly. Really need to let an ORM do this.
     for i in rows:
-        d = { 'identifier':     i[0],
-              'country':        i[1] or '',
-              'region':         i[2] or '',
-              'score':          i[3] or 0,
-              'baseurl':        i[4] or '<base url n/a>',
-              'enabled':        i[5],
-              'status_baseurl': i[6], }
+        d = {'identifier':     i[0],
+             'country':        i[1] or '',
+             'region':         i[2] or '',
+             'score':          i[3] or 0,
+             'baseurl':        i[4] or '<base url n/a>',
+             'enabled':        i[5],
+             'status_baseurl': i[6], }
         if pattern:
             d['path'] = i[7]
         else:
@@ -92,17 +93,17 @@ def ls(conn, path):
 def add(conn, path, mirror):
 
     query = """SELECT mirr_add_bypath(%d, '%s')""" \
-               % (mirror.id, path)
+        % (mirror.id, path)
     conn.Server._connection.queryAll(query)
 
 
 def rm(conn, path, mirror):
     query = """SELECT mirr_del_byid(%d, (SELECT id FROM filearr WHERE path='%s'))""" \
-                   % (mirror.id, path)
+        % (mirror.id, path)
     conn.Server._connection.queryAll(query)
 
 
-def dir_ls(conn, segments = 1, mirror=None):
+def dir_ls(conn, segments=1, mirror=None):
     """Show distinct directory names, looking only on the first path components.
 
     Manually, this could be done in the following way:
@@ -118,6 +119,7 @@ def dir_ls(conn, segments = 1, mirror=None):
 
     result = conn.Server._connection.queryAll(query)
     return result
+
 
 def dir_show_mirrors(conn, path, missing=False):
     """Show mirrors on which a certain directory path was found.
@@ -140,9 +142,11 @@ def dir_show_mirrors(conn, path, missing=False):
     if not mirror_ids:
         return []
     if not missing:
-        query = """select identifier from server where enabled and id in (%s)""" % ','.join(mirror_ids)
+        query = """select identifier from server where enabled and id in (%s)""" % ','.join(
+            mirror_ids)
     else:
-        query = """select identifier from server where enabled and id not in (%s)""" % ','.join(mirror_ids)
+        query = """select identifier from server where enabled and id not in (%s)""" % ','.join(
+            mirror_ids)
     result = conn.Server._connection.queryAll(query)
 
     return result
@@ -150,7 +154,7 @@ def dir_show_mirrors(conn, path, missing=False):
 
 def dir_filelist(conn, path):
     """Returns tuples of (id, name) for all files that reside in a directory
-    
+
     The returned filenames include their path."""
 
     query = """SELECT filearr.path, hash.file_id
@@ -173,11 +177,11 @@ def hashes_list_delete(conn, idlist):
     query = """BEGIN; 
                DELETE FROM hash 
                WHERE file_id IN ( %s ); 
-               COMMIT""" % ', '.join([ str(i) for i in idlist])
+               COMMIT""" % ', '.join([str(i) for i in idlist])
     conn.Filearr._connection.query(query)
 
 
-#def hashdir_add(conn, d):
+# def hashdir_add(conn, d):
 #    """Adds a directory to the hashdir table"""
 #
 #    query = """INSERT INTO hashdir (path)

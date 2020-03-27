@@ -12,6 +12,7 @@ TIMEOUT = 20
 
 socket.setdefaulttimeout(TIMEOUT)
 
+
 def access_http(identifier, url):
     from mb.util import Sample
     S = Sample(identifier, url, '', get_content=True)
@@ -40,7 +41,7 @@ def probe(S, http_method='GET'):
 
     if S.scheme in ['http', 'ftp']:
         req = urllib2.Request(S.probeurl)
-        if S.scheme == 'http' and http_method=='HEAD':
+        if S.scheme == 'http' and http_method == 'HEAD':
             # not for FTP URLs
             req.get_method = lambda: 'HEAD'
 
@@ -57,7 +58,8 @@ def probe(S, http_method='GET'):
                 t = tempfile.NamedTemporaryFile()
                 while 1:
                     buf = response.read(1024*512)
-                    if not buf: break
+                    if not buf:
+                        break
                     t.write(buf)
                 t.flush()
                 S.digest = mb.util.dgst(t.name)
@@ -72,14 +74,15 @@ def probe(S, http_method='GET'):
             if S.http_code == 200:
                 S.has_file = True
             else:
-                print 'unhandled HTTP response code %r for URL %r' % (S.http_code, S.probeurl)
+                print ('unhandled HTTP response code %r for URL %r' % (S.http_code, S.probeurl))
         elif S.scheme == 'ftp':
             # this works for directories. Not tested for files yet
             try:
                 out = response.readline()
             except socket.timeout:
                 # on an FTP URL with large directory, the listing may take longer than our socket TIMEOUT
-                sys.stderr.write("\n%s timed out (%s)\n" % (S.identifier, S.probeurl))
+                sys.stderr.write("\n%s timed out (%s)\n" %
+                                 (S.identifier, S.probeurl))
                 out = ''
 
             if len(out):
@@ -99,8 +102,8 @@ def probe(S, http_method='GET'):
             #
             # replaced -r with -d, because it allows to probe for directories
             # without transferring them recursively. With 92 mirrors tested, it
-            # worked just as well, with a single exception. (ftp3.gwdg.de, which 
-            # presumably runs a really old rsync server. The system seems to be 
+            # worked just as well, with a single exception. (ftp3.gwdg.de, which
+            # presumably runs a really old rsync server. The system seems to be
             # SuSE Linux 8.2.)
             # poeml, Mon Jun 22 18:10:33 CEST 2009
             cmd = ['rsync -d']
@@ -131,12 +134,14 @@ def probe(S, http_method='GET'):
         raise Exception('unknown URL type: %r' % S.probebaseurl)
 
 
-
 def get_all_urls(mirror):
     r = []
-    if mirror.baseurl:      r.append(mirror.baseurl)
-    if mirror.baseurlFtp:   r.append(mirror.baseurlFtp)
-    if mirror.baseurlRsync: r.append(mirror.baseurlRsync)
+    if mirror.baseurl:
+        r.append(mirror.baseurl)
+    if mirror.baseurlFtp:
+        r.append(mirror.baseurlFtp)
+    if mirror.baseurlRsync:
+        r.append(mirror.baseurlRsync)
     return r
 
 
@@ -150,25 +155,25 @@ def make_probelist(mirrors, filename, url_type='http', get_digest=False, get_con
     """
     from mb.util import Sample
     if url_type == 'http':
-        return [ Sample(i.identifier, i.baseurl, filename, 
-                        get_digest=get_digest, get_content=get_content) 
-                        for i in mirrors ]
+        return [Sample(i.identifier, i.baseurl, filename,
+                       get_digest=get_digest, get_content=get_content)
+                for i in mirrors]
     elif url_type == 'scan':
-        return [ Sample(i.identifier, get_best_scan_url(i), filename, 
-                        get_digest=get_digest, get_content=get_content) 
-                        for i in mirrors ]
+        return [Sample(i.identifier, get_best_scan_url(i), filename,
+                       get_digest=get_digest, get_content=get_content)
+                for i in mirrors]
     elif url_type == 'all':
-        return [ Sample(i.identifier, url, filename, 
-                        get_digest=get_digest, get_content=get_content) 
-                        for i in mirrors 
-                        for url in get_all_urls(i) ]
+        return [Sample(i.identifier, url, filename,
+                       get_digest=get_digest, get_content=get_content)
+                for i in mirrors
+                for url in get_all_urls(i)]
     else:
         raise Exception('unknown url_type value: %r' % url_type)
 
 
 def probe_report(m):
     m = probe(m)
-    #print 'checked %s' % m.probeurl
+    # print ('checked %s' % m.probeurl)
     sys.stdout.write('.')
     sys.stdout.flush()
     return m
@@ -188,22 +193,25 @@ def probe_report(m):
 # use the multiprocessing module if available (Python 2.6/3.0)
 # fall back to the processing module
 # if none is availabe, serialize
-def mirrors_have_file(mirrors, filename, url_type='all', 
+
+
+def mirrors_have_file(mirrors, filename, url_type='all',
                       get_digest=False, get_content=False):
-    mirrors = [ i for i in mirrors ]
+    mirrors = [i for i in mirrors]
 
     # we create a list of "simple" objects that can be serialized (pickled) by the
     # multiprocessing modules. That doesn't work with SQLObjects's result objects.
-    return probes_run(make_probelist(mirrors, filename, 
-                                     url_type=url_type, 
-                                     get_digest=get_digest, 
+    return probes_run(make_probelist(mirrors, filename,
+                                     url_type=url_type,
+                                     get_digest=get_digest,
                                      get_content=get_content))
+
 
 def lookups_probe(mirrors, get_digest=False, get_content=False):
     from mb.util import Sample
-    probelist = [ Sample(i['identifier'], i['baseurl'], i['path'], 
-                         get_digest=get_digest, get_content=get_content) 
-                  for i in mirrors ]
+    probelist = [Sample(i['identifier'], i['baseurl'], i['path'],
+                        get_digest=get_digest, get_content=get_content)
+                 for i in mirrors]
 
     return probes_run(probelist)
 
@@ -221,9 +229,8 @@ def probes_run(probelist):
     except:
         pass
     if len(probelist) > 8 and not mp_mod:
-        print '>>> No multiprocessing module was found installed. For parallelizing'
-        print '>>> probing, install the "processing" or "multiprocessing" Python module.'
-
+        print ('>>> No multiprocessing module was found installed. For parallelizing')
+        print ('>>> probing, install the "processing" or "multiprocessing" Python module.')
 
     if mp_mod in ['processing', 'multiprocessing']:
         # FIXME make the pool size configurable
@@ -234,7 +241,7 @@ def probes_run(probelist):
             pool_size = 24
         p = Pool(pool_size)
         result = p.map_async(probe_report, probelist)
-        #print result.get(timeout=20)
+        # print result.get(timeout=20)
         return result.get()
 
     else:
