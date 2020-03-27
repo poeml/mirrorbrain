@@ -1,3 +1,5 @@
+/**/__pycache__/
+/**/*.pyc
 mb/build
 mod_mirrorbrain/.libs
 mod_mirrorbrain/mod_mirrorbrain.la
