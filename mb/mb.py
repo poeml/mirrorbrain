@@ -647,7 +647,7 @@ class MirrorDoctor(cmdln.Cmdln):
                             found_mirrors += 1
 
         except KeyboardInterrupt:
-            print ('interrupted!', file=sys.stderr)
+            print ('interrupted!', sys.stderr)
             return 1
 
         print('Found:', found_mirrors)
@@ -1458,7 +1458,7 @@ class MirrorDoctor(cmdln.Cmdln):
                         print (row['baseurl'].rstrip('/') + '/' + row['path'],)
                     print
             except KeyboardInterrupt:
-                print ('interrupted!', file=sys.stderr)
+                print ('interrupted!', sys.stderr)
                 return 1
 
         elif action == 'add':
@@ -1678,7 +1678,7 @@ class MirrorDoctor(cmdln.Cmdln):
             d = mb.conn.server2dict(m)
             d.update(dict(project=opts.project))
 
-            #print (d, file=sys.stderr)
+            #print (d, sys.stderr)
 
             # replace None's
             # for i in mb.conn.server_editable_attrs:
@@ -1773,22 +1773,22 @@ if __name__ == '__main__':
         r = mirrordoctor.main()
 
     except mb.mberr.SignalInterrupt:
-        print ('killed!', file=sys.stderr)
+        print ('killed!', sys.stderr)
         r = 1
 
     except KeyboardInterrupt:
-        print ('interrupted!', file=sys.stderr)
+        print ('interrupted!', sys.stderr)
         r = 1
 
     except mb.mberr.UserAbort:
-        print ('aborted.', file=sys.stderr)
+        print ('aborted.', sys.stderr)
         r = 1
 
     except (mb.mberr.ConfigError,
             mb.mberr.NoConfigfile,
             mb.mberr.MirrorNotFoundError,
             mb.mberr.SocketError) as e:
-        print (e.msg, file=sys.stderr)
+        print (e.msg, sys.stderr)
         r = 1
 
     sys.exit(r)

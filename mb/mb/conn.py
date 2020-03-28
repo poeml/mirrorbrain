@@ -263,8 +263,8 @@ class Conn:
             #     maybe a separate module with upgrade procedures to be run would be better.
             #     The main point is that this is a migration that we want to happen fully automatically.
             # added 2.12.x -> 2.13.0
-            print ('', file=sys.stderr)
-            print ('>>> A database table for hashes does not exit. Creating...', file=sys.stderr)
+            print ('', sys.stderr)
+            print ('>>> A database table for hashes does not exit. Creating...', sys.stderr)
             query = """
             CREATE TABLE "hash" (
                     "file_id" INTEGER REFERENCES filearr PRIMARY KEY,
@@ -318,8 +318,8 @@ class Conn:
             ' LANGUAGE 'SQL';
             """
             Filearr._connection.query(query)
-            print ('>>> Done.', file=sys.stderr)
-            print ('', file=sys.stderr)
+            print ('>>> Done.', sys.stderr)
+            print ('', sys.stderr)
             # now try again
 
             class Hash(SQLObject):
