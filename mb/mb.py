@@ -151,7 +151,7 @@ class MirrorDoctor(cmdln.Cmdln):
         """
 
         import time
-        import urlparse
+        from urllib.parse import urlparse
         import mb.asn
 
         try:
@@ -168,7 +168,7 @@ class MirrorDoctor(cmdln.Cmdln):
         if not opts.http:
             sys.exit('At least an HTTP base URL needs to be specified (-H)')
 
-        scheme, host, path, a, b, c = urlparse.urlparse(opts.http)
+        scheme, host, path, a, b, c = urlparse(opts.http)
         if ':' in host:
             host, port = host.split(':')
         res = mb.asn.iplookup(self.conn, host)
