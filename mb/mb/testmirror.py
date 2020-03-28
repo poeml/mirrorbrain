@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import os
 import sys
@@ -48,7 +49,7 @@ def probe(S, http_method='GET'):
         try:
             response = urllib2.urlopen(req)
         except KeyboardInterrupt:
-            print ('interrupted!', sys.stderr)
+            print ('interrupted!', file=sys.stderr)
             raise
         except:
             return S

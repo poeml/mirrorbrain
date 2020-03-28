@@ -12,6 +12,8 @@ easy_install http://trentm.com/downloads/cmdln/1.1.1/cmdln-1.1.1.zip
 (it is not in the Python CheeseShop so far)
 """
 
+from __future__ import print_function
+
 __version__ = '2.19.2'
 __author__ = 'Peter Poeml <poeml@cmdline.net>'
 __copyright__ = 'Novell / SUSE Linux Products GmbH'
@@ -25,7 +27,6 @@ import mb.mberr
 from mb.util import af_from_string
 import signal
 import socket
-
 
 def catchterm(*args):
     raise mb.mberr.SignalInterrupt
@@ -647,7 +648,7 @@ class MirrorDoctor(cmdln.Cmdln):
                             found_mirrors += 1
 
         except KeyboardInterrupt:
-            print ('interrupted!', sys.stderr)
+            print ('interrupted!', file=sys.stderr)
             return 1
 
         print('Found:', found_mirrors)
@@ -1458,7 +1459,7 @@ class MirrorDoctor(cmdln.Cmdln):
                         print (row['baseurl'].rstrip('/') + '/' + row['path'],)
                     print
             except KeyboardInterrupt:
-                print ('interrupted!', sys.stderr)
+                print ('interrupted!', file=sys.stderr)
                 return 1
 
         elif action == 'add':
@@ -1678,7 +1679,7 @@ class MirrorDoctor(cmdln.Cmdln):
             d = mb.conn.server2dict(m)
             d.update(dict(project=opts.project))
 
-            #print (d, sys.stderr)
+            #print (d, file=sys.stderr)
 
             # replace None's
             # for i in mb.conn.server_editable_attrs:
@@ -1773,22 +1774,22 @@ if __name__ == '__main__':
         r = mirrordoctor.main()
 
     except mb.mberr.SignalInterrupt:
-        print ('killed!', sys.stderr)
+        print ('killed!', file=sys.stderr)
         r = 1
 
     except KeyboardInterrupt:
-        print ('interrupted!', sys.stderr)
+        print ('interrupted!', file=sys.stderr)
         r = 1
 
     except mb.mberr.UserAbort:
-        print ('aborted.', sys.stderr)
+        print ('aborted.', file=sys.stderr)
         r = 1
 
     except (mb.mberr.ConfigError,
             mb.mberr.NoConfigfile,
             mb.mberr.MirrorNotFoundError,
             mb.mberr.SocketError) as e:
-        print (e.msg, sys.stderr)
+        print (e.msg, file=sys.stderr)
         r = 1
 
     sys.exit(r)

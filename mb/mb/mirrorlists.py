@@ -1,4 +1,5 @@
 # encoding: utf-8
+from __future__ import print_function
 
 import sys
 import os
@@ -46,7 +47,7 @@ def genlist(conn, opts, mirrors, markers, format='txt2'):
             try:
                 os.rename(tmpfname, fname)
             except:
-                print ('could not rename file', sys.stderr)
+                print ('could not rename file', file=sys.stderr)
                 raise
         finally:
             if os.path.exists(tmpfname):
