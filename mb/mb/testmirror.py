@@ -48,7 +48,7 @@ def probe(S, http_method='GET'):
         try:
             response = urllib2.urlopen(req)
         except KeyboardInterrupt:
-            print >>sys.stderr, 'interrupted!'
+            print ('interrupted!', file=sys.stderr)
             raise
         except:
             return S

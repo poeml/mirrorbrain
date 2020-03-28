@@ -1,7 +1,7 @@
 
 import sys
 import os
-import ConfigParser
+import configparser
 import re
 import mb.mberr
 

@@ -46,7 +46,7 @@ def genlist(conn, opts, mirrors, markers, format='txt2'):
             try:
                 os.rename(tmpfname, fname)
             except:
-                print >>sys.stderr, 'could not rename file'
+                print ('could not rename file', file=sys.stderr)
                 raise
         finally:
             if os.path.exists(tmpfname):
