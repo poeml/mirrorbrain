@@ -1,7 +1,7 @@
 from __future__ import print_function
 
 import sys
-import mberr
+import mb.mberr
 from sqlobject import *
 
 
