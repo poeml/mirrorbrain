@@ -12,8 +12,6 @@ easy_install http://trentm.com/downloads/cmdln/1.1.1/cmdln-1.1.1.zip
 (it is not in the Python CheeseShop so far)
 """
 
-from __future__ import print_function
-
 __version__ = '2.19.2'
 __author__ = 'Peter Poeml <poeml@cmdline.net>'
 __copyright__ = 'Novell / SUSE Linux Products GmbH'

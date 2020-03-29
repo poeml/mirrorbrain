@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 # Bencode decoder
 #
@@ -43,7 +43,7 @@ class Decoder(object):
 lines = []
 for line in fileinput.input():
     lines.append(line)
-#print repr(''.join(lines))
+#print (repr(''.join(lines)))
 
 d=Decoder(''.join(lines))
 pprint(d.decode())

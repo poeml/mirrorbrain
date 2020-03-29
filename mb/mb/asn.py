@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 def iplookup(conn, s):
 
     from mb.util import IpAddress

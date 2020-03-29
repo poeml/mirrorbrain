@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 # Analyze rsync logfile to list rsync users per rsync module
 # 
@@ -131,11 +131,11 @@ def main():
 
 
     for module in sorted(modules.keys()):
-        print 
-        print module
+        print ("")
+        print (module)
         hosts = modules[module]
         for host in sorted(hosts):
-            print '  %-16s %s' % host
+            print ('  %-16s %s' % host)
 
 
 if __name__ == '__main__':

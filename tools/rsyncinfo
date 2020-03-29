@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 # rsyncinfo - script to get info on modules on rsync servers
 # 
@@ -22,7 +22,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 
 
-
+# TODO: commands library is not available on python3 anymore. we need to port
 import sys, commands
 import cmdln
 
@@ -43,7 +43,7 @@ class RsyncInfo(cmdln.Cmdln):
     def read_module_list(self, host):
         cmd = 'rsync -a %s::' % host
         if self.options.debug:
-            print cmd
+            print (cmd)
         if self.options.dry_run:
             return []
         out = commands.getoutput(cmd)
@@ -74,7 +74,7 @@ class RsyncInfo(cmdln.Cmdln):
 
         mods = self.read_module_list(host)
         for mod in mods:
-            print mod
+            print (mod)
 
 
     @cmdln.option('-S', '--hide-stderr', action='store_true',
@@ -142,10 +142,10 @@ class RsyncInfo(cmdln.Cmdln):
             cmd += ' | awk \'/^Total file size/ { print $4; exit }\''
             # TODO: also check number of files (given as 'Number of files')
             if self.options.debug:
-                print cmd
+                print (cmd)
             if not self.options.dry_run:
                 size = commands.getoutput(cmd)
-                print template % (mod, size)
+                print (template % (mod, size))
 
 
 

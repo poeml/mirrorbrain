@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 """
 Create a local file tree as copy from a remote server via rsync.
@@ -118,10 +118,10 @@ def main():
     (options, args) = parser.parse_args()
 
     if len(args) < 2:
-        print >>sys.stderr, 'Not enough arguments.'
+        print ('Not enough arguments.', file=sys.stderr)
         sys.exit(2)
     elif len(args) > 2:
-        print >>sys.stderr, 'Too many arguments.'
+        print ('Too many arguments.', file=sys.stderr)
         sys.exit(2)
 
     rsync_src = args[0]
@@ -160,7 +160,7 @@ def main():
             # print what we are doing
             # but omit symlinks with incorrect mtime
             if not line.startswith('recv rwxrwxrwx .L..t......'):
-                print line.rstrip()
+                print (line.rstrip())
 
         if line.startswith('IO'):
             sys.exit('rsync returned an error:\n%s' % line)
@@ -183,7 +183,7 @@ def main():
 
         # this special case also deals with broken links that point outside the tree
         if attrs[1] == 'd' and os.path.islink(path.rstrip('/')):
-            print 'removing link %r, to be replaced by directory' % path.rstrip('/')
+            print ('removing link %r, to be replaced by directory' % path.rstrip('/'))
             os.unlink(path.rstrip('/'))
 
         # for safety
@@ -196,11 +196,11 @@ def main():
         if action == 'del.':
             if name.endswith('/'):
                 if options.verbosity > 1:
-                    print >>sys.stderr, 'unlinking directory', name
+                    print ('unlinking directory %s' % name, file=sys.stderr)
                 os.rmdir(os.path.join(rsync_dst, name))
             else:
                 if options.verbosity > 1:
-                    print >>sys.stderr, 'unlinking file', name
+                    print ('unlinking file %' % name, file=sys.stderr)
                 os.unlink(os.path.join(rsync_dst, name))
 
         elif action == 'recv':
@@ -210,13 +210,13 @@ def main():
                     # top-level dir
                     # recv rwxr-xr-x .d..t...... 2009/11/06-00:46:02 4096 ./
                     if options.verbosity > 1:
-                        print >>sys.stderr, 'ignoring top-level dir'
+                        print ('ignoring top-level dir', file=sys.stderr)
                     mtime_dir_list.append((path, mtime_rsync))
 
                 if attrs[0] == 'c':
                     # recv rwxr-xr-x cd+++++++++ 2005/09/06-22:00:35 4096 firefox/
                     if options.verbosity > 1:
-                        print >>sys.stderr, 'creating directory %r' % path
+                        print ('creating directory %r' % path, file=sys.stderr)
                     os.mkdir(path)
                     mtime_dir_list.append((path, mtime_rsync))
 
@@ -229,7 +229,7 @@ def main():
 
             elif attrs == 'cL+++++++++':
                 if options.verbosity > 1:
-                    print >>sys.stderr, 'creating symlink from %s to %s' % (name, name_to)
+                    print ('creating symlink from %s to %s' % (name, name_to), file=sys.stderr)
                 os.symlink(name_to, path)
 
 
@@ -255,7 +255,7 @@ def main():
                     pass
                 else:
                     if options.verbosity > 1:
-                        print >>sys.stderr, '%s: setting permissions' % path
+                        print ('%s: setting permissions' % path, file=sys.stderr)
                     os.chmod(path, perms_to_mode(perms))
 
             if attrs[4] in ['t', '+'] or attrs[3] in ['s', '+']:
@@ -268,7 +268,7 @@ def main():
                     t = time.strptime(mtime_rsync, '%Y/%m/%d-%H:%M:%S')
                     mtime = int(time.mktime(t))
                     if options.verbosity > 1:
-                        print >>sys.stderr, '%s: setting mtime (%s)' % (path, mtime_rsync)
+                        print ('%s: setting mtime (%s)' % (path, mtime_rsync), file=sys.stderr)
                     os.utime(path, (mtime, mtime))
 
 
@@ -278,7 +278,7 @@ def main():
     while len(mtime_dir_list) > 0:
         path, mtime_rsync = mtime_dir_list.pop()
         if options.verbosity > 0:
-            print >>sys.stderr, 'delayed setting of mtime on %r' % path
+            print ('delayed setting of mtime on %r' % path, file=sys.stderr)
 
         t = time.strptime(mtime_rsync, '%Y/%m/%d-%H:%M:%S')
         mtime = int(time.mktime(t))
@@ -287,8 +287,8 @@ def main():
 
             
     if options.verbosity > 0:
-        print >>sys.stderr, 'rsync command for validation:'
-        print >>sys.stderr, 'rsync --no-motd -rlpt --chmod=o-w %s %s -i -n' % (rsync_src, rsync_dst)
+        print ('rsync command for validation:', file=sys.stderr)
+        print ('rsync --no-motd -rlpt --chmod=o-w %s %s -i -n' % (rsync_src, rsync_dst), file=sys.stderr)
 
 
 
@@ -299,8 +299,8 @@ if __name__ == '__main__':
         main()
 
     except SignalInterrupt:
-        print >>sys.stderr, 'killed!'
+        print ('killed!', file=sys.stderr)
 
     except KeyboardInterrupt:
-        print >>sys.stderr, 'interrupted!'
+        print ('interrupted!', file=sys.stderr)
 

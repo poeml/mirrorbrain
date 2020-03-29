@@ -4,15 +4,6 @@ import os
 import re
 import mb.mberr
 
-if sys.version_info >= ( 3, ):
-    import configparser
-    CP = configparser.ConfigParser
-else:
-    #python 2.x
-    import ConfigParser as configparser
-    CP = configparser.SafeConfigParser
-
-
 boolean_opts = ['zsync_hashes', 'chunked_hashes']
 
 DEFAULTS = {'zsync_hashes': False,
@@ -42,7 +33,7 @@ class Config:
         if not os.path.exists(conffile):
             raise mb.mberr.NoConfigfile(conffile, 'No config file found. Please refer to:\n'
                                         'http://mirrorbrain.org/docs/installation/initial_config/#create-mirrorbrain-conf')
-        cp = CP()
+        cp = configparser.ConfigParser()
         try:
             cp.read(conffile)
         except configparser.ParsingError as e:

@@ -14,8 +14,8 @@ apxs -cia -lm mod_mirrorbrain.c
 
 ( 
 rm /usr/bin/mb
-rm /usr/lib64/python2.7/site-packages/mb/*
-cd /opt/project/mb && python setup.py install 
+rm /usr/lib64/python*/site-packages/mb/*
+cd /opt/project/mb && python3 setup.py install
 )
 
 systemctl start postgresql

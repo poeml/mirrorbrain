@@ -26,7 +26,7 @@ VALUES (
   '%(otherCountries)s', '%(fileMaxsize)s', '%(scanFpm)s');
 """
 
-django_header = """#!/usr/bin/env python
+django_header = """#!/usr/bin/env python3
 import os, sys
 
 mybasepath = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 # push2mirrors -- rsync file to mirrors in parallel
 # Copyright 2010,2011,2012 Peter Poeml
@@ -63,7 +63,7 @@ def run_push(push):
 
     #rc = subprocess.call(push.cmd)
     #if rc != 0:
-    #    print rc
+    #    print (rc)
     p = Popen(push.cmd, shell=False, bufsize=BUFSIZE,
               stdin=PIPE, stdout=PIPE, stderr=PIPE, close_fds=True)
     (child_stdin, child_stdout, child_stderr) = (p.stdin, p.stdout, p.stderr)
@@ -121,5 +121,5 @@ else:
 p = Pool(pool_size)
 result = p.map_async(run_push, pushes)
 #print result.get(timeout=20)
-print result.get()
+print (result.get())
 

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 ################################################################################
 # mirrorprobe -- fetch mirrors from a database, try to access them and mark them 
@@ -22,7 +22,7 @@
 ################################################################################
 
 
-import sys, os, os.path, time, threading, socket, urllib2, httplib
+import sys, os, os.path, time, threading, socket, requests
 import logging, logging.handlers
 from optparse import OptionParser
 from sqlobject import *
@@ -45,17 +45,11 @@ def probe_http(mirror):
     try:
 
         logging.debug("%s probing %s" % (threading.currentThread().getName(), mirror.identifier))
+        request_headers = {
+                            'User-Agent': USER_AGENT,
+                            'Accept': '*/*'
+                          }
 
-        #def urllib2_debug_init(self, debuglevel=0):
-        #    self._debuglevel = 1
-        #urllib2.AbstractHTTPHandler.__init__ = urllib2_debug_init
-
-        #req = urllib2.Request('http://old-cherry.suse.de') # never works
-        #req = urllib2.Request('http://doozer.poeml.de/')   # always works
-        req = urllib2.Request(mirror.baseurl)
-
-        req.add_header('User-Agent', USER_AGENT)
-        req.add_header('Accept', '*/*')
         #req.get_method = lambda: "HEAD"
 
         mirror.status_baseurl_new = False
@@ -67,14 +61,14 @@ def probe_http(mirror):
             return None
 
         try:
-            response = urllib2.urlopen(req)
+            response = requests.get(mirror.baseurl, headers = request_headers)
 
             try:
-                mirror.response_code = response.code
+                mirror.response_code = response.status_code
                 # if the web server redirects to an ftp:// URL, our response won't have a code attribute
                 # (except we are going via a proxy)
             except AttributeError:
-                if response.url.startswith('ftp://'):
+                if 'location' in response.headers and response.headers['location'].startswith('ftp://'):
                     # count as success
                     mirror.response_code = 200
                 logging.debug('mirror %s redirects to ftp:// URL' % mirror.identifier)
@@ -85,15 +79,15 @@ def probe_http(mirror):
             mirror.status_baseurl_new = True
 
 
-        except ValueError, e:
+        except ValueError as e:
             if str(e).startswith('invalid literal for int()'):
                 mirror.response = 'response not read due to http://bugs.python.org/issue1205'
                 logging.info('mirror %s sends broken chunked reply, see http://bugs.python.org/issue1205' % mirror.identifier)
 
-        except socket.timeout, e:
+        except socket.timeout as e:
             mirror.response = 'socket timeout in reading response: %s' % e
 
-        except socket.error, e:
+        except socket.error as e:
             #errno, errstr = sys.exc_info()[:2]
             mirror.response = "socket error: %s" % e
 
@@ -101,36 +95,36 @@ def probe_http(mirror):
             mirror.response_code = None
             mirror.response = None
             
-        except urllib2.HTTPError, e:
-            mirror.response_code = e.code
-            mirror.response = e.read()
+        except requests.HTTPError as e:
+            mirror.response_code = e.responsse.status_code
+            mirror.response = e.content
 
-        except urllib2.URLError, e:
+        except urllib.URLError as e:
             mirror.response_code = 0
             mirror.response = "%s" % e.reason
 
-        except httplib.IncompleteRead, e:
+        except httplib.IncompleteRead as e:
             logging.info('mirror %s returns incomplete response' % mirror.identifier)
             mirror.response_code = 0
             mirror.response = "%s" % e.reason
 
-        except IOError, e:
+        except IOError as e:
             # IOError: [Errno ftp error] (111, 'Connection refused')
             if e.errno == 'ftp error':
                 mirror.response_code = 0
                 mirror.response = "%s: %s" % (e.errno, e.strerror)
             else:
-                print mirror.identifier, mirror.baseurl, 'errno:', e.errno
+                print (mirror.identifier, mirror.baseurl, 'errno:', e.errno)
                 raise
 
-        except:
-            print 'unhandled exception'
-            print mirror.identifier, mirror.baseurl
+        except Exception as e:
+            print ('unhandled exception %s' % e)
+            print (mirror.identifier, mirror.baseurl)
             raise
 
-    except:
+    except Exception as e:
         mirror.response_code = None
-        mirror.response = 'unknown error'
+        mirror.response = 'unknown error %s' % e
 
     # not reached, if the timeout goes off
     mirror.timed_out = False
@@ -154,8 +148,8 @@ def main():
     import mb.mberr
     try:
         config = mb.conf.Config(conffile = configpath, instance = brain_instance)
-    except mb.mberr.NoConfigfile, e:
-        print >>sys.stderr, e.msg
+    except mb.mberr.NoConfigfile as e:
+        print (e.msg, file=sys.stderr)
         sys.exit(1)
 
 
