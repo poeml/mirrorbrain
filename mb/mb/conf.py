@@ -3,6 +3,7 @@ import sys
 import os
 import re
 import mb.mberr
+import configparser
 
 boolean_opts = ['zsync_hashes', 'chunked_hashes']
 
