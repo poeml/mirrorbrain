@@ -355,8 +355,9 @@ class MirrorDoctor(cmdln.Cmdln):
                 print("Prefix: %s (AS%s)" % (i.prefix, i.asn))
             print("-------- Connectivity---------")
 
-    @cmdln.option('--all-prefixes', action='store_true',
-                  help='show all prefixes handled by this AS')
+    # TODO: not supported anymore with the move to ASN lookup via maxminddb
+    #@cmdln.option('--all-prefixes', action='store_true',
+    #              help='show all prefixes handled by this AS')
     @cmdln.option('-p', '--prefix', action='store_true',
                         help='print the network prefix')
     @cmdln.option('-a', '--asn', action='store_true',
@@ -378,7 +379,7 @@ class MirrorDoctor(cmdln.Cmdln):
         """
         import mb.asn
 
-        r = mb.asn.iplookup(self.conn, ip)
+        r = mb.asn.iplookup(ip)
 
         if opts.asn:
             print(r.asn)
@@ -464,7 +465,7 @@ class MirrorDoctor(cmdln.Cmdln):
 
             # if opts.prefix or opts.asn:
             try:
-                res = iplookup(self.conn, hostname)
+                res = iplookup(hostname)
             except mb.mberr.NameOrServiceNotKnown as e:
                 print('%s:' % mirror.identifier, e.msg)
                 #print ('%s: without DNS lookup, no further lookups are possible' % mirror.identifier)

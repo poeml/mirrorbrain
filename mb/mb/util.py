@@ -1,3 +1,5 @@
+import geoip2.database
+
 import sys
 import os
 import time
@@ -6,6 +8,7 @@ import socket
 t_start = 0
 rsync_version = None
 
+ASN_DB_PATH = './GeoLite2-ASN.mmdb'
 
 class VersionParser:
     def __init__(self, vers):
@@ -33,16 +36,19 @@ class Afile:
         return self.name
 
 
-class IpAddress:
+class MbIpAddress:
     """represent an IP address, or rather some data associated with it"""
 
-    def __init__(self):
+    def __init__(self, address):
         self.ip = None
         self.ip6 = None
         self.asn = None
         self.asn6 = None
         self.prefix = None
         self.prefix6 = None
+
+        self._resolv_address(address)
+        self._find_asn()
 
     def ipv6Only(self):
         if self.ip6 and not self.ip:
@@ -51,10 +57,71 @@ class IpAddress:
             return False
 
     def __str__(self):
-        r = '%s (%s AS%s)' % (self.ip, self.prefix, self.asn)
+        r = []
+        if self.ip:
+            r.append('%s (%s AS%s)' % (self.ip, self.prefix, self.asn))
         if self.ip6:
-            r += ' %s (%s AS%s)' % (self.ip6, self.prefix6, self.asn6)
+            r.append('%s (%s AS%s)' % (self.ip6, self.prefix6, self.asn6))
+        return ' '.join(r)
 
+    def _find_asn(self):
+        # TODO: maxmindcode here
+        asn_db = geoip2.database.Reader(ASN_DB_PATH)
+
+        if self.ip:
+            try:
+                res = asn_db.asn(self.ip)
+                self.prefix = res.network
+                self.asn    = res.autonomous_system_number
+            except geoip2.errors.AddressNotFoundError:
+                # we get this error if mod_asn isn't installed as well
+                pass
+
+        if self.ip6:
+            try:
+                res = asn_db.asn(self.ip6)
+                self.prefix6 = res.network
+                self.asn6    = res.autonomous_system_number
+            except geoip2.errors.AddressNotFoundError:
+                # we get this error if mod_asn isn't installed as well
+                pass
+
+    def _resolv_address(self, s):
+        ips = []
+        ip6s = []
+        try:
+            for res in socket.getaddrinfo(s, None):
+                af, socktype, proto, canonname, sa = res
+                if af == socket.AF_INET6:
+                    if sa[0] not in ip6s:
+                        ip6s.append(sa[0])
+                else:
+                    if sa[0] not in ips:
+                        ips.append(sa[0])
+        except socket.error as e:
+            if e[0] == socket.EAI_NONAME:
+                raise mb.mberr.NameOrServiceNotKnown(s)
+            else:
+                print ('socket error msg:', str(e))
+                return None
+
+        # print (ips)
+        # print (ip6s)
+        if len(ips) > 1 or len(ip6s) > 1:
+            print ('>>> warning: %r resolves to multiple IP addresses: ' % s, file=sys.stderr)
+            if len(ips) > 1:
+                print (', '.join(ips), file=sys.stderr)
+            if len(ip6s) > 1:
+                print (', '.join(ip6s), file=sys.stderr)
+            print ('\n>>> see http://mirrorbrain.org/archive/mirrorbrain/0042.html why this could\n' \
+                  '>>> could be a problem, and what to do about it. But note that this is not\n' \
+                  '>>> necessarily a problem and could actually be intended depending on the\n' \
+                  '>>> mirror\'s configuration (see http://mirrorbrain.org/issues/issue152).\n' \
+                  '>>> It\'s best to talk to the mirror\'s admins.\n', file=sys.stderr)
+        if ips:
+            self.ip = ips[0]
+        if ip6s:
+            self.ip6 = ip6s[0]
 
 class Sample:
     """used for probe results."""
