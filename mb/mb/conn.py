@@ -99,7 +99,7 @@ class Conn:
                 import psycopg2
             except:
                 sys.exit(
-                    'To use mb with PostgreSQL, you need the pcycopg2 Python module installed.')
+                    'To use mb with PostgreSQL, you need the psycopg2 Python module installed.')
             try:
                 config['dbpass']
             except:

@@ -1,7 +1,7 @@
 import os
 import sys
-import urllib2
-import commands
+import urllib.request
+import subprocess
 import tempfile
 import shutil
 import socket
@@ -39,13 +39,13 @@ def req(baseurl, filename, http_method='GET', get_digest=False):
 def probe(S, http_method='GET'):
 
     if S.scheme in ['http', 'ftp']:
-        req = urllib2.Request(S.probeurl)
+        req = urllib.request.Request(S.probeurl)
         if S.scheme == 'http' and http_method == 'HEAD':
             # not for FTP URLs
             req.get_method = lambda: 'HEAD'
 
         try:
-            response = urllib2.urlopen(req)
+            response = urllib.request.urlopen(req)
         except KeyboardInterrupt:
             print ('interrupted!', file=sys.stderr)
             raise
@@ -115,7 +115,7 @@ def probe(S, http_method='GET'):
 
             cmd = ' '.join(cmd)
 
-            (rc, out) = commands.getstatusoutput(cmd)
+            (rc, out) = subprocess.getstatusoutput(cmd)
             targetfile = os.path.join(tmpdir, os.path.basename(S.filename))
             if rc == 0 or os.path.exists(targetfile):
                 S.has_file = True

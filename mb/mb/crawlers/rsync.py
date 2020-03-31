@@ -10,14 +10,14 @@ import mb.core
 
 
 def get_filelist(url):
-    import urlparse
+    import urllib
     import subprocess
 
     print url
-    url = list(urlparse.urlparse(url))
+    url = list(urllib.urlparse(url))
     if not ':' in url[1]:
         url[1] += ':873'
-    url = urlparse.urlunparse(url)
+    url = urllib.urlunparse(url)
     print url
     # old
     ###  child_stdin, child_stdout, child_stderr = os.popen3(['rsync', '-r', url])

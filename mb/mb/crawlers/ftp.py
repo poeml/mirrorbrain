@@ -1,7 +1,7 @@
 import os
 import sys
 import socket
-import urlparse
+import urllib
 from ftplib import FTP
 
 from mb.util import Afile
@@ -35,7 +35,7 @@ def gen_ftp(url):
     """connect to FTP server and return an iterator of found files
     below the given url"""
 
-    (scheme, host, start_dir, params, query, fragment) = urlparse.urlparse(url)
+    (scheme, host, start_dir, params, query, fragment) = urllib.urlparse(url)
     if ':' in host:
         host, port = host.split(':')
     else:
