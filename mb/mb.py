@@ -169,7 +169,10 @@ class MirrorDoctor(cmdln.Cmdln):
         scheme, host, path, a, b, c = urlparse(opts.http)
         if ':' in host:
             host, port = host.split(':')
-        res = mb.asn.iplookup(self.conn, host)
+        
+        if not opts.region or not opts.country:
+            res = mb.asn.iplookup(host)
+
         if not opts.region:
             if res.ip:
                 opts.region = mb.geoip.lookup_region_code(res.ip)
@@ -180,8 +183,9 @@ class MirrorDoctor(cmdln.Cmdln):
                 opts.country = mb.geoip.lookup_country_code(res.ip)
             elif res.ip6:
                 opts.country = mb.geoip.lookup_country_code(res.ip6)
-
-        lat, lng = mb.geoip.lookup_coordinates(host)
+        lat, lng = 0, 0
+        if mb.geoip.database or mb.geoip.database6:
+            lat, lng = mb.geoip.lookup_coordinates(host)
 
         if opts.region == '--' or opts.country == '--':
             print('Detected geolocation: country = %s / region = %s' %
@@ -218,7 +222,8 @@ class MirrorDoctor(cmdln.Cmdln):
         # Squeze in options for the do_update call: only update prefix and asn (we already did the rest)
         opts.all = opts.coordinates = opts.country = opts.region = opts.dry_run = False
         opts.prefix = opts.asn = True
-        do_updates = self.do_update(None, opts, identifier)
+        if mb.geoip.database or mb.geoip.database6:
+            do_updates = self.do_update(None, opts, identifier)
 
         if self.options.debug:
             print(s)

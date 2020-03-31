@@ -1,5 +1,49 @@
-# Defines the tag for OBS and build script builds:
-FROM registry.opensuse.org/home/andriinikitin/containers/serviced 
+###### FROM registry.opensuse.org/home/andriinikitin/containers/serviced 
+
+#!BuildTag: serviced
+FROM opensuse/leap:15.1
+ENV container docker
+
+ENV LANG en_US.UTF-8
+
+RUN zypper -n install systemd
+RUN zypper -n install curl hostname iputils vim command-not-found bsdtar zip sudo wget
+RUN systemctl mask dev-mqueue.mount dev-hugepages.mount \
+    systemd-remount-fs.service sys-kernel-config.mount \
+    sys-kernel-debug.mount sys-fs-fuse-connections.mount \
+    display-manager.service graphical.target systemd-logind.service
+
+ADD dbus.service /etc/systemd/system/dbus.service
+
+RUN zypper -n install gcc gzip patch
+RUN zypper -n install python3-devel python3-cmdln python3-geoip2 python3-psycopg2
+
+RUN zypper -n addrepo https://download.opensuse.org/repositories/openSUSE:/infrastructure/openSUSE_Leap_15.1/ openSUSE:infrastructure
+RUN zypper mr -p 97 openSUSE:infrastructure
+RUN zypper -n addrepo https://download.opensuse.org/repositories/server:/database:/postgresql/openSUSE_Leap_15.1/ server:database:postgresql
+RUN zypper mr -p 98 server:database:postgresql
+
+RUN zypper -n --gpg-auto-import-keys --no-gpg-checks refresh
+
+RUN zypper -n install postgresql10-ip4r postgresql postgresql-server
+
+RUN zypper -n install mirrorbrain mirrorbrain-scanner apache2-worker apache2-mod_asn apache2-mod_geoip apache2-mod_form mirrorbrain-tools
+RUN zypper -n install apache2-devel
+RUN zypper -n install python3-SQLObject
+RUN zypper -n install python3-FormEncode
+RUN zypper -n install zsync
+
+VOLUME ['/sys/fs/cgroup']
+VOLUME ['/run']
+
+VOLUME ['/opt/project']
+
+RUN systemctl enable dbus.service
+RUN systemctl enable postgresql
+
+ENTRYPOINT  ["/usr/lib/systemd/systemd"]
+
+######
 
 ADD src/sql /usr/share/doc/packages/mirrorbrain/sql
 

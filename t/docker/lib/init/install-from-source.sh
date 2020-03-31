@@ -14,7 +14,7 @@ apxs -cia -lm mod_mirrorbrain.c
 
 ( 
 rm /usr/bin/mb
-rm /usr/lib64/python*/site-packages/mb/*
+rm -f /usr/lib64/python*/site-packages/mb/*
 cd /opt/project/mb && python3 setup.py install
 )
 
