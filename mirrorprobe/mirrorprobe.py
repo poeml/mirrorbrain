@@ -28,6 +28,9 @@ from optparse import OptionParser
 from sqlobject import *
 from sqlobject.sqlbuilder import AND
 
+from mb.util import VersionParser
+VERSION = "1.0.0"
+VERSION_OBJ = VersionParser(VERSION)
 USER_AGENT = 'MirrorBrain Probe (see http://mirrorbrain.org/probe_info)'
 DEFAULT_TIMEOUT = 20
 
@@ -161,7 +164,7 @@ def main():
     #
     # parse commandline
     #
-    parser = OptionParser(usage="%prog [options] [<mirror identifier>+]", version="%prog 1.0")
+    parser = OptionParser(usage="%prog [options] [<mirror identifier>+]", version="%prog " + VERSION)
 
     parser.add_option("--config",
                       dest="configpath",
@@ -260,6 +263,7 @@ def main():
     #
     import mb.conn
     conn = mb.conn.Conn(config.dbconfig, 
+                        version = VERSION_OBJ,
                         debug = (options.loglevel == 'DEBUG'))
 
 
