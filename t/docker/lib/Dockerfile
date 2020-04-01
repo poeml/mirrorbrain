@@ -16,7 +16,7 @@ RUN systemctl mask dev-mqueue.mount dev-hugepages.mount \
 ADD dbus.service /etc/systemd/system/dbus.service
 
 RUN zypper -n install gcc gzip patch
-RUN zypper -n install python3-devel python3-cmdln python3-geoip2 python3-psycopg2
+RUN zypper -n install python3-devel python3-cmdln
 
 RUN zypper -n addrepo https://download.opensuse.org/repositories/openSUSE:/infrastructure/openSUSE_Leap_15.1/ openSUSE:infrastructure
 RUN zypper mr -p 97 openSUSE:infrastructure
@@ -25,13 +25,11 @@ RUN zypper mr -p 98 server:database:postgresql
 
 RUN zypper -n --gpg-auto-import-keys --no-gpg-checks refresh
 
-RUN zypper -n install postgresql10-ip4r postgresql postgresql-server
+RUN zypper -n install postgresql10-ip4r postgresql10 postgresql10-server
 
-RUN zypper -n install mirrorbrain mirrorbrain-scanner apache2-worker apache2-mod_asn apache2-mod_geoip apache2-mod_form mirrorbrain-tools
+RUN zypper -n install mirrorbrain mirrorbrain-scanner apache2-worker apache2-mod_asn apache2-mod_maxminddb apache2-mod_form mirrorbrain-tools
 RUN zypper -n install apache2-devel
-RUN zypper -n install python3-SQLObject
-RUN zypper -n install python3-FormEncode
-RUN zypper -n install zsync
+RUN zypper -n install python3-SQLObject python3-geoip2  python3-geoip2 python3-psycopg2 python3-psycopg2 python3-FormEncode
 
 VOLUME ['/sys/fs/cgroup']
 VOLUME ['/run']
@@ -63,6 +61,10 @@ RUN sed -i 's,\#log_lock_waits = off,log_lock_waits = on,' /var/lib/pgsql/data/p
 RUN sed -i 's,\#deadlock_timeout = 1s,deadlock_timeout = 10,' /var/lib/pgsql/data/postgresql.conf
 
 ADD mirrorbrain.conf /etc/mirrorbrain.conf
+ADD mirrorbrain-ci.mmdb /GeoLite2-ASN.mmdb
+ADD mirrorbrain-ci-city.mmdb /var/lib/GeoIP/GeoLite2-City.mmdb
+ADD mirrorbrain-ci.mmdb      /var/lib/GeoIP/GeoLite2-ASN.mmdb
+ADD mod_maxminddb.conf /etc/apache2/conf.d/mod_maxminddb.conf 
 RUN chmod 0640 /etc/mirrorbrain.conf
 RUN chown root:mirrorbrain /etc/mirrorbrain.conf
 
