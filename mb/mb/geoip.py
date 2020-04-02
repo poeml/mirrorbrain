@@ -6,6 +6,9 @@ from mb.util import af_from_string
 
 ENV = {'PATH': ':'.join([os.getenv('PATH'), '/usr/share/mirrorbrain'])}
 
+database = None
+database6 = None
+
 # try different databases and different locations
 databases = ['/var/lib/GeoIP/GeoLiteCity.dat.updated',
              '/var/lib/GeoIP/GeoLiteCity.dat',

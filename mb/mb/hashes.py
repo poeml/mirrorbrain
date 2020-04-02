@@ -2,7 +2,6 @@ import sys
 import os
 import os.path
 import stat
-import zsync
 import binascii
 
 try:
@@ -150,6 +149,9 @@ class Hasheable:
                           [self.src_rel])
                 c.execute("SELECT currval('filearr_id_seq')")
                 file_id = c.fetchone()[0]
+            zsums = ''
+            for i in self.hb.zsums:
+                zsums = zsums + i.hexdigest()
 
             c.execute("""INSERT INTO hash (file_id, mtime, size, md5, 
                                            sha1, sha256, sha1piecesize, 
@@ -171,7 +173,7 @@ class Hasheable:
                        self.hb.pgp or '',
                        self.hb.zblocksize,
                        self.hb.get_zparams(),
-                       binascii.hexlify(''.join(self.hb.zsums))]
+                       zsums]
                       )
             c.execute("COMMIT")
             if verbose:
@@ -189,6 +191,10 @@ class Hasheable:
             if self.hb.empty:
                 sys.stderr.write('skipping db hash generation\n')
                 return
+
+            zsums = ''
+            for i in self.hb.zsums:
+                zsums = zsums + i.hexdigest()
 
             c.execute("""UPDATE hash set mtime = %s, size = %s, 
                                          md5 = decode(%s, 'hex'), 
@@ -210,7 +216,7 @@ class Hasheable:
                        self.hb.pgp or '',
                        self.hb.zblocksize,
                        self.hb.get_zparams(),
-                       binascii.hexlify(''.join(self.hb.zsums)),
+                       zsums,
                        file_id])
             if verbose:
                 print ('Hash updated in database for %r' % self.src_rel)
@@ -259,6 +265,8 @@ class HashBag:
         if verbose:
             sys.stdout.write('Hashing %r... ' % self.src)
             sys.stdout.flush()
+        if self.do_chunked_with_zsync or self.do_zsync_hashes:
+            import zsync
 
         if self.do_zsync_hashes:
             self.zs_guess_zsync_params()
@@ -430,19 +438,22 @@ class HashBag:
 
     def calc_btih(self):
         """ calculate a bittorrent information hash (btih) """
+        size = 0
+        if self.h:
+            size = self.h.size
 
-        buf = ['d',
-               '6:length', 'i', str(self.h.size), 'e',
-               '6:md5sum', str(MD5_DIGESTSIZE * 2), ':', self.md5hex,
-               '4:name', str(len(self.basename)), ':', self.basename,
-               '12:piece length', 'i', str(self.chunk_size), 'e',
-               '6:pieces', str(len(self.pieces) *
-                               SHA1_DIGESTSIZE), ':', ''.join(self.pieces),
-               '4:sha1', str(SHA1_DIGESTSIZE), ':', self.sha1,
-               '6:sha256', str(SHA256_DIGESTSIZE), ':', self.sha256 or '',
-               'e']
+        buf = [b'd',
+               b'6:length', b'i', str(size).encode(), b'e',
+               b'6:md5sum', str(MD5_DIGESTSIZE * 2).encode(), b':', self.md5hex.encode(),
+               b'4:name', str(len(self.basename)).encode(), b':', self.basename.encode(),
+               b'12:piece length', b'i', str(self.chunk_size).encode(), b'e',
+               b'6:pieces', str(len(self.pieces) *
+                               SHA1_DIGESTSIZE).encode(), b':', b''.join(self.pieces),
+               b'4:sha1', str(SHA1_DIGESTSIZE).encode(), b':', self.sha1,
+               b'6:sha256', str(SHA256_DIGESTSIZE).encode(), b':', self.sha256 or b'',
+               b'e']
 
         h = sha1.sha1()
-        h.update(''.join(buf))
+        h.update(b''.join(buf))
         self.btih = h.digest()
         self.btihhex = h.hexdigest()

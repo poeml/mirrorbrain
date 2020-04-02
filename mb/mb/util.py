@@ -177,8 +177,8 @@ def data_url(basedir, path):
 
 
 def hostname_from_url(url):
-    import urlparse
-    h = urlparse.urlparse(url)[1]
+    from urllib.parse import urlparse
+    h = urlparse(url)[1]
     if ':' in h:
         h = h.split(':')[0]
     return h
@@ -303,13 +303,13 @@ def strip_auth(s):
     with the urlparse module and and returned reassembled.
     """
 
-    import urlparse
+    from urllib import urlsplit, urlunsplit
 
-    u = urlparse.urlsplit(s)
+    u = urlsplit(s)
     netloc = u[1]
     if '@' in netloc:
         netloc = netloc.split('@')[1]
-    return urlparse.urlunsplit((u[0], netloc, u[2], u[3], u[4]))
+    return urlunsplit((u[0], netloc, u[2], u[3], u[4]))
 
 
 def pgsql_regexp_esc(s):
