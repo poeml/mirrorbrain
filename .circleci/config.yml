@@ -1,12 +1,23 @@
 version: 2.1
 
 jobs:
+  test_mb:
+    machine:
+      image: ubuntu-1604:201903-01
+    steps:
+      - checkout
+      - run:
+          command: |
+            pyenv versions
+            pyenv global 3.7.0
+            make test_mb
+
   integration:
     machine:
       image: ubuntu-1604:201903-01
     steps:
       - checkout
-      - run: 
+      - run:
           command: |
             pyenv versions
             pyenv global 3.7.0
@@ -18,4 +29,5 @@ workflows:
   version: 2.1
   test:
     jobs:
+      - test_mb
       - integration

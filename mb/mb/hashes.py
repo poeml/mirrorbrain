@@ -438,19 +438,22 @@ class HashBag:
 
     def calc_btih(self):
         """ calculate a bittorrent information hash (btih) """
+        size = 0
+        if self.h:
+            size = self.h.size
 
-        buf = ['d',
-               '6:length', 'i', str(self.h.size), 'e',
-               '6:md5sum', str(MD5_DIGESTSIZE * 2), ':', self.md5hex,
-               '4:name', str(len(self.basename)), ':', self.basename,
-               '12:piece length', 'i', str(self.chunk_size), 'e',
-               '6:pieces', str(len(self.pieces) *
-                               SHA1_DIGESTSIZE), ':', ''.join(self.pieces),
-               '4:sha1', str(SHA1_DIGESTSIZE), ':', str(self.sha1),
-               '6:sha256', str(SHA256_DIGESTSIZE), ':', str(self.sha256) or '',
-               'e']
+        buf = [b'd',
+               b'6:length', b'i', str(size).encode(), b'e',
+               b'6:md5sum', str(MD5_DIGESTSIZE * 2).encode(), b':', self.md5hex.encode(),
+               b'4:name', str(len(self.basename)).encode(), b':', self.basename.encode(),
+               b'12:piece length', b'i', str(self.chunk_size).encode(), b'e',
+               b'6:pieces', str(len(self.pieces) *
+                               SHA1_DIGESTSIZE).encode(), b':', b''.join(self.pieces),
+               b'4:sha1', str(SHA1_DIGESTSIZE).encode(), b':', self.sha1,
+               b'6:sha256', str(SHA256_DIGESTSIZE).encode(), b':', self.sha256 or b'',
+               b'e']
 
         h = sha1.sha1()
-        h.update(''.join(buf).encode())
+        h.update(b''.join(buf))
         self.btih = h.digest()
         self.btihhex = h.hexdigest()
