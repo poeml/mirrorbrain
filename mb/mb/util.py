@@ -8,7 +8,9 @@ import socket
 t_start = 0
 rsync_version = None
 
-ASN_DB_PATH = './GeoLite2-ASN.mmdb'
+# TODO: we could make this a mirrorbrain.conf option instead of hard coding it
+ASN_DB_PATH = ''
+CITY_DB     = ''
 
 class VersionParser:
     def __init__(self, vers):
@@ -36,19 +38,35 @@ class Afile:
         return self.name
 
 
-class MbIpAddress:
+class MirrorBrainHost:
     """represent an IP address, or rather some data associated with it"""
 
     def __init__(self, address):
+        self.address = address
         self.ip = None
         self.ip6 = None
         self.asn = None
         self.asn6 = None
         self.prefix = None
         self.prefix6 = None
+        self.city_info = None
 
         self._resolv_address(address)
+        self._find_city_info()
         self._find_asn()
+
+    def country_code(self):
+        return self.city_info.country.iso_code.lower()
+
+
+    def region_code(self):
+        return self.city_info.continent.code.lower()
+
+
+    def coordinates(self):
+        lat = round(self.city_info.location.latitude, 3)
+        lng = round(self.city_info.location.longitude, 3)
+        return lat, lng
 
     def ipv6Only(self):
         if self.ip6 and not self.ip:
@@ -64,13 +82,29 @@ class MbIpAddress:
             r.append('%s (%s AS%s)' % (self.ip6, self.prefix6, self.asn6))
         return ' '.join(r)
 
+    def _find_city_info(self):
+        self.city_db   = geoip2.database.Reader(CITY_DB)
+        if self.ip:
+            try:
+                self.city_info = self.city_db.city(self.ip)
+            except geoip2.errors.AddressNotFoundError:
+                # we get this error if mod_asn isn't installed as well
+                pass
+
+        if self.ip6:
+            try:
+                self.city_info = self.city_db.city(self.ip6)
+            except geoip2.errors.AddressNotFoundError:
+                # we get this error if mod_asn isn't installed as well
+                pass
+
     def _find_asn(self):
         # TODO: maxmindcode here
-        asn_db = geoip2.database.Reader(ASN_DB_PATH)
+        self.asn_db    = geoip2.database.Reader(ASN_DB_PATH)
 
         if self.ip:
             try:
-                res = asn_db.asn(self.ip)
+                res = self.asn_db.asn(self.ip)
                 self.prefix = res.network
                 self.asn    = res.autonomous_system_number
             except geoip2.errors.AddressNotFoundError:
@@ -79,7 +113,7 @@ class MbIpAddress:
 
         if self.ip6:
             try:
-                res = asn_db.asn(self.ip6)
+                res = self.asn_db.asn(self.ip6)
                 self.prefix6 = res.network
                 self.asn6    = res.autonomous_system_number
             except geoip2.errors.AddressNotFoundError:
@@ -188,7 +222,6 @@ def af_from_string(s):
     right = s.find('/')
     if right < 0:
         right = len(s)
-
     return socket.getaddrinfo(s[:right], 0)[0][0]
 
 
@@ -317,3 +350,11 @@ def pgsql_regexp_esc(s):
         return '\\\\' + '\\\\'.join(['%03o' % ord(c) for c in s])
     else:
         return s
+
+
+if __name__ == '__main__':
+    import sys
+    mbgeoip = MirrorBrainHost(sys.argv[1])
+    print ('country:',     mbgeoip.country_code())
+    print ('region:',      mbgeoip.region_code())
+    print ('coordinates:', mbgeoip.coordinates())

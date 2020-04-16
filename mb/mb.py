@@ -20,9 +20,9 @@ __url__ = 'http://mirrorbrain.org'
 
 
 import cmdln
-import mb.geoip
 import mb.mberr
 from mb.util import af_from_string
+from mb.util import MirrorBrainHost
 import signal
 import socket
 
@@ -150,7 +150,6 @@ class MirrorDoctor(cmdln.Cmdln):
 
         import time
         from urllib.parse import urlparse
-        import mb.asn
 
         try:
             # does an existing mirror have the same identifier? They must be unique.
@@ -169,23 +168,17 @@ class MirrorDoctor(cmdln.Cmdln):
         scheme, host, path, a, b, c = urlparse(opts.http)
         if ':' in host:
             host, port = host.split(':')
-        
-        if not opts.region or not opts.country:
-            res = mb.asn.iplookup(host)
+
+        mirrorbrain_host = MirrorBrainHost(host)
+
+        lat = 0
+        lng = 0
 
         if not opts.region:
-            if res.ip:
-                opts.region = mb.geoip.lookup_region_code(res.ip)
-            elif res.ip6:
-                opts.region = mb.geoip.lookup_region_code(res.ip6)
+            opts.region = mirrorbrain_host.region_code()
         if not opts.country:
-            if res.ip:
-                opts.country = mb.geoip.lookup_country_code(res.ip)
-            elif res.ip6:
-                opts.country = mb.geoip.lookup_country_code(res.ip6)
-        lat, lng = 0, 0
-        if mb.geoip.database or mb.geoip.database6:
-            lat, lng = mb.geoip.lookup_coordinates(host)
+            opts.country = mirrorbrain_host.country_code()
+        lat, lng = mirrorbrain_host.coordinates()
 
         if opts.region == '--' or opts.country == '--':
             print('Detected geolocation: country = %s / region = %s' %
@@ -222,8 +215,7 @@ class MirrorDoctor(cmdln.Cmdln):
         # Squeze in options for the do_update call: only update prefix and asn (we already did the rest)
         opts.all = opts.coordinates = opts.country = opts.region = opts.dry_run = False
         opts.prefix = opts.asn = True
-        if mb.geoip.database or mb.geoip.database6:
-            do_updates = self.do_update(None, opts, identifier)
+        do_updates = self.do_update(None, opts, identifier)
 
         if self.options.debug:
             print(s)
@@ -382,9 +374,8 @@ class MirrorDoctor(cmdln.Cmdln):
         ${cmd_usage}
         ${cmd_option_list}
         """
-        import mb.asn
 
-        r = mb.asn.iplookup(ip)
+        r = MirrorBrainHost(ip)
 
         if opts.asn:
             print(r.asn)
@@ -430,7 +421,6 @@ class MirrorDoctor(cmdln.Cmdln):
         ${cmd_usage}
         ${cmd_option_list}
         """
-        from mb.asn import iplookup
         from mb.util import hostname_from_url
         from sqlobject.sqlbuilder import AND
 
@@ -440,15 +430,6 @@ class MirrorDoctor(cmdln.Cmdln):
         if not (opts.asn or opts.prefix or opts.coordinates or opts.country or opts.region):
             sys.exit(
                 'At least one of -c, -a, -p, --country, --region must be given as option.')
-
-        #r = mb.asn.iplookup(self.conn, ip)
-
-        # if opts.asn:
-        #    print r.asn
-        # elif opts.prefix:
-        #    print r.prefix
-        # else:
-        #    print '%s (AS%s)' % (r.prefix, r.asn)
 
         mirrors = []
         for arg in args:
@@ -470,7 +451,7 @@ class MirrorDoctor(cmdln.Cmdln):
 
             # if opts.prefix or opts.asn:
             try:
-                res = iplookup(hostname)
+                res = MirrorBrainHost(hostname)
             except mb.mberr.NameOrServiceNotKnown as e:
                 print('%s:' % mirror.identifier, e.msg)
                 #print ('%s: without DNS lookup, no further lookups are possible' % mirror.identifier)
@@ -535,7 +516,7 @@ class MirrorDoctor(cmdln.Cmdln):
                                 i.asn = asn
 
             if opts.coordinates:
-                lat, lng = mb.geoip.lookup_coordinates(hostname)
+                lat, lng = res.coordinates(hostname)
                 if float(mirror.lat or 0) != lat or float(mirror.lng or 0) != lng:
                     print('%s: updating geographical coordinates (%s %s -> %s %s)'
                           % (mirror.identifier, mirror.lat, mirror.lng, lat, lng))
@@ -543,7 +524,7 @@ class MirrorDoctor(cmdln.Cmdln):
                         mirror.lat, mirror.lng = lat, lng
 
             if opts.region:
-                region = mb.geoip.lookup_region_code(hostname)
+                region = res.region_code(hostname)
                 if mirror.region != region:
                     print('%s: updating region (%s -> %s)'
                           % (mirror.identifier, mirror.region, region))
@@ -551,7 +532,7 @@ class MirrorDoctor(cmdln.Cmdln):
                         mirror.region = region
 
             if opts.country:
-                country = mb.geoip.lookup_country_code(hostname)
+                country = res.country_code(hostname)
                 if mirror.country != country:
                     print('%s: updating country (%s -> %s)'
                           % (mirror.identifier, mirror.country, country))
