@@ -1,4 +1,4 @@
-option('memcached', type : 'boolean', value : false,
+option('memcached', type : 'boolean', value : true,
        description: 'Build mod_mirrorbrain with memcached support')
 
 option('install-icons', type : 'boolean', value : true,
