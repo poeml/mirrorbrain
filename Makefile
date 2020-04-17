@@ -6,7 +6,7 @@ test_docker:
 	bash t/test_docker.sh
 
 build_install:
-	meson setup --wipe build
-	meson --prefix=/usr --datadir=/usr/share -Dmemcached=true build
+	meson setup build
+	meson configure --prefix=/usr --datadir=/usr/share -Dmemcached=true -Dinstall-icons=false build
 	ninja -v -C build
 	DESTDIR=$(DESTDIR) ninja -v -C build install
