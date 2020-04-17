@@ -6,7 +6,6 @@ cd /opt/project
 # install -m 755 tools/geoip-lite-update     /usr/bin/geoip-lite-update
 # install -m 755 tools/null-rsync            /usr/bin/null-rsync
 install -m 755 tools/scanner.pl            /usr/bin/scanner
-install -m 755 mirrorprobe/mirrorprobe.py  /usr/bin/mirrorprobe
 
 cd /opt/project/mod_mirrorbrain
 apxs -cia -lm mod_mirrorbrain.c

@@ -12,17 +12,11 @@ easy_install http://trentm.com/downloads/cmdln/1.1.1/cmdln-1.1.1.zip
 (it is not in the Python CheeseShop so far)
 """
 
-__version__ = '2.19.2'
-__author__ = 'Peter Poeml <poeml@cmdline.net>'
-__copyright__ = 'Novell / SUSE Linux Products GmbH'
-__license__ = 'GPL'
-__url__ = 'http://mirrorbrain.org'
-
-
 import cmdln
 import mb.mberr
 from mb.util import af_from_string
 from mb.util import MirrorBrainHost
+import mb.appinfo
 import signal
 import socket
 
@@ -58,7 +52,7 @@ class MirrorDoctor(cmdln.Cmdln):
 
     def get_optparser(self):
         """Parser for global options (that are not specific to a subcommand)"""
-        optparser = cmdln.CmdlnOptionParser(self, version=__version__)
+        optparser = cmdln.CmdlnOptionParser(self, version=mb.appinfo.version)
         optparser.add_option('--config', dest="configpath", metavar="CONFIGPATH",
                              default='/etc/mirrorbrain.conf',
                              help='location of configuration file '
@@ -92,13 +86,10 @@ class MirrorDoctor(cmdln.Cmdln):
         else:
           self.maxmind_city_db = '/var/lib/GeoIP/GeoLite2-City.mmdb'
 
-        from mb.util import VersionParser
-        version = VersionParser(__version__)
-
         # set up the database connection
         import mb.conn
         self.conn = mb.conn.Conn(self.config.dbconfig,
-                                 version=version,
+                                 version=mb.appinfo.parsed_version,
                                  debug=self.options.debug)
 
     def do_instances(self, subcmd, opts):

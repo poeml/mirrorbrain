@@ -1,0 +1,4 @@
+geoip2>=3.0.0
+SQLObject
+psycopg2
+FormEncode
