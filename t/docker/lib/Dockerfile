@@ -6,18 +6,6 @@ ENV container docker
 
 ENV LANG en_US.UTF-8
 
-RUN zypper -n install systemd
-RUN zypper -n install curl hostname iputils vim command-not-found bsdtar zip sudo wget
-RUN systemctl mask dev-mqueue.mount dev-hugepages.mount \
-    systemd-remount-fs.service sys-kernel-config.mount \
-    sys-kernel-debug.mount sys-fs-fuse-connections.mount \
-    display-manager.service graphical.target systemd-logind.service
-
-ADD dbus.service /etc/systemd/system/dbus.service
-
-RUN zypper -n install gcc gzip patch
-RUN zypper -n install python3-devel python3-cmdln
-
 RUN zypper -n addrepo https://download.opensuse.org/repositories/openSUSE:/infrastructure/openSUSE_Leap_15.1/ openSUSE:infrastructure
 RUN zypper mr -p 97 openSUSE:infrastructure
 RUN zypper -n addrepo https://download.opensuse.org/repositories/server:/database:/postgresql/openSUSE_Leap_15.1/ server:database:postgresql
@@ -25,11 +13,20 @@ RUN zypper mr -p 98 server:database:postgresql
 
 RUN zypper -n --gpg-auto-import-keys --no-gpg-checks refresh
 
-RUN zypper -n install postgresql10-ip4r postgresql10 postgresql10-server
+RUN zypper -n install systemd curl hostname iputils vim command-not-found bsdtar zip sudo wget gcc gzip patch
 
-RUN zypper -n install mirrorbrain mirrorbrain-scanner apache2-worker apache2-mod_asn apache2-mod_maxminddb apache2-mod_form mirrorbrain-tools
-RUN zypper -n install apache2-devel
-RUN zypper -n install python3-SQLObject python3-geoip2  python3-geoip2 python3-psycopg2 python3-psycopg2 python3-FormEncode
+RUN systemctl mask dev-mqueue.mount dev-hugepages.mount \
+    systemd-remount-fs.service sys-kernel-config.mount \
+    sys-kernel-debug.mount sys-fs-fuse-connections.mount \
+    display-manager.service graphical.target systemd-logind.service
+
+ADD dbus.service /etc/systemd/system/dbus.service
+RUN zypper -n install postgresql10 postgresql10-server postgresql10-ip4r \
+    apache2-devel apache2-worker apache2-mod_asn apache2-mod_maxminddb apache2-mod_form \
+    mirrorbrain mirrorbrain-scanner mirrorbrain-tools \
+    python3-devel python3-cmdln python3-SQLObject python3-psycopg2 python3-FormEncode \
+    'libmaxminddb-devel>=1.4.2' 'apache2-mod_maxminddb>=1.2.0' 'python3-geoip2>=3.0.0' 'python3-maxminddb>=1.5.2'
+
 
 VOLUME ['/sys/fs/cgroup']
 VOLUME ['/run']
@@ -38,8 +35,6 @@ VOLUME ['/opt/project']
 
 RUN systemctl enable dbus.service
 RUN systemctl enable postgresql
-
-ENTRYPOINT  ["/usr/lib/systemd/systemd"]
 
 ######
 
@@ -61,9 +56,8 @@ RUN sed -i 's,\#log_lock_waits = off,log_lock_waits = on,' /var/lib/pgsql/data/p
 RUN sed -i 's,\#deadlock_timeout = 1s,deadlock_timeout = 10,' /var/lib/pgsql/data/postgresql.conf
 
 ADD mirrorbrain.conf /etc/mirrorbrain.conf
-ADD mirrorbrain-ci.mmdb /GeoLite2-ASN.mmdb
 ADD mirrorbrain-ci-city.mmdb /var/lib/GeoIP/GeoLite2-City.mmdb
-ADD mirrorbrain-ci.mmdb      /var/lib/GeoIP/GeoLite2-ASN.mmdb
+ADD mirrorbrain-ci-asn.mmdb  /var/lib/GeoIP/GeoLite2-ASN.mmdb
 ADD mod_maxminddb.conf /etc/apache2/conf.d/mod_maxminddb.conf 
 RUN chmod 0640 /etc/mirrorbrain.conf
 RUN chown root:mirrorbrain /etc/mirrorbrain.conf

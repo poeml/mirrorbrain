@@ -53,6 +53,31 @@ my $tree = MaxMind::DB::Writer::Tree->new(
 );
 
 $tree->insert_network(
+  '127.0.0.1/32',
+  {
+    location => {
+      'accuracy_radius' => 1000,
+      'latitude' => 37.751,
+      'longitude' => -97.822,
+      'time_zone' => 'America/Chicago'
+    },
+    city =>  {
+      'names' => { 'en' => 'Provo' },
+    },
+    country =>  {
+      'iso_code' => 'US',
+      'names' => { 'en' => 'United States' },
+    },
+    continent => {
+      'code'=> 'NA',
+      'names'=> {
+        'en'=> 'North America',
+      }
+    },
+  },
+);
+
+$tree->insert_network(
   '127.0.0.2/32',
   {
     location => {

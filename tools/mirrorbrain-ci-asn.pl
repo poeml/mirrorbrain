@@ -45,6 +45,15 @@ my $tree = MaxMind::DB::Writer::Tree->new(
 
 # {'autonomous_system_number': 3680, 'autonomous_system_organization': 'Novell, Inc.', 'ip_address': '130.57.72.10', 'prefix_len': 20}
 $tree->insert_network(
+  '127.0.0.1/32',
+  {
+    'autonomous_system_number' => 1231,
+    'autonomous_system_organization' => 'ACME Master Inc',
+    'prefix_len' => 32,
+  },
+);
+
+$tree->insert_network(
   '127.0.0.2/32',
   {
     'autonomous_system_number' => 1232,
