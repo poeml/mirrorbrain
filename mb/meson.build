@@ -4,7 +4,7 @@
 python3 = import('python').find_installation('python3', required: true)
 python3_dep = dependency('python3')
 
-python_module_arch_dir = python3.get_install_dir()
+python_module_arch_dir = python3.get_install_dir(pure: false)
 python3.extension_module('zsync',
     ['zsyncmodule.c'],
     install: true,
