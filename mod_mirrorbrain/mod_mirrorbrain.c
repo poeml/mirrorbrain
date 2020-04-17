@@ -28,7 +28,7 @@
  * This module was inspired by mod_offload, written by
  * Ryan C. Gordon <icculus@icculus.org>.
  *
- * It uses code from mod_authn_dbd, mod_authnz_ldap, mod_status, 
+ * It uses code from mod_authn_dbd, mod_authnz_ldap, mod_status,
  * apr_memcache, ssl_scache_memcache.c */
 
 
@@ -38,22 +38,22 @@
  *
  * PostgreSQL Database Management System
  * (formerly known as Postgres, then as Postgres95)
- * 
+ *
  * Portions Copyright (c) 1996-2009, PostgreSQL Global Development Group
- * 
+ *
  * Portions Copyright (c) 1994, The Regents of the University of California
- * 
+ *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written agreement
  * is hereby granted, provided that the above copyright notice and this
  * paragraph and the following two paragraphs appear in all copies.
- * 
+ *
  * IN NO EVENT SHALL THE UNIVERSITY OF CALIFORNIA BE LIABLE TO ANY PARTY FOR
  * DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING
  * LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS
  * DOCUMENTATION, EVEN IF THE UNIVERSITY OF CALIFORNIA HAS BEEN ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  * THE UNIVERSITY OF CALIFORNIA SPECIFICALLY DISCLAIMS ANY WARRANTIES,
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE.  THE SOFTWARE PROVIDED HEREUNDER IS
@@ -170,7 +170,7 @@
 module AP_MODULE_DECLARE_DATA mirrorbrain_module;
 
 /* (meta) representations of a requested file */
-enum { REDIRECT, META4, METALINK, MIRRORLIST, TORRENT, 
+enum { REDIRECT, META4, METALINK, MIRRORLIST, TORRENT,
        ZSYNC, MAGNET, MD5, SHA1, SHA256, BTIH, YUMLIST, UNKNOWN };
 static struct {
         int     id;
@@ -315,10 +315,10 @@ static void debugLog(const request_rec *r, const mb_dir_conf *cfg,
         va_start(ap, fmt);
         apr_vsnprintf(buf, sizeof (buf), fmt, ap);
         va_end(ap);
-        /* we use warn loglevel to be able to debug without 
+        /* we use warn loglevel to be able to debug without
          * setting the entire server into debug logging mode */
         ap_log_rerror(APLOG_MARK,
-                      APLOG_WARNING, 
+                      APLOG_WARNING,
                       APR_SUCCESS,
                       r, "[mod_mirrorbrain] %s", buf);
     }
@@ -336,7 +336,7 @@ static void mb_child_init(apr_pool_t *p, server_rec *s)
     srand((unsigned int)getpid());
 }
 
-static int mb_post_config(apr_pool_t *pconf, apr_pool_t *plog, 
+static int mb_post_config(apr_pool_t *pconf, apr_pool_t *plog,
                           apr_pool_t *ptemp, server_rec *s)
 {
 
@@ -378,17 +378,17 @@ static int mb_post_config(apr_pool_t *pconf, apr_pool_t *plog,
     static unsigned int label_num = 0;
     server_rec *sp;
     for (sp = s; sp; sp = sp->next) {
-        mb_server_conf *cfg = ap_get_module_config(sp->module_config, 
+        mb_server_conf *cfg = ap_get_module_config(sp->module_config,
                                                         &mirrorbrain_module);
         /* make a label */
         cfg->query_label = apr_psprintf(pconf, "mirrorbrain_dbd_%d", ++label_num);
         cfg->query_hash_label = apr_psprintf(pconf, "mirrorbrain_dbd_hash_%d", ++label_num);
         ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, s,
-                     "[mod_mirrorbrain] preparing stmt for server %s, label_num %d, label %s", 
+                     "[mod_mirrorbrain] preparing stmt for server %s, label_num %d, label %s",
                      s->server_hostname, label_num, cfg->query_label);
         mb_dbd_prepare_fn(sp, cfg->query, cfg->query_label);
         ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, s,
-                     "[mod_mirrorbrain] preparing stmt for server %s, label_num %d, label %s", 
+                     "[mod_mirrorbrain] preparing stmt for server %s, label_num %d, label %s",
                      s->server_hostname, label_num, cfg->query_hash_label);
         mb_dbd_prepare_fn(sp, cfg->query_hash, cfg->query_hash_label);
     }
@@ -454,7 +454,7 @@ static void *create_mb_server_config(apr_pool_t *p, server_rec *s)
     mb_server_conf *new =
       (mb_server_conf *) apr_pcalloc(p, sizeof(mb_server_conf));
 
-    ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, s, 
+    ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, s,
             "[mod_mirrorbrain] creating server config");
 
 #ifdef WITH_MEMCACHE
@@ -487,7 +487,7 @@ static void *merge_mb_server_config(apr_pool_t *p, void *basev, void *addv)
     mb_server_conf *add = (mb_server_conf *) addv;
     mb_server_conf *mrg = apr_pcalloc(p, sizeof(mb_server_conf));
 
-    ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, NULL, 
+    ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, NULL,
             "[mod_mirrorbrain] merging server config");
 
 #ifdef WITH_MEMCACHE
@@ -508,7 +508,7 @@ static void *merge_mb_server_config(apr_pool_t *p, void *basev, void *addv)
     cfgMergeBool(only_hash);
     mrg->query = (add->query != (char *) DEFAULT_QUERY) ? add->query : base->query;
     cfgMergeString(query_label);
-    mrg->query_hash = (add->query_hash != (char *) DEFAULT_QUERY_HASH) 
+    mrg->query_hash = (add->query_hash != (char *) DEFAULT_QUERY_HASH)
                       ? add->query_hash : base->query_hash;
     cfgMergeString(query_hash_label);
 
@@ -571,13 +571,13 @@ static const char *mb_cmd_fallback(cmd_parms *cmd, void *config,
     new->prefix_only = 0;
     new->score = 1; /* give it a minimal score (but with 0, it wouldn't be considered) */
     new->file_maxsize = 0;
-    if (arg3[strlen(arg3) - 1] == '/') { 
+    if (arg3[strlen(arg3) - 1] == '/') {
         new->baseurl = apr_pstrdup(cmd->pool, arg3);
     } else {
-        new->baseurl = apr_pstrcat(cmd->pool, arg3, "/", NULL); 
+        new->baseurl = apr_pstrcat(cmd->pool, arg3, "/", NULL);
     }
     ap_log_error(APLOG_MARK, APLOG_INFO, 0, NULL,
-                 "[mod_mirrorbrain] configured fallback mirror (%s:%s): %s", 
+                 "[mod_mirrorbrain] configured fallback mirror (%s:%s): %s",
                  new->region, new->country_code, new->baseurl);
 
     return NULL;
@@ -619,7 +619,7 @@ static const char *mb_cmd_excludeip(cmd_parms *cmd, void *config,
     return NULL;
 }
 
-static const char *mb_cmd_exclude_filemask(cmd_parms *cmd, void *config, 
+static const char *mb_cmd_exclude_filemask(cmd_parms *cmd, void *config,
                                            const char *arg)
 {
     mb_dir_conf *cfg = (mb_dir_conf *) config;
@@ -630,7 +630,7 @@ static const char *mb_cmd_exclude_filemask(cmd_parms *cmd, void *config,
     return NULL;
 }
 
-static const char *mb_cmd_handle_headrequest_locally(cmd_parms *cmd, 
+static const char *mb_cmd_handle_headrequest_locally(cmd_parms *cmd,
                                                      void *config, int flag)
 {
     mb_dir_conf *cfg = (mb_dir_conf *) config;
@@ -639,11 +639,11 @@ static const char *mb_cmd_handle_headrequest_locally(cmd_parms *cmd,
 }
 
 #ifdef WITH_MEMCACHE
-static const char *mb_cmd_instance(cmd_parms *cmd, void *config, 
+static const char *mb_cmd_instance(cmd_parms *cmd, void *config,
                                    const char *arg1)
 {
     server_rec *s = cmd->server;
-    mb_server_conf *cfg = 
+    mb_server_conf *cfg =
         ap_get_module_config(s->module_config, &mirrorbrain_module);
 
     cfg->instance = arg1;
@@ -651,42 +651,42 @@ static const char *mb_cmd_instance(cmd_parms *cmd, void *config,
 }
 #endif
 
-static const char *mb_cmd_dbd_query(cmd_parms *cmd, void *config, 
+static const char *mb_cmd_dbd_query(cmd_parms *cmd, void *config,
                                     const char *arg1)
 {
     server_rec *s = cmd->server;
-    mb_server_conf *cfg = 
+    mb_server_conf *cfg =
         ap_get_module_config(s->module_config, &mirrorbrain_module);
 
     cfg->query = arg1;
     return NULL;
 }
 
-static const char *mb_cmd_dbd_query_hash(cmd_parms *cmd, void *config, 
+static const char *mb_cmd_dbd_query_hash(cmd_parms *cmd, void *config,
                                          const char *arg1)
 {
     server_rec *s = cmd->server;
-    mb_server_conf *cfg = 
+    mb_server_conf *cfg =
         ap_get_module_config(s->module_config, &mirrorbrain_module);
 
     cfg->query_hash = arg1;
     return NULL;
 }
 
-static const char *mb_cmd_metalink_hashes_prefix(cmd_parms *cmd, 
-                                                 void *config, 
+static const char *mb_cmd_metalink_hashes_prefix(cmd_parms *cmd,
+                                                 void *config,
                                                  const char *arg1)
 {
     return "mod_mirrorbrain: the MirrorBrainMetalinkHashesPathPrefix "
            "directive is obsolete. It has no effect. Simply remove it.";
 }
 
-static const char *mb_cmd_metalink_publisher(cmd_parms *cmd, void *config, 
-                                             const char *arg1, 
+static const char *mb_cmd_metalink_publisher(cmd_parms *cmd, void *config,
+                                             const char *arg1,
                                              const char *arg2)
 {
     server_rec *s = cmd->server;
-    mb_server_conf *cfg = 
+    mb_server_conf *cfg =
         ap_get_module_config(s->module_config, &mirrorbrain_module);
 
     cfg->metalink_publisher_name = arg1;
@@ -694,22 +694,22 @@ static const char *mb_cmd_metalink_publisher(cmd_parms *cmd, void *config,
     return NULL;
 }
 
-static const char *mb_cmd_mirrorlist_header(cmd_parms *cmd, void *config, 
+static const char *mb_cmd_mirrorlist_header(cmd_parms *cmd, void *config,
                                             const char *arg1)
 {
     server_rec *s = cmd->server;
-    mb_server_conf *cfg = 
+    mb_server_conf *cfg =
         ap_get_module_config(s->module_config, &mirrorbrain_module);
 
     cfg->mirrorlist_header = arg1;
     return NULL;
 }
 
-static const char *mb_cmd_mirrorlist_footer(cmd_parms *cmd, void *config, 
+static const char *mb_cmd_mirrorlist_footer(cmd_parms *cmd, void *config,
                                             const char *arg1)
 {
     server_rec *s = cmd->server;
-    mb_server_conf *cfg = 
+    mb_server_conf *cfg =
         ap_get_module_config(s->module_config, &mirrorbrain_module);
 
     cfg->mirrorlist_footer = arg1;
@@ -720,7 +720,7 @@ static const char *mb_cmd_tracker_url(cmd_parms *cmd, void *config,
                                       const char *arg1)
 {
     server_rec *s = cmd->server;
-    mb_server_conf *cfg = 
+    mb_server_conf *cfg =
         ap_get_module_config(s->module_config, &mirrorbrain_module);
 
     char **url = (char **) apr_array_push(cfg->tracker_urls);
@@ -732,7 +732,7 @@ static const char *mb_cmd_dht_node(cmd_parms *cmd, void *config,
                                    const char *arg1, const char *arg2)
 {
     server_rec *s = cmd->server;
-    mb_server_conf *cfg = 
+    mb_server_conf *cfg =
         ap_get_module_config(s->module_config, &mirrorbrain_module);
 
     dhtnode_t *new = apr_array_push(cfg->dhtnodes);
@@ -748,49 +748,49 @@ static const char *mb_cmd_hashes_suppress_filenames(cmd_parms *cmd, void *config
                                                     int flag)
 {
     server_rec *s = cmd->server;
-    mb_server_conf *cfg = 
+    mb_server_conf *cfg =
         ap_get_module_config(s->module_config, &mirrorbrain_module);
 
     cfg->only_hash = flag;
     return NULL;
 }
 
-static const char *mb_cmd_metalink_broken_test_mirrors(cmd_parms *cmd, 
-                                                       void *config, 
+static const char *mb_cmd_metalink_broken_test_mirrors(cmd_parms *cmd,
+                                                       void *config,
                                                        const char *arg1)
 {
     server_rec *s = cmd->server;
-    mb_server_conf *cfg = 
+    mb_server_conf *cfg =
         ap_get_module_config(s->module_config, &mirrorbrain_module);
 
     cfg->metalink_broken_test_mirrors = arg1;
     return NULL;
 }
 
-static const char *mb_cmd_metalink_magnet_links(cmd_parms *cmd, 
-                                                void *config, 
+static const char *mb_cmd_metalink_magnet_links(cmd_parms *cmd,
+                                                void *config,
                                                 int flag)
 {
     server_rec *s = cmd->server;
-    mb_server_conf *cfg = 
+    mb_server_conf *cfg =
         ap_get_module_config(s->module_config, &mirrorbrain_module);
 
     cfg->metalink_magnets = flag;
     return NULL;
 }
 
-static const char *mb_cmd_mirrorlist_stylesheet(cmd_parms *cmd, void *config, 
+static const char *mb_cmd_mirrorlist_stylesheet(cmd_parms *cmd, void *config,
                                                 const char *arg1)
 {
     server_rec *s = cmd->server;
-    mb_server_conf *cfg = 
+    mb_server_conf *cfg =
         ap_get_module_config(s->module_config, &mirrorbrain_module);
 
     cfg->mirrorlist_stylesheet = arg1;
     return NULL;
 }
 
-static const char *mb_cmd_metalink_torrentadd_mask(cmd_parms *cmd, void *config, 
+static const char *mb_cmd_metalink_torrentadd_mask(cmd_parms *cmd, void *config,
                                                    const char *arg)
 {
     mb_dir_conf *cfg = (mb_dir_conf *) config;
@@ -801,7 +801,7 @@ static const char *mb_cmd_metalink_torrentadd_mask(cmd_parms *cmd, void *config,
     return NULL;
 }
 
-static const char *mb_cmd_redirect_stamp_key(cmd_parms *cmd, void *config, 
+static const char *mb_cmd_redirect_stamp_key(cmd_parms *cmd, void *config,
                                              const char *arg1)
 {
     mb_dir_conf *cfg = (mb_dir_conf *) config;
@@ -810,11 +810,11 @@ static const char *mb_cmd_redirect_stamp_key(cmd_parms *cmd, void *config,
 }
 
 
-static const char *mb_cmd_add_yumdir(cmd_parms *cmd, void *dummy, 
+static const char *mb_cmd_add_yumdir(cmd_parms *cmd, void *dummy,
                                      const char *arg)
 {
     server_rec *s = cmd->server;
-    mb_server_conf *cfg = 
+    mb_server_conf *cfg =
         ap_get_module_config(s->module_config, &mirrorbrain_module);
 
     char *d = NULL; /* base dir */
@@ -836,20 +836,20 @@ static const char *mb_cmd_add_yumdir(cmd_parms *cmd, void *dummy,
                 return "Invalid MirrorBrainYumDir parameter. Parameter must be "
                        "in the form 'key=value'.";
             }
-        } 
+        }
         *val++ = '\0';
 
         yumarg_t *a = apr_array_push(yumargs);
         a->key = apr_pstrdup(cmd->pool, word);
         /* we better anchor the regexp to the start and end, because when user
          * data matches the regexp, we will substitute parts of the URL with it */
-        a->regexp = ap_pregcomp(cmd->pool, 
-                                apr_pstrcat(cmd->pool, "^", val, "$", NULL), 
+        a->regexp = ap_pregcomp(cmd->pool,
+                                apr_pstrcat(cmd->pool, "^", val, "$", NULL),
                                 AP_REG_EXTENDED);
         if (!a->regexp)
             return "Regular expression for ProxyRemoteMatch could not be compiled.";
     };
-    
+
     if (d == NULL)
         return "MirrorBrainYumDir needs a (relative) base path";
     if (f == NULL)
@@ -872,7 +872,7 @@ static const char *mb_cmd_memcached_on(cmd_parms *cmd, void *config,
                                        int flag)
 {
     server_rec *s = cmd->server;
-    mb_server_conf *cfg = 
+    mb_server_conf *cfg =
         ap_get_module_config(s->module_config, &mirrorbrain_module);
 
     cfg->memcached_on = flag;
@@ -883,7 +883,7 @@ static const char *mb_cmd_memcached_lifetime(cmd_parms *cmd, void *config,
                                              const char *arg1)
 {
     server_rec *s = cmd->server;
-    mb_server_conf *cfg = 
+    mb_server_conf *cfg =
         ap_get_module_config(s->module_config, &mirrorbrain_module);
 
     cfg->memcached_lifetime = atoi(arg1);
@@ -893,7 +893,7 @@ static const char *mb_cmd_memcached_lifetime(cmd_parms *cmd, void *config,
 }
 #endif
 
-static int find_lowest_rank(apr_array_header_t *arr) 
+static int find_lowest_rank(apr_array_header_t *arr)
 {
     if (arr->nelts == 1) {
         return 0; /* the first and only element */
@@ -916,7 +916,7 @@ static int find_lowest_rank(apr_array_header_t *arr)
     return lowest_id;
 }
 
-static int find_closest_dist(apr_array_header_t *arr) 
+static int find_closest_dist(apr_array_header_t *arr)
 {
     if (arr->nelts == 1) {
         return 0; /* the first and only element */
@@ -936,8 +936,8 @@ static int find_closest_dist(apr_array_header_t *arr)
         mirror = mirrorp[i];
         d = mirror->dist + distprio / mirror->score;
         /* ap_log_error(APLOG_MARK, APLOG_ERR, 0, NULL, "[find_closest_dist] "
-                        "i: %d, %-30s - dist: %d, score: %d, %d/score: %d, d: %d", 
-                        i, mirror->identifier, mirror->dist, mirror->score, distprio, 
+                        "i: %d, %-30s - dist: %d, score: %d, %d/score: %d, d: %d",
+                        i, mirror->identifier, mirror->dist, mirror->score, distprio,
                         distprio/mirror->score, d); */
         if ( d < closest) {
             /* this mirror is closer */
@@ -970,15 +970,15 @@ static int cmp_mirror_dist(const void *v1, const void *v2)
     mirror_entry_t *m2 = *(mirror_entry_t **)v2;
 
     int distprio = DISTANCE_PRIO / *m1->nsame;
-    /* ap_log_error(APLOG_MARK, APLOG_ERR, 0, NULL, 
+    /* ap_log_error(APLOG_MARK, APLOG_ERR, 0, NULL,
      * "[cmp_mirror_dist] nsame: %d, distprio: %d", *m1->nsame, distprio); */
 
     return (m1->dist + distprio / m1->score) - (m2->dist + distprio / m2->score);
 }
 
-static apr_array_header_t *get_n_best_mirrors(request_rec *r, int n, 
-                                              apr_array_header_t *a1, apr_array_header_t *a2, 
-                                              apr_array_header_t *a3, apr_array_header_t *a4, 
+static apr_array_header_t *get_n_best_mirrors(request_rec *r, int n,
+                                              apr_array_header_t *a1, apr_array_header_t *a2,
+                                              apr_array_header_t *a3, apr_array_header_t *a4,
                                               apr_array_header_t *a5)
 {
     int i;
@@ -1027,24 +1027,24 @@ static const char *url_scheme(apr_pool_t *p, const char *url)
  * This routine returns an URL in the format needed for old (v3) or newer (IETF)
  * Metalinks.
  */
-static void emit_metalink_url(request_rec *r, int rep, 
-                              const char *baseurl, 
+static void emit_metalink_url(request_rec *r, int rep,
+                              const char *baseurl,
                               const char *country_code,
                               const char *filename, int v3prio, int prio)
 {
     switch (rep) {
     case META4:
-        ap_rprintf(r, "    <url location=\"%s\" priority=\"%d\">%s%s</url>\n", 
+        ap_rprintf(r, "    <url location=\"%s\" priority=\"%d\">%s%s</url>\n",
                    country_code, prio, baseurl, filename);
         break;
     case METALINK:
-        ap_rprintf(r, "    <url type=\"%s\" location=\"%s\" preference=\"%d\">%s%s</url>\n", 
+        ap_rprintf(r, "    <url type=\"%s\" location=\"%s\" preference=\"%d\">%s%s</url>\n",
                    url_scheme(r->pool, baseurl), country_code, v3prio, baseurl, filename);
         break;
     }
 }
 
-/* set variables in the subprocess environment, to make it available for 
+/* set variables in the subprocess environment, to make it available for
  * logging via the CustomLog directive */
 static void setenv_give(request_rec *r, const char *rep)
 {
@@ -1057,7 +1057,7 @@ static void setenv_want(request_rec *r, const char *rep)
 
 
 /* Fast hex decoding function from PostgreSQL, src/backend/utils/adt/encode.c
- * 
+ *
  * Note on binary data (bytea columns) in PostgreSQL:
  *
  * PostgreSQL escapes binary (BYTEA) data on output. But hex encoding is more
@@ -1068,7 +1068,7 @@ static void setenv_want(request_rec *r, const char *rep)
  * anymore (like us).
  * Storage on the other hand (in BYTEA data type) is as compact as could be.
  * Compact storage means that the datawill more likely fit into memory, which
- * is crucial. And the hex encoding function in PostgreSQL seems to be fast. 
+ * is crucial. And the hex encoding function in PostgreSQL seems to be fast.
  *
  * This means that, on our side, we have to convert back the data from hex to
  * binary for output formats like e.g. torrents. Therefore we copied the hex
@@ -1093,7 +1093,7 @@ static char get_hex(apr_pool_t *p, char c)
         res = hexlookup[(unsigned char) c];
 
     if (res < 0)
-        ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, NULL, 
+        ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, NULL,
                      "[mod_mirrorbrain] invalid hexadecimal digit: \"%c\"", c);
 
     return (char) res;
@@ -1116,7 +1116,7 @@ static char *hex_to_bin(apr_pool_t *p, const char *src, unsigned dstlen)
     while (s < srcend) {
         v1 = get_hex(p, *s++) << 4;
         if (s >= srcend) {
-            ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, NULL, 
+            ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, NULL,
                          "[mod_mirrorbrain] invalid hexadecimal data: "
                           "odd number of digits");
         }
@@ -1143,11 +1143,11 @@ static char *hex_to_b64(apr_pool_t *p, const char *src, unsigned binlen)
 static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
 {
     mb_server_conf *scfg = NULL;
-    scfg = (mb_server_conf *) ap_get_module_config(r->server->module_config, 
+    scfg = (mb_server_conf *) ap_get_module_config(r->server->module_config,
                                                    &mirrorbrain_module);
 
     if (scfg->query_hash == NULL) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
                 "[mod_mirrorbrain] No MirrorBrainDBDQueryHash configured!");
         return NULL;
     }
@@ -1156,13 +1156,13 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
         return NULL;
     }
     if (dbd == NULL) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
                 "[mod_mirrorbrain] Don't have a database connection for hashes");
         return NULL;
     }
 
     if (!dbd->prepared) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
             "[mod_mirrorbrain] dbd->prepared hash is NULL");
         dbd = NULL; /* don't try to use again */
         return NULL;
@@ -1171,7 +1171,7 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
     apr_dbd_prepared_t *stmt;
     stmt = apr_hash_get(dbd->prepared, scfg->query_hash_label, APR_HASH_KEY_STRING);
     if (stmt == NULL) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
                       "[mod_mirrorbrain] Could not get prepared statement labelled '%s'",
                       scfg->query_hash_label);
         dbd = NULL;
@@ -1199,11 +1199,11 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
     apr_dbd_row_t *row = NULL;
 
     if (apr_dbd_pvselect(dbd->driver, r->pool, dbd->handle, &res, stmt, 0,
-                filename, 
-                apr_off_t_toa(r->pool, r->finfo.size), 
+                filename,
+                apr_off_t_toa(r->pool, r->finfo.size),
                 apr_itoa(r->pool, apr_time_sec(r->finfo.mtime)), /* APR finfo times are in microseconds */
                 NULL) != 0) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
                 "[mod_mirrorbrain] Error looking up %s in database", filename);
         return NULL;
     }
@@ -1226,7 +1226,7 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
     const char *val = NULL;
     short col = 0; /* column that we are reading out */
 
-    if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL) 
+    if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL)
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] dbd: got NULL for file_id");
     else
         h->id = apr_atoi64(val);
@@ -1253,7 +1253,7 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
             h->sha256hex = apr_pstrdup(r->pool, val);
     }
 
-    if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL) 
+    if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL)
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] dbd: got NULL for sha1piecesize");
     else
         h->sha1piecesize = atoi(val);
@@ -1274,14 +1274,14 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
             for (i = 0; i < n; i++) {
                 if (((i + 1) * SHA1_DIGESTSIZE*2) > max)
                         break;
-                APR_ARRAY_PUSH(h->sha1pieceshex, char *) = apr_pstrndup(r->pool, 
+                APR_ARRAY_PUSH(h->sha1pieceshex, char *) = apr_pstrndup(r->pool,
                         val + (i * SHA1_DIGESTSIZE * 2), (SHA1_DIGESTSIZE * 2));
             }
             // check if we have extra zsync data appended
             if (max == (SHA1_DIGESTSIZE + ZSYNC_DIGESTSIZE) * 2 * n) {
                 h->zsyncpieceshex = apr_array_make(r->pool, n, sizeof(const char *));
                 for (i = 0; i < n; i++) {
-                    APR_ARRAY_PUSH(h->zsyncpieceshex, char *) = apr_pstrndup(r->pool, 
+                    APR_ARRAY_PUSH(h->zsyncpieceshex, char *) = apr_pstrndup(r->pool,
                             val + (n * SHA1_DIGESTSIZE * 2) + (i * ZSYNC_DIGESTSIZE * 2), (ZSYNC_DIGESTSIZE * 2));
                 }
             }
@@ -1302,7 +1302,7 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
             h->pgp = apr_pstrdup(r->pool, val);
     }
 
-    if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL) 
+    if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL)
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] dbd: got NULL for zblocksize");
     else
         h->zblocksize = atoi(val);
@@ -1322,7 +1322,7 @@ static hashbag_t *hashbag_fill(request_rec *r, ap_dbd_t *dbd, char *filename)
     }
 
 
-        
+
     /* clear the cursor by accessing invalid row */
     rv = apr_dbd_get_row(dbd->driver, r->pool, res, &row, dbd_first_row + 1);
     if (rv != -1) {
@@ -1359,7 +1359,7 @@ static int mb_handler(request_rec *r)
     int rep = UNKNOWN;                          /* type of a requested representation */
     char *rep_ext = NULL;                       /* extension string of a requested representation */
     char meta_negotiated = 0;                   /* a metalink representation was chosed by negotiation, i.e.
-                                                   the server might still decide to return the file itself 
+                                                   the server might still decide to return the file itself
                                                    if it's excluded from redirection by configuration */
     const char *continent_code;
     const char *country_code;
@@ -1401,9 +1401,9 @@ static int mb_handler(request_rec *r)
     int (*find_best) (apr_array_header_t *);
 
 
-    cfg = (mb_dir_conf *)     ap_get_module_config(r->per_dir_config, 
+    cfg = (mb_dir_conf *)     ap_get_module_config(r->per_dir_config,
                                                    &mirrorbrain_module);
-    scfg = (mb_server_conf *) ap_get_module_config(r->server->module_config, 
+    scfg = (mb_server_conf *) ap_get_module_config(r->server->module_config,
                                                    &mirrorbrain_module);
 
     /* is MirrorBrainEngine disabled for this directory? */
@@ -1411,10 +1411,10 @@ static int mb_handler(request_rec *r)
         return DECLINED;
     }
 #ifdef WITH_MEMCACHE
-    debugLog(r, cfg, "MirrorBrainEngine On, instance '%s', mirror_base '%s'", 
+    debugLog(r, cfg, "MirrorBrainEngine On, instance '%s', mirror_base '%s'",
             scfg->instance, cfg->mirror_base);
 #else
-    debugLog(r, cfg, "MirrorBrainEngine On, mirror_base '%s'", 
+    debugLog(r, cfg, "MirrorBrainEngine On, mirror_base '%s'",
             cfg->mirror_base);
 #endif
 
@@ -1478,9 +1478,9 @@ static int mb_handler(request_rec *r)
                 for (n_matches = 0; n_matches < y.args->nelts; n_matches++) {
                     a = ((yumarg_t *) y.args->elts)[n_matches];
                     val = form_lookup(r, a.key);
-                    if (!val) 
+                    if (!val)
                         break;
-                    if (ap_regexec(a.regexp, val, 0, NULL, 0)) 
+                    if (ap_regexec(a.regexp, val, 0, NULL, 0))
                         break;
                     val_len_sum += strlen(val);
                     //debugLog(r, cfg, "value '%s' matches regexp for '%s'", val, a.key);
@@ -1513,7 +1513,7 @@ static int mb_handler(request_rec *r)
                                     return HTTP_INTERNAL_SERVER_ERROR;
                                 } else if (nr > n_matches) {
                                     ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] "
-                                            "cannot substitute $%" APR_SIZE_T_FMT " in '%s' -- only %d args are defined", 
+                                            "cannot substitute $%" APR_SIZE_T_FMT " in '%s' -- only %d args are defined",
                                             nr, d, y.args->nelts);
                                     return HTTP_INTERNAL_SERVER_ERROR;
                                 }
@@ -1538,17 +1538,17 @@ static int mb_handler(request_rec *r)
 
                     /* FIXME: maybe don't break in debug mode, to discover double matches */
                     break;
-                } 
-                    
-            } 
+                }
+
+            }
             if (yum == NULL) {
                 debugLog(r, cfg, "yum query received, but didn't match any of the rules");
                 return HTTP_NOT_FOUND;
             }
         }
     }
-    
-    if (!(query_country 
+
+    if (!(query_country
          && (strlen(query_country) == 2)
          && apr_isalnum(query_country[0])
          && apr_isalnum(query_country[1]))) {
@@ -1585,7 +1585,7 @@ static int mb_handler(request_rec *r)
     if (!clientip) {
 #if MODULE_MAGIC_NUMBER_MAJOR >= 20111025
       clientip = apr_pstrdup(r->pool, r->useragent_ip);
-#else 
+#else
       clientip = apr_pstrdup(r->pool, r->connection->remote_ip);
 #endif
     }
@@ -1605,7 +1605,7 @@ static int mb_handler(request_rec *r)
         /* if (ap_is_directory(r->pool, r->filename)) */
             debugLog(r, cfg, "'%s' is a directory", r->filename);
             return DECLINED;
-        }   
+        }
 
         /* if the file doesn't exist, maybe a representation of it is requested */
         if ((r->finfo.filetype != APR_REG) && (rep != YUMLIST)) {
@@ -1620,7 +1620,7 @@ static int mb_handler(request_rec *r)
             char *ext;
             if ((ext = ap_strrchr(r->filename, '.')) == NULL) {
                 return DECLINED;
-            } 
+            }
 
             rep = UNKNOWN;
             for (i = 0; reps[i].ext; i++) {
@@ -1657,7 +1657,7 @@ static int mb_handler(request_rec *r)
                         if (strcmp(ext + 1, rep_ext) == 0) {
                             ext[0] = '\0';
                         }
-                    } 
+                    }
                     debugLog(r, cfg, "r->uri: '%s'", r->uri);
 
                     /* fill in finfo */
@@ -1672,7 +1672,7 @@ static int mb_handler(request_rec *r)
     } /* end if(!fakefile) */
 
 
-    if (rep == UNKNOWN) 
+    if (rep == UNKNOWN)
         rep = REDIRECT;
 
 
@@ -1680,15 +1680,15 @@ static int mb_handler(request_rec *r)
 
         /* is the requested file too small to be worth a redirect? */
         if (!fakefile && (r->finfo.size < cfg->min_size)) {
-            debugLog(r, cfg, "File '%s' too small (%s bytes, less than %s)", 
-                    r->filename, apr_off_t_toa(r->pool, r->finfo.size), 
+            debugLog(r, cfg, "File '%s' too small (%s bytes, less than %s)",
+                    r->filename, apr_off_t_toa(r->pool, r->finfo.size),
                     apr_off_t_toa(r->pool, cfg->min_size));
             setenv_give(r, "file");
             return DECLINED;
         }
 
         /* is this file excluded from mirroring? */
-        if (cfg->exclude_filemask 
+        if (cfg->exclude_filemask
            && !ap_regexec(cfg->exclude_filemask, r->uri, 0, NULL, 0) ) {
             debugLog(r, cfg, "File '%s' is excluded by MirrorBrainExcludeFileMask", r->uri);
             setenv_give(r, "file");
@@ -1742,7 +1742,7 @@ static int mb_handler(request_rec *r)
         }
 
         /* is this User-Agent excluded from redirecting? */
-        const char *user_agent = 
+        const char *user_agent =
             (const char *) apr_table_get(r->headers_in, "User-Agent");
         if (user_agent && !apr_is_empty_array(cfg->exclude_agents)) {
             for (i = 0; i < cfg->exclude_agents->nelts; i++) {
@@ -1786,7 +1786,7 @@ static int mb_handler(request_rec *r)
 
 
     if (scfg->query == NULL) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
                 "[mod_mirrorbrain] No MirrorBrainDBDQuery configured!");
         setenv_give(r, "file");
         return DECLINED;
@@ -1808,7 +1808,7 @@ static int mb_handler(request_rec *r)
     GETGEOIPV6HELPER(continent_code, "GEOIP_CONTINENT_CODE");
     GETGEOIPV6HELPER(slat, "GEOIP_LATITUDE");
     GETGEOIPV6HELPER(slng, "GEOIP_LONGITUDE");
-    if (slat && slng) { 
+    if (slat && slng) {
         lat = atof(slat);
         lng = atof(slng);
     };
@@ -1829,11 +1829,11 @@ static int mb_handler(request_rec *r)
         country_code = query_country;
     }
 
-    debugLog(r, cfg, "Country '%s', Continent '%s'", country_code, 
+    debugLog(r, cfg, "Country '%s', Continent '%s'", country_code,
             continent_code);
 
     /* save details for logging via a CustomLog */
-    apr_table_setn(r->subprocess_env, "MB_FILESIZE", 
+    apr_table_setn(r->subprocess_env, "MB_FILESIZE",
             apr_off_t_toa(r->pool, r->finfo.size));
     apr_table_set(r->subprocess_env, "MB_COUNTRY_CODE", country_code);
     apr_table_set(r->subprocess_env, "MB_CONTINENT_CODE", continent_code);
@@ -1853,18 +1853,18 @@ static int mb_handler(request_rec *r)
     if (!prefix) {
         prefix = "--";
     }
-    debugLog(r, cfg, "AS '%s', Prefix '%s', lat/lng %f,%f state id %s, state '%s'", 
+    debugLog(r, cfg, "AS '%s', Prefix '%s', lat/lng %f,%f state id %s, state '%s'",
              as, prefix, lat, lng, state_id, state_name);
 
 
 
-    /* The basedir might contain symlinks. That needs to be taken into account. 
+    /* The basedir might contain symlinks. That needs to be taken into account.
      * See discussion in http://mirrorbrain.org/issues/issue17 */
     ptr = realpath(cfg->mirror_base, apr_palloc(r->pool, APR_PATH_MAX));
     if (ptr == NULL) {
         /* this should never happen, because the MirrorBrainEngine directive would never
          * be applied to a non-existing directory */
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
                 "[mod_mirrorbrain] Document root \'%s\' does not seem to "
                 "exist. Filesystem not mounted?", cfg->mirror_base);
         return HTTP_INTERNAL_SERVER_ERROR;
@@ -1881,7 +1881,7 @@ static int mb_handler(request_rec *r)
 
     ptr = realpath(filename, apr_palloc(r->pool, APR_PATH_MAX));
     if (ptr == NULL) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
                 "[mod_mirrorbrain] Error canonicalizing filename '%s'", filename);
         /* return HTTP_INTERNAL_SERVER_ERROR; */
         return HTTP_NOT_FOUND;
@@ -1899,7 +1899,7 @@ static int mb_handler(request_rec *r)
          * will otherwise place the downloaded file into a directory hierarchy */
         if ((basename = ap_strrchr_c(filename, '/')) == NULL)
             basename = filename;
-        else 
+        else
             ++basename;
     }
     debugLog(r, cfg, "SQL file to look up: %s", filename);
@@ -1914,7 +1914,7 @@ static int mb_handler(request_rec *r)
 
     ap_dbd_t *dbd = mb_dbd_acquire_fn(r);
     if (dbd == NULL) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
                 "[mod_mirrorbrain] Error acquiring database connection");
         if (apr_is_empty_array(cfg->fallbacks)) {
             setenv_give(r, "file (database_not_reached)");
@@ -1923,7 +1923,7 @@ static int mb_handler(request_rec *r)
 
     }
     if (dbd && !dbd->prepared) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
             "[mod_mirrorbrain] dbd->prepared hash is NULL");
         if (apr_is_empty_array(cfg->fallbacks)) {
             setenv_give(r, "file (dbd_prepared_is_NULL)");
@@ -1983,23 +1983,23 @@ static int mb_handler(request_rec *r)
 
         statement = apr_hash_get(dbd->prepared, scfg->query_label, APR_HASH_KEY_STRING);
         if (!statement) {
-            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
                           "[mod_mirrorbrain] Could not get prepared statement labelled '%s'",
                           scfg->query_label);
-            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
                           "[mod_mirrorbrain] Hint: connection strings defined with "
                           "DBDParams must be unique. The same string cannot be used "
                           "in two vhosts. Workaround: use a differing connect_timeout parameter");
             /* log existing prepared statements. It might help with figuring out
              * misconfigurations */
-            ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, 
-                          "[mod_mirrorbrain] dbd->prepared hash contains %d key/value pairs", 
+            ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r,
+                          "[mod_mirrorbrain] dbd->prepared hash contains %d key/value pairs",
                           apr_hash_count(dbd->prepared));
             apr_hash_index_t *hi;
             const char *label, *query;
             for (hi = apr_hash_first(r->pool, dbd->prepared); hi; hi = apr_hash_next(hi)) {
                 apr_hash_this(hi, (void*) &label, NULL, (void*) &query);
-                ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, 
+                ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r,
                               "[mod_mirrorbrain] dbd->prepared dump: key %s, value 0x%08lx", label, (long)query);
             }
 
@@ -2019,15 +2019,15 @@ static int mb_handler(request_rec *r)
     }
 
 
-    /* no need to escape for the SQL query because we use a prepared 
+    /* no need to escape for the SQL query because we use a prepared
      * statement with bound parameters */
-    if (dbd && apr_dbd_pvselect(dbd->driver, r->pool, dbd->handle, &res, statement, 
-                1, /* we don't need random access actually, but 
+    if (dbd && apr_dbd_pvselect(dbd->driver, r->pool, dbd->handle, &res, statement,
+                1, /* we don't need random access actually, but
                       without it the mysql driver doesn't return results
-                      once apr_dbd_num_tuples() has been called; 
+                      once apr_dbd_num_tuples() has been called;
                       apr_dbd_get_row() will only return -1 after that. */
                 clientip, filename, NULL) != 0) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
+        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
                 "[mod_mirrorbrain] Error looking up %s in database", filename);
         if (apr_is_empty_array(cfg->fallbacks)) {
             return DECLINED;
@@ -2060,12 +2060,12 @@ static int mb_handler(request_rec *r)
     /* we copy all values to pool memory, because not all database drivers
      * behave the same (see http://marc.info/?l=apr-dev&m=122982975912314&w=2 ) */
     i = 1;
-    while (i <= mirror_cnt) { 
+    while (i <= mirror_cnt) {
         char unusable = 0; /* if crucial data is missing... */
         const char *val = NULL;
         short col = 0; /* incremented for the column we are reading out */
 
-        rv = apr_dbd_get_row(dbd->driver, r->pool, res, &row, 
+        rv = apr_dbd_get_row(dbd->driver, r->pool, res, &row,
 #if (APR_MAJOR_VERSION == 1 && APR_MINOR_VERSION == 2)
                              /* APR 1.2 was the first version to support the DBD
                               * framework, and had a different way of counting
@@ -2081,7 +2081,7 @@ static int mb_handler(request_rec *r)
         if (rv != APR_SUCCESS) {
             const char *errmsg = apr_dbd_error(dbd->driver, dbd->handle, rv);
             ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r,
-                      "[mod_mirrorbrain] Error looking up %s in database: %s", 
+                      "[mod_mirrorbrain] Error looking up %s in database: %s",
                       filename, (errmsg ? errmsg : "[???]"));
             return DECLINED;
         }
@@ -2108,7 +2108,7 @@ static int mb_handler(request_rec *r)
         new->baseurl = NULL;
 
         /* id */
-        if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL) 
+        if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL)
             ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] apr_dbd_get_entry found NULL for id");
         else
             new->id = atoi(val);
@@ -2116,7 +2116,7 @@ static int mb_handler(request_rec *r)
         /* identifier */
         if ((val = apr_dbd_get_entry(dbd->driver, row, col++)) == NULL)
             ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] apr_dbd_get_entry found NULL for identifier");
-        else 
+        else
             new->identifier = apr_pstrdup(r->pool, val);
 
         /* region */
@@ -2167,7 +2167,7 @@ static int mb_handler(request_rec *r)
                     /* looked nothing like an IP address, or could not be converted */
                     new->ipsub = NULL;
                     ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] "
-                            "Error in parsing network prefix of %s: %s/%s", 
+                            "Error in parsing network prefix of %s: %s/%s",
                             new->identifier, val, s);
                 }
             }
@@ -2185,13 +2185,13 @@ static int mb_handler(request_rec *r)
             ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] apr_dbd_get_entry found NULL for baseurl");
             unusable = 1;
         } else if (!val[0]) {
-            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] mirror '%s' (#%d) has empty baseurl", 
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, "[mod_mirrorbrain] mirror '%s' (#%d) has empty baseurl",
                           new->identifier, new->id);
             unusable = 1;
         } else {
             new->baseurl = apr_pstrdup(r->pool, val);
-            if (new->baseurl[strlen(new->baseurl) - 1] != '/') { 
-                new->baseurl = apr_pstrcat(r->pool, new->baseurl, "/", NULL); 
+            if (new->baseurl[strlen(new->baseurl) - 1] != '/') {
+                new->baseurl = apr_pstrcat(r->pool, new->baseurl, "/", NULL);
             }
         }
 
@@ -2244,10 +2244,10 @@ static int mb_handler(request_rec *r)
         }
 
         /* rank it (randomized, weighted by "score" value) */
-        /* not using thread-safe rand_r() here, because it shouldn't make 
+        /* not using thread-safe rand_r() here, because it shouldn't make
          * a real difference here */
         new->rank = (rand()>>16) * ((RAND_MAX>>16) / new->score);
-        
+
 
 #ifdef WITH_MEMCACHE
         if (new->id && (new->id == cached_id)) {
@@ -2259,14 +2259,14 @@ static int mb_handler(request_rec *r)
 
         /* file too large for this mirror? */
         if (new->file_maxsize > 0 && r->finfo.size > new->file_maxsize) {
-            debugLog(r, cfg, "Mirror '%s' is configured to not handle files larger than %d bytes", 
+            debugLog(r, cfg, "Mirror '%s' is configured to not handle files larger than %d bytes",
                      new->identifier, new->file_maxsize);
             /* but keep it as reserve - after all, it could be the only one */
             *(void **)apr_array_push(mirrors_elsewhere) = new;
         }
 
         /* same prefix? */
-        else if (new->ipsub 
+        else if (new->ipsub
                 && apr_ipsubnet_test(new->ipsub, clientaddr)) {
             *(void **)apr_array_push(mirrors_same_prefix) = new;
             new->nsame = &mirrors_same_prefix->nelts;
@@ -2274,14 +2274,14 @@ static int mb_handler(request_rec *r)
         }
 
         /* same AS? */
-        else if ((strcmp(new->as, as) == 0) 
+        else if ((strcmp(new->as, as) == 0)
                    && !new->prefix_only) {
             *(void **)apr_array_push(mirrors_same_as) = new;
             new->nsame = &mirrors_same_as->nelts;
         }
 
         /* same country? */
-        else if ((strcasecmp(new->country_code, country_code) == 0) 
+        else if ((strcasecmp(new->country_code, country_code) == 0)
                    && !new->as_only
                    && !new->prefix_only) {
             *(void **)apr_array_push(mirrors_same_country) = new;
@@ -2291,10 +2291,10 @@ static int mb_handler(request_rec *r)
         /* is the mirror's country_code a wildcard, indicating that the mirror should be
          * considered for every country? */
         else if (strcmp(new->country_code, "**") == 0) {
-            *(void **)apr_array_push(mirrors_same_country) = new; 
+            *(void **)apr_array_push(mirrors_same_country) = new;
             new->nsame = &mirrors_same_country->nelts;
             /* if so, forget memcache association, so the mirror is not ruled out */
-            chosen = NULL; 
+            chosen = NULL;
             /* set its country and region to that of the client */
             new->country_code = country_code;
             new->region = continent_code;
@@ -2307,9 +2307,9 @@ static int mb_handler(request_rec *r)
         }
 
         /* same region? */
-        /* to be actually considered for this group, the mirror must be willing 
+        /* to be actually considered for this group, the mirror must be willing
          * to take redirects from foreign country */
-        else if ((strcasecmp(new->region, continent_code) == 0) 
+        else if ((strcasecmp(new->region, continent_code) == 0)
                     && !new->country_only
                     && !new->as_only
                     && !new->prefix_only) {
@@ -2317,10 +2317,10 @@ static int mb_handler(request_rec *r)
             new->nsame = &mirrors_same_region->nelts;
         }
 
-        /* to be considered as "worldwide" mirror, it must be willing 
+        /* to be considered as "worldwide" mirror, it must be willing
          * to take redirects from foreign regions.
          * (N.B. region_only implies country_only)  */
-        else if (!new->region_only 
+        else if (!new->region_only
                     && !new->country_only
                     && !new->as_only
                     && !new->prefix_only) {
@@ -2345,7 +2345,7 @@ static int mb_handler(request_rec *r)
 
     /* if we didn't find a mirror in the country: are other mirrors set to
      * handle this country? */
-    if (apr_is_empty_array(mirrors_same_country) 
+    if (apr_is_empty_array(mirrors_same_country)
             && !apr_is_empty_array(mirrors_fallback_country)) {
         mirrors_same_country = mirrors_fallback_country;
         debugLog(r, cfg, "no mirror in country, but found fallback_country mirrors");
@@ -2355,7 +2355,7 @@ static int mb_handler(request_rec *r)
     /* 3rd pass */
     if (apr_is_empty_array(mirrors) && ! apr_is_empty_array(cfg->fallbacks)) {
 
-        debugLog(r, cfg, "ok, need to add fallback mirrors (%d configured)", 
+        debugLog(r, cfg, "ok, need to add fallback mirrors (%d configured)",
                  cfg->fallbacks->nelts);
 
         /* we copy the array, so we don't modify the one in the config */
@@ -2366,22 +2366,22 @@ static int mb_handler(request_rec *r)
         for (i = 0; i < mirrors->nelts; i++) {
 
             elts[i].rank = (rand()>>16) * ((RAND_MAX>>16) / elts[i].score);
-            /* elts[i].identifier = apr_psprintf(r->pool, "fallback_%02d(%s)", 
+            /* elts[i].identifier = apr_psprintf(r->pool, "fallback_%02d(%s)",
                                               i, elts[i].baseurl); */
 
             if (strcasecmp(elts[i].country_code, country_code) == 0) {
                 *(void **)apr_array_push(mirrors_same_country) = &(elts[i]);
-                debugLog(r, cfg, "adding fallback mirror in same country: %s:%s %s", 
+                debugLog(r, cfg, "adding fallback mirror in same country: %s:%s %s",
                          elts[i].region, elts[i].country_code, elts[i].baseurl);
-            } 
+            }
             else if (strcasecmp(elts[i].region, continent_code) == 0) {
                 *(void **)apr_array_push(mirrors_same_region) = &(elts[i]);
-                debugLog(r, cfg, "adding fallback mirror in same region: %s:%s %s", 
+                debugLog(r, cfg, "adding fallback mirror in same region: %s:%s %s",
                          elts[i].region, elts[i].country_code, elts[i].baseurl);
-            } 
+            }
             else {
                 *(void **)apr_array_push(mirrors_elsewhere) = &(elts[i]);
-                debugLog(r, cfg, "adding fallback mirror elsewhere: %s:%s %s", 
+                debugLog(r, cfg, "adding fallback mirror elsewhere: %s:%s %s",
                          elts[i].region, elts[i].country_code, elts[i].baseurl);
             }
         }
@@ -2397,7 +2397,7 @@ static int mb_handler(request_rec *r)
         cmp_mirror_best = cmp_mirror_rank;
     }
 
-    /* 
+    /*
     * Sorting the mirror list(s):
     * - is needed only when metalink (or mirrorlist) is requested
     * - sorting the mirrorlist itself would invalidates the pointer lists
@@ -2419,15 +2419,15 @@ static int mb_handler(request_rec *r)
     case ZSYNC:
     case YUMLIST:
     case REDIRECT:
-        qsort(mirrors_same_prefix->elts, mirrors_same_prefix->nelts, 
+        qsort(mirrors_same_prefix->elts, mirrors_same_prefix->nelts,
               mirrors_same_prefix->elt_size, cmp_mirror_best);
-        qsort(mirrors_same_as->elts, mirrors_same_as->nelts, 
+        qsort(mirrors_same_as->elts, mirrors_same_as->nelts,
               mirrors_same_as->elt_size, cmp_mirror_best);
-        qsort(mirrors_same_country->elts, mirrors_same_country->nelts, 
+        qsort(mirrors_same_country->elts, mirrors_same_country->nelts,
               mirrors_same_country->elt_size, cmp_mirror_best);
-        qsort(mirrors_same_region->elts, mirrors_same_region->nelts, 
+        qsort(mirrors_same_region->elts, mirrors_same_region->nelts,
               mirrors_same_region->elt_size, cmp_mirror_best);
-        qsort(mirrors_elsewhere->elts, mirrors_elsewhere->nelts, 
+        qsort(mirrors_elsewhere->elts, mirrors_elsewhere->nelts,
               mirrors_elsewhere->elt_size, cmp_mirror_best);
         break;
     }
@@ -2442,7 +2442,7 @@ static int mb_handler(request_rec *r)
         mirrorp = (mirror_entry_t **)mirrors_same_prefix->elts;
         for (i = 0; i < mirrors_same_prefix->nelts; i++) {
             mirror = mirrorp[i];
-            debugLog(r, cfg, "same prefix: %-30s (score %4d) (rank %10d) (dist %d)", 
+            debugLog(r, cfg, "same prefix: %-30s (score %4d) (rank %10d) (dist %d)",
                     mirror->identifier, mirror->score, mirror->rank, mirror->dist);
         }
 
@@ -2450,7 +2450,7 @@ static int mb_handler(request_rec *r)
         mirrorp = (mirror_entry_t **)mirrors_same_as->elts;
         for (i = 0; i < mirrors_same_as->nelts; i++) {
             mirror = mirrorp[i];
-            debugLog(r, cfg, "same AS: %-30s (score %4d) (rank %10d) (dist %d)", 
+            debugLog(r, cfg, "same AS: %-30s (score %4d) (rank %10d) (dist %d)",
                     mirror->identifier, mirror->score, mirror->rank, mirror->dist);
         }
 
@@ -2458,7 +2458,7 @@ static int mb_handler(request_rec *r)
         mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
         for (i = 0; i < mirrors_same_country->nelts; i++) {
             mirror = mirrorp[i];
-            debugLog(r, cfg, "same country: %-30s (score %4d) (rank %10d) (dist %d)", 
+            debugLog(r, cfg, "same country: %-30s (score %4d) (rank %10d) (dist %d)",
                     mirror->identifier, mirror->score, mirror->rank, mirror->dist);
         }
 
@@ -2466,7 +2466,7 @@ static int mb_handler(request_rec *r)
         mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
         for (i = 0; i < mirrors_same_region->nelts; i++) {
             mirror = mirrorp[i];
-            debugLog(r, cfg, "same region:  %-30s (score %4d) (rank %10d) (dist %d)", 
+            debugLog(r, cfg, "same region:  %-30s (score %4d) (rank %10d) (dist %d)",
                     mirror->identifier, mirror->score, mirror->rank, mirror->dist);
         }
 
@@ -2474,12 +2474,12 @@ static int mb_handler(request_rec *r)
         mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
         for (i = 0; i < mirrors_elsewhere->nelts; i++) {
             mirror = mirrorp[i];
-            debugLog(r, cfg, "elsewhere:    %-30s (score %4d) (rank %10d) (dist %d)", 
+            debugLog(r, cfg, "elsewhere:    %-30s (score %4d) (rank %10d) (dist %d)",
                     mirror->identifier, mirror->score, mirror->rank, mirror->dist);
         }
 
         debugLog(r, cfg, "classifying %d mirror%s: %d prefix, %d AS, %d country, "
-                "%d region, %d elsewhere", 
+                "%d region, %d elsewhere",
                 mirror_cnt, (mirror_cnt == 1) ? "" : "s",
                 mirrors_same_prefix->nelts,
                 mirrors_same_as->nelts,
@@ -2490,17 +2490,17 @@ static int mb_handler(request_rec *r)
 
 
 #if 0
-    if ((mirror_cnt <= 0) || (!mirrors_same_prefix->nelts && !mirrors_same_as->nelts 
-                              && !mirrors_same_country->nelts && !mirrors_same_region->nelts 
+    if ((mirror_cnt <= 0) || (!mirrors_same_prefix->nelts && !mirrors_same_as->nelts
+                              && !mirrors_same_country->nelts && !mirrors_same_region->nelts
                               && !mirrors_elsewhere->nelts)) {
 #endif
-    if (!mirrors_same_prefix->nelts && !mirrors_same_as->nelts && !mirrors_same_country->nelts 
+    if (!mirrors_same_prefix->nelts && !mirrors_same_as->nelts && !mirrors_same_country->nelts
             && !mirrors_same_region->nelts && !mirrors_elsewhere->nelts) {
         if (apr_is_empty_array(cfg->fallbacks))  {
-            ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, 
+            ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r,
                     "[mod_mirrorbrain] no mirrors found for %s", filename);
         } else {
-            ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, 
+            ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r,
                     "[mod_mirrorbrain] no mirrors found for %s, "
                     "but fallback mirrors are available", filename);
         }
@@ -2518,7 +2518,7 @@ static int mb_handler(request_rec *r)
                     return DECLINED;
                 } else {
                     debugLog(r, cfg, "would have to send empty metalink... -> 404");
-                    ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, 
+                    ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r,
                             "[mod_mirrorbrain] Can't send metalink for %s (no mirrors)", filename);
                     return HTTP_NOT_FOUND;
                 }
@@ -2532,7 +2532,7 @@ static int mb_handler(request_rec *r)
         hashbag = hashbag_fill(r, dbd, filename);
         if (hashbag == NULL) {
             debugLog(r, cfg, "no hashes found in database");
-        } 
+        }
     }
 
 
@@ -2559,39 +2559,39 @@ static int mb_handler(request_rec *r)
             m = apr_array_make(r->pool, 7, sizeof(char *));
 
             /* BitTorrent info hash */
-            APR_ARRAY_PUSH(m, char *) = 
+            APR_ARRAY_PUSH(m, char *) =
                 apr_psprintf(r->pool, "magnet:?xt=urn:btih:%s", hashbag->btihhex);
 #if 0
             /* SHA-1 */
             /* As far as I can see, this hash would actually need to be Base32
              * encoded, not hex. But it's probably not worth adding Base32
              * encoder just for this. */
-            APR_ARRAY_PUSH(m, char *) = 
+            APR_ARRAY_PUSH(m, char *) =
                 apr_psprintf(r->pool, "&amp;xt=urn:sha1:%s", hashbag->sha1hex);
 #endif
             /* MD5 */
-            APR_ARRAY_PUSH(m, char *) = 
+            APR_ARRAY_PUSH(m, char *) =
                 apr_psprintf(r->pool, "&amp;xt=urn:md5:%s", hashbag->md5hex);
 
             /* size */
-            APR_ARRAY_PUSH(m, char *) = 
+            APR_ARRAY_PUSH(m, char *) =
                 apr_psprintf(r->pool, "&amp;xl=%s", apr_off_t_toa(r->pool, r->finfo.size));
 
             /* file basename */
-            APR_ARRAY_PUSH(m, char *) = 
+            APR_ARRAY_PUSH(m, char *) =
                 apr_psprintf(r->pool, "&amp;dn=%s", ap_escape_uri(r->pool, basename));
 
             /* a HTTP link to the file */
-            APR_ARRAY_PUSH(m, char *) = 
-                apr_psprintf(r->pool, "&amp;as=%s://%s%s%s", ap_http_scheme(r), 
-                                                             ap_escape_uri(r->pool, thisserver), 
-                                                             thisport, 
+            APR_ARRAY_PUSH(m, char *) =
+                apr_psprintf(r->pool, "&amp;as=%s://%s%s%s", ap_http_scheme(r),
+                                                             ap_escape_uri(r->pool, thisserver),
+                                                             thisport,
                                                              ap_escape_uri(r->pool, r->uri));
 
             if (!apr_is_empty_array(scfg->tracker_urls)) {
                 for (i = 0; i < scfg->tracker_urls->nelts; i++) {
                     char *url = ((char **) scfg->tracker_urls->elts)[i];
-                    APR_ARRAY_PUSH(m, char *) = 
+                    APR_ARRAY_PUSH(m, char *) =
                         apr_psprintf(r->pool, "&amp;tr=%s", ap_escape_uri(r->pool, url));
                 }
             }
@@ -2614,7 +2614,7 @@ static int mb_handler(request_rec *r)
         /* tell caches that this is negotiated response and that not every client will take it */
         apr_table_mergen(r->headers_out, "Vary", "accept");
 
-        /* add rfc2183 header for filename, with .metalink appended 
+        /* add rfc2183 header for filename, with .metalink appended
          * because some clients trigger on that extension */
         apr_table_setn(r->headers_out,
                        "Content-Disposition",
@@ -2631,20 +2631,20 @@ static int mb_handler(request_rec *r)
             ap_rputs(     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
                           "<metalink xmlns=\"urn:ietf:params:xml:ns:metalink\">\n", r);
 
-            /* current time */ 
+            /* current time */
             time_str = apr_palloc(r->pool, RFC3339_DATE_LEN);
-            apr_time_exp_t tm; 
-            /* r->request_time should be filled out already, and save us the syscall to time() 
+            apr_time_exp_t tm;
+            /* r->request_time should be filled out already, and save us the syscall to time()
              * through apr_time_now() */
             apr_time_exp_gmt(&tm, r->request_time);
-            apr_strftime(time_str, &len, RFC3339_DATE_LEN, "%Y-%m-%dT%H:%M:%SZ", &tm); 
+            apr_strftime(time_str, &len, RFC3339_DATE_LEN, "%Y-%m-%dT%H:%M:%SZ", &tm);
 
             ap_rputs(     "  <generator>MirrorBrain/"MOD_MIRRORBRAIN_VER"</generator>\n", r);
             /* The origin URL is meant to specify the location for revalidation of this metalink.
              *
              * We use r->uri, not r->unparsed_uri, so we don't need to escape query strings for xml.
              */
-            ap_rprintf(r, "  <origin dynamic=\"true\">%s://%s%s%s.%s</origin>\n", 
+            ap_rprintf(r, "  <origin dynamic=\"true\">%s://%s%s%s.%s</origin>\n",
                        ap_http_scheme(r), thisserver, thisport, r->uri, rep_ext);
             ap_rprintf(r, "  <published>%s</published>\n", time_str);
 
@@ -2685,13 +2685,13 @@ static int mb_handler(request_rec *r)
 
         ap_rprintf(r, "  <file name=\"%s\">\n", basename);
         ap_rprintf(r, "    <size>%s</size>\n\n", apr_off_t_toa(r->pool, r->finfo.size));
-        ap_rprintf(r, "    <!-- <mtime>%" APR_INT64_T_FMT "</mtime> -->\n\n", 
+        ap_rprintf(r, "    <!-- <mtime>%" APR_INT64_T_FMT "</mtime> -->\n\n",
                    apr_time_sec(r->finfo.mtime)); /* APR finfo times are in microseconds */
 
 
         if (hashbag != NULL) {
             if (hashbag->id) {
-                ap_rprintf(r, "    <!-- internal id: %s -->\n", 
+                ap_rprintf(r, "    <!-- internal id: %s -->\n",
                            apr_off_t_toa(r->pool, hashbag->id));
             }
 
@@ -2709,10 +2709,10 @@ static int mb_handler(request_rec *r)
                         ap_rprintf(r, "    <hash type=\"sha-1\">%s</hash>\n", hashbag->sha1hex);
                     if (hashbag->sha256hex)
                         ap_rprintf(r, "    <hash type=\"sha-256\">%s</hash>\n", hashbag->sha256hex);
-                    if (hashbag->zsyncpieceshex 
-                        && (hashbag->sha1piecesize > 0) 
+                    if (hashbag->zsyncpieceshex
+                        && (hashbag->sha1piecesize > 0)
                         && !apr_is_empty_array(hashbag->zsyncpieceshex)) {
-                        ap_rprintf(r, "    <pieces length=\"%d\" type=\"zsync\">\n", 
+                        ap_rprintf(r, "    <pieces length=\"%d\" type=\"zsync\">\n",
                                    hashbag->sha1piecesize);
 
                         char **p = (char **)hashbag->zsyncpieceshex->elts;
@@ -2721,10 +2721,10 @@ static int mb_handler(request_rec *r)
                         }
                         ap_rputs("    </pieces>\n", r);
                     }
-                    if (hashbag->sha1pieceshex 
-                        && (hashbag->sha1piecesize > 0) 
+                    if (hashbag->sha1pieceshex
+                        && (hashbag->sha1piecesize > 0)
                         && !apr_is_empty_array(hashbag->sha1pieceshex)) {
-                        ap_rprintf(r, "    <pieces length=\"%d\" type=\"sha-1\">\n", 
+                        ap_rprintf(r, "    <pieces length=\"%d\" type=\"sha-1\">\n",
                                    hashbag->sha1piecesize);
 
                         char **p = (char **)hashbag->sha1pieceshex->elts;
@@ -2751,10 +2751,10 @@ static int mb_handler(request_rec *r)
                         ap_rprintf(r, "        <hash type=\"sha1\">%s</hash>\n", hashbag->sha1hex);
                     if (hashbag->sha256hex)
                         ap_rprintf(r, "        <hash type=\"sha256\">%s</hash>\n", hashbag->sha256hex);
-                    if (hashbag->zsyncpieceshex 
-                        && (hashbag->sha1piecesize > 0) 
+                    if (hashbag->zsyncpieceshex
+                        && (hashbag->sha1piecesize > 0)
                         && !apr_is_empty_array(hashbag->zsyncpieceshex)) {
-                        ap_rprintf(r, "        <pieces length=\"%d\" type=\"zsync\">\n", 
+                        ap_rprintf(r, "        <pieces length=\"%d\" type=\"zsync\">\n",
                                    hashbag->sha1piecesize);
 
                         char **p = (char **)hashbag->zsyncpieceshex->elts;
@@ -2763,10 +2763,10 @@ static int mb_handler(request_rec *r)
                         }
                         ap_rputs("        </pieces>\n", r);
                     }
-                    if (hashbag->sha1pieceshex 
-                        && (hashbag->sha1piecesize > 0) 
+                    if (hashbag->sha1pieceshex
+                        && (hashbag->sha1piecesize > 0)
                         && !apr_is_empty_array(hashbag->sha1pieceshex)) {
-                        ap_rprintf(r, "        <pieces length=\"%d\" type=\"sha1\">\n", 
+                        ap_rprintf(r, "        <pieces length=\"%d\" type=\"sha1\">\n",
                                    hashbag->sha1piecesize);
 
                         char **p = (char **)hashbag->sha1pieceshex->elts;
@@ -2793,18 +2793,18 @@ static int mb_handler(request_rec *r)
             && !ap_regexec(cfg->metalink_torrentadd_mask, r->filename, 0, NULL, 0)
             && apr_stat(&sb, apr_pstrcat(r->pool, r->filename, ".torrent", NULL), APR_FINFO_MIN, r->pool) == APR_SUCCESS) {
             debugLog(r, cfg, "found torrent file");
-            ap_rprintf(r, "    <url type=\"bittorrent\" preference=\"%d\">%s://%s%s%s.torrent</url>\n\n", 
+            ap_rprintf(r, "    <url type=\"bittorrent\" preference=\"%d\">%s://%s%s%s.torrent</url>\n\n",
                        100,
                        ap_http_scheme(r),
-                       thisserver, 
-                       thisport, 
+                       thisserver,
+                       thisport,
                        r->uri);
         }
 
         if ((scfg->metalink_magnets == 1) && (hashbag != NULL) && (magnet != NULL)) {
             switch (rep) {
             case META4:
-                /* inclusion of torrents and other metaurls should probably happen here 
+                /* inclusion of torrents and other metaurls should probably happen here
                  *
                  * restrict the use of the new metaurl element to new metalinks */
 
@@ -2813,14 +2813,14 @@ static int mb_handler(request_rec *r)
                 ap_rprintf(r, "    <metaurl mediatype=\"torrent\">%s</metaurl>\n", magnet);
                 break;
             case METALINK:
-                ap_rprintf(r, "    <url type=\"bittorrent\" preference=\"%d\">%s</url>\n\n", 
+                ap_rprintf(r, "    <url type=\"bittorrent\" preference=\"%d\">%s</url>\n\n",
                            100, magnet);
             }
         }
 
         ap_rprintf(r, "\n\n    <!-- Found %d mirror%s: %d in the same network prefix, %d in the same "
                    "autonomous system,\n         %d handling this country, %d in the same "
-                   "region, %d elsewhere -->\n", 
+                   "region, %d elsewhere -->\n",
                    mirror_cnt,
                    (mirror_cnt == 1) ? "" : "s",
                    mirrors_same_prefix->nelts,
@@ -2837,9 +2837,9 @@ static int mb_handler(request_rec *r)
 
 
         /* insert broken mirrors at the top, for failover testing? */
-        if(scfg->metalink_broken_test_mirrors 
-                && (ptr = (char*) apr_table_get(r->headers_in, "X-Broken-Mirrors")) 
-                && (apr_stat(&sb, scfg->metalink_broken_test_mirrors, 
+        if(scfg->metalink_broken_test_mirrors
+                && (ptr = (char*) apr_table_get(r->headers_in, "X-Broken-Mirrors"))
+                && (apr_stat(&sb, scfg->metalink_broken_test_mirrors,
                          APR_FINFO_MIN, r->pool) == APR_SUCCESS)) {
 
             debugLog(r, cfg, "adding broken mirrors (requested via X-Broken-Mirrors header)");
@@ -2899,7 +2899,7 @@ static int mb_handler(request_rec *r)
         }
 
         /* failed geoip lookups yield country='--', which leads to invalid XML */
-        ap_rprintf(r, "\n    <!-- Mirrors which handle this country (%s): -->\n", 
+        ap_rprintf(r, "\n    <!-- Mirrors which handle this country (%s): -->\n",
                    (strcmp(country_code, "--") == 0) ? "unknown" : country_code);
         mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
         for (i = 0; i < mirrors_same_country->nelts; i++) {
@@ -2911,7 +2911,7 @@ static int mb_handler(request_rec *r)
             emit_metalink_url(r, rep, mirror->baseurl, mirror->country_code, filename, v3prio, prio);
         }
 
-        ap_rprintf(r, "\n    <!-- Mirrors in the same continent (%s): -->\n", 
+        ap_rprintf(r, "\n    <!-- Mirrors in the same continent (%s): -->\n",
                    (strcmp(continent_code, "--") == 0) ? "unknown" : continent_code);
         mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
         for (i = 0; i < mirrors_same_region->nelts; i++) {
@@ -2927,7 +2927,7 @@ static int mb_handler(request_rec *r)
         mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
         for (i = 0; i < mirrors_elsewhere->nelts; i++) {
             mirror = mirrorp[i];
-            if (mirror->prefix_only || mirror->as_only 
+            if (mirror->prefix_only || mirror->as_only
                     || mirror->country_only || mirror->region_only) {
                 continue;
             }
@@ -2965,8 +2965,8 @@ static int mb_handler(request_rec *r)
             apr_file_t *fh;
             rv = apr_stat(&sb, scfg->mirrorlist_header, APR_FINFO_MIN, r->pool);
             if (rv != APR_SUCCESS) {
-                ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r, 
-                              "[mod_mirrorbrain] could not stat mirrorlist header file '%s'.", 
+                ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r,
+                              "[mod_mirrorbrain] could not stat mirrorlist header file '%s'.",
                               scfg->mirrorlist_header);
             } else {
                 rv = apr_file_open(&fh, scfg->mirrorlist_header, APR_READ, APR_OS_DEFAULT, r->pool);
@@ -2974,8 +2974,8 @@ static int mb_handler(request_rec *r)
                     ap_send_fd(fh, r, 0, sb.size, &len);
                     apr_file_close(fh);
                 } else {
-                    ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-                                  "[mod_mirrorbrain] could not open mirrorlist header '%s'.", 
+                    ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
+                                  "[mod_mirrorbrain] could not open mirrorlist header '%s'.",
                                   scfg->mirrorlist_header);
                 }
             }
@@ -2994,7 +2994,7 @@ static int mb_handler(request_rec *r)
         }
 
         ap_rputs("<div id=\"mirrorbrain-details\">\n", r);
-        ap_rprintf(r, "  <h2>Mirrors for <a href=\"%s\">%s</a></h2>\n", 
+        ap_rprintf(r, "  <h2>Mirrors for <a href=\"%s\">%s</a></h2>\n",
                    r->uri, basename);
 
         /* Metadata */
@@ -3004,7 +3004,7 @@ static int mb_handler(request_rec *r)
         char buf[5];
         ap_rprintf(r, "  <li><span class=\"mirrorbrain-label\">Filename:</span> %s</li>\n", basename);
 	ap_rprintf(r, "  <li><span class=\"mirrorbrain-label\">Path:</span> %s</li>\n", r->uri);
-        ap_rprintf(r, "  <li><span class=\"mirrorbrain-label\">Size:</span> %s (%s bytes)</li>\n", 
+        ap_rprintf(r, "  <li><span class=\"mirrorbrain-label\">Size:</span> %s (%s bytes)</li>\n",
                    apr_strfsize(r->finfo.size, buf),
                    apr_off_t_toa(r->pool, r->finfo.size));
         time_str = apr_palloc(r->pool, APR_RFC822_DATE_LEN);
@@ -3054,7 +3054,7 @@ static int mb_handler(request_rec *r)
                  "<ul>\n", r);
         ap_rprintf(r, "  <li><a href=\"%s.meta4\">%s.meta4</a> (IETF Metalink)</li>\n",
                    r->uri, r->uri);
-        ap_rprintf(r, "  <li><a href=\"%s.metalink\">%s.metalink</a> (old (v3) Metalink)</li>\n", 
+        ap_rprintf(r, "  <li><a href=\"%s.metalink\">%s.metalink</a> (old (v3) Metalink)</li>\n",
                    r->uri, r->uri);
         ap_rputs("</ul>\n" "</div>\n", r);
 
@@ -3064,20 +3064,20 @@ static int mb_handler(request_rec *r)
                 ap_rputs("<div class=\"mirrorbrain-links-grp\">\n"
                          "<h4>P2P links</h4>\n"
                          "<ul>\n", r);
-                ap_rprintf(r, "  <li><a href=\"%s.torrent\">%s.torrent</a> (BitTorrent)</li>\n", 
+                ap_rprintf(r, "  <li><a href=\"%s.torrent\">%s.torrent</a> (BitTorrent)</li>\n",
                            r->uri, r->uri);
-                ap_rprintf(r, "  <li><a href=\"%s.magnet\">%s.magnet</a> (Magnet)</li>\n", 
+                ap_rprintf(r, "  <li><a href=\"%s.magnet\">%s.magnet</a> (Magnet)</li>\n",
                            r->uri, r->uri);
                 ap_rputs("</ul>\n" "</div>\n", r);
             }
 
-            if (hashbag->sha1hex && (hashbag->zblocksize > 0) 
+            if (hashbag->sha1hex && (hashbag->zblocksize > 0)
                     && hashbag->zhashlens && hashbag->zsumshex) {
                 /* zSync */
                 ap_rputs("<div class=\"mirrorbrain-links-grp\">\n"
                          "<h4>Zsync links</h4>\n"
                          "<ul>\n", r);
-                ap_rprintf(r, "  <li><a href=\"%s.zsync\">%s.zsync</a></li>\n", 
+                ap_rprintf(r, "  <li><a href=\"%s.zsync\">%s.zsync</a></li>\n",
                            r->uri, r->uri);
                 ap_rputs("</ul>\n" "</div>\n", r);
             }
@@ -3108,8 +3108,8 @@ static int mb_handler(request_rec *r)
 
         /* Link to static map of user and mirror locations */
         if (lat != 0 && lng != 0) {
-            apr_array_header_t *topten = get_n_best_mirrors(r, 9, mirrors_same_prefix, mirrors_same_as, 
-                                                             mirrors_same_country, mirrors_same_region, 
+            apr_array_header_t *topten = get_n_best_mirrors(r, 9, mirrors_same_prefix, mirrors_same_as,
+                                                             mirrors_same_country, mirrors_same_region,
                                                              mirrors_elsewhere);
             mirrorp = (mirror_entry_t **)topten->elts;
             ap_rprintf(r, "<p><a href=\"http://maps.google.com/maps/api/staticmap?size=640x512&amp;"
@@ -3121,8 +3121,8 @@ static int mb_handler(request_rec *r)
             ap_rputs("\">Map showing the closest mirrors</a></p>\n\n", r);
         }
 
-        if ((mirror_cnt <= 0) || (!mirrors_same_prefix->nelts && !mirrors_same_as->nelts 
-                                  && !mirrors_same_country->nelts && !mirrors_same_region->nelts 
+        if ((mirror_cnt <= 0) || (!mirrors_same_prefix->nelts && !mirrors_same_as->nelts
+                                  && !mirrors_same_country->nelts && !mirrors_same_region->nelts
                                   && !mirrors_elsewhere->nelts)) {
             ap_rputs("<div id=\"mirrorbrain-mirrors-none\">\n"
                      "<h4>No mirror was found</h4>\n", r);
@@ -3141,15 +3141,15 @@ static int mb_handler(request_rec *r)
             ap_rprintf(r, "<div class=\"mirrorbrain-mirrors-grp\">\n"
                           "<h4>Found %d mirror%s directly nearby (within the same network prefix: %s)</h4>\n"
                           "<ul>\n",
-                       mirrors_same_prefix->nelts, 
+                       mirrors_same_prefix->nelts,
                        (mirrors_same_prefix->nelts == 1) ? "" : "s",
                        prefix);
             mirrorp = (mirror_entry_t **)mirrors_same_prefix->elts;
             for (i = 0; i < mirrors_same_prefix->nelts; i++) {
                 mirror = mirrorp[i];
-                ap_rprintf(r, "  <li><a href=\"%s%s\">%s%s</a> (%s, prio %d)</li>\n", 
-                        mirror->baseurl, filename, 
-                        mirror->baseurl, filename, 
+                ap_rprintf(r, "  <li><a href=\"%s%s\">%s%s</a> (%s, prio %d)</li>\n",
+                        mirror->baseurl, filename,
+                        mirror->baseurl, filename,
                         mirror->country_code,
                         mirror->score);
             }
@@ -3161,15 +3161,15 @@ static int mb_handler(request_rec *r)
             ap_rprintf(r, "<div class=\"mirrorbrain-mirrors-grp\">\n"
                           "<h4>Found %d mirror%s very close (within the same autonomous system (AS%s)</h4>\n"
                           "<ul>\n",
-                       mirrors_same_as->nelts, 
+                       mirrors_same_as->nelts,
                        (mirrors_same_as->nelts == 1) ? "" : "s",
                        as);
             mirrorp = (mirror_entry_t **)mirrors_same_as->elts;
             for (i = 0; i < mirrors_same_as->nelts; i++) {
                 mirror = mirrorp[i];
-                ap_rprintf(r, "  <li><a href=\"%s%s\">%s%s</a> (%s, prio %d)</li>\n", 
-                        mirror->baseurl, filename, 
-                        mirror->baseurl, filename, 
+                ap_rprintf(r, "  <li><a href=\"%s%s\">%s%s</a> (%s, prio %d)</li>\n",
+                        mirror->baseurl, filename,
+                        mirror->baseurl, filename,
                         mirror->country_code,
                         mirror->score);
             }
@@ -3180,16 +3180,16 @@ static int mb_handler(request_rec *r)
         if (!apr_is_empty_array(mirrors_same_country)) {
             ap_rprintf(r, "<div class=\"mirrorbrain-mirrors-grp\">\n"
                           "<h4>Found %d mirror%s which handle this country (%s)</h4>\n"
-                          "<ul>\n", 
-                       mirrors_same_country->nelts, 
+                          "<ul>\n",
+                       mirrors_same_country->nelts,
                        (mirrors_same_country->nelts == 1) ? "" : "s",
                        country_code);
             mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
             for (i = 0; i < mirrors_same_country->nelts; i++) {
                 mirror = mirrorp[i];
-                ap_rprintf(r, " <li><a href=\"%s%s\">%s%s</a> (%s, prio %d)</li>\n", 
-                        mirror->baseurl, filename, 
-                        mirror->baseurl, filename, 
+                ap_rprintf(r, " <li><a href=\"%s%s\">%s%s</a> (%s, prio %d)</li>\n",
+                        mirror->baseurl, filename,
+                        mirror->baseurl, filename,
                         mirror->country_code,
                         mirror->score);
             }
@@ -3200,16 +3200,16 @@ static int mb_handler(request_rec *r)
         if (!apr_is_empty_array(mirrors_same_region)) {
             ap_rprintf(r, "<div class=\"mirrorbrain-mirrors-grp\">\n"
                           "<h4>Found %d mirror%s in other countries, but same continent (%s)</h4>\n"
-                          "<ul>\n", 
+                          "<ul>\n",
                        mirrors_same_region->nelts,
                        (mirrors_same_region->nelts == 1) ? "" : "s",
                        continent_code);
             mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
             for (i = 0; i < mirrors_same_region->nelts; i++) {
                 mirror = mirrorp[i];
-                ap_rprintf(r, "  <li><a href=\"%s%s\">%s%s</a> (%s, prio %d)</li>\n", 
-                        mirror->baseurl, filename, 
-                        mirror->baseurl, filename, 
+                ap_rprintf(r, "  <li><a href=\"%s%s\">%s%s</a> (%s, prio %d)</li>\n",
+                        mirror->baseurl, filename,
+                        mirror->baseurl, filename,
                         mirror->country_code,
                         mirror->score);
             }
@@ -3226,9 +3226,9 @@ static int mb_handler(request_rec *r)
             mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
             for (i = 0; i < mirrors_elsewhere->nelts; i++) {
                 mirror = mirrorp[i];
-                ap_rprintf(r, "  <li><a href=\"%s%s\">%s%s</a> (%s, prio %d)</li>\n", 
-                        mirror->baseurl, filename, 
-                        mirror->baseurl, filename, 
+                ap_rprintf(r, "  <li><a href=\"%s%s\">%s%s</a> (%s, prio %d)</li>\n",
+                        mirror->baseurl, filename,
+                        mirror->baseurl, filename,
                         mirror->country_code,
                         mirror->score);
             }
@@ -3244,8 +3244,8 @@ static int mb_handler(request_rec *r)
             apr_file_t *fh;
             rv = apr_stat(&sb, scfg->mirrorlist_footer, APR_FINFO_MIN, r->pool);
             if (rv != APR_SUCCESS) {
-                ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r, 
-                              "[mod_mirrorbrain] could not stat mirrorlist footer file '%s'.", 
+                ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r,
+                              "[mod_mirrorbrain] could not stat mirrorlist footer file '%s'.",
                               scfg->mirrorlist_footer);
             } else {
                 rv = apr_file_open(&fh, scfg->mirrorlist_footer, APR_READ, APR_OS_DEFAULT, r->pool);
@@ -3253,8 +3253,8 @@ static int mb_handler(request_rec *r)
                     ap_send_fd(fh, r, 0, sb.size, &len);
                     apr_file_close(fh);
                 } else {
-                    ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, 
-                                  "[mod_mirrorbrain] could not open mirrorlist footer '%s'.", 
+                    ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
+                                  "[mod_mirrorbrain] could not open mirrorlist footer '%s'.",
                                   scfg->mirrorlist_footer);
                 }
             }
@@ -3272,7 +3272,7 @@ static int mb_handler(request_rec *r)
         }
 
         if (apr_is_empty_array(scfg->tracker_urls)) {
-            ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r, 
+            ap_log_rerror(APLOG_MARK, APLOG_WARNING, 0, r,
                     "[mod_mirrorbrain] Cannot create torrent: at least one MirrorBrainTorrentTrackerURL must configured");
             return HTTP_NOT_FOUND;
         }
@@ -3297,12 +3297,12 @@ static int mb_handler(request_rec *r)
         ap_rprintf(r,     "7:comment"
                               "%" APR_SIZE_T_FMT ":%s", strlen(basename), basename);
 
-                          /* This is meant to be the creation time of the torrent, 
+                          /* This is meant to be the creation time of the torrent,
                            * but let's take the mtime of the file since we can generate the
                            * torrent any time */
         ap_rprintf(r,     "10:created by"
-                              "%" APR_SIZE_T_FMT ":MirrorBrain/%s", 
-                              strlen("MirrorBrain/") + strlen(MOD_MIRRORBRAIN_VER), 
+                              "%" APR_SIZE_T_FMT ":MirrorBrain/%s",
+                              strlen("MirrorBrain/") + strlen(MOD_MIRRORBRAIN_VER),
                               MOD_MIRRORBRAIN_VER);
         ap_rprintf(r,     "13:creation date"
                               "i%se", apr_itoa(r->pool, apr_time_sec(r->finfo.mtime)));
@@ -3310,7 +3310,7 @@ static int mb_handler(request_rec *r)
         ap_rprintf(r,     "4:info"
                               "d"
                                   "6:length"
-                                      "i%se", 
+                                      "i%se",
                                       apr_off_t_toa(r->pool, r->finfo.size));
         ap_rprintf(r,             "6:md5sum"
                                       "%d:%s", MD5_DIGESTSIZE * 2, hashbag->md5hex);
@@ -3319,7 +3319,7 @@ static int mb_handler(request_rec *r)
                                   "12:piece length"
                                       "i%de"
                                   "6:pieces"
-                                      "%d:", strlen(basename), 
+                                      "%d:", strlen(basename),
                                              basename,
                                              hashbag->sha1piecesize,
                                              (hashbag->sha1pieceshex->nelts * SHA1_DIGESTSIZE));
@@ -3329,11 +3329,11 @@ static int mb_handler(request_rec *r)
         }
         ap_rprintf(r,             "4:sha1"
                                       "%d:", SHA1_DIGESTSIZE);
-        ap_rwrite(                    hex_to_bin(r->pool, hashbag->sha1hex, SHA1_DIGESTSIZE), 
+        ap_rwrite(                    hex_to_bin(r->pool, hashbag->sha1hex, SHA1_DIGESTSIZE),
                 SHA1_DIGESTSIZE, r);
         ap_rprintf(r,             "6:sha256"
                                       "%d:", SHA256_DIGESTSIZE);
-        ap_rwrite(                    hex_to_bin(r->pool, hashbag->sha256hex, SHA256_DIGESTSIZE), 
+        ap_rwrite(                    hex_to_bin(r->pool, hashbag->sha256hex, SHA256_DIGESTSIZE),
                 SHA256_DIGESTSIZE, r);
 
         /* end of info hash: */
@@ -3345,7 +3345,7 @@ static int mb_handler(request_rec *r)
                               "l", r);
             for (i = 0; i < scfg->dhtnodes->nelts; i++) {
                 dhtnode_t node = ((dhtnode_t *) scfg->dhtnodes->elts)[i];
-                ap_rprintf(r,     "l" "%" APR_SIZE_T_FMT ":%s" "i%de" "e", strlen(node.name), node.name, 
+                ap_rprintf(r,     "l" "%" APR_SIZE_T_FMT ":%s" "i%de" "e", strlen(node.name), node.name,
                                                          node.port);
             }
             ap_rputs(     "e", r);
@@ -3353,7 +3353,7 @@ static int mb_handler(request_rec *r)
 
         /* Web seeds
          *
-         * There's a trick: send this stuff _after_ the sha1 pieces. 
+         * There's a trick: send this stuff _after_ the sha1 pieces.
          * The original BitTorrent client doesn't ignore unknown keys, but
          * refuses to grok the torrent and says "is not a valid torrent file
          * (not a valid bencoded string)". (Which is wrong.) However, it does
@@ -3368,7 +3368,7 @@ static int mb_handler(request_rec *r)
             mirrorp = (mirror_entry_t **)mirrors_same_prefix->elts;
             for (i = 0; i < mirrors_same_prefix->nelts; i++, found_urls++) {
                 mirror = mirrorp[i];
-                APR_ARRAY_PUSH(m, char *) = 
+                APR_ARRAY_PUSH(m, char *) =
                     apr_psprintf(r->pool, "%" APR_SIZE_T_FMT ":%s%s", (strlen(mirror->baseurl) + strlen(filename)),
                                                      mirror->baseurl, filename);
             }
@@ -3376,7 +3376,7 @@ static int mb_handler(request_rec *r)
                 mirrorp = (mirror_entry_t **)mirrors_same_as->elts;
                 for (i = 0; i < mirrors_same_as->nelts; i++, found_urls++) {
                     mirror = mirrorp[i];
-                    APR_ARRAY_PUSH(m, char *) = 
+                    APR_ARRAY_PUSH(m, char *) =
                         apr_psprintf(r->pool, "%" APR_SIZE_T_FMT ":%s%s", (strlen(mirror->baseurl) + strlen(filename)),
                                                          mirror->baseurl, filename);
                 }
@@ -3385,7 +3385,7 @@ static int mb_handler(request_rec *r)
                 mirrorp = (mirror_entry_t **)mirrors_same_country->elts;
                 for (i = 0; i < mirrors_same_country->nelts; i++, found_urls++) {
                     mirror = mirrorp[i];
-                    APR_ARRAY_PUSH(m, char *) = 
+                    APR_ARRAY_PUSH(m, char *) =
                         apr_psprintf(r->pool, "%" APR_SIZE_T_FMT ":%s%s", (strlen(mirror->baseurl) + strlen(filename)),
                                                          mirror->baseurl, filename);
                 }
@@ -3394,7 +3394,7 @@ static int mb_handler(request_rec *r)
                 mirrorp = (mirror_entry_t **)mirrors_same_region->elts;
                 for (i = 0; i < mirrors_same_region->nelts; i++, found_urls++) {
                     mirror = mirrorp[i];
-                    APR_ARRAY_PUSH(m, char *) = 
+                    APR_ARRAY_PUSH(m, char *) =
                         apr_psprintf(r->pool, "%" APR_SIZE_T_FMT ":%s%s", (strlen(mirror->baseurl) + strlen(filename)),
                                                          mirror->baseurl, filename);
                 }
@@ -3403,26 +3403,26 @@ static int mb_handler(request_rec *r)
                 mirrorp = (mirror_entry_t **)mirrors_elsewhere->elts;
                 for (i = 0; i < mirrors_elsewhere->nelts; i++, found_urls++) {
                     mirror = mirrorp[i];
-                    APR_ARRAY_PUSH(m, char *) = 
+                    APR_ARRAY_PUSH(m, char *) =
                         apr_psprintf(r->pool, "%" APR_SIZE_T_FMT ":%s%s", (strlen(mirror->baseurl) + strlen(filename)),
                                                          mirror->baseurl, filename);
                 }
             }
             /* add the redirector, in case there wasn't any mirror */
             if (!found_urls) {
-                APR_ARRAY_PUSH(m, char *) = 
-                    apr_psprintf(r->pool, "%" APR_SIZE_T_FMT ":%s://%s%s%s", 
-                                           (strlen(ap_http_scheme(r)) + 3 + strlen(thisserver) + strlen(thisport) + strlen(r->uri)), 
+                APR_ARRAY_PUSH(m, char *) =
+                    apr_psprintf(r->pool, "%" APR_SIZE_T_FMT ":%s://%s%s%s",
+                                           (strlen(ap_http_scheme(r)) + 3 + strlen(thisserver) + strlen(thisport) + strlen(r->uri)),
                                            ap_http_scheme(r), thisserver, thisport, r->uri);
             }
 
 #if 0
             /* it would be simple to just list the URL of the redirector itself, but aria2c
              * retrieves a Metalink then and doesn't expect it in that situation. Maybe later */
-            APR_ARRAY_PUSH(m, char *) = 
+            APR_ARRAY_PUSH(m, char *) =
                 apr_psprintf(r->pool,     "8:url-list"
-                                          "%" APR_SIZE_T_FMT ":%s://%s%s%s", 
-                                          (strlen(ap_http_scheme(r)) + 3 + strlen(thisserver) + strlen(thisport) + strlen(r->uri)), 
+                                          "%" APR_SIZE_T_FMT ":%s://%s%s%s",
+                                          (strlen(ap_http_scheme(r)) + 3 + strlen(thisserver) + strlen(thisport) + strlen(r->uri)),
                                           ap_http_scheme(r), thisserver, thisport, r->uri);
 #endif
 
@@ -3449,12 +3449,12 @@ static int mb_handler(request_rec *r)
 
     case ZSYNC:
 
-        if (!hashbag || !hashbag->sha1hex || (hashbag->zblocksize == 0) 
+        if (!hashbag || !hashbag->sha1hex || (hashbag->zblocksize == 0)
                 || !hashbag->zhashlens || !hashbag->zsumshex) {
             debugLog(r, cfg, "zsync requested, but required data is missing");
             return HTTP_NOT_FOUND;
         }
-    
+
         setenv_give(r, "zsync");
         debugLog(r, cfg, "Sending zsync");
         ap_set_content_type(r, "application/x-zsync");
@@ -3521,7 +3521,7 @@ static int mb_handler(request_rec *r)
             return OK;
         }
         int l = strlen(hashbag->zsumshex);
-        ap_rwrite(hex_to_bin(r->pool, hashbag->zsumshex, l/2), 
+        ap_rwrite(hex_to_bin(r->pool, hashbag->zsumshex, l/2),
                   l/2, r);
         return OK;
 
@@ -3537,8 +3537,8 @@ static int mb_handler(request_rec *r)
 
     case YUMLIST:
         ap_set_content_type(r, "text/plain; charset=UTF-8");
-        apr_array_header_t *topten = get_n_best_mirrors(r, 10, mirrors_same_prefix, mirrors_same_as, 
-                                                         mirrors_same_country, mirrors_same_region, 
+        apr_array_header_t *topten = get_n_best_mirrors(r, 10, mirrors_same_prefix, mirrors_same_as,
+                                                         mirrors_same_country, mirrors_same_region,
                                                          mirrors_elsewhere);
         if (topten->nelts > 0) {
             mirrorp = (mirror_entry_t **)topten->elts;
@@ -3551,7 +3551,7 @@ static int mb_handler(request_rec *r)
         }
         setenv_give(r, "yumlist");
         return OK;
-        
+
     } /* end switch representation */
 
     const char *found_in;
@@ -3585,7 +3585,7 @@ static int mb_handler(request_rec *r)
     }
 
     if (!chosen) {
-        ap_log_rerror(APLOG_MARK, APLOG_NOTICE, 0, r, 
+        ap_log_rerror(APLOG_MARK, APLOG_NOTICE, 0, r,
             "[mod_mirrorbrain] '%s': no usable mirrors after classification. Have to deliver directly.",
             filename);
         setenv_give(r, "file");
@@ -3602,7 +3602,7 @@ static int mb_handler(request_rec *r)
         const char *stamp = ap_md5(r->pool, (unsigned const char *)epochkey);
 
         debugLog(r, cfg, "stamp: '%s' -> %s", epochkey, stamp);
-        uri = apr_pstrcat(r->pool, chosen->baseurl, filename, 
+        uri = apr_pstrcat(r->pool, chosen->baseurl, filename,
                           "?time=", epoch,
                           "&stamp=", stamp, NULL);
     } else {
@@ -3620,64 +3620,64 @@ static int mb_handler(request_rec *r)
     apr_table_setn(r->err_headers_out, "X-MirrorBrain-Realm", found_in);
 
 
-    /* add HTTP headers according to RFC 5988 (Web Linking) 
+    /* add HTTP headers according to RFC 5988 (Web Linking)
      * and RFC 5854/6249 (Metalink/HTTP: Mirrors and Hashes) */
     /* rel=describedby */
-    apr_table_addn(r->err_headers_out, "Link", 
+    apr_table_addn(r->err_headers_out, "Link",
                    apr_pstrcat(r->pool,
                                "<", ap_http_scheme(r), "://", thisserver, thisport, r->uri, ".meta4>; "
-                               "rel=describedby; type=\"application/metalink4+xml\"", 
+                               "rel=describedby; type=\"application/metalink4+xml\"",
                                NULL));
     if (hashbag && hashbag->pgp) {
-        apr_table_addn(r->err_headers_out, "Link", 
+        apr_table_addn(r->err_headers_out, "Link",
                        apr_pstrcat(r->pool,
                                    "<", ap_http_scheme(r), "://", thisserver, thisport, r->uri, ".asc>; "
-                                   "rel=describedby; type=\"application/pgp-signature\"", 
+                                   "rel=describedby; type=\"application/pgp-signature\"",
                                    NULL));
     }
     if (!apr_is_empty_array(scfg->tracker_urls) && hashbag && hashbag->btihhex) {
-        apr_table_addn(r->err_headers_out, "Link", 
+        apr_table_addn(r->err_headers_out, "Link",
                        apr_pstrcat(r->pool,
                                    "<", ap_http_scheme(r), "://", thisserver, thisport, r->uri, ".torrent>; "
-                                   "rel=describedby; type=\"application/x-bittorrent\"", 
+                                   "rel=describedby; type=\"application/x-bittorrent\"",
                                    NULL));
     }
 
     /* rel=duplicate */
-    apr_array_header_t *topten = get_n_best_mirrors(r, 5, mirrors_same_prefix, mirrors_same_as, 
-                                                     mirrors_same_country, mirrors_same_region, 
+    apr_array_header_t *topten = get_n_best_mirrors(r, 5, mirrors_same_prefix, mirrors_same_as,
+                                                     mirrors_same_country, mirrors_same_region,
                                                      mirrors_elsewhere);
     if (topten->nelts > 0) {
         mirrorp = (mirror_entry_t **)topten->elts;
         for (i = 0; i < topten->nelts; i++) {
             mirror = mirrorp[i];
-            apr_table_addn(r->err_headers_out, "Link", 
+            apr_table_addn(r->err_headers_out, "Link",
                            apr_pstrcat(r->pool,
-                                       "<", mirror->baseurl, filename, 
+                                       "<", mirror->baseurl, filename,
                                        ">; rel=duplicate"
                                        "; pri=", apr_itoa(r->pool, i+1),
                                        "; geo=", mirror->country_code,
                                        NULL));
         }
     }
-    
+
     /* RFC 3230 HTTP Instance Digests (including updates from RFC 5843) */
     if (hashbag) {
         if (hashbag->md5hex) {
-            apr_table_addn(r->err_headers_out, "Digest", 
-                           apr_pstrcat(r->pool, "MD5=", 
+            apr_table_addn(r->err_headers_out, "Digest",
+                           apr_pstrcat(r->pool, "MD5=",
                                        hex_to_b64(r->pool, hashbag->md5hex, MD5_DIGESTSIZE),
                                        NULL));
         }
         if (hashbag->sha1hex) {
-            apr_table_addn(r->err_headers_out, "Digest", 
-                           apr_pstrcat(r->pool, "SHA=", 
+            apr_table_addn(r->err_headers_out, "Digest",
+                           apr_pstrcat(r->pool, "SHA=",
                                        hex_to_b64(r->pool, hashbag->sha1hex, SHA1_DIGESTSIZE),
                                        NULL));
         }
         if (hashbag->sha256hex) {
-            apr_table_addn(r->err_headers_out, "Digest", 
-                           apr_pstrcat(r->pool, "SHA-256=", 
+            apr_table_addn(r->err_headers_out, "Digest",
+                           apr_pstrcat(r->pool, "SHA-256=",
                                        hex_to_b64(r->pool, hashbag->sha256hex, SHA256_DIGESTSIZE),
                                        NULL));
         }
@@ -3696,7 +3696,7 @@ static int mb_handler(request_rec *r)
         if (rv != APR_SUCCESS)
             ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r,
                          "[mod_mirrorbrain] memcache error setting key '%s' "
-                         "with %d bytes of data", 
+                         "with %d bytes of data",
                          m_key, (int) strlen(m_val));
     }
 #endif
@@ -3726,12 +3726,12 @@ static int mb_status_hook(request_rec *r, int flags)
         rv = apr_memcache_stats(memctxt->live_servers[i], r->pool, &stats);
 
         ap_rputs("<hr />\n", r);
-        ap_rprintf(r, "<h1>MemCached Status for %s:%d</h1>\n\n", 
+        ap_rprintf(r, "<h1>MemCached Status for %s:%d</h1>\n\n",
                 memctxt->live_servers[i]->host,
                 memctxt->live_servers[i]->port);
 
         ap_rputs("\n\n<table border=\"0\">", r);
-        ap_rprintf(r, "<tr><td>version:               </td><td>%s</td>\n", stats->version); 
+        ap_rprintf(r, "<tr><td>version:               </td><td>%s</td>\n", stats->version);
         ap_rprintf(r, "<tr><td>pid:                   </td><td>%d</td>\n", stats->pid);
         ap_rprintf(r, "<tr><td>uptime:                </td><td>\t%d</td>\n", stats->uptime);
         ap_rprintf(r, "<tr><td>pointer_size:          </td><td>\t%d</td>\n", stats->pointer_size);
@@ -3779,26 +3779,26 @@ static int mb_pre_config(apr_pool_t *pconf,
 static const command_rec mb_cmds[] =
 {
     /* to be used only in Directory et al. */
-    AP_INIT_FLAG("MirrorBrainEngine", mb_cmd_engine, NULL, 
+    AP_INIT_FLAG("MirrorBrainEngine", mb_cmd_engine, NULL,
                  ACCESS_CONF,
                  "Set to On or Off to enable or disable redirecting"),
-    AP_INIT_FLAG("MirrorBrainDebug", mb_cmd_debug, NULL, 
+    AP_INIT_FLAG("MirrorBrainDebug", mb_cmd_debug, NULL,
                  ACCESS_CONF,
                  "Set to On or Off to enable or disable debug logging to error log"),
 
     /* to be used everywhere */
-    AP_INIT_TAKE1("MirrorBrainMinSize", mb_cmd_minsize, NULL, 
+    AP_INIT_TAKE1("MirrorBrainMinSize", mb_cmd_minsize, NULL,
                   OR_OPTIONS,
                   "Minimum size, in bytes, that a file must be, in order to redirect "
                   "requests to a mirror. Smaller files will be delivered directly. "
                   "Default: 4096 bytes."),
-    AP_INIT_TAKE1("MirrorBrainExcludeMimeType", mb_cmd_excludemime, 0, 
+    AP_INIT_TAKE1("MirrorBrainExcludeMimeType", mb_cmd_excludemime, 0,
                   OR_OPTIONS,
                   "Mimetype to always exclude from redirecting (wildcards allowed)"),
-    AP_INIT_TAKE1("MirrorBrainExcludeUserAgent", mb_cmd_excludeagent, 0, 
+    AP_INIT_TAKE1("MirrorBrainExcludeUserAgent", mb_cmd_excludeagent, 0,
                   OR_OPTIONS,
                   "User-Agent to always exclude from redirecting (wildcards allowed)"),
-    AP_INIT_TAKE1("MirrorBrainExcludeNetwork", mb_cmd_excludenetwork, 0, 
+    AP_INIT_TAKE1("MirrorBrainExcludeNetwork", mb_cmd_excludenetwork, 0,
                   OR_OPTIONS,
                   "Network to always exclude from redirecting (simple string prefix)"),
     AP_INIT_TAKE1("MirrorBrainExcludeIP", mb_cmd_excludeip, 0,
@@ -3808,28 +3808,28 @@ static const command_rec mb_cmds[] =
                   ACCESS_CONF,
                   "Regexp which determines which files will be excluded form redirecting"),
 
-    AP_INIT_FLAG("MirrorBrainHandleHEADRequestLocally", mb_cmd_handle_headrequest_locally, NULL, 
+    AP_INIT_FLAG("MirrorBrainHandleHEADRequestLocally", mb_cmd_handle_headrequest_locally, NULL,
                   OR_OPTIONS,
                   "Set to On to handle HEAD requests locally (instead of redirecting "
                   "them to a mirror). Default: Off."),
 
-    AP_INIT_TAKE1("MirrorBrainMetalinkTorrentAddMask", mb_cmd_metalink_torrentadd_mask, NULL, 
+    AP_INIT_TAKE1("MirrorBrainMetalinkTorrentAddMask", mb_cmd_metalink_torrentadd_mask, NULL,
                   ACCESS_CONF,
                   "Regexp which determines for which files to look for correspondant "
                   ".torrent files, and add them into generated metalinks"),
 
-    AP_INIT_TAKE3("MirrorBrainFallback", mb_cmd_fallback, NULL, 
-                  ACCESS_CONF, 
+    AP_INIT_TAKE3("MirrorBrainFallback", mb_cmd_fallback, NULL,
+                  ACCESS_CONF,
                   "region code, country code and base URL of a mirror that is used when no "
                   "mirror can be found in the database. These mirrors are assumed to have "
                   "*all* files. (Or they could be configured per directory.)"),
 
-    AP_INIT_TAKE1("MirrorBrainRedirectStampKey", mb_cmd_redirect_stamp_key, NULL, 
+    AP_INIT_TAKE1("MirrorBrainRedirectStampKey", mb_cmd_redirect_stamp_key, NULL,
                   ACCESS_CONF,
                   "Causes MirrorBrain to append a signed timestamp to redirection URLs. The "
                   "argument is a string that defines the key to encrypt the timestamp with. "
                   "Can be configured on directory-level."),
-    AP_INIT_RAW_ARGS("MirrorBrainYumDir", mb_cmd_add_yumdir, NULL, 
+    AP_INIT_RAW_ARGS("MirrorBrainYumDir", mb_cmd_add_yumdir, NULL,
                   RSRC_CONF, /* RSRC_CONF|ACCESS_CONF, */
                   "Specify query arguments mapping to a directory that must have a certain file. "
                   "Syntax: arg1=<regexp> arg2=<regexp> <basedir> <mandatory_file>. "
@@ -3847,64 +3847,64 @@ static const command_rec mb_cmds[] =
                   "The SQL query for fetching verification hashes from the backend database"),
 
 #ifdef WITH_MEMCACHE
-    AP_INIT_TAKE1("MirrorBrainInstance", mb_cmd_instance, NULL, 
-                  RSRC_CONF, 
+    AP_INIT_TAKE1("MirrorBrainInstance", mb_cmd_instance, NULL,
+                  RSRC_CONF,
                   "Name of the MirrorBrain instance (used by Memcache)"),
 
     AP_INIT_FLAG("MirrorBrainMemcached", mb_cmd_memcached_on, NULL,
-                  RSRC_CONF, 
+                  RSRC_CONF,
                   "Set to On/Off to use memcached to give clients repeatedly the same mirror"),
 
     AP_INIT_TAKE1("MirrorBrainMemcachedLifeTime", mb_cmd_memcached_lifetime, NULL,
-                  RSRC_CONF, 
+                  RSRC_CONF,
                   "Lifetime (in seconds) associated with stored objects in "
                   "memcache daemon(s). Default is 600 s."),
 #endif
 
-    AP_INIT_TAKE1("MirrorBrainMetalinkHashesPathPrefix", mb_cmd_metalink_hashes_prefix, NULL, 
-                  RSRC_CONF, 
+    AP_INIT_TAKE1("MirrorBrainMetalinkHashesPathPrefix", mb_cmd_metalink_hashes_prefix, NULL,
+                  RSRC_CONF,
                   "Prefix this path when looking for prepared hashes to inject into metalinks. "
                   "This directive is obsolete (with 2.13.0) and is going to be removed."),
 
     AP_INIT_FLAG("MirrorBrainHashesSuppressFilenames", mb_cmd_hashes_suppress_filenames, NULL,
-                  RSRC_CONF, 
+                  RSRC_CONF,
                   "Set to On to suppress the filename included when hashes are sent. "
                   "Normally, they come as \"99eaed37390ba0571f8d285829ff63fc  foobar\" "
                   "as in the format well-known from the md5sum/sha1sum tools. Default: Off"),
 
-    AP_INIT_TAKE2("MirrorBrainMetalinkPublisher", mb_cmd_metalink_publisher, NULL, 
-                  RSRC_CONF, 
+    AP_INIT_TAKE2("MirrorBrainMetalinkPublisher", mb_cmd_metalink_publisher, NULL,
+                  RSRC_CONF,
                   "Name and URL for the metalinks publisher elements"),
 
-    AP_INIT_TAKE1("MirrorBrainTorrentTrackerURL", mb_cmd_tracker_url, NULL, 
-                  RSRC_CONF, 
+    AP_INIT_TAKE1("MirrorBrainTorrentTrackerURL", mb_cmd_tracker_url, NULL,
+                  RSRC_CONF,
                   "Define the URL a BitTorrent Tracker to be included in Torrents and in Magnet "
                   "links. Directive can be repeated to specify multiple URLs."),
 
-    AP_INIT_TAKE2("MirrorBrainDHTNode", mb_cmd_dht_node, NULL, 
-                  RSRC_CONF, 
+    AP_INIT_TAKE2("MirrorBrainDHTNode", mb_cmd_dht_node, NULL,
+                  RSRC_CONF,
                   "Define a DHT node to be included in Torrents "
                   "links. Directive can be repeated to specify multiple nodes, and takes "
                   "two arguments (hostname, port)."),
 
-    AP_INIT_FLAG("MirrorBrainMetalinkMagnetLinks", mb_cmd_metalink_magnet_links, NULL, 
-                  RSRC_CONF, 
+    AP_INIT_FLAG("MirrorBrainMetalinkMagnetLinks", mb_cmd_metalink_magnet_links, NULL,
+                  RSRC_CONF,
                   "If set to On, Magnet links will be included in Metalinks. Default is Off."),
 
-    AP_INIT_TAKE1("MirrorBrainMetalinkBrokenTestMirrors", mb_cmd_metalink_broken_test_mirrors, NULL, 
-                  RSRC_CONF, 
+    AP_INIT_TAKE1("MirrorBrainMetalinkBrokenTestMirrors", mb_cmd_metalink_broken_test_mirrors, NULL,
+                  RSRC_CONF,
                   "Filename with snippet to include at the top of a metalink's "
                   "<resources> section, for testing broken mirrors"),
 
-    AP_INIT_TAKE1("MirrorBrainMirrorlistStyleSheet", mb_cmd_mirrorlist_stylesheet, NULL, 
-                  RSRC_CONF, 
+    AP_INIT_TAKE1("MirrorBrainMirrorlistStyleSheet", mb_cmd_mirrorlist_stylesheet, NULL,
+                  RSRC_CONF,
                   "Sets a CSS stylesheet to add to mirror lists"),
-    AP_INIT_TAKE1("MirrorBrainMirrorlistHeader", mb_cmd_mirrorlist_header, NULL, 
-                  RSRC_CONF, 
+    AP_INIT_TAKE1("MirrorBrainMirrorlistHeader", mb_cmd_mirrorlist_header, NULL,
+                  RSRC_CONF,
                   "Absolute path to header to be included at the top of the mirror "
                   "lists/details page, instead of the built-in header."),
-    AP_INIT_TAKE1("MirrorBrainMirrorlistFooter", mb_cmd_mirrorlist_footer, NULL, 
-                  RSRC_CONF, 
+    AP_INIT_TAKE1("MirrorBrainMirrorlistFooter", mb_cmd_mirrorlist_footer, NULL,
+                  RSRC_CONF,
                   "Absolute path to footer to be appended to the mirror "
                   "lists/details pages, instead of the built-in footer."),
 

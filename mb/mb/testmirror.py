@@ -47,7 +47,7 @@ def probe(S, http_method='GET'):
         try:
             response = urllib.request.urlopen(req)
         except KeyboardInterrupt:
-            print ('interrupted!', file=sys.stderr)
+            print('interrupted!', file=sys.stderr)
             raise
         except:
             return S
@@ -73,7 +73,7 @@ def probe(S, http_method='GET'):
             if S.http_code == 200:
                 S.has_file = True
             else:
-                print ('unhandled HTTP response code %r for URL %r' % (S.http_code, S.probeurl))
+                print('unhandled HTTP response code %r for URL %r' % (S.http_code, S.probeurl))
         elif S.scheme == 'ftp':
             # this works for directories. Not tested for files yet
             try:
@@ -228,8 +228,8 @@ def probes_run(probelist):
     except:
         pass
     if len(probelist) > 8 and not mp_mod:
-        print ('>>> No multiprocessing module was found installed. For parallelizing')
-        print ('>>> probing, install the "processing" or "multiprocessing" Python module.')
+        print('>>> No multiprocessing module was found installed. For parallelizing')
+        print('>>> probing, install the "processing" or "multiprocessing" Python module.')
 
     if mp_mod in ['processing', 'multiprocessing']:
         # FIXME make the pool size configurable

@@ -30,4 +30,4 @@ def find_first_file_in_tree(bdir):
 if __name__ == '__main__':
 
     bdir = sys.argv[1]
-    print (find_first_file_in_tree(bdir))
+    print(find_first_file_in_tree(bdir))

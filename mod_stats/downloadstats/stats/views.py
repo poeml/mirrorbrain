@@ -16,8 +16,7 @@ def stats_csv(request, year, month, day=None, by_country=True):
     else:
         writer.writerow(['Date', 'Product', 'Version', 'OS', 'Language', 'Downloads'])
 
-
-    products = [ i['product'] for i in Counter.objects.values('product').distinct() ]
+    products = [i['product'] for i in Counter.objects.values('product').distinct()]
 
     for product in products:
 
@@ -39,9 +38,3 @@ def stats_csv(request, year, month, day=None, by_country=True):
                 writer.writerow((i['date'], i['product'], i['version'], i['osname'], i['lang'], i['counter']))
 
     return response
-
-
-
-
-
-

@@ -27,10 +27,10 @@
 
 /* mod_autoindex_mb.c: Optionally adds metalinks and mirrorlists to the HTML
  *
- * For use with transparent metalink generators, like mod_mirrorbrain 
+ * For use with transparent metalink generators, like mod_mirrorbrain
  * (http://mirrorbrain.org)
  * Based on mod_autoindex from httpd 2.2.8
- * 
+ *
  * Peter Poeml
  * 2008-04-19
  */
@@ -1794,7 +1794,7 @@ static void output_directories(struct ent **ar, int n,
             }
             if (autoindex_opts & MIRRORLIST) {
                 if (anchor[strlen(anchor)-1] != '/') { /* not for directories */
-                        ap_rvputs(r, " </td><td><a href=\"", anchor, 
+                        ap_rvputs(r, " </td><td><a href=\"", anchor,
                                   ".mirrorlist\">Details</a>", NULL);
                 }
                 else {
@@ -1889,7 +1889,7 @@ static void output_directories(struct ent **ar, int n,
             }
             if (anchor[strlen(anchor)-1] != '/') { /* not for directories */
                     if (autoindex_opts & MIRRORLIST) {
-                            ap_rvputs(r, " <a href=\"", anchor, 
+                            ap_rvputs(r, " <a href=\"", anchor,
                                       ".mirrorlist\">Details</a>", NULL);
                     }
             }

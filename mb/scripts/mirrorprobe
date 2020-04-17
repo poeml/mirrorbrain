@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 ################################################################################
-# mirrorprobe -- fetch mirrors from a database, try to access them and mark them 
+# mirrorprobe -- fetch mirrors from a database, try to access them and mark them
 #                as "up" or "down".
 #
 # Copyright (C) 2007,2008,2009 Peter Poeml <poeml@cmdline.net>, Novell Inc.
@@ -22,8 +22,15 @@
 ################################################################################
 
 
-import sys, os, os.path, time, threading, socket, requests
-import logging, logging.handlers
+import sys
+import os
+import os.path
+import time
+import threading
+import socket
+import requests
+import logging
+import logging.handlers
 from optparse import OptionParser
 from sqlobject import *
 from sqlobject.sqlbuilder import AND
@@ -31,6 +38,7 @@ from sqlobject.sqlbuilder import AND
 import mb.appinfo
 USER_AGENT = 'MirrorBrain Probe (see http://mirrorbrain.org/probe_info)'
 DEFAULT_TIMEOUT = 20
+
 
 def reenable(mirror):
     comment = mirror.comment or ''
@@ -47,9 +55,9 @@ def probe_http(mirror):
 
         logging.debug("%s probing %s" % (threading.currentThread().getName(), mirror.identifier))
         request_headers = {
-                            'User-Agent': USER_AGENT,
-                            'Accept': '*/*'
-                          }
+            'User-Agent': USER_AGENT,
+            'Accept': '*/*'
+        }
 
         #req.get_method = lambda: "HEAD"
 
@@ -62,7 +70,7 @@ def probe_http(mirror):
             return None
 
         try:
-            response = requests.get(mirror.baseurl, headers = request_headers)
+            response = requests.get(mirror.baseurl, headers=request_headers)
 
             try:
                 mirror.response_code = response.status_code
@@ -79,7 +87,6 @@ def probe_http(mirror):
             mirror.response = response.read()
             mirror.status_baseurl_new = True
 
-
         except ValueError as e:
             if str(e).startswith('invalid literal for int()'):
                 mirror.response = 'response not read due to http://bugs.python.org/issue1205'
@@ -95,7 +102,7 @@ def probe_http(mirror):
         except httplib.BadStatusLine:
             mirror.response_code = None
             mirror.response = None
-            
+
         except requests.HTTPError as e:
             mirror.response_code = e.responsse.status_code
             mirror.response = e.content
@@ -115,12 +122,12 @@ def probe_http(mirror):
                 mirror.response_code = 0
                 mirror.response = "%s: %s" % (e.errno, e.strerror)
             else:
-                print (mirror.identifier, mirror.baseurl, 'errno:', e.errno)
+                print(mirror.identifier, mirror.baseurl, 'errno:', e.errno)
                 raise
 
         except Exception as e:
-            print ('unhandled exception %s' % e)
-            print (mirror.identifier, mirror.baseurl)
+            print('unhandled exception %s' % e)
+            print(mirror.identifier, mirror.baseurl)
             raise
 
     except Exception as e:
@@ -129,7 +136,6 @@ def probe_http(mirror):
 
     # not reached, if the timeout goes off
     mirror.timed_out = False
-
 
 
 def main():
@@ -148,12 +154,10 @@ def main():
     import mb.conf
     import mb.mberr
     try:
-        config = mb.conf.Config(conffile = configpath, instance = brain_instance)
+        config = mb.conf.Config(conffile=configpath, instance=brain_instance)
     except mb.mberr.NoConfigfile as e:
-        print (e.msg, file=sys.stderr)
+        print(e.msg, file=sys.stderr)
         sys.exit(1)
-
-
 
     LOGLEVEL = config.mirrorprobe.get('loglevel', 'INFO')
     LOGFILE = config.mirrorprobe.get('logfile', '/var/log/mirrorbrain/mirrorprobe.log')
@@ -200,21 +204,20 @@ def main():
                       metavar="TIMEOUT")
 
     parser.add_option("-n", "--no-run",
-                      dest="no_run", 
+                      dest="no_run",
                       default=False,
-                      action="store_true", 
+                      action="store_true",
                       help="don't update the database. Only look")
 
     parser.add_option("-e", "--enable-revived",
-                      dest="enable_revived", 
+                      dest="enable_revived",
                       default=False,
-                      action="store_true", 
+                      action="store_true",
                       help="enable revived servers")
 
     (options, args) = parser.parse_args()
 
     socket.setdefaulttimeout(int(options.timeout))
-
 
     # an "are you alive check" is relatively useless if it is answered by an intermediate cache
     for i in ['http_proxy', 'HTTP_PROXY', 'ftp_proxy', 'FTP_PROXY']:
@@ -233,20 +236,20 @@ def main():
                         datefmt=DATEFORMAT,
                         filename=options.logfile,
                         filemode='a')
-    ## to console
+    # to console
     #console = logging.StreamHandler()
-    #console.setLevel(logging.getLevelName(options.loglevel))
+    # console.setLevel(logging.getLevelName(options.loglevel))
     #formatter = logging.Formatter(LOGFORMAT, DATEFORMAT)
-    #console.setFormatter(formatter)
-    #logging.getLogger('').addHandler(console)
+    # console.setFormatter(formatter)
+    # logging.getLogger('').addHandler(console)
 
     # warnings will be mailed
     try:
-        fromdomain = socket.gethostbyaddr(socket.gethostname())[0] 
+        fromdomain = socket.gethostbyaddr(socket.gethostname())[0]
     except:
         fromdomain = ''
-    toaddrs = [ i.strip() for i in options.mailto.split(',') ]
-    mail = logging.handlers.SMTPHandler('localhost', 
+    toaddrs = [i.strip() for i in options.mailto.split(',')]
+    mail = logging.handlers.SMTPHandler('localhost',
                                         'root@' + fromdomain,
                                         toaddrs,
                                         'no_subject')
@@ -255,15 +258,13 @@ def main():
     mail.setFormatter(mailformatter)
     logging.getLogger('').addHandler(mail)
 
-
     #
     # setup database connection
     #
     import mb.conn
-    conn = mb.conn.Conn(config.dbconfig, 
-                        version = mb.appinfo.parsed_version,
-                        debug = (options.loglevel == 'DEBUG'))
-
+    conn = mb.conn.Conn(config.dbconfig,
+                        version=mb.appinfo.parsed_version,
+                        debug=(options.loglevel == 'DEBUG'))
 
     #
     # get mirrors from database
@@ -296,8 +297,8 @@ def main():
         #mirror.status_baseurl_new = False
         #mirror.timed_out = True
 
-        t = threading.Thread(target=probe_http, 
-                             args=[mirrors[i]], 
+        t = threading.Thread(target=probe_http,
+                             args=[mirrors[i]],
                              name="probeThread-%s (%s)" % (mirror.id, mirror.identifier))
         # thread will keep the program from terminating.
         t.setDaemon(0)
@@ -306,7 +307,6 @@ def main():
     while threading.activeCount() > 1:
         logging.debug('waiting for %s threads to exit' % (threading.activeCount() - 1))
         time.sleep(1)
-
 
     for mirror in mirrors:
 
@@ -317,7 +317,7 @@ def main():
             if mirror.response_code and (mirror.response_code != 200):
 
                 mail.getSubject = lambda x: '[%s] mirrorprobe warning: %s replied with %s' \
-                                    % (config.instance, mirror.identifier, mirror.response_code)
+                    % (config.instance, mirror.identifier, mirror.response_code)
 
                 logging.debug("""%s: (%s): response code not 200: %s: 
 I am not disabling this host, and continue to watch it...
@@ -361,8 +361,6 @@ I am not disabling this host, and continue to watch it...
                 logging.info('re-enabling %s' % mirror.identifier)
                 if not options.no_run:
                     reenable(mirror)
-
-
 
 
 if __name__ == '__main__':
