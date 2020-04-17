@@ -113,7 +113,9 @@
 #define APR_ARRAY_PUSH(ary,type) (*((type *)apr_array_push(ary)))
 #endif
 
+#ifndef MOD_MIRRORBRAIN_VER
 #define MOD_MIRRORBRAIN_VER "2.19.0"
+#endif
 #define VERSION_COMPONENT "mod_mirrorbrain/"MOD_MIRRORBRAIN_VER
 
 /* no space for time zones is provided here */
