@@ -18,6 +18,7 @@ logrotate_files = [
 install_data(script_files,
     install_dir: get_option('bindir'),
     install_mode: ['rwxr-xr-x'],
+    rename: ['scanner'],
 )
 
 if get_option('tools')
