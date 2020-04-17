@@ -4,5 +4,5 @@ option('memcached', type : 'boolean', value : true,
 option('install-icons', type : 'boolean', value : true,
        description: 'Install FamFam icons (to datadir)')
 
-option('tools', type : 'boolean', value : true,
+option('tools', type : 'boolean', value : false,
        description: 'Install additional tools from the tools directory')

@@ -1,10 +1,13 @@
 script_files = [
+    'scanner.pl',
+]
+
+extra_script_files = [
     'bdecode',
     'rsyncinfo',
     'rsyncusers',
     'create_timestamp',
     'null-rsync',
-    'scanner.pl',
 ]
 
 logrotate_files = [
@@ -16,6 +19,13 @@ install_data(script_files,
     install_dir: get_option('bindir'),
     install_mode: ['rwxr-xr-x'],
 )
+
+if get_option('tools')
+install_data(extra_script_files,
+    install_dir: get_option('bindir'),
+    install_mode: ['rwxr-xr-x'],
+)
+endif
 
 install_data(logrotate_files,
     install_dir: '/etc/logrotate.d',
