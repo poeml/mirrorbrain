@@ -1,0 +1,2 @@
+option('memcached', type : 'boolean', value : false,
+       description: 'Build mod_mirrorbrain with memcached support')
