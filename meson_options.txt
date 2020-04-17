@@ -1,2 +1,5 @@
 option('memcached', type : 'boolean', value : false,
        description: 'Build mod_mirrorbrain with memcached support')
+
+option('install-icons', type : 'boolean', value : true,
+       description: 'Install FamFam icons (to datadir)')
