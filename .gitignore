@@ -7,3 +7,4 @@ mod_mirrorbrain/mod_mirrorbrain.lo
 mod_mirrorbrain/mod_mirrorbrain.slo
 t/docker/lib/src/sql
 /**/*.mmdb
+/build/
