@@ -11,3 +11,6 @@ apr = dependency('apr-1', required: true)
 subdir('mod_mirrorbrain')
 subdir('mod_autoindex_mb')
 subdir('mb')
+if get_option('tools')
+  subdir('tools')
+endif
