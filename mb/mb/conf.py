@@ -14,7 +14,7 @@ DEFAULTS = {'zsync_hashes': False,
 
 
 class Config:
-    """this class sets up a number dictionaries that contain configuration 
+    """this class sets up a number dictionaries that contain configuration
     read from a configuration file (per default form mirrorbrain.conf):
 
     self.general       # the [general] section

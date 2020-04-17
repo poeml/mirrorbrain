@@ -98,7 +98,7 @@ def gen_open(filenames):
 
 
 def gen_cat(sources):
-    """Concatenate items from one or more 
+    """Concatenate items from one or more
     source into a single sequence of items"""
     for s in sources:
         for item in s:

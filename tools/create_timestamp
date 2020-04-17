@@ -56,7 +56,7 @@ Thanks.
 
 if len(sys.argv) < 2:
     sys.exit("""Missing argument.
-Usage: 
+Usage:
 
   %s [username:groupname] timestampfile1 [timestampfile2...]
 """ % os.path.basename(sys.argv[0]))

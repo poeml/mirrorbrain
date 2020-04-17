@@ -11,14 +11,14 @@ postgresql_template = """\
 -- %(identifier)s
 --
 INSERT INTO server (
-  identifier, baseurl, baseurl_ftp, baseurl_rsync, enabled, status_baseurl, 
+  identifier, baseurl, baseurl_ftp, baseurl_rsync, enabled, status_baseurl,
   region, country, asn, prefix,
   score, comment, operator_name, operator_url, public_notes,
   admin, admin_email, lat, lng,
-  country_only, region_only, as_only, prefix_only, 
+  country_only, region_only, as_only, prefix_only,
   other_countries, file_maxsize, scan_fpm)
 VALUES (
-  '%(identifier)s', '%(baseurl)s', '%(baseurlFtp)s', '%(baseurlRsync)s', '%(enabled)s', '%(statusBaseurl)s', 
+  '%(identifier)s', '%(baseurl)s', '%(baseurlFtp)s', '%(baseurlRsync)s', '%(enabled)s', '%(statusBaseurl)s',
   '%(region)s', '%(country)s', '%(asn)s', '%(prefix)s',
   '%(score)s', $QUOTE$%(comment)s$QUOTE$, $QUOTE$%(operatorName)s$QUOTE$, '%(operatorUrl)s', $QUOTE$%(publicNotes)s$QUOTE$,
   $QUOTE$%(admin)s$QUOTE$, $QUOTE$%(adminEmail)s$QUOTE$, '%(lat)s', '%(lng)s',

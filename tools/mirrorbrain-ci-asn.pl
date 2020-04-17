@@ -58,7 +58,7 @@ $tree->insert_network(
   {
     'autonomous_system_number' => 1232,
     'autonomous_system_organization' => 'ACME Inc',
-    'prefix_len' => 32, 
+    'prefix_len' => 32,
   },
 );
 
@@ -67,7 +67,7 @@ $tree->insert_network(
   {
     'autonomous_system_number' => 1233,
     'autonomous_system_organization' => 'ACME GmbH',
-    'prefix_len' => 32, 
+    'prefix_len' => 32,
   },
 );
 
@@ -76,7 +76,7 @@ $tree->insert_network(
   {
     'autonomous_system_number' => 1234,
     'autonomous_system_organization' => 'ACME Asia Inc',
-    'prefix_len' => 32, 
+    'prefix_len' => 32,
   },
 );
 

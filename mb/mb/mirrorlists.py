@@ -90,7 +90,7 @@ def xhtml(conn, opts, mirrors, markers):
     <title>%(title)s</title>
     <link type="text/css" rel="stylesheet" href="/mirrorbrain.css" />
     <link href="/favicon.ico" rel="shortcut icon" />
-  
+
     <meta http-equiv="Language" content="en" />
     <meta name="description" content="Download Mirrors" />
     <meta name="keywords" content="download metalink redirector mirror mirrors" />
@@ -144,7 +144,7 @@ def xhtml(conn, opts, mirrors, markers):
     <tbody>
 """
     row_template = """\
-      <td> <img src="%(img_link)s" 
+      <td> <img src="%(img_link)s"
                 width="16" height="11" alt="%(country_code)s" /> %(country_name)s</td>
       <td><a href="%(operatorUrl)s">%(operatorName)s</a></td>
       <td>%(http_link)s</td>

@@ -153,12 +153,12 @@ class Hasheable:
             for i in self.hb.zsums:
                 zsums = zsums + i.hexdigest()
 
-            c.execute("""INSERT INTO hash (file_id, mtime, size, md5, 
-                                           sha1, sha256, sha1piecesize, 
+            c.execute("""INSERT INTO hash (file_id, mtime, size, md5,
+                                           sha1, sha256, sha1piecesize,
                                            sha1pieces, btih, pgp, zblocksize,
-                                           zhashlens, zsums) 
-                         VALUES (%s, %s, %s, 
-                                 decode(%s, 'hex'), decode(%s, 'hex'), 
+                                           zhashlens, zsums)
+                         VALUES (%s, %s, %s,
+                                 decode(%s, 'hex'), decode(%s, 'hex'),
                                  decode(%s, 'hex'), %s, decode(%s, 'hex'),
                                  decode(%s, 'hex'),
                                  %s, %s, %s, decode(%s, 'hex'))""",
@@ -196,12 +196,12 @@ class Hasheable:
             for i in self.hb.zsums:
                 zsums = zsums + i.hexdigest()
 
-            c.execute("""UPDATE hash set mtime = %s, size = %s, 
-                                         md5 = decode(%s, 'hex'), 
-                                         sha1 = decode(%s, 'hex'), 
-                                         sha256 = decode(%s, 'hex'), 
+            c.execute("""UPDATE hash set mtime = %s, size = %s,
+                                         md5 = decode(%s, 'hex'),
+                                         sha1 = decode(%s, 'hex'),
+                                         sha256 = decode(%s, 'hex'),
                                          sha1piecesize = %s,
-                                         sha1pieces = decode(%s, 'hex'), 
+                                         sha1pieces = decode(%s, 'hex'),
                                          btih = decode(%s, 'hex'),
                                          pgp = %s,
                                          zblocksize = %s,

@@ -59,7 +59,7 @@ br.open(url)
 
 print('directories:')
 for link in br.links(url_regex=re.compile(r"""
-        ^(?!(http|mailto|\?|/)) 
+        ^(?!(http|mailto|\?|/))
         .*
         /$
         """, re.X)):

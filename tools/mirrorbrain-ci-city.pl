@@ -105,7 +105,7 @@ $tree->insert_network(
 $tree->insert_network(
   '127.0.0.3/32',
   {
-    'location' => { 
+    'location' => {
       'accuracy_radius' => 200,
       'latitude' => 49.4167,
       'longitude' => 8.7,

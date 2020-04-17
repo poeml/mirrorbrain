@@ -161,7 +161,7 @@ class Conn:
         except (dberrors.ProgrammingError, psycopg2.ProgrammingError):
             print('Your database needs to be upgraded (to >2.18.0): creating "version" table...')
 
-            query = """CREATE TABLE version ( 
+            query = """CREATE TABLE version (
                            "id" serial NOT NULL PRIMARY KEY,
                            "component" text NOT NULL,
                            "major" INTEGER NOT NULL,
@@ -283,15 +283,15 @@ class Conn:
             """
             Filearr._connection.query(query)
             query = """
-            CREATE VIEW hexhash AS 
-              SELECT file_id, mtime, size, 
+            CREATE VIEW hexhash AS
+              SELECT file_id, mtime, size,
                      md5,
-                     encode(md5, 'hex') AS md5hex, 
+                     encode(md5, 'hex') AS md5hex,
                      sha1,
-                     encode(sha1, 'hex') AS sha1hex, 
+                     encode(sha1, 'hex') AS sha1hex,
                      sha256,
-                     encode(sha256, 'hex') AS sha256hex, 
-                     sha1piecesize, 
+                     encode(sha256, 'hex') AS sha256hex,
+                     sha1piecesize,
                      sha1pieces,
                      encode(sha1pieces, 'hex') AS sha1pieceshex,
                      btih,

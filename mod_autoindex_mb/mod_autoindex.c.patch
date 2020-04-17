@@ -2,7 +2,7 @@ This patch is not meant to be applied to mod_autoindex in the httpd source tree.
 It is meant to illustrate in what way mod_autoindex_mb differs from mod_autoindex.
 
 Only one module can be loaded at a time - either mod_autoindex or mod_autoindex_mb.
-The two modules can not usefully run side by side, because they share the same 
+The two modules can not usefully run side by side, because they share the same
 configuration directives.
 The module name differs, so that it can be explicit which module is loaded.
 
@@ -14,13 +14,13 @@ installing it side-by-side).
 @@ -25,6 +25,16 @@
   * Version sort added by Martin Pool <mbp@humbug.org.au>.
   */
- 
+
 +/* mod_autoindex_mb.c: Optionally adds metalinks and mirrorlists to the HTML
 + *
-+ * For use with transparent metalink generators, like mod_mirrorbrain 
++ * For use with transparent metalink generators, like mod_mirrorbrain
 + * (http://mirrorbrain.org)
 + * Based on mod_autoindex from httpd 2.2.11
-+ * 
++ *
 + * Peter Poeml
 + * 2008-04-19
 + */
@@ -29,12 +29,12 @@ installing it side-by-side).
  #include "apr_fnmatch.h"
  #include "apr_strings.h"
 @@ -45,7 +55,7 @@
- 
+
  #include "mod_core.h"
- 
+
 -module AP_MODULE_DECLARE_DATA autoindex_module;
 +module AP_MODULE_DECLARE_DATA autoindex_mb_module;
- 
+
  /****************************************************************
   *
 @@ -71,6 +81,8 @@ module AP_MODULE_DECLARE_DATA autoindex_
@@ -43,16 +43,16 @@ installing it side-by-side).
  #define SHOW_FORBIDDEN      (1 << 18)
 +#define METALINK            (1 << 28)
 +#define MIRRORLIST          (1 << 29)
- 
+
  #define K_NOADJUST 0
  #define K_ADJUST 1
 @@ -159,7 +171,7 @@ static void emit_preamble(request_rec *r
      autoindex_config_rec *d;
- 
+
      d = (autoindex_config_rec *) ap_get_module_config(r->per_dir_config,
 -                                                      &autoindex_module);
 +                                                      &autoindex_mb_module);
- 
+
      if (xhtml) {
          ap_rvputs(r, DOCTYPE_XHTML_1_0T,
 @@ -405,6 +417,12 @@ static const char *add_opts(cmd_parms *c
@@ -102,11 +102,11 @@ installing it side-by-side).
 +            }
 +            if (anchor[strlen(anchor)-1] != '/') { /* not for directories */
 +                    if (autoindex_opts & MIRRORLIST) {
-+                            ap_rvputs(r, " <a href=\"", anchor, 
++                            ap_rvputs(r, " <a href=\"", anchor,
 +                                      "?mirrorlist\">Mirrors</a>", NULL);
 +                    }
 +                    if (autoindex_opts & METALINK) {
-+                            ap_rvputs(r, " <a href=\"", anchor, 
++                            ap_rvputs(r, " <a href=\"", anchor,
 +                                      ".metalink\">Metalink</a>", NULL);
 +                    }
              }
@@ -114,27 +114,27 @@ installing it side-by-side).
          }
 @@ -2243,7 +2282,8 @@ static int index_directory(request_rec *
      apr_dir_close(thedir);
- 
+
      emit_tail(r, find_readme(autoindex_conf, r),
 -              autoindex_opts & SUPPRESS_PREAMBLE);
 +              autoindex_opts & SUPPRESS_PREAMBLE,
 +              autoindex_opts & (MIRRORLIST | METALINK));
- 
+
      return 0;
  }
 @@ -2262,7 +2302,7 @@ static int handle_autoindex(request_rec
      allow_opts = ap_allow_options(r);
- 
+
      d = (autoindex_config_rec *) ap_get_module_config(r->per_dir_config,
 -                                                      &autoindex_module);
 +                                                      &autoindex_mb_module);
- 
+
      r->allowed |= (AP_METHOD_BIT << M_GET);
      if (r->method_number != M_GET) {
 @@ -2301,7 +2341,7 @@ static void register_hooks(apr_pool_t *p
      ap_hook_handler(handle_autoindex,NULL,NULL,APR_HOOK_MIDDLE);
  }
- 
+
 -module AP_MODULE_DECLARE_DATA autoindex_module =
 +module AP_MODULE_DECLARE_DATA autoindex_mb_module =
  {

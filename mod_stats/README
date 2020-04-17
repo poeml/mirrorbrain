@@ -6,23 +6,23 @@ The Apache module isn't usable at this time. Instructions how to build it
 are here just for archive purposes:
 
     # packages:
-    
+
     http://download.opensuse.org/repositories/Apache:/Modules/
-    
-    
+
+
     # build and install man manually:
-    
+
     sudo apxs2 -ci -Wc,"-Wall -g" mod_stats.c
-    
+
     a2enmod dbd
     a2enmod stats
-    
+
     copy mod_dbd.conf to /etc/apache2 and include it server-wide (via
     /etc/sysconfig/apache2:APACHE_CONF_INCLUDE_FILES)
-    
+
     copy contents of mod_stats.conf into your virtual host configuration.
-    
-    
+
+
 
 
 Archiving and pruning old data from the 'stats_counter' table:

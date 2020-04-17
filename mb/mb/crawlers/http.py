@@ -3,8 +3,8 @@ from mechanize import Browser
 import mb.core
 
 _match_dir = re.compile(r"""
-            ^(?!(http|mailto|\?|/))     # doesn't start with http, mailto, 
-                                        # or slash (because that's the link to the 
+            ^(?!(http|mailto|\?|/))     # doesn't start with http, mailto,
+                                        # or slash (because that's the link to the
                                         # parent dir)
             .*
             /$                          # ends in a slash

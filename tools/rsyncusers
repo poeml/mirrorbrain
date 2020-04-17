@@ -53,7 +53,7 @@ except NameError:
 
 
 def gen_find(filepat, top):
-    """Generate all filenames in a directory tree 
+    """Generate all filenames in a directory tree
     that match a given filename pattern"""
     import os
     import fnmatch
@@ -76,7 +76,7 @@ def gen_open(filenames):
 
 
 def gen_cat(sources):
-    """Concatenate items from one or more 
+    """Concatenate items from one or more
     source into a single sequence of items"""
     for s in sources:
         for item in s:
@@ -84,7 +84,7 @@ def gen_cat(sources):
 
 
 def gen_grep(pat, lines):
-    """Generate a sequence of lines that contain 
+    """Generate a sequence of lines that contain
     a given regular expression"""
     import re
     patc = re.compile(pat)

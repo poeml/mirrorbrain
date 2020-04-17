@@ -25,7 +25,7 @@ def has_file(conn, path, mirror_id):
 def check_for_marker_files(conn, markers, mirror_id):
     """
     Check if all files in the markers list are present on a mirror,
-    according to the database. 
+    according to the database.
 
     Markers actually a list of marker files.
 
@@ -42,7 +42,7 @@ def check_for_marker_files(conn, markers, mirror_id):
 
 
 def ls(conn, path):
-    """If path contains a wildcard (* or %): 
+    """If path contains a wildcard (* or %):
 
     Return all paths known to the database that start match the given path
     argument (containing wildcards).
@@ -123,7 +123,7 @@ def dir_ls(conn, segments=1, mirror=None):
 
 def dir_show_mirrors(conn, path, missing=False):
     """Show mirrors on which a certain directory path was found.
-    The path could actually also be a file, it doesn't matter, but 
+    The path could actually also be a file, it doesn't matter, but
     directory is what we are looking for in the context that this function was
     written for.
     """
@@ -158,9 +158,9 @@ def dir_filelist(conn, path):
     The returned filenames include their path."""
 
     query = """SELECT filearr.path, hash.file_id
-                   FROM filearr 
-               LEFT JOIN hash 
-                   ON hash.file_id = filearr.id 
+                   FROM filearr
+               LEFT JOIN hash
+                   ON hash.file_id = filearr.id
                WHERE filearr.dirname = '%s/'""" % util.pgsql_regexp_esc(path)
 
     result = conn.Server._connection.queryAll(query)
@@ -174,9 +174,9 @@ def hashes_list_delete(conn, idlist):
     if not len(idlist):
         return
 
-    query = """BEGIN; 
-               DELETE FROM hash 
-               WHERE file_id IN ( %s ); 
+    query = """BEGIN;
+               DELETE FROM hash
+               WHERE file_id IN ( %s );
                COMMIT""" % ', '.join([str(i) for i in idlist])
     conn.Filearr._connection.query(query)
 
@@ -196,9 +196,9 @@ def hashes_dir_delete(conn, base):
     filearr table starting with 'base'.
     This means we recursively delete hashes below a given directory."""
 
-    query = """DELETE FROM hash 
+    query = """DELETE FROM hash
                WHERE file_id IN (
-                   SELECT filearr.id FROM filearr 
+                   SELECT filearr.id FROM filearr
                    WHERE path LIKE '%s/%%'
                )""" % base
     conn.Filearr._connection.query(query)
