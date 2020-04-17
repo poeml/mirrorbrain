@@ -508,9 +508,9 @@ static void *merge_mb_server_config(apr_pool_t *p, void *basev, void *addv)
     cfgMergeString(mirrorlist_header);
     cfgMergeString(mirrorlist_footer);
     cfgMergeBool(only_hash);
-    mrg->query = (add->query != (char *) DEFAULT_QUERY) ? add->query : base->query;
+    mrg->query = (strcmp(add->query, (char *) DEFAULT_QUERY) != 0) ? add->query : base->query;
     cfgMergeString(query_label);
-    mrg->query_hash = (add->query_hash != (char *) DEFAULT_QUERY_HASH)
+    mrg->query_hash = (strcmp(add->query_hash, (char *) DEFAULT_QUERY_HASH) != 0)
                       ? add->query_hash : base->query_hash;
     cfgMergeString(query_hash_label);
 
