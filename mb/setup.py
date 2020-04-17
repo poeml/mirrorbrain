@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 from setuptools import setup, Extension
-import sys
 
 import mb.appinfo
 
