@@ -8,7 +8,7 @@ class Counter(models.Model):
     #year = models.PositiveSmallIntegerField()
     #day = models.PositiveSmallIntegerField()
     date = models.DateField(db_index=True)
-    
+
     product = models.CharField(max_length=256, db_index=True)
 
     # all these should probably called attr1, attr2, attr3, ...
@@ -20,9 +20,8 @@ class Counter(models.Model):
     count = models.IntegerField(default=1)
 
     def __unicode__(self):
-        return u'%s / %s / %s / %s / %s' % (self.product, 
-                                        self.osname,
-                                        self.version,
-                                        self.lang,
-                                        self.country)
-
+        return u'%s / %s / %s / %s / %s' % (self.product,
+                                            self.osname,
+                                            self.version,
+                                            self.lang,
+                                            self.country)

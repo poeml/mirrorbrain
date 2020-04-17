@@ -8,16 +8,16 @@ import mb.appinfo
 requirements = [i.strip() for i in open("requirements.txt").readlines()]
 
 s = setup(
-    name         = 'mb',
-    version      = mb.appinfo.version,
-    description  = 'mb, a tool to maintain the MirrorBrain database',
-    author       = mb.appinfo.author_name,
-    author_email = mb.appinfo.author_email,
-    license      = mb.appinfo.license,
-    url          = mb.appinfo.url,
+    name='mb',
+    version=mb.appinfo.version,
+    description='mb, a tool to maintain the MirrorBrain database',
+    author=mb.appinfo.author_name,
+    author_email=mb.appinfo.author_email,
+    license=mb.appinfo.license,
+    url=mb.appinfo.url,
 
-    packages     = ['mb'],
-    scripts      = ['scripts/mb', 'scripts/mirrorprobe'],
+    packages=['mb'],
+    scripts=['scripts/mb', 'scripts/mirrorprobe'],
     # We enforce python 3.5 here as that matches the list
     # of the geoip2 dependency
     python_requires=">=3.5",

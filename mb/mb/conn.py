@@ -159,7 +159,7 @@ class Conn:
                 raise
 
         except (dberrors.ProgrammingError, psycopg2.ProgrammingError):
-            print ('Your database needs to be upgraded (to >2.18.0): creating "version" table...')
+            print('Your database needs to be upgraded (to >2.18.0): creating "version" table...')
 
             query = """CREATE TABLE version ( 
                            "id" serial NOT NULL PRIMARY KEY,
@@ -173,12 +173,12 @@ class Conn:
 
             try:
                 # the following modification came with 2.17.0
-                print ("checking server table if ipv6_only column exists...",)
+                print("checking server table if ipv6_only column exists...",)
                 query = "ALTER TABLE server ADD COLUMN ipv6_only boolean NOT NULL default 'f';"
                 SQLObject._connection.query(query)
-                print ("created.")
+                print("created.")
             except (dberrors.ProgrammingError, psycopg2.ProgrammingError):
-                print ("already there.")
+                print("already there.")
 
         if self.Version:
             mbversion = self.Version.select("""component = 'mirrorbrain'""")[0]
@@ -190,12 +190,12 @@ class Conn:
                         and mbversion.minor == version.minor
                         and mbversion.patchlevel < version.patchlevel):
 
-                print ('found database version %s.%s.%s, older than us: %s >>>>>>>> upgrading' \
-                    % (mbversion.major, mbversion.minor, mbversion.patchlevel, version))
+                print('found database version %s.%s.%s, older than us: %s >>>>>>>> upgrading'
+                      % (mbversion.major, mbversion.minor, mbversion.patchlevel, version))
                 query = "UPDATE version SET major=%s, minor=%s, patchlevel=%s WHERE component='mirrorbrain';" \
                         % (version.major, version.minor, version.patchlevel)
                 SQLObject._connection.query(query)
-                print ("done.")
+                print("done.")
 
         class Server(SQLObject):
             """the server table"""
@@ -262,8 +262,8 @@ class Conn:
             #     maybe a separate module with upgrade procedures to be run would be better.
             #     The main point is that this is a migration that we want to happen fully automatically.
             # added 2.12.x -> 2.13.0
-            print ('', file=sys.stderr)
-            print ('>>> A database table for hashes does not exit. Creating...', file=sys.stderr)
+            print('', file=sys.stderr)
+            print('>>> A database table for hashes does not exit. Creating...', file=sys.stderr)
             query = """
             CREATE TABLE "hash" (
                     "file_id" INTEGER REFERENCES filearr PRIMARY KEY,
@@ -317,8 +317,8 @@ class Conn:
             ' LANGUAGE 'SQL';
             """
             Filearr._connection.query(query)
-            print ('>>> Done.', file=sys.stderr)
-            print ('', file=sys.stderr)
+            print('>>> Done.', file=sys.stderr)
+            print('', file=sys.stderr)
             # now try again
 
             class Hash(SQLObject):

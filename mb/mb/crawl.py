@@ -21,7 +21,7 @@ def get_filelist(url):
         try:
             mode, size, date, time, name = line.split(None, 4)
         except:
-            print (repr(line))
+            print(repr(line))
             import sys
             sys.exit(1)
         name = name.rstrip()
@@ -40,7 +40,7 @@ def get_filelist(url):
             continue
         else:
             # something unknown...
-            print ('skipping', line)
+            print('skipping', line)
 
     err = child_stderr.read()
 
@@ -57,24 +57,24 @@ br = Browser()
 br.open(url)
 
 
-print ('directories:')
+print('directories:')
 for link in br.links(url_regex=re.compile(r"""
         ^(?!(http|mailto|\?|/)) 
         .*
         /$
         """, re.X)):
     # print (link.url)
-    print (link.base_url[burl_len:] + link.url)
+    print(link.base_url[burl_len:] + link.url)
 
-print ()
-print ('files:')
+print()
+print('files:')
 for link in br.links(url_regex=re.compile(r"""
         ^(?!(http|mailto|\?|/))
         .*
         [^/]$
         """, re.X)):
     # print (link)
-    print (link.base_url[burl_len:] + link.url)
+    print(link.base_url[burl_len:] + link.url)
 
 for line in get_filelist('rsync.opensuse.org::opensuse-updates'):
-    print (line)
+    print(line)

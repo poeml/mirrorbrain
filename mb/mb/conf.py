@@ -38,7 +38,7 @@ class Config:
         try:
             cp.read(conffile)
         except configparser.ParsingError as e:
-            print (e)
+            print(e)
             sys.exit(2)
 
         #

@@ -8,6 +8,7 @@ import socket
 t_start = 0
 rsync_version = None
 
+
 class VersionParser:
     def __init__(self, vers):
         self.vers = vers
@@ -37,7 +38,7 @@ class Afile:
 class MirrorBrainHost:
     """represent an IP address, or rather some data associated with it"""
 
-    def __init__(self, address, maxmind_asn_db = '/var/lib/GeoIP/GeoLite2-ASN.mmdb', maxmind_city_db = '/var/lib/GeoIP/GeoLite2-City.mmdb'):
+    def __init__(self, address, maxmind_asn_db='/var/lib/GeoIP/GeoLite2-ASN.mmdb', maxmind_city_db='/var/lib/GeoIP/GeoLite2-City.mmdb'):
         self.address = address
         self.ip = None
         self.ip6 = None
@@ -57,10 +58,8 @@ class MirrorBrainHost:
     def country_code(self):
         return self.city_info.country.iso_code.lower()
 
-
     def region_code(self):
         return self.city_info.continent.code.lower()
-
 
     def coordinates(self):
         lat = round(self.city_info.location.latitude, 3)
@@ -82,7 +81,7 @@ class MirrorBrainHost:
         return ' '.join(r)
 
     def _find_city_info(self):
-        self.city_db   = geoip2.database.Reader(self.maxmind_city_db)
+        self.city_db = geoip2.database.Reader(self.maxmind_city_db)
         if self.ip:
             try:
                 self.city_info = self.city_db.city(self.ip)
@@ -99,13 +98,13 @@ class MirrorBrainHost:
 
     def _find_asn(self):
         # TODO: maxmindcode here
-        self.asn_db    = geoip2.database.Reader(self.maxmind_asn_db)
+        self.asn_db = geoip2.database.Reader(self.maxmind_asn_db)
 
         if self.ip:
             try:
                 res = self.asn_db.asn(self.ip)
                 self.prefix = res.network
-                self.asn    = res.autonomous_system_number
+                self.asn = res.autonomous_system_number
             except geoip2.errors.AddressNotFoundError:
                 # we get this error if mod_asn isn't installed as well
                 pass
@@ -114,7 +113,7 @@ class MirrorBrainHost:
             try:
                 res = self.asn_db.asn(self.ip6)
                 self.prefix6 = res.network
-                self.asn6    = res.autonomous_system_number
+                self.asn6 = res.autonomous_system_number
             except geoip2.errors.AddressNotFoundError:
                 # we get this error if mod_asn isn't installed as well
                 pass
@@ -135,26 +134,27 @@ class MirrorBrainHost:
             if e[0] == socket.EAI_NONAME:
                 raise mb.mberr.NameOrServiceNotKnown(s)
             else:
-                print ('socket error msg:', str(e))
+                print('socket error msg:', str(e))
                 return None
 
         # print (ips)
         # print (ip6s)
         if len(ips) > 1 or len(ip6s) > 1:
-            print ('>>> warning: %r resolves to multiple IP addresses: ' % s, file=sys.stderr)
+            print('>>> warning: %r resolves to multiple IP addresses: ' % s, file=sys.stderr)
             if len(ips) > 1:
-                print (', '.join(ips), file=sys.stderr)
+                print(', '.join(ips), file=sys.stderr)
             if len(ip6s) > 1:
-                print (', '.join(ip6s), file=sys.stderr)
-            print ('\n>>> see http://mirrorbrain.org/archive/mirrorbrain/0042.html why this could\n' \
-                  '>>> could be a problem, and what to do about it. But note that this is not\n' \
-                  '>>> necessarily a problem and could actually be intended depending on the\n' \
-                  '>>> mirror\'s configuration (see http://mirrorbrain.org/issues/issue152).\n' \
+                print(', '.join(ip6s), file=sys.stderr)
+            print('\n>>> see http://mirrorbrain.org/archive/mirrorbrain/0042.html why this could\n'
+                  '>>> could be a problem, and what to do about it. But note that this is not\n'
+                  '>>> necessarily a problem and could actually be intended depending on the\n'
+                  '>>> mirror\'s configuration (see http://mirrorbrain.org/issues/issue152).\n'
                   '>>> It\'s best to talk to the mirror\'s admins.\n', file=sys.stderr)
         if ips:
             self.ip = ips[0]
         if ip6s:
             self.ip6 = ip6s[0]
+
 
 class Sample:
     """used for probe results."""
@@ -218,7 +218,7 @@ def hostname_from_url(url):
 
 
 def af_from_string(address):
-    s=str(address)
+    s = str(address)
     right = s.find('/')
     if right < 0:
         right = len(s)
@@ -355,6 +355,6 @@ def pgsql_regexp_esc(s):
 if __name__ == '__main__':
     import sys
     mbgeoip = MirrorBrainHost(sys.argv[1])
-    print ('country:',     mbgeoip.country_code())
-    print ('region:',      mbgeoip.region_code())
-    print ('coordinates:', mbgeoip.coordinates())
+    print('country:',     mbgeoip.country_code())
+    print('region:',      mbgeoip.region_code())
+    print('coordinates:', mbgeoip.coordinates())

@@ -78,11 +78,11 @@ class Hasheable:
 
         if int(dst_mtime) == int(self.mtime) and not force:
             if verbose:
-                print ('Up to date hash file: %r' % self.dst)
+                print('Up to date hash file: %r' % self.dst)
             return
 
         if dry_run:
-            print ('Would create hash file', self.dst)
+            print('Would create hash file', self.dst)
             return
 
         if self.hb.empty:
@@ -94,7 +94,7 @@ class Hasheable:
         open(self.dst, 'w').close()
 
         if verbose:
-            print ('Hash file updated: %r' % self.dst)
+            print('Hash file updated: %r' % self.dst)
 
         os.utime(self.dst, (self.atime, self.mtime))
 
@@ -127,14 +127,14 @@ class Hasheable:
                       [file_id])
             res_hash = c.fetchone()
         else:
-            print ('File %r not in database. Not on mirrors yet? Will be inserted.' % self.src_rel)
+            print('File %r not in database. Not on mirrors yet? Will be inserted.' % self.src_rel)
             file_id = None
             res_hash = None
 
         if not res_hash:
 
             if dry_run:
-                print ('Would create hashes in db for: ', self.src_rel)
+                print('Would create hashes in db for: ', self.src_rel)
                 return
 
             if self.hb.empty:
@@ -177,13 +177,13 @@ class Hasheable:
                       )
             c.execute("COMMIT")
             if verbose:
-                print ('Hash was not present yet in database - inserted')
+                print('Hash was not present yet in database - inserted')
         else:
             mtime, size = res_hash[1], res_hash[2]
 
             if int(self.mtime) == mtime and self.size == size and not force:
                 if verbose:
-                    print ('Up to date in db: %r' % self.src_rel)
+                    print('Up to date in db: %r' % self.src_rel)
                 return
 
             if self.hb.empty:
@@ -219,7 +219,7 @@ class Hasheable:
                        zsums,
                        file_id])
             if verbose:
-                print ('Hash updated in database for %r' % self.src_rel)
+                print('Hash updated in database for %r' % self.src_rel)
 
         c.execute('commit')
 
@@ -448,7 +448,7 @@ class HashBag:
                b'4:name', str(len(self.basename)).encode(), b':', self.basename.encode(),
                b'12:piece length', b'i', str(self.chunk_size).encode(), b'e',
                b'6:pieces', str(len(self.pieces) *
-                               SHA1_DIGESTSIZE).encode(), b':', b''.join(self.pieces),
+                                SHA1_DIGESTSIZE).encode(), b':', b''.join(self.pieces),
                b'4:sha1', str(SHA1_DIGESTSIZE).encode(), b':', self.sha1,
                b'6:sha256', str(SHA256_DIGESTSIZE).encode(), b':', self.sha256 or b'',
                b'e']

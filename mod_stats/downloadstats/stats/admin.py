@@ -11,5 +11,5 @@ class CounterAdmin(admin.ModelAdmin):
     search_fields = ('product', 'osname')
     list_filter = ('date', 'product', 'osname', 'version', 'lang', 'country')
 
-admin.site.register(Counter, CounterAdmin)
 
+admin.site.register(Counter, CounterAdmin)

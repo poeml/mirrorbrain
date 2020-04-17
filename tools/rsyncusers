@@ -1,12 +1,12 @@
 #!/usr/bin/python3
 
 # Analyze rsync logfile to list rsync users per rsync module
-# 
+#
 # This script uses Python generators, which means that it doesn't allocate memory
 # It rather works like a Unix pipe.
-# 
+#
 # It transparently opens uncompressed, gzip or bzip2 compressed files.
-# 
+#
 # The implementation is based on David Beazley's PyCon UK 08 great talk about
 # generator tricks for systems programmers.
 #
@@ -28,11 +28,11 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 
 
-__version__='2.0'
-__author__='Peter Poeml <poeml@cmdline.net>'
-__copyright__='Peter poeml <poeml@cmdline.net>'
-__license__='GPLv2'
-__url__='http://mirrorbrain.org'
+__version__ = '2.0'
+__author__ = 'Peter Poeml <poeml@cmdline.net>'
+__copyright__ = 'Peter poeml <poeml@cmdline.net>'
+__license__ = 'GPLv2'
+__url__ = 'http://mirrorbrain.org'
 
 
 # 2008/09/19 15:26:53 [16972] rsync on opensuse-full from ftp1.yz.yamagata-u.ac.jp (133.24.255.159)
@@ -51,42 +51,46 @@ except NameError:
         out_value.sort()
         return out_value
 
-def gen_find(filepat, top): 
+
+def gen_find(filepat, top):
     """Generate all filenames in a directory tree 
     that match a given filename pattern"""
-    import os 
-    import fnmatch 
-    for path, dirlist, filelist in os.walk(top): 
-        for name in fnmatch.filter(filelist,filepat): 
-            yield os.path.join(path,name)  
+    import os
+    import fnmatch
+    for path, dirlist, filelist in os.walk(top):
+        for name in fnmatch.filter(filelist, filepat):
+            yield os.path.join(path, name)
 
-def gen_open(filenames): 
+
+def gen_open(filenames):
     """Open a sequence of filenames"""
-    import gzip, bz2 
-    for name in filenames: 
-        if name.endswith(".gz"): 
-             yield gzip.open(name) 
-        elif name.endswith(".bz2"): 
-             yield bz2.BZ2File(name) 
-        else: 
-             yield open(name) 
+    import gzip
+    import bz2
+    for name in filenames:
+        if name.endswith(".gz"):
+            yield gzip.open(name)
+        elif name.endswith(".bz2"):
+            yield bz2.BZ2File(name)
+        else:
+            yield open(name)
 
-def gen_cat(sources): 
+
+def gen_cat(sources):
     """Concatenate items from one or more 
     source into a single sequence of items"""
-    for s in sources: 
-        for item in s: 
-            yield item 
+    for s in sources:
+        for item in s:
+            yield item
 
 
-def gen_grep(pat, lines): 
+def gen_grep(pat, lines):
     """Generate a sequence of lines that contain 
     a given regular expression"""
-    import re 
-    patc = re.compile(pat) 
-    for line in lines: 
-        if patc.search(line): yield line 
-
+    import re
+    patc = re.compile(pat)
+    for line in lines:
+        if patc.search(line):
+            yield line
 
 
 def main():
@@ -103,12 +107,12 @@ def main():
 
     #logdir = '/var/log'
     #logpat = 'rsyncd.log'
-    #filenames  = gen_find(logpat, logdir) 
+    #filenames  = gen_find(logpat, logdir)
 
     filenames = sys.argv[1:]
-    logfiles   = gen_open(filenames)
-    loglines   = gen_cat(logfiles)
-    patlines   = gen_grep(pat, loglines)
+    logfiles = gen_open(filenames)
+    loglines = gen_cat(logfiles)
+    patlines = gen_grep(pat, loglines)
 
     modules = dict()
 
@@ -119,23 +123,22 @@ def main():
 
         # keep only up to the first slash
         if '/' in module:
-            module = module[ : module.find('/')]
+            module = module[: module.find('/')]
 
         # strip parens from ip
         ip = ip[1:-1]
-            
+
         if not modules.has_key(module):
             modules[module] = set()
 
         modules[module].add((ip, host))
 
-
     for module in sorted(modules.keys()):
-        print ("")
-        print (module)
+        print("")
+        print(module)
         hosts = modules[module]
         for host in sorted(hosts):
-            print ('  %-16s %s' % host)
+            print('  %-16s %s' % host)
 
 
 if __name__ == '__main__':
