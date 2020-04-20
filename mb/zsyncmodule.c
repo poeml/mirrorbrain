@@ -9,13 +9,14 @@
  * This is something that will be a whole lot slower when programmed in a
  * scripting language, thus I wanted this Python extension. */
 
+#define PY_SSIZE_T_CLEAN
 #include <stdlib.h>
 #include <arpa/inet.h>
 #include "Python.h"
 
 static PyObject *zsync_rsum06(PyObject *self, PyObject *args) {
     char *data;
-    int len;
+    Py_ssize_t len;
     unsigned short a, b;
     unsigned char digest[4];
     memset(digest, 0, sizeof(digest));
