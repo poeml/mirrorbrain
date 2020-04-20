@@ -3760,6 +3760,11 @@ static int mb_status_hook(request_rec *r, int flags)
             ap_rprintf(r, "<tr><td>threads:               </td><td>\t%d</td>\n", stats->threads);
             ap_rputs("</table>\n", r);
         }
+        else {
+            ap_rprintf(r, "<h1>Failed to load MemCached Status for %s:%d</h1>\n\n",
+                    memctxt->live_servers[i]->host,
+                    memctxt->live_servers[i]->port);
+        };
     }
 
     return OK;
