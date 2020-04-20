@@ -1357,7 +1357,7 @@ static int mb_handler(request_rec *r)
     apr_sockaddr_t *clientaddr;
     const char *query_country = NULL;
     char *query_asn = NULL;
-    char fakefile = 0, newmirror = 0, only_hash = 0;
+    char fakefile = 0, only_hash = 0;
     int rep = UNKNOWN;                          /* type of a requested representation */
     char *rep_ext = NULL;                       /* extension string of a requested representation */
     char meta_negotiated = 0;                   /* a metalink representation was chosed by negotiation, i.e.
@@ -1396,6 +1396,7 @@ static int mb_handler(request_rec *r)
     apr_memcache_t *memctxt;                    /* memcache context provided by mod_memcache */
     char *m_res;
     char *m_key, *m_val;
+    char newmirror = 0;
     int cached_id;
 #endif
     const char *(*form_lookup)(request_rec*, const char*);
@@ -1450,7 +1451,9 @@ static int mb_handler(request_rec *r)
         if (form_lookup(r, "fakefile")) fakefile = 1;
         query_country = form_lookup(r, "country");
         query_asn = (char *) form_lookup(r, "as");
+        #ifdef WITH_MEMCACHE
         if (form_lookup(r, "newmirror")) newmirror = 1;
+        #endif
         if (form_lookup(r, "meta4"))   { rep = META4; rep_ext = reps[META4].ext; };
         if (form_lookup(r, "metalink")) { rep = METALINK; rep_ext = reps[METALINK].ext; };
         if (form_lookup(r, "mirrorlist")) { rep = MIRRORLIST; rep_ext = reps[MIRRORLIST].ext; }
