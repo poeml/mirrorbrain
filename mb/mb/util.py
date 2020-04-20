@@ -97,7 +97,6 @@ class MirrorBrainHost:
                 pass
 
     def _find_asn(self):
-        # TODO: maxmindcode here
         self.asn_db = geoip2.database.Reader(self.maxmind_asn_db)
 
         if self.ip:
@@ -106,7 +105,6 @@ class MirrorBrainHost:
                 self.prefix = res.network
                 self.asn = res.autonomous_system_number
             except geoip2.errors.AddressNotFoundError:
-                # we get this error if mod_asn isn't installed as well
                 pass
 
         if self.ip6:
@@ -115,7 +113,6 @@ class MirrorBrainHost:
                 self.prefix6 = res.network
                 self.asn6 = res.autonomous_system_number
             except geoip2.errors.AddressNotFoundError:
-                # we get this error if mod_asn isn't installed as well
                 pass
 
     def _resolv_address(self, s):

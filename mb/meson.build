@@ -4,9 +4,11 @@
 python3 = import('python').find_installation('python3', required: true)
 python3_dep = dependency('python3')
 
+python_module_arch_dir = python3.get_install_dir(pure: false)
 python3.extension_module('zsync',
     ['zsyncmodule.c'],
     install: true,
+    install_dir: python_module_arch_dir,
     dependencies: [python3_dep],
 )
 
@@ -15,9 +17,9 @@ mb_script_files = [
     'scripts/mirrorprobe',
 ]
 
-python_module_dir = python3.get_install_dir(pure: true)
+python_module_lib_dir = python3.get_install_dir(pure: true)
 install_subdir(['mb'],
-    install_dir: python_module_dir,
+    install_dir: python_module_lib_dir,
     install_mode: ['rw-r--r--'],
 )
 
