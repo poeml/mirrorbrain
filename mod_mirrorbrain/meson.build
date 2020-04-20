@@ -1,7 +1,7 @@
 lib_m = meson.get_compiler('c').find_library('m', required: true)
 
 if get_option('memcached')
-    add_project_arguments('-DWITH_MEMCACHED', language:'c')
+    add_project_arguments('-DWITH_MEMCACHE', language:'c')
 endif
 
 add_project_arguments('-DMOD_MIRRORBRAIN_VER="' + meson.project_version() + '"', language: 'c')
