@@ -28,10 +28,9 @@ RUN zypper -n install postgresql10 postgresql10-server postgresql10-ip4r \
     'libmaxminddb-devel>=1.4.2' 'apache2-mod_maxminddb>=1.2.0' 'python3-geoip2>=3.0.0' 'python3-maxminddb>=1.5.2' 'meson>=0.54'
 
 
-VOLUME ['/sys/fs/cgroup']
-VOLUME ['/run']
-
-VOLUME ['/opt/project']
+VOLUME ["/sys/fs/cgroup"]
+VOLUME ["/run"]
+VOLUME ["/opt/project"]
 
 RUN systemctl enable dbus.service
 RUN systemctl enable postgresql
