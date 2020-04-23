@@ -7,6 +7,10 @@ test_docker:
 
 build_install:
 	meson setup build
+	meson configure --prefix=/usr --datadir=/usr/share -Dmemcached=false -Dinstall-icons=false build
+	ninja -v -C build
+	rm -rf build
+	meson setup build
 	meson configure --prefix=/usr --datadir=/usr/share -Dmemcached=true -Dinstall-icons=false build
 	ninja -v -C build
 	DESTDIR=$(DESTDIR) ninja -v -C build install
