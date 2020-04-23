@@ -1,4 +1,4 @@
-###### FROM registry.opensuse.org/home/andriinikitin/containers/serviced 
+###### FROM registry.opensuse.org/home/andriinikitin/containers/serviced
 
 #!BuildTag: serviced
 FROM opensuse/leap:15.1
@@ -25,7 +25,7 @@ RUN zypper -n install postgresql10 postgresql10-server postgresql10-ip4r \
     apache2-devel apache2-worker apache2-mod_asn apache2-mod_maxminddb apache2-mod_form \
     mirrorbrain mirrorbrain-scanner mirrorbrain-tools \
     python3-devel python3-cmdln python3-SQLObject python3-psycopg2 python3-FormEncode \
-    'libmaxminddb-devel>=1.4.2' 'apache2-mod_maxminddb>=1.2.0' 'python3-geoip2>=3.0.0' 'python3-maxminddb>=1.5.2'
+    'libmaxminddb-devel>=1.4.2' 'apache2-mod_maxminddb>=1.2.0' 'python3-geoip2>=3.0.0' 'python3-maxminddb>=1.5.2' 'meson>=0.54'
 
 
 VOLUME ['/sys/fs/cgroup']
@@ -58,7 +58,7 @@ RUN sed -i 's,\#deadlock_timeout = 1s,deadlock_timeout = 10,' /var/lib/pgsql/dat
 ADD mirrorbrain.conf /etc/mirrorbrain.conf
 ADD mirrorbrain-ci-city.mmdb /var/lib/GeoIP/GeoLite2-City.mmdb
 ADD mirrorbrain-ci-asn.mmdb  /var/lib/GeoIP/GeoLite2-ASN.mmdb
-ADD mod_maxminddb.conf /etc/apache2/conf.d/mod_maxminddb.conf 
+ADD mod_maxminddb.conf /etc/apache2/conf.d/mod_maxminddb.conf
 RUN chmod 0640 /etc/mirrorbrain.conf
 RUN chown root:mirrorbrain /etc/mirrorbrain.conf
 
