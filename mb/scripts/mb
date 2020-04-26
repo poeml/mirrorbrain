@@ -94,7 +94,7 @@ class MirrorDoctor(cmdln.Cmdln):
                                  debug=self.options.debug)
 
     def do_instances(self, subcmd, opts):
-        """${cmd_name}: list all configured mirrorbrain instances 
+        """${cmd_name}: list all configured mirrorbrain instances
 
         ${cmd_usage}
         ${cmd_option_list}
@@ -370,7 +370,7 @@ class MirrorDoctor(cmdln.Cmdln):
         Such a table comes with mod_asn, which can be very useful in conjunction
         with MirrorBrain. See http://mirrorbrain.org/mod_asn/
 
-        Returns the string representation of an IpAddress instance from mb.util: 
+        Returns the string representation of an IpAddress instance from mb.util:
           Prefix (ASxxx) IPv6address
 
         ${cmd_usage}
@@ -518,7 +518,7 @@ class MirrorDoctor(cmdln.Cmdln):
                                 i.asn = asn
 
             if opts.coordinates:
-                lat, lng = res.coordinates(hostname)
+                lat, lng = res.coordinates()
                 if float(mirror.lat or 0) != lat or float(mirror.lng or 0) != lng:
                     print('%s: updating geographical coordinates (%s %s -> %s %s)'
                           % (mirror.identifier, mirror.lat, mirror.lng, lat, lng))
@@ -526,7 +526,7 @@ class MirrorDoctor(cmdln.Cmdln):
                         mirror.lat, mirror.lng = lat, lng
 
             if opts.region:
-                region = res.region_code(hostname)
+                region = res.region_code()
                 if mirror.region != region:
                     print('%s: updating region (%s -> %s)'
                           % (mirror.identifier, mirror.region, region))
@@ -534,7 +534,7 @@ class MirrorDoctor(cmdln.Cmdln):
                         mirror.region = region
 
             if opts.country:
-                country = res.country_code(hostname)
+                country = res.country_code()
                 if mirror.country != country:
                     print('%s: updating country (%s -> %s)'
                           % (mirror.identifier, mirror.country, country))
@@ -575,17 +575,17 @@ class MirrorDoctor(cmdln.Cmdln):
         by probing them
 
         The --urls option selects the kind of URLs to be probed. Meanings are:
-          'scan' - probes those URLs that would be used in scanning (rsync, 
-                   and FTP/HTTP only as fallback). This is fastest, and 
+          'scan' - probes those URLs that would be used in scanning (rsync,
+                   and FTP/HTTP only as fallback). This is fastest, and
                    suitable for quick probing.
-          'http' - probes the base URLs that the clients get to see (those 
+          'http' - probes the base URLs that the clients get to see (those
                    used in redirection). Gives the most realistic view.
           'all'  - probes all and every URL registered for a host. The most
                    thourough method, which can be useful to discover permission
                    problems on mirrors, serving staged content already where
                    they shouldn't.
 
-        Proxy settings via environmental variables are ignored. 
+        Proxy settings via environmental variables are ignored.
 
         Examples:
              mb probefile --md5 update/11.0/rpm/i586/insserv-1.11.0-31.2.i586.rpm
@@ -656,7 +656,7 @@ class MirrorDoctor(cmdln.Cmdln):
         import mb.util
         boilerplate = """#
 # Note: - You cannot modify 'identifier' or 'id'. You can use 'mb rename' though.
-#       - AS, prefix, lat and lng should be modified through 'mb update' 
+#       - AS, prefix, lat and lng should be modified through 'mb update'
 #         ('mb update -A --all-mirrors' for all).
 #
 """
@@ -708,7 +708,7 @@ class MirrorDoctor(cmdln.Cmdln):
         You need to enter files, not directories.
 
         Usage:
-            mb markers 
+            mb markers
         ${cmd_option_list}
         """
         markers = self.conn.Marker.select()
@@ -730,7 +730,7 @@ class MirrorDoctor(cmdln.Cmdln):
 #
 # Note: %(delim)r delimits subtree name and marker file(s).
 # Example:
-# 
+#
 # Factory %(delim)s factory/repo/oss/content
 # PPC     %(delim)s ppc/factory/repo/oss/content
 # BS      %(delim)s repositories/server:mail.repo repositories/Apache.repo
@@ -777,7 +777,7 @@ class MirrorDoctor(cmdln.Cmdln):
     @cmdln.option('-C', '--comment', metavar='ARG',
                         help='comment string to append')
     def do_commentadd(self, subcmd, opts, identifier):
-        """${cmd_name}: add a comment about a mirror 
+        """${cmd_name}: add a comment about a mirror
 
         ${cmd_usage}
         ${cmd_option_list}
@@ -791,7 +791,7 @@ class MirrorDoctor(cmdln.Cmdln):
             [mirror.comment or '', '\n\n' + opts.comment])
 
     def do_enable(self, subcmd, opts, identifier):
-        """${cmd_name}: enable a mirror 
+        """${cmd_name}: enable a mirror
 
         ${cmd_usage}
         ${cmd_option_list}
@@ -1479,7 +1479,7 @@ class MirrorDoctor(cmdln.Cmdln):
         Use -d PATH to show mirrors which host directories that match PATH*.
 
         Examples for listing directories:
-          mb dirs 
+          mb dirs
           mb dirs ftp.mirrorservice.org
           mb dirs -s 3
         Example for listing mirrors:
@@ -1605,7 +1605,7 @@ class MirrorDoctor(cmdln.Cmdln):
         the database into a working copy of such a repository and commit the
         changes, making use of the commit mail mechanism of the VCS to send
         change notifications.
-        You need to specify --target-dir=PATH for this. 
+        You need to specify --target-dir=PATH for this.
         If you use the --commit=VCS option, "VCS commit" will be run after the
         export on the directory.
 
