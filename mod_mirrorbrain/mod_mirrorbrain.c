@@ -435,10 +435,11 @@ static void *merge_mb_dir_config(apr_pool_t *p, void *basev, void *addv)
     mrg->min_size = (add->min_size != DEFAULT_MIN_MIRROR_SIZE) ? add->min_size : base->min_size;
     cfgMergeInt(handle_headrequest_locally);
     cfgMergeString(mirror_base);
-    /* inheriting makes sense. But does inheriting also make sense if an
-     * inheriting directory has its own fallback mirror directives? */
-    /* mrg->fallbacks = apr_is_empty_array(add->fallbacks) ? base->fallbacks : add->fallbacks; */
-    /* it's a merge for now */
+    /* TODO: inheriting makes sense. But does inheriting also make sense if an
+     * inheriting directory has its own fallback mirror directives?
+     * mrg->fallbacks = apr_is_empty_array(add->fallbacks) ? base->fallbacks : add->fallbacks;
+     * it's a merge for now
+     */
     mrg->fallbacks = apr_array_append(p, base->fallbacks, add->fallbacks);
     mrg->exclude_mime = apr_array_append(p, base->exclude_mime, add->exclude_mime);
     mrg->exclude_agents = apr_array_append(p, base->exclude_agents, add->exclude_agents);
