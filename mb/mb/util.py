@@ -167,6 +167,7 @@ class Sample:
         self.digest = None
         self.get_content = get_content
         self.content = None
+        self.E = None
 
         if self.probebaseurl.startswith('http://'):
             self.scheme = 'http'

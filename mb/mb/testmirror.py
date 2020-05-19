@@ -49,7 +49,8 @@ def probe(S, http_method='GET'):
         except KeyboardInterrupt:
             print('interrupted!', file=sys.stderr)
             raise
-        except:
+        except Exception as e:
+            S.E = e
             return S
 
         if S.get_digest:
@@ -63,7 +64,8 @@ def probe(S, http_method='GET'):
                 t.flush()
                 S.digest = mb.util.dgst(t.name)
                 t.close()
-            except:
+            except Exception as e:
+                S.E = e
                 return S
         if S.get_content:
             S.content = response.read()
