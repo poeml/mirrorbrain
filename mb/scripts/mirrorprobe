@@ -29,6 +29,8 @@ import time
 import threading
 import socket
 import requests
+import urllib
+import urllib.error
 import logging
 import logging.handlers
 from optparse import OptionParser
@@ -84,7 +86,7 @@ def probe_http(mirror):
 
             logging.debug('%s got response for %s: %s' % (threading.currentThread().getName(), mirror.identifier, getattr(response, 'code', None)))
 
-            mirror.response = response.read()
+            mirror.response = response
             mirror.status_baseurl_new = True
 
         except ValueError as e:
@@ -99,20 +101,11 @@ def probe_http(mirror):
             #errno, errstr = sys.exc_info()[:2]
             mirror.response = "socket error: %s" % e
 
-        except httplib.BadStatusLine:
-            mirror.response_code = None
-            mirror.response = None
-
         except requests.HTTPError as e:
             mirror.response_code = e.responsse.status_code
             mirror.response = e.content
 
-        except urllib.URLError as e:
-            mirror.response_code = 0
-            mirror.response = "%s" % e.reason
-
-        except httplib.IncompleteRead as e:
-            logging.info('mirror %s returns incomplete response' % mirror.identifier)
+        except urllib.error.URLError as e:
             mirror.response_code = 0
             mirror.response = "%s" % e.reason
 

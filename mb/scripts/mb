@@ -556,7 +556,14 @@ class MirrorDoctor(cmdln.Cmdln):
         import mb.testmirror
         r = mb.testmirror.access_http(mirror.identifier, mirror.baseurl)
         print(r)
-        print('content: %r...' % r.content[:240])
+        if r.content is not None:
+            print('content: %r...' % r.content[:240])
+        if r.E is not None:
+            print('exception:', flush=True)
+            print(r.E, flush=True)
+            import os
+            os._exit(1)
+            
 
     @cmdln.option('--content', action='store_true',
                   help='download and show the content')
