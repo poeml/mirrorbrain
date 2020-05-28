@@ -33,7 +33,6 @@ ap9*/status.sh
 ap9*/curl.sh downloads/ | grep folder1
 
 for x in ap7 ap8; do
-    $x*/configure_ssl.sh
     $x*/start.sh
     $x*/status.sh
     mb9*/mb.sh new $x --http http://"$($x-system2/print_address.sh)" --region NA --country us
