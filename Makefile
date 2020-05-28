@@ -5,6 +5,9 @@ test_mb:
 test_docker:
 	bash t/test_docker.sh
 
+test_environs:
+	bash t/test_environs.sh
+
 build_install:
 	meson setup build
 	meson configure --prefix=/usr --datadir=/usr/share -Dmemcached=false -Dinstall-icons=false build
