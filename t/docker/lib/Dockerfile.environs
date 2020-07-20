@@ -6,7 +6,7 @@ ENV LANG en_US.UTF-8
 
 RUN zypper -n install git-core wget tar m4
 WORKDIR /opt
-RUN git clone https://github.com/andrii-suse/environs
+RUN git clone -b mb_new_schema https://github.com/andrii-suse/environs
 
 WORKDIR /opt/environs
 RUN bash -x .product/mb/branch/.install_dependencies.sh

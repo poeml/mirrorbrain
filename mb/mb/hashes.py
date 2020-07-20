@@ -111,21 +111,18 @@ class Hasheable:
         try:
             conn.mycursor
         except AttributeError:
-            conn.mycursor = conn.Hash._connection.getConnection().cursor()
+            conn.mycursor = conn.Files._connection.getConnection().cursor()
         c = conn.mycursor
 
         if self.hb.chunk_size == 0 or (self.size + self.hb.chunk_size - 1) / (self.hb.chunk_size - 1) != len(self.hb.pieceshex):
             self.hb.zsyncpieceshex = []
 
-        c.execute("SELECT id FROM filearr WHERE path = %s LIMIT 1",
+        c.execute("SELECT id, mtime, size FROM files WHERE path = %s LIMIT 1",
                   [self.src_rel])
-        res_filearr = c.fetchone()
-        if res_filearr:
-            # file already present in the file array table. Is it also known in the hash table?
-            file_id = res_filearr[0]
-            c.execute("SELECT file_id, mtime, size FROM hash WHERE file_id = %s LIMIT 1",
-                      [file_id])
-            res_hash = c.fetchone()
+        res_file = c.fetchone()
+        if res_file:
+            file_id = res_file[0]
+            res_hash = res_file
         else:
             print('File %r not in database. Not on mirrors yet? Will be inserted.' % self.src_rel)
             file_id = None
@@ -143,26 +140,30 @@ class Hasheable:
                 sys.stderr.write('skipping db hash generation\n')
                 return
 
-            c.execute("BEGIN")
-            if not res_filearr:
-                c.execute("INSERT INTO filearr (path, mirrors) VALUES (%s, '{}')",
+            if not res_file:
+                c.execute("INSERT INTO files (path) VALUES (%s)",
                           [self.src_rel])
-                c.execute("SELECT currval('filearr_id_seq')")
+                c.execute("SELECT currval('files_id_seq')")
                 file_id = c.fetchone()[0]
             zsums = ''
             for i in self.hb.zsums:
                 zsums = zsums + i.hexdigest()
 
-            c.execute("""INSERT INTO hash (file_id, mtime, size, md5,
-                                           sha1, sha256, sha1piecesize,
-                                           sha1pieces, btih, pgp, zblocksize,
-                                           zhashlens, zsums)
-                         VALUES (%s, %s, %s,
-                                 decode(%s, 'hex'), decode(%s, 'hex'),
-                                 decode(%s, 'hex'), %s, decode(%s, 'hex'),
-                                 decode(%s, 'hex'),
-                                 %s, %s, %s, decode(%s, 'hex'))""",
-                      [file_id, int(self.mtime), self.size,
+            c.execute("""UPDATE files SET 
+                            mtime  = to_timestamp(%s), 
+                            size   = %s, 
+                            md5    = %s,
+                            sha1   = decode(%s, 'hex'), 
+                            sha256 = decode(%s, 'hex'), 
+                            sha1piecesize = %s,
+                            sha1pieces = decode(%s, 'hex'),
+                            btih = decode(%s, 'hex'),
+                            pgp = %s, 
+                            zblocksize = %s,
+                            zhashlens = %s, 
+                            zsums = decode(%s, 'hex')
+                       WHERE id = %s""",
+                      [int(self.mtime), self.size,
                        self.hb.md5hex or '',
                        self.hb.sha1hex or '',
                        self.hb.sha256hex or '',
@@ -173,9 +174,9 @@ class Hasheable:
                        self.hb.pgp or '',
                        self.hb.zblocksize,
                        self.hb.get_zparams(),
-                       zsums]
+                       zsums,
+                       file_id]
                       )
-            c.execute("COMMIT")
             if verbose:
                 print('Hash was not present yet in database - inserted')
         else:
@@ -196,7 +197,7 @@ class Hasheable:
             for i in self.hb.zsums:
                 zsums = zsums + i.hexdigest()
 
-            c.execute("""UPDATE hash set mtime = %s, size = %s,
+            c.execute("""UPDATE files set mtime = to_timestamp(%s), size = %s,
                                          md5 = decode(%s, 'hex'),
                                          sha1 = decode(%s, 'hex'),
                                          sha256 = decode(%s, 'hex'),
@@ -207,7 +208,7 @@ class Hasheable:
                                          zblocksize = %s,
                                          zhashlens = %s,
                                          zsums = decode(%s, 'hex')
-                         WHERE file_id = %s""",
+                         WHERE id = %s""",
                       [int(self.mtime), self.size,
                        self.hb.md5hex or '', self.hb.sha1hex or '', self.hb.sha256hex or '',
                        self.hb.chunk_size, ''.join(

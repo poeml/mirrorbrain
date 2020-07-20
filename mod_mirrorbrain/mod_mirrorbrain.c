@@ -137,28 +137,25 @@
 #define DBD_LLD_FMT "lld"
 #endif
 
-#define DEFAULT_QUERY "SELECT id, identifier, region, country, " \
+#define DEFAULT_QUERY "SELECT server.id, identifier, region, country, " \
                              "lat, lng, " \
                              "asn, prefix, score, baseurl, " \
                              "region_only, country_only, " \
                              "as_only, prefix_only, " \
                              "other_countries, file_maxsize " \
                       "FROM server " \
-                      "LEFT JOIN serverpfx ON id = serverid AND family(serverpfx.prefix) = family(ipaddress(%s)) " \
-                      "WHERE id::smallint = any(" \
-                          "(SELECT mirrors " \
-                           "FROM filearr " \
-                           "WHERE path = %s)::smallint[]) " \
+                      "JOIN server_files ON server.id = server_id " \
+                      "JOIN files ON file_id = files.id " \
+                      "LEFT JOIN serverpfx ON server.id = serverid AND family(serverpfx.prefix) = family(ipaddress(%s)) " \
+                      "WHERE path = %s " \
                       "AND enabled AND status_baseurl AND score > 0"
-#define DEFAULT_QUERY_HASH "SELECT file_id, md5hex, sha1hex, sha256hex, " \
+#define DEFAULT_QUERY_HASH "SELECT id, md5hex, sha1hex, sha256hex, " \
                                   "sha1piecesize, sha1pieceshex, btihhex, pgp, " \
                                   "zblocksize, zhashlens, zsumshex " \
                            "FROM hexhash " \
-                           "WHERE file_id = (SELECT id " \
-                                            "FROM filearr " \
-                                            "WHERE path = %s) " \
+                           "WHERE path = %s " \
                            "AND size = %" DBD_LLD_FMT " " \
-                           "AND mtime = %" DBD_LLD_FMT " " \
+                           "AND mtime = to_timestamp(%" DBD_LLD_FMT ") " \
                            "LIMIT 1"
 
 /* the smaller, the smaller the effect of a raised prio in comparison to distance */

@@ -21,7 +21,7 @@ RUN systemctl mask dev-mqueue.mount dev-hugepages.mount \
     display-manager.service graphical.target systemd-logind.service
 
 ADD dbus.service /etc/systemd/system/dbus.service
-RUN zypper -n install postgresql10 postgresql10-server postgresql10-ip4r \
+RUN zypper -n install postgresql12 postgresql12-server postgresql12-ip4r \
     apache2-devel apache2-worker apache2-mod_asn apache2-mod_maxminddb apache2-mod_form \
     mirrorbrain mirrorbrain-scanner mirrorbrain-tools \
     python3-devel python3-cmdln python3-SQLObject python3-psycopg2 python3-FormEncode \
@@ -45,8 +45,9 @@ RUN sudo -u postgres /usr/share/postgresql/postgresql-script start && \
     sudo -u postgres psql -c "alter user mirrorbrain with encrypted password 'mirrorbrain';" && \
     sudo -u postgres psql -c "CREATE EXTENSION ip4r;" mirrorbrain && \
     sudo -u mirrorbrain psql -f /usr/share/doc/packages/mirrorbrain/sql/schema-postgresql.sql mirrorbrain && \
-    sudo -u mirrorbrain psql -f /usr/share/doc/packages/mirrorbrain/sql/migrations/schema-postgresql-add-filearr_split_path_trigger.sql mirrorbrain && \
     sudo -u mirrorbrain psql -f /usr/share/doc/packages/mirrorbrain/sql/initialdata-postgresql.sql mirrorbrain && \
+    sudo -u mirrorbrain psql -f /usr/share/doc/packages/mirrorbrain/sql/migrations/schema-postgresql-move-to-mirrors.sql mirrorbrain && \
+    sudo -u mirrorbrain psql -f /usr/share/doc/packages/mirrorbrain/sql/migrations/schema-postgresql-migrate-data-to-mirrors.sql mirrorbrain && \
     sudo -u postgres /usr/share/postgresql/postgresql-script stop
 
 RUN sed -i 's,127.0.0.1/32            ident,127.0.0.1/32            password,' /var/lib/pgsql/data/pg_hba.conf

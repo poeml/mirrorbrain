@@ -45,12 +45,11 @@ use bytes;
 use Config::IniFiles;
 use Time::HiRes qw(gettimeofday);
 use Encode;
+use Digest::SHA qw(sha256_hex);
 
 my $version = '2.19.2';
-my $verbose = 1;
-my $sqlverbose = 0;
-
-#$DB::inhibit_exit = 0;
+my $verbose = 2;
+my $sqlverbose = 1;
 
 $SIG{'PIPE'} = 'IGNORE';
 
@@ -81,15 +80,11 @@ my $enable_after_scan = 0;
 my $cfgfile = '/etc/mirrorbrain.conf';
 my $brain_instance = '';
 
-# FIXME: use DBI functions transaction handling
-my $do_transaction = 1;
-
 # save prepared statements
 my $sth_update;
 my $sth_insert_rel;
 my $sth_select_file;
 my $sth_insert_file;
-my $sth_mirr_addbypath;
 
 my $gig2 = 1<<31; # 2*1024*1024*1024 == 2^1 * 2^10 * 2^10 * 2^10 = 2^31
 
@@ -261,40 +256,31 @@ if ($parallel > 1) {
   exit 0;
 }
 
+my %db_files_hash_id_map;
+my @new_file_hashes;
 
-if($do_transaction) {
-  $dbh->{AutoCommit} = 0;
-  #$dbh->{RaiseError} = 1;
-}
+my $sql_server_files = "SELECT file_id, path_hash FROM server_files
+          JOIN files on file_id = id
+          WHERE ? = server_id";
+$sql_server_files = $sql_server_files . " AND path like '$start_dir/%'" if $start_dir;
+my $smh_server_files = $dbh->prepare($sql_server_files) or die "$sql_server_files: ".$DBI::errstr;
+
 
 for my $row (@scan_list) {
   print localtime(time) . " $row->{identifier}: starting\n" if $verbose > 0;
 
-  # already in a transaction? why??
-  #if($do_transaction) {
-  #  $dbh->begin_work or die "$DBI::errstr";
-  #}
+  print "$sql_server_files, $row->{id}\n" if $sqlverbose;
+  $smh_server_files->execute($row->{id}) or die "$sql_server_files: ".$DBI::errstr;
 
-  if(length $start_dir) {
-    $sql = "CREATE TEMPORARY TABLE temp1 AS
-            SELECT id FROM filearr
-            WHERE path LIKE '$start_dir/%'
-                  AND $row->{id} = ANY(mirrors)";
-  } else {
-    $sql = "CREATE TEMPORARY TABLE temp1 AS
-            SELECT id FROM filearr
-            WHERE $row->{id} = ANY(mirrors)";
+  %db_files_hash_id_map = ();
+  @new_file_hashes      = ();
+
+  while ( my @r = $smh_server_files->fetchrow_array ) {
+    $db_files_hash_id_map{$r[1]} = $r[0];
   }
-  print "$sql\n" if $sqlverbose;
-  $dbh->do($sql) or die "$sql: ".$DBI::errstr;
+  $smh_server_files->finish;
 
-  $sql = "CREATE INDEX temp1_key ON temp1 (id);
-          ANALYZE temp1;
-          SELECT COUNT(*) FROM temp1";
-  print "$sql\n" if $sqlverbose;
-
-  my $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
-  my $initial_file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
+  my $initial_file_count = keys %db_files_hash_id_map;
   if(length $start_dir) {
     print localtime(time) . " $row->{identifier}: files in '$start_dir' before scan: $initial_file_count\n"
       if $verbose > 0;
@@ -302,14 +288,6 @@ for my $row (@scan_list) {
     print localtime(time) . " $row->{identifier}: total files before scan: $initial_file_count\n"
       if $verbose > 0;
   }
-
-  if($do_transaction) {
-    $dbh->commit or die "$DBI::errstr";
-  }
-
-  #$sql = "SELECT COUNT(*) FROM filearr WHERE $row->{id} = ANY(mirrors)";
-  #print "$sql\n" if $sqlverbose;
-
 
   my $start = int(gettimeofday * 1000);
   my $file_count = rsync_readdir($row->{identifier}, $row->{id}, $row->{baseurl_rsync}, $start_dir);
@@ -322,9 +300,6 @@ for my $row (@scan_list) {
     $file_count = scalar http_readdir($row->{identifier}, $row->{id}, $row->{baseurl}, $start_dir);
   }
 
-  if($do_transaction) {
-    $dbh->commit or die "$DBI::errstr";
-  }
   my $duration = (int(gettimeofday * 1000) - $start) / 1000;
   if (!$duration) { $duration = 1; }
   if (!$file_count) { $file_count = 0; }
@@ -336,18 +311,33 @@ for my $row (@scan_list) {
          . int($duration) . "s\n" if $verbose > 0;
 
   $start = time();
+
   print localtime(time) . " $row->{identifier}: purging old files\n" if $verbose > 1;
-
-
-  #$sql = "SELECT COUNT(*) FROM temp1";
-  $sql = "SELECT COUNT(mirr_del_byid($row->{id}, id) order by id) FROM temp1";
-  print "$sql\n" if $sqlverbose;
-  $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
-  my $purge_file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
+  my @purge_ids = sort { $a lt $b } values %db_files_hash_id_map;
+  my $purge_file_count = @purge_ids;
   print localtime(time) . " $row->{identifier}: files to be purged: $purge_file_count\n" if $verbose > 0;
+  # to this point save_file() would remove all relevant files from %db_files_hash_id_map
+  if ($purge_file_count) {
+    my $sql_values = join( ',', ("($row->{id}, ?)") x $purge_file_count );
+    $sql = "DELETE FROM server_files WHERE (server_id, file_id) in ($sql_values)";
+    my $smh = $dbh->prepare($sql) or die substr($sql,0,200) . "...: ".$DBI::errstr;
+    print substr($sql,0,200) . "...(". $purge_file_count .")\n" if $sqlverbose;
+    $smh->execute(@purge_ids) or die substr($sql,0,200) . "...: ".$DBI::errstr;
+    $smh->finish;
+  }
+  
+  my $new_file_count = @new_file_hashes;
+  print localtime(time) . " $row->{identifier}: files to be inserted: $new_file_count\n" if $verbose > 0;
+  if ($new_file_count) {
+    my $sql_values = join( ',', ('?') x $new_file_count );
+    $sql = "INSERT INTO server_files (server_id, file_id) SELECT ?, id FROM files WHERE encode(path_hash,'hex') IN ($sql_values) ORDER BY id";
+    my $smh = $dbh->prepare($sql) or die substr($sql,0,200) . "...: ".$DBI::errstr;
+    print substr($sql,0,200) . "...($row->{id},{". $new_file_count ."})\n" if $sqlverbose;
+    $smh->execute($row->{id}, @new_file_hashes) or die substr($sql,0,200) . "...($row->{id},{". $new_file_count ."}): ".$DBI::errstr;
+    $smh->finish;
+  }    
 
-
-  $sql = "SELECT COUNT(*) FROM filearr WHERE $row->{id} = ANY(mirrors);";
+  $sql = "SELECT COUNT(*) FROM server_files WHERE $row->{id} = server_id;";
   print "$sql\n" if $sqlverbose;
 
   if(length $start_dir) {
@@ -378,14 +368,6 @@ for my $row (@scan_list) {
     my $sth = $dbh->prepare( $sql );
     $sth->execute() or die "$row->{identifier}: $DBI::errstr";
     print localtime(time) . " $row->{identifier}: now enabled.\n" if $verbose > 0;
-  }
-
-  $sql = "DROP TABLE temp1";
-  print "$sql\n" if $sqlverbose;
-  $dbh->do($sql) or die "$sql: ".$DBI::errstr;
-
-  if($do_transaction) {
-    $dbh->commit or die "$DBI::errstr";
   }
 
   print localtime(time) . " $row->{identifier}: done.\n" if $verbose > 0;
@@ -626,9 +608,6 @@ sub http_readdir
       }
     }
     print "$identifier: committing http dir $name\n" if $verbose > 2;
-    if($do_transaction) {
-      $dbh->commit or die "$DBI::errstr";
-    }
   } elsif($contents =~ s{^.*<thead>.*>Name<.*<tbody>}{}s) {
     ##  _ _       _     _   _             _
     ## | (_) __ _| |__ | |_| |_ _ __   __| |
@@ -682,9 +661,6 @@ sub http_readdir
       }
     }
     print "$identifier: committing http dir $name\n" if $verbose > 2;
-    if($do_transaction) {
-      $dbh->commit or die "$DBI::errstr";
-    }
  } elsif($contents =~ s{^<html>.*<head><title>Index of .*<h1>Index of .*</h1><hr><pre><a href="../">../</a>}{}s) {
     ##              _
     ##  _ __   __ _(_)_ __ __  __
@@ -739,10 +715,7 @@ sub http_readdir
         }
       }
     }
-    print "$identifier: committing http dir $name\n" if $verbose > 2;
-    if($do_transaction) {
-      $dbh->commit or die "$DBI::errstr";
-    }
+    print "$identifier: finished http dir $name\n" if $verbose > 2;
  }
   else {
     ## we come here, whenever we stumble into an automatic index.html
@@ -899,9 +872,6 @@ sub ftp_readdir
   }
 
   print "$identifier: committing ftp dir $name\n" if $verbose > 2;
-  if($do_transaction) {
-    $dbh->commit or die "$DBI::errstr";
-  }
 
   ftp_close($ftp) if $toplevel;
   return @r;
@@ -932,26 +902,8 @@ sub save_file
   # explicitely tell Perl that the filename is in UTF-8 encoding
   $path = decode_utf8($path);
 
-  my $sql = "SELECT mirr_add_bypath(?, ?);";
-  if (!defined $sth_mirr_addbypath) {
-    printf "\nPreparing add statement\n\n" if $sqlverbose;
-    $sth_mirr_addbypath = $dbh->prepare( $sql ) or die "$identifier: $DBI::errstr";
-
-  }
-
-  printf "$sql  <-- $serverid, $path \n" if $sqlverbose;
-  $sth_mirr_addbypath->execute( $serverid, $path ) or die "$identifier: $DBI::errstr";
-
-  my @data = $sth_mirr_addbypath->fetchrow_array();
-  #if ($sth_mirr_addbypath->rows > 0) {
-    my $fileid = $data[0];
-    #print "fileid: $fileid\n";
-    #}
-  $sth_mirr_addbypath->finish;
-
-  $sql = "DELETE FROM temp1 WHERE id = $fileid";
-  print "$sql\n" if $sqlverbose;
-  $dbh->do($sql) or die "$sql: ".$DBI::errstr;
+  my $hash = sha256_hex($path);
+  push @new_file_hashes, $hash unless delete $db_files_hash_id_map{$hash};
 
   return $path;
 }
@@ -986,62 +938,6 @@ sub cont
   }
 }
 
-
-# getfileid returns the id as inserted in table file.
-#
-sub getfileid
-{
-  my $path = shift;
-  my @data;
-  my $id;
-
-  # prepare statements once
-  my $sql_select_file = "SELECT id FROM file WHERE path = ? LIMIT 1;";
-  if (!defined $sth_select_file) {
-    printf "\nPreparing select_file statement: $sql_select_file\n\n" if $sqlverbose;
-    $sth_select_file = $dbh->prepare( $sql_select_file );
-  }
-
-  my $sql_insert_file = "INSERT INTO file (path) VALUES (?);";
-  if (!defined $sth_insert_file) {
-    printf "\nPreparing insert_file statement: $sql_insert_file\n\n" if $sqlverbose;
-    $sth_insert_file = $dbh->prepare( $sql_insert_file );
-  }
-
-
-  printf "select_file: $sql_select_file  <--- $path \n" if $sqlverbose;
-
-  $sth_select_file->execute( $path ) or die $sth_select_file->errstr;
-  @data = $sth_select_file->fetchrow_array();
-  if ($sth_select_file->rows > 0) {
-    $id = $data[0];
-
-    $sth_select_file->finish;
-    printf "select_id result: $id \n" if $sqlverbose;
-    return $id if defined $id;
-  }
-
-
-  $sth_insert_file->execute( $path ) or die $sth_insert_file->err;
-
-  # now we still need the id
-  # FIXME: should use something like last_insert_id rather
-  printf "select_file (get the id after insertion): $sql_insert_file  <--- $path \n" if $sqlverbose;
-
-  $sth_select_file->execute( $path ) or die $sth_select_file->errstr;
-  @data = $sth_select_file->fetchrow_array();
-  if ($sth_select_file->rows > 0) {
-    $id = $data[0];
-
-    $sth_select_file->finish;
-    printf "select_id result: $id \n" if $sqlverbose;
-    return $id;
-  }
-  die "insert of $path failed - could not get last id\n";
-}
-
-
-
 # callback function
 sub rsync_cb
 {
@@ -1067,9 +963,6 @@ sub rsync_cb
         $priv->{counter}++;
         if (($priv->{counter} % 50) == 0) {
           print "$priv->{identifier}: commit after 50 files\n" if $verbose > 2;
-          if($do_transaction) {
-            $dbh->commit or die "$DBI::errstr";
-          }
         }
 
         $r = [$name, $len, $mode, $mtime];
@@ -1082,9 +975,6 @@ sub rsync_cb
   }
   elsif($mode == 0755) {
     printf "%s: rsync dir: %03o %12.0f %-25s %-50s\n", $priv->{identifier}, ($mode & 0777), $len, scalar(localtime $mtime), $name if $verbose > 1;
-    if($do_transaction) { # commit every directory to reduce chance of deadlocks
-      $dbh->commit or die "$DBI::errstr";
-    }
   }
   elsif($mode == 020777) {
     printf "%s: rsync link: %03o %12.0f %-25s %-50s\n", $priv->{identifier}, ($mode & 0777), $len, scalar(localtime $mtime), $name if $verbose > 2;

@@ -29,6 +29,10 @@ mb9*/mb.sh makehashes $PWD/ap9-system2/dt/downloads -t $PWD/ap9-system2/hashes/d
 
 ap9*/start.sh
 ap9*/status.sh
+
+# see that hashes update works as well
+mb9*/mb.sh makehashes $PWD/ap9-system2/dt -t $PWD/ap9-system2/hashes
+
 # ap9*/curl.sh downloads/folder1/ | grep file1.dat
 ap9*/curl.sh downloads/ | grep folder1
 

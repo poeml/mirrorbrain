@@ -210,11 +210,11 @@ class Conn:
                 fromDatabase = True
         self.Serverpfx = Serverpfx
 
-        class Filearr(SQLObject):
+        class Files(SQLObject):
             """the file table"""
             class sqlmeta:
                 fromDatabase = True
-        self.Filearr = Filearr
+        self.Files = Files
 
         class Marker(SQLObject):
             """the marker table"""
@@ -247,86 +247,6 @@ class Conn:
             # this is the error which we get if mod_asn doesn't happen
             # to be installed as well
             pass
-
-        try:
-            class Hash(SQLObject):
-                """the hashes table"""
-                class sqlmeta:
-                    fromDatabase = True
-                    idName = 'file_id'
-            self.Hash = Hash
-        except (dberrors.ProgrammingError, psycopg2.ProgrammingError):
-            # This is what's raised if the table hasn't been installed yet
-            # Which is the case when coming from a 2.12.0 or earlier install
-            # XXX This feels like being totally the wrong place for a database migration.
-            #     maybe a separate module with upgrade procedures to be run would be better.
-            #     The main point is that this is a migration that we want to happen fully automatically.
-            # added 2.12.x -> 2.13.0
-            print('', file=sys.stderr)
-            print('>>> A database table for hashes does not exit. Creating...', file=sys.stderr)
-            query = """
-            CREATE TABLE "hash" (
-                    "file_id" INTEGER REFERENCES filearr PRIMARY KEY,
-                    "mtime" INTEGER NOT NULL,
-                    "size" BIGINT NOT NULL,
-                    "md5"    BYTEA NOT NULL,
-                    "sha1"   BYTEA NOT NULL,
-                    "sha256" BYTEA NOT NULL,
-                    "sha1piecesize" INTEGER NOT NULL,
-                    "sha1pieces" BYTEA NOT NULL,
-                    "btih" BYTEA NOT NULL,
-                    "pgp" TEXT NOT NULL,
-                    "zblocksize" SMALLINT NOT NULL,
-                    "zhashlens" VARCHAR(8),
-                    "zsums" BYTEA NOT NULL
-            );
-            """
-            Filearr._connection.query(query)
-            query = """
-            CREATE VIEW hexhash AS
-              SELECT file_id, mtime, size,
-                     md5,
-                     encode(md5, 'hex') AS md5hex,
-                     sha1,
-                     encode(sha1, 'hex') AS sha1hex,
-                     sha256,
-                     encode(sha256, 'hex') AS sha256hex,
-                     sha1piecesize,
-                     sha1pieces,
-                     encode(sha1pieces, 'hex') AS sha1pieceshex,
-                     btih,
-                     encode(btih, 'hex') AS btihhex,
-                     pgp,
-                     zblocksize,
-                     zhashlens,
-                     zsums,
-                     encode(zsums, 'hex') AS zsumshex
-              FROM hash;
-            """
-            Filearr._connection.query(query)
-            # XXX and another thing that should not happen here, but in an
-            # "upgrade" module (that can be called at will)
-            # added 2.12.x -> 2.13.0
-            query = """
-            CREATE OR REPLACE FUNCTION mirr_get_nfiles(integer) RETURNS bigint AS '
-                SELECT count(*) FROM filearr WHERE $1 = ANY(mirrors)
-            ' LANGUAGE 'SQL';
-
-            CREATE OR REPLACE FUNCTION mirr_get_nfiles(text) RETURNS bigint AS '
-                SELECT count(*) FROM filearr WHERE (SELECT id from server where identifier = $1) = ANY(mirrors)
-            ' LANGUAGE 'SQL';
-            """
-            Filearr._connection.query(query)
-            print('>>> Done.', file=sys.stderr)
-            print('', file=sys.stderr)
-            # now try again
-
-            class Hash(SQLObject):
-                """the hashes table"""
-                class sqlmeta:
-                    fromDatabase = True
-                    idName = 'file_id'
-            self.Hash = Hash
 
         if debug:
             self.Server._connection.debug = True
