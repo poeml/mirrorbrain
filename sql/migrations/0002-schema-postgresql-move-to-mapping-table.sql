@@ -4,7 +4,7 @@ CREATE TABLE files
 (
     id bigint GENERATED ALWAYS AS IDENTITY,
     path character varying NOT NULL,
-    path_hash bytea GENERATED ALWAYS AS (digest((path)::text, 'sha256'::text)) STORED,
+    path_hash bytea GENERATED ALWAYS AS (sha256((path)::bytea)) STORED,
     mtime timestamp with time zone,
     size bigint,
     md5 bytea,
@@ -29,6 +29,8 @@ CREATE INDEX idx_files_on_mtime_and_size
 CREATE UNIQUE INDEX idx_files_on_path_unique
     ON files USING btree
     (path ASC NULLS LAST);
+
+CREATE INDEX idx_files_path_hash ON files(encode(path_hash,'hex'));
 
 CREATE TABLE server_files
 (

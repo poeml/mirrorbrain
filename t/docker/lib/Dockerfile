@@ -46,8 +46,7 @@ RUN sudo -u postgres /usr/share/postgresql/postgresql-script start && \
     sudo -u postgres psql -c "CREATE EXTENSION ip4r;" mirrorbrain && \
     sudo -u mirrorbrain psql -f /usr/share/doc/packages/mirrorbrain/sql/schema-postgresql.sql mirrorbrain && \
     sudo -u mirrorbrain psql -f /usr/share/doc/packages/mirrorbrain/sql/initialdata-postgresql.sql mirrorbrain && \
-    sudo -u mirrorbrain psql -f /usr/share/doc/packages/mirrorbrain/sql/migrations/schema-postgresql-move-to-mirrors.sql mirrorbrain && \
-    sudo -u mirrorbrain psql -f /usr/share/doc/packages/mirrorbrain/sql/migrations/schema-postgresql-migrate-data-to-mirrors.sql mirrorbrain && \
+    sudo -u mirrorbrain psql -f /usr/share/doc/packages/mirrorbrain/sql/migrations/0002-schema-postgresql-move-to-mapping-table.sql mirrorbrain && \
     sudo -u postgres /usr/share/postgresql/postgresql-script stop
 
 RUN sed -i 's,127.0.0.1/32            ident,127.0.0.1/32            password,' /var/lib/pgsql/data/pg_hba.conf
