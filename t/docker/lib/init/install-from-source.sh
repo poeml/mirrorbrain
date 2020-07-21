@@ -47,4 +47,4 @@ a2enmod maxminddb
 a2enmod dbd
 # a2enmod mirrorbrain
 
-mb makehashes /srv/www/vhosts/MAIN -t /srv/hashes/srv/www/vhosts/MAIN
+mb makehashes /srv/www/vhosts/MAIN

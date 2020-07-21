@@ -27,7 +27,7 @@ SHA256_DIGESTSIZE = 32
 class Hasheable:
     """represent a file and its metadata"""
 
-    def __init__(self, basename, src_dir=None, dst_dir=None,
+    def __init__(self, basename, src_dir=None,
                  base_dir=None, do_zsync_hashes=False,
                  do_chunked_hashes=True, chunk_size=DEFAULT_PIECESIZE, do_chunked_with_zsync=False):
         self.basename = basename
@@ -48,11 +48,6 @@ class Hasheable:
         self.inode = self.finfo.st_ino
         self.mode = self.finfo.st_mode
 
-        self.dst_dir = dst_dir
-
-        self.dst_basename = '%s.size_%s' % (self.basename, self.size)
-        self.dst = os.path.join(self.dst_dir, self.dst_basename)
-
         self.hb = HashBag(src=self.src, parent=self)
         self.hb.do_zsync_hashes = do_zsync_hashes
         self.hb.do_chunked_hashes = do_chunked_hashes
@@ -67,41 +62,6 @@ class Hasheable:
 
     def isdir(self):
         return stat.S_ISDIR(self.mode)
-
-    def check_file(self, verbose=False, dry_run=False, force=False, copy_permissions=True):
-        """check whether the hashes stored on disk are up to date"""
-        try:
-            dst_statinfo = os.stat(self.dst)
-            dst_mtime = dst_statinfo.st_mtime
-        except OSError:
-            dst_mtime = 0  # file missing
-
-        if int(dst_mtime) == int(self.mtime) and not force:
-            if verbose:
-                print('Up to date hash file: %r' % self.dst)
-            return
-
-        if dry_run:
-            print('Would create hash file', self.dst)
-            return
-
-        if self.hb.empty:
-            self.hb.fill(verbose=verbose)
-        if self.hb.empty:
-            sys.stderr.write('skipping hash (file) generation\n')
-            return
-
-        open(self.dst, 'w').close()
-
-        if verbose:
-            print('Hash file updated: %r' % self.dst)
-
-        os.utime(self.dst, (self.atime, self.mtime))
-
-        if copy_permissions:
-            os.chmod(self.dst, self.mode)
-        else:
-            os.chmod(self.dst, 0o0644)
 
     def check_db(self, conn, verbose=False, dry_run=False, force=False):
         """check if the hashes that are stored in the database are up to date

@@ -999,8 +999,6 @@ class MirrorDoctor(cmdln.Cmdln):
     @cmdln.option('-b', '--base-dir', metavar='PATH',
                         help='set the base directory (so that you can work on a '
                              'subdirectory -- see examples)')
-    @cmdln.option('-t', '--target-dir', metavar='PATH',
-                        help='set the target directory (required)')
     @cmdln.option('-z', '--zsync-mask', metavar='REGEX',
                         help='regular expression to select files to create zsync hashes for')
     @cmdln.option('-v', '--verbose', action='store_true',
@@ -1014,22 +1012,20 @@ class MirrorDoctor(cmdln.Cmdln):
         Apache's vhost setup.
 
         Simplest Examples:
-            mb makehashes -t /srv/metalink-hashes/srv/ooo /srv/ooo
+            mb makehashes /srv/ooo
 
         This is aequivalent:
-            mb makehashes -t /srv/metalink-hashes/srv/ooo -b /srv/ooo /srv/ooo
+            mb makehashes -b /srv/ooo /srv/ooo
 
         Hash only the subdirectory extended/iso/de:
-            mb makehashes -t /srv/metalink-hashes/srv/ooo -b /srv/ooo /srv/ooo/extended/iso/de
+            mb makehashes -b /srv/ooo /srv/ooo/extended/iso/de
 
         Further examples:
             mb makehashes \\
-            -t /srv/metalink-hashes/srv/ftp/pub/opensuse/repositories/home:/poeml \\
             /srv/ftp-stage/pub/opensuse/repositories/home:/poeml \\
             -i '^.*/repoview/.*$'
             mb makehashes \\
             -f '.*.(torrent|iso)$' \\
-            -t /var/lib/apache2/metalink-hashes/srv/ftp/pub/opensuse \\
             -b /srv/ftp-stage/pub/opensuse \\
             /srv/ftp-stage/pub/opensuse/distribution/11.0/iso \\
             -n
@@ -1046,26 +1042,20 @@ class MirrorDoctor(cmdln.Cmdln):
         import mb.hashes
         import mb.files
 
-        if not opts.target_dir:
-            sys.exit('You must specify the target directory (-t)')
         if not opts.base_dir:
             opts.base_dir = startdir
             #sys.exit('You must specify the base directory (-b)')
 
-        if not opts.target_dir.startswith('/'):
-            sys.exit('The target directory must be an absolut path')
         if not opts.base_dir.startswith('/'):
             sys.exit('The base directory must be an absolut path')
 
         startdir = startdir.rstrip('/')
-        opts.target_dir = opts.target_dir.rstrip('/')
         opts.base_dir = opts.base_dir.rstrip('/')
 
         double_slashes = re.compile('/+')
         startdir = re.sub(double_slashes, '/', startdir)
-        opts.target_dir = re.sub(double_slashes, '/', opts.target_dir)
         opts.base_dir = re.sub(double_slashes, '/', opts.base_dir)
-
+        
         if not os.path.exists(startdir):
             sys.exit('STARTDIR %r does not exist' % startdir)
 
@@ -1078,8 +1068,6 @@ class MirrorDoctor(cmdln.Cmdln):
         if opts.zsync_mask:
             opts.zsync_mask = re.compile(opts.zsync_mask)
 
-        unlinked_files = unlinked_dirs = 0
-
         while len(directories_todo) > 0:
             src_dir = directories_todo.pop(0)
 
@@ -1089,25 +1077,11 @@ class MirrorDoctor(cmdln.Cmdln):
                 if e.errno == errno.ENOENT:
                     sys.stderr.write('Directory vanished: %r\n' % src_dir)
                     continue
-
-            dst_dir = os.path.join(
-                opts.target_dir, src_dir[len(opts.base_dir):].lstrip('/'))
             dst_dir_db = src_dir[len(opts.base_dir):].lstrip('/')
-            # print dst_dir_db
-
-            if not opts.dry_run:
-                if not os.path.isdir(dst_dir):
-                    os.makedirs(dst_dir, mode=0o0755)
-                if opts.copy_permissions:
-                    os.chmod(dst_dir, src_dir_mode)
-                else:
-                    os.chmod(dst_dir, 0o0755)
 
             try:
-                dst_names = os.listdir(dst_dir)
-                dst_names.sort()
                 dst_names_db = [(os.path.basename(i), j)
-                                for i, j in mb.files.dir_filelist(self.conn, dst_dir_db)]
+                            for i, j in mb.files.dir_filelist(self.conn, dst_dir_db)]
                 dst_names_db_dict = dict(dst_names_db)
                 dst_names_db_keys = dst_names_db_dict.keys()
                 # print dst_names_db_keys
@@ -1127,33 +1101,6 @@ class MirrorDoctor(cmdln.Cmdln):
             if opts.verbose:
                 print('Examining directory', src_dir)
 
-            dst_keep_db = set()
-            dst_keep = set()
-            dst_keep.add('LOCK')
-
-            # FIXME: given that we don't need -t parameter anymore... can we create a lock hierarchy in /tmp instead??
-            lockfile = os.path.join(dst_dir, 'LOCK')
-            try:
-                if not opts.dry_run:
-                    lock = open(lockfile, 'w')
-                    fcntl.lockf(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                    try:
-                        os.stat(lockfile)
-                    except OSError as e:
-                        if e.errno == errno.ENOENT:
-                            if opts.verbose:
-                                print('====== skipping %s, which we were about to lock' % lockfile)
-                            continue
-
-                if opts.verbose:
-                    print('locked %s' % lockfile)
-            except IOError as e:
-                if e.errno in [errno.EAGAIN, errno.EACCES, errno.EWOULDBLOCK]:
-                    print('Skipping %r, which is locked' % src_dir)
-                    continue
-                else:
-                    raise
-
             for src_basename in sorted(src_basenames):
                 src = os.path.join(src_dir, src_basename)
 
@@ -1170,7 +1117,6 @@ class MirrorDoctor(cmdln.Cmdln):
                 try:
                     hasheable = mb.hashes.Hasheable(src_basename,
                                                     src_dir=src_dir,
-                                                    dst_dir=dst_dir,
                                                     base_dir=opts.base_dir,
                                                     do_zsync_hashes=self.config.dbconfig.get(
                                                         'zsync_hashes'),
@@ -1190,87 +1136,13 @@ class MirrorDoctor(cmdln.Cmdln):
 
                 elif hasheable.isreg():
                     if not opts.file_mask or re.match(opts.file_mask, src_basename):
-                        # if opts.verbose:
-                        #    print 'dst:', dst
-                        hasheable.check_file(verbose=opts.verbose,
-                                             dry_run=opts.dry_run,
-                                             force=opts.force,
-                                             copy_permissions=opts.copy_permissions)
                         hasheable.check_db(conn=self.conn,
                                            verbose=opts.verbose,
                                            dry_run=opts.dry_run,
                                            force=opts.force)
-                        dst_keep.add(hasheable.dst_basename)
-                        dst_keep_db.add(hasheable.basename)
 
                 elif hasheable.isdir():
                     directories_todo.append(src)  # It's a directory, store it.
-                    dst_keep.add(hasheable.basename)
-                    dst_keep_db.add(hasheable.basename)
-
-            dst_remove = set(dst_names) - dst_keep
-            # print ('old', dst_remove)
-            dst_remove_db = set(dst_names_db_keys) - dst_keep_db
-            # print ('new', dst_remove_db)
-
-            # print ('files to keep:')
-            # print (dst_keep)
-            # print ()
-            # print ('files to remove:')
-            # print (dst_remove)
-            # print
-
-            for i in sorted(dst_remove):
-                i_path = os.path.join(dst_dir, i)
-                # print (i_path)
-
-                if (opts.ignore_mask and re.match(opts.ignore_mask, i_path)):
-                    print('ignoring, not removing %s', i_path)
-                    continue
-
-                if os.path.isdir(i_path):
-                    print('Recursively removing obsolete directory %r' % i_path)
-                    if not opts.dry_run:
-                        try:
-                            shutil.rmtree(i_path)
-                        except OSError as e:
-                            if e.errno == errno.EACCES:
-                                sys.stderr.write('Recursive removing failed for %r (%s). Ignoring.\n'
-                                                 % (i_path, os.strerror(e.errno)))
-                            else:
-                                sys.exit('Recursive removing failed for %r: %s\n'
-                                         % (i_path, os.strerror(e.errno)))
-
-                    unlinked_dirs += 1
-
-                else:
-                    print('Unlinking obsolete %r' % i_path)
-                    if not opts.dry_run:
-                        try:
-                            os.unlink(i_path)
-                        except OSError as e:
-                            if e.errno != errno.ENOENT:
-                                sys.stderr.write('Unlink failed for %r: %s\n'
-                                                 % (i_path, os.strerror(e.errno)))
-                    unlinked_files += 1
-            ids_to_delete = []
-            for i in sorted(dst_remove_db):
-                relpath = os.path.join(dst_dir_db, i)
-                dbid = dst_names_db_dict.get(i)
-                if dbid:
-                    print('Obsolete hash in db: %r (id %s)' % (relpath, dbid))
-                    ids_to_delete.append(dbid)
-                else:
-                    pass  # not in the hash table
-
-            if opts.verbose:
-                print('unlocking', lockfile)
-            if not opts.dry_run:
-                os.unlink(lockfile)
-                lock.close()
-
-        if unlinked_files or unlinked_dirs:
-            print('Unlinked %s files, %d directories.' % (unlinked_files, unlinked_dirs))
 
     def do_score(self, subcmd, opts, *args):
         """${cmd_name}: show or change the score of a mirror

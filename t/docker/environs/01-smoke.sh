@@ -23,17 +23,12 @@ for x in ap7 ap8 ap9; do
     echo $xx/dt/downloads/{folder1,folder2,folder3}/{file1,file2}.dat | xargs -n 1 touch
 done
 
-mkdir -p ap9-system2/hashes
-
-mb9*/mb.sh makehashes $PWD/ap9-system2/dt/downloads -t $PWD/ap9-system2/hashes/downloads
+mb9*/mb.sh makehashes $PWD/ap9-system2/dt
 
 ap9*/start.sh
-ap9*/status.sh
 
-# see that hashes update works as well
-mb9*/mb.sh makehashes $PWD/ap9-system2/dt -t $PWD/ap9-system2/hashes
+mb9*/mb.sh makehashes $PWD/ap9-system2/dt
 
-# ap9*/curl.sh downloads/folder1/ | grep file1.dat
 ap9*/curl.sh downloads/ | grep folder1
 
 for x in ap7 ap8; do
