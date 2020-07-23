@@ -1033,7 +1033,41 @@ class MirrorDoctor(cmdln.Cmdln):
         ${cmd_usage}
         ${cmd_option_list}
         """
+        return self._do_makehashes(subcmd, opts, startdir, False)
 
+    @cmdln.option('--force', action='store_true',
+                  help='force refreshing all cached hashes')
+    @cmdln.option('-n', '--dry-run', action='store_true',
+                        help='don\'t actually do anything, just show what would be done')
+    @cmdln.option('--copy-permissions', action='store_true',
+                  help='copy the permissions of directories and files '
+                  'to the hashes files. Normally, this should not '
+                  'be needed, because the hash files don\'t contain '
+                  'any reversible information.')
+    @cmdln.option('-f', '--file-mask', metavar='REGEX',
+                        help='regular expression to select files to create hashes for')
+    @cmdln.option('-i', '--ignore-mask', metavar='REGEX',
+                        help='regular expression to ignore certain files or directories. '
+                             'If matching a file, no hashes are created for it. '
+                             'If matching a directory, the directory is ignored and '
+                             'deleted in the target tree.')
+    @cmdln.option('-b', '--base-dir', metavar='PATH',
+                        help='set the base directory (so that you can work on a '
+                             'subdirectory -- see examples)')
+    @cmdln.option('-z', '--zsync-mask', metavar='REGEX',
+                        help='regular expression to select files to create zsync hashes for')
+    @cmdln.option('-v', '--verbose', action='store_true',
+                        help='show more information')
+
+    def do_learnfiles(self, subcmd, opts, startdir):
+        """${cmd_name}: Import files from local directory to DB.
+        The command is similar to makehashes, just doesn't actually calculates 
+        hashes and only imports files to DB to make sure files are available 
+        for download faster.
+        """
+        return self._do_makehashes(subcmd, opts, startdir)
+
+    def _do_makehashes(self, subcmd, opts, startdir, skip_metadata = True):
         import os
         import fcntl
         import errno
@@ -1123,7 +1157,8 @@ class MirrorDoctor(cmdln.Cmdln):
                                                     do_chunked_hashes=self.config.dbconfig.get(
                                                         'chunked_hashes'),
                                                     chunk_size=chunk_size,
-                                                    do_chunked_with_zsync=do_chunked_with_zsync)
+                                                    do_chunked_with_zsync=do_chunked_with_zsync,
+                                                    skip_metadata=skip_metadata)
                 except OSError as e:
                     if e.errno == errno.ENOENT:
                         sys.stderr.write('File vanished: %r\n' % src)

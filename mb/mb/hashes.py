@@ -29,7 +29,7 @@ class Hasheable:
 
     def __init__(self, basename, src_dir=None,
                  base_dir=None, do_zsync_hashes=False,
-                 do_chunked_hashes=True, chunk_size=DEFAULT_PIECESIZE, do_chunked_with_zsync=False):
+                 do_chunked_hashes=True, chunk_size=DEFAULT_PIECESIZE, do_chunked_with_zsync=False, skip_metadata=False):
         self.basename = basename
         if src_dir:
             self.src_dir = src_dir
@@ -48,11 +48,13 @@ class Hasheable:
         self.inode = self.finfo.st_ino
         self.mode = self.finfo.st_mode
 
-        self.hb = HashBag(src=self.src, parent=self)
-        self.hb.do_zsync_hashes = do_zsync_hashes
-        self.hb.do_chunked_hashes = do_chunked_hashes
-        self.hb.do_chunked_with_zsync = do_chunked_with_zsync
-        self.hb.chunk_size = chunk_size
+        self.skip_metadata = skip_metadata
+        if not skip_metadata:
+           self.hb = HashBag(src=self.src, parent=self)
+           self.hb.do_zsync_hashes = do_zsync_hashes
+           self.hb.do_chunked_hashes = do_chunked_hashes
+           self.hb.do_chunked_with_zsync = do_chunked_with_zsync
+           self.hb.chunk_size = chunk_size
 
     def islink(self):
         return stat.S_ISLNK(self.mode)
@@ -74,9 +76,6 @@ class Hasheable:
             conn.mycursor = conn.Files._connection.getConnection().cursor()
         c = conn.mycursor
 
-        if self.hb.chunk_size == 0 or (self.size + self.hb.chunk_size - 1) / (self.hb.chunk_size - 1) != len(self.hb.pieceshex):
-            self.hb.zsyncpieceshex = []
-
         c.execute("SELECT id, mtime, size FROM files WHERE path = %s LIMIT 1",
                   [self.src_rel])
         res_file = c.fetchone()
@@ -84,9 +83,22 @@ class Hasheable:
             file_id = res_file[0]
             res_hash = res_file
         else:
-            print('File %r not in database. Not on mirrors yet? Will be inserted.' % self.src_rel)
+            print('File %r not in database. Will be inserted.' % self.src_rel)
             file_id = None
             res_hash = None
+
+        if not res_file:
+            c.execute("INSERT INTO files (path) VALUES (%s)",
+                      [self.src_rel])
+            if not self.skip_metadata:
+                c.execute("SELECT currval('files_id_seq')")
+                file_id = c.fetchone()[0]
+
+        if self.skip_metadata:
+            return
+
+        if self.hb.chunk_size == 0 or (self.size + self.hb.chunk_size - 1) / (self.hb.chunk_size - 1) != len(self.hb.pieceshex):
+            self.hb.zsyncpieceshex = []
 
         if not res_hash:
 
@@ -100,11 +112,6 @@ class Hasheable:
                 sys.stderr.write('skipping db hash generation\n')
                 return
 
-            if not res_file:
-                c.execute("INSERT INTO files (path) VALUES (%s)",
-                          [self.src_rel])
-                c.execute("SELECT currval('files_id_seq')")
-                file_id = c.fetchone()[0]
             zsums = ''
             for i in self.hb.zsums:
                 zsums = zsums + i.hexdigest()
@@ -181,8 +188,6 @@ class Hasheable:
                        file_id])
             if verbose:
                 print('Hash updated in database for %r' % self.src_rel)
-
-        c.execute('commit')
 
         self.hb = None
 

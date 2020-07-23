@@ -23,6 +23,10 @@ for x in ap7 ap8 ap9; do
     echo $xx/dt/downloads/{folder1,folder2,folder3}/{file1,file2}.dat | xargs -n 1 touch
 done
 
+mb9*/mb.sh learnfiles $PWD/ap9-system2/dt
+
+test 6 == $(pg9*/sql.sh -t -c 'select count(*) from files' mirrorbrain)
+
 mkdir -p ap9-system2/hashes
 
 mb9*/mb.sh makehashes $PWD/ap9-system2/dt/
