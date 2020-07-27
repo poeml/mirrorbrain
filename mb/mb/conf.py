@@ -8,6 +8,7 @@ import configparser
 boolean_opts = ['zsync_hashes', 'chunked_hashes']
 
 DEFAULTS = {'zsync_hashes': False,
+            'zsync_block_size_for_1G': None,
             'chunked_hashes': True,
             'chunk_size': 262144,
             'apache_documentroot': None}
@@ -74,6 +75,11 @@ class Config:
                         'cannot parse setting in [%s] section: %r' % (i, b + str(e)), conffile)
                 except configparser.NoOptionError as e:
                     pass
+            try:
+                self.general[i]['zsync_block_size_for_1G'] = adjust_zsync_block_size_for_1G(cp.getint(i, 'zsync_block_size_for_1G'))
+            except configparser.NoOptionError as e:
+                pass
+
             # set default values where the config didn't define anything
             for d in DEFAULTS:
                 try:
@@ -95,3 +101,19 @@ class Config:
         # take care of the [mirrorprobe] section
         #
         self.mirrorprobe = dict(cp.items('mirrorprobe'))
+
+def adjust_zsync_block_size_for_1G(n):
+    if n < 1024:
+        print("zsync_block_size_for_1G is too small, ignoring", file=sys.stderr);
+        return DEFAULTS['zsync_block_size_for_1G'] 
+    if (n & (n-1) == 0) and n != 0:
+        return n
+
+    exponent = 0
+    while n >= 2:
+        n /= 2
+        exponent += 1
+    n = 2 ** exponent
+
+    print("zsync_block_size_for_1G must be power of 2 (512, 1024, 2048, ...), adjusting down to: " + repr(n)) # , file=sys.stderr);
+    return n

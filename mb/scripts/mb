@@ -1158,7 +1158,9 @@ class MirrorDoctor(cmdln.Cmdln):
                                                         'chunked_hashes'),
                                                     chunk_size=chunk_size,
                                                     do_chunked_with_zsync=do_chunked_with_zsync,
-                                                    skip_metadata=skip_metadata)
+                                                    skip_metadata=skip_metadata,
+                                                    zsync_block_size_for_1G=self.config.dbconfig.get(
+                                                        'zsync_block_size_for_1G'))
                 except OSError as e:
                     if e.errno == errno.ENOENT:
                         sys.stderr.write('File vanished: %r\n' % src)

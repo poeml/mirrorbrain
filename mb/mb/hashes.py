@@ -29,7 +29,7 @@ class Hasheable:
 
     def __init__(self, basename, src_dir=None,
                  base_dir=None, do_zsync_hashes=False,
-                 do_chunked_hashes=True, chunk_size=DEFAULT_PIECESIZE, do_chunked_with_zsync=False, skip_metadata=False):
+                 do_chunked_hashes=True, chunk_size=DEFAULT_PIECESIZE, do_chunked_with_zsync=False, skip_metadata=False, zsync_block_size_for_1G=None):
         self.basename = basename
         if src_dir:
             self.src_dir = src_dir
@@ -55,6 +55,7 @@ class Hasheable:
            self.hb.do_chunked_hashes = do_chunked_hashes
            self.hb.do_chunked_with_zsync = do_chunked_with_zsync
            self.hb.chunk_size = chunk_size
+           self.hb.zsync_block_size_for_1G = zsync_block_size_for_1G
 
     def islink(self):
         return stat.S_ISLNK(self.mode)
@@ -114,7 +115,7 @@ class Hasheable:
 
             zsums = ''
             for i in self.hb.zsums:
-                zsums = zsums + i.hexdigest()
+                zsums = zsums + i.hex()
 
             c.execute("""UPDATE files SET 
                             mtime  = to_timestamp(%s), 
@@ -162,7 +163,7 @@ class Hasheable:
 
             zsums = ''
             for i in self.hb.zsums:
-                zsums = zsums + i.hexdigest()
+                zsums = zsums + i.hex()
 
             c.execute("""UPDATE files set mtime = to_timestamp(%s), size = %s,
                                          md5 = decode(%s, 'hex'),
@@ -333,7 +334,9 @@ class HashBag:
         import math
 
         size = self.h.size
-        if size < 100000000:
+        if size > 1024*1024*1024 and self.zsync_block_size_for_1G is not None:
+            blocksize = self.zsync_block_size_for_1G
+        elif size < 100000000:
             blocksize = 2048
         else:
             blocksize = 4096
@@ -389,6 +392,7 @@ class HashBag:
             c = md4.digest()
 
             if self.do_zsync_hashes:
+                import zsync
                 r = zsync.rsum06(block)
 
                 # save only some trailing bytes
