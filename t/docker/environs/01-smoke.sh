@@ -23,11 +23,11 @@ for x in ap7 ap8 ap9; do
     echo $xx/dt/downloads/{folder1,folder2,folder3}/{file1,file2}.dat | xargs -n 1 touch
 done
 
-mb9*/mb.sh makehashes $PWD/ap9-system2/dt
+mb9*/mb.sh makehashes -v $PWD/ap9-system2/dt
 
 ap9*/start.sh
 
-mb9*/mb.sh makehashes $PWD/ap9-system2/dt
+mb9*/mb.sh makehashes -v $PWD/ap9-system2/dt
 
 ap9*/curl.sh downloads/ | grep folder1
 

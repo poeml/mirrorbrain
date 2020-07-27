@@ -71,53 +71,97 @@ class Hasheable:
 
         for performance, this function talks very low level to the database"""
         # get a database cursor, but make it persistent which is faster
-        try:
-            conn.mycursor
-        except AttributeError:
-            conn.mycursor = conn.Files._connection.getConnection().cursor()
-        c = conn.mycursor
+        with conn.Files._connection.getConnection() as _conn:
+            _conn.set_session(autocommit=False)
+            with _conn.cursor() as c:
 
-        c.execute("SELECT id, mtime, size FROM files WHERE path = %s LIMIT 1",
-                  [self.src_rel])
-        res_file = c.fetchone()
-        if res_file:
-            file_id = res_file[0]
-            res_hash = res_file
-        else:
-            print('File %r not in database. Will be inserted.' % self.src_rel)
-            file_id = None
-            res_hash = None
-
-        if not res_file:
-            c.execute("INSERT INTO files (path) VALUES (%s)",
+                c.execute("SELECT id, mtime, size FROM files WHERE path = %s LIMIT 1",
                       [self.src_rel])
-            if not self.skip_metadata:
-                c.execute("SELECT currval('files_id_seq')")
-                file_id = c.fetchone()[0]
-
-        if self.skip_metadata:
-            return
-
-        if self.hb.chunk_size == 0 or (self.size + self.hb.chunk_size - 1) / (self.hb.chunk_size - 1) != len(self.hb.pieceshex):
-            self.hb.zsyncpieceshex = []
-
-        if not res_hash:
+                res_file = c.fetchone()
+                if res_file:
+                    file_id = res_file[0]
+                    res_hash = res_file
+                else:
+                    print('File %r not in database. Will be inserted.' % self.src_rel)
+                    file_id = None
+                    res_hash = None
 
             if dry_run:
                 print('Would create hashes in db for: ', self.src_rel)
                 return
 
+            def batch(iterable, n=1):
+                l = len(iterable)
+                for ndx in range(0, l, n):
+                    yield iterable[ndx:min(ndx + n, l)]
+
+            lobj = None
+            with _conn.cursor() as cur:
+                if not res_file:
+                    cur.execute("INSERT INTO files (path) VALUES (%s)",
+                          [self.src_rel])
+                    if not self.skip_metadata:
+                        cur.execute("SELECT currval('files_id_seq')")
+                        file_id = cur.fetchone()[0]
+
+            if self.skip_metadata:
+                return
+
+            if self.hb.chunk_size == 0 or (self.size + self.hb.chunk_size - 1) / (self.hb.chunk_size - 1) != len(self.hb.pieceshex):
+                self.hb.zsyncpieceshex = []
+
+            if res_hash:
+                 mtime, size = res_hash[1], res_hash[2]
+
+                 if int(self.mtime) == mtime and self.size == size and not force:
+                    if verbose:
+                        print('Up to date in db: %r' % self.src_rel)
+                    return
+
             if self.hb.empty:
                 self.hb.fill(verbose=verbose)
+
             if self.hb.empty:
                 sys.stderr.write('skipping db hash generation\n')
                 return
 
-            zsums = ''
-            for i in self.hb.zsums:
-                zsums = zsums + i.hex()
+            if self.hb.zsums:
+                import psycopg2
+                import psycopg2.extensions
+                # zsums can be big for large files, so use postgres large object
+                # this object is planned to live only inside transaction
+                lobj = cur.connection.lobject(0,'w')
+                for i in batch(self.hb.zsums, 1024):
+                    lobj.write(b''.join([j for j in i]))
 
-            c.execute("""UPDATE files SET 
+            with _conn.cursor() as cur:
+                if lobj is None:
+                    cur.execute("""UPDATE files SET 
+                            mtime  = to_timestamp(%s), 
+                            size   = %s, 
+                            md5    = %s,
+                            sha1   = decode(%s, 'hex'), 
+                            sha256 = decode(%s, 'hex'), 
+                            sha1piecesize = %s,
+                            sha1pieces = decode(%s, 'hex'),
+                            btih = decode(%s, 'hex'),
+                            pgp = %s, 
+                            zblocksize = NULL,
+                            zhashlens = NULL, 
+                            zsums = NULL
+                       WHERE id = %s""",
+                      [int(self.mtime), self.size,
+                       self.hb.md5hex or '',
+                       self.hb.sha1hex or '',
+                       self.hb.sha256hex or '',
+                       self.hb.chunk_size,
+                       ''.join(self.hb.pieceshex) +
+                       ''.join(self.hb.zsyncpieceshex),
+                       self.hb.btihhex or '',
+                       self.hb.pgp or '',
+                       file_id]);
+                else:
+                    cur.execute("""UPDATE files SET 
                             mtime  = to_timestamp(%s), 
                             size   = %s, 
                             md5    = %s,
@@ -129,7 +173,7 @@ class Hasheable:
                             pgp = %s, 
                             zblocksize = %s,
                             zhashlens = %s, 
-                            zsums = decode(%s, 'hex')
+                            zsums = lo_get(%s)
                        WHERE id = %s""",
                       [int(self.mtime), self.size,
                        self.hb.md5hex or '',
@@ -142,51 +186,9 @@ class Hasheable:
                        self.hb.pgp or '',
                        self.hb.zblocksize,
                        self.hb.get_zparams(),
-                       zsums,
-                       file_id]
-                      )
-            if verbose:
-                print('Hash was not present yet in database - inserted')
-        else:
-            mtime, size = res_hash[1], res_hash[2]
-
-            if int(self.mtime) == mtime and self.size == size and not force:
-                if verbose:
-                    print('Up to date in db: %r' % self.src_rel)
-                return
-
-            if self.hb.empty:
-                self.hb.fill(verbose=verbose)
-            if self.hb.empty:
-                sys.stderr.write('skipping db hash generation\n')
-                return
-
-            zsums = ''
-            for i in self.hb.zsums:
-                zsums = zsums + i.hex()
-
-            c.execute("""UPDATE files set mtime = to_timestamp(%s), size = %s,
-                                         md5 = decode(%s, 'hex'),
-                                         sha1 = decode(%s, 'hex'),
-                                         sha256 = decode(%s, 'hex'),
-                                         sha1piecesize = %s,
-                                         sha1pieces = decode(%s, 'hex'),
-                                         btih = decode(%s, 'hex'),
-                                         pgp = %s,
-                                         zblocksize = %s,
-                                         zhashlens = %s,
-                                         zsums = decode(%s, 'hex')
-                         WHERE id = %s""",
-                      [int(self.mtime), self.size,
-                       self.hb.md5hex or '', self.hb.sha1hex or '', self.hb.sha256hex or '',
-                       self.hb.chunk_size, ''.join(
-                           self.hb.pieceshex) + ''.join(self.hb.zsyncpieceshex),
-                       self.hb.btihhex or '',
-                       self.hb.pgp or '',
-                       self.hb.zblocksize,
-                       self.hb.get_zparams(),
-                       zsums,
-                       file_id])
+                       lobj.oid,
+                       file_id]);
+                    lobj.unlink()
             if verbose:
                 print('Hash updated in database for %r' % self.src_rel)
 
@@ -385,7 +387,7 @@ class HashBag:
 
             # padding
             if len(block) < self.zblocksize:
-                block = block + ('\x00' * (self.zblocksize - len(block)))
+                block = block + (b'\x00' * (self.zblocksize - len(block)))
 
             md4 = hashlib.new('md4')
             md4.update(block)
@@ -402,7 +404,7 @@ class HashBag:
 
     def get_zsync_digest(self, buf, blocksize):
         if len(buf) < blocksize:
-            buf = buf + ('\x00' * (blocksize - len(buf)))
+            buf = buf + (b'\x00' * (blocksize - len(buf)))
         r = zsync.rsum06(buf)
         return "%02x%02x%02x%02x" % (ord(r[3]), ord(r[2]), ord(r[1]), ord(r[0]))
 
