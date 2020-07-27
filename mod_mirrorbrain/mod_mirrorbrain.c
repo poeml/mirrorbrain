@@ -1584,8 +1584,11 @@ static int mb_handler(request_rec *r)
 
     /* We might be running as a backend which sees client IPs only through HTTP
      * headers */
-    clientip = apr_table_get(r->subprocess_env, "GEOIP_ADDR");
-    if (!clientip) {
+    clientip = apr_table_get(r->subprocess_env, "MMDB_ADDR");
+    if (clientip) {
+      debugLog(r, cfg, "Got clientip from MMDB_ADDR");
+    } else {
+      debugLog(r, cfg, "Reading clientip from request...");
 #if MODULE_MAGIC_NUMBER_MAJOR >= 20111025
       clientip = apr_pstrdup(r->pool, r->useragent_ip);
 #else
