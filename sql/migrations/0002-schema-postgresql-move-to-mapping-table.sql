@@ -26,6 +26,10 @@ CREATE INDEX idx_files_on_mtime_and_size
     ON files USING btree
     (mtime ASC NULLS LAST, size ASC NULLS LAST);
 
+CREATE INDEX idx_files_on_created_at
+    ON files USING btree
+    (created_at ASC NULLS LAST);
+
 CREATE UNIQUE INDEX idx_files_on_path_unique
     ON files USING btree
     (path ASC NULLS LAST);
@@ -61,7 +65,7 @@ CREATE MATERIALIZED VIEW files_mirror_count AS
     FROM files
     LEFT JOIN server_files
       ON files.id = server_files.file_id
-    WHERE mtime < (now()-'3 months'::interval)
+    WHERE files.created_at < (now()-'3 months'::interval)
     GROUP BY files.id
     ORDER BY files.id
 WITH DATA;
@@ -311,3 +315,15 @@ CREATE VIEW hexhash AS
     encode(btih,       'hex') AS btihhex,
     encode(zsums,      'hex') AS zsumshex
   FROM files;
+
+ALTER INDEX IF EXISTS country_pkey                            RENAME TO pk_country;
+ALTER INDEX IF EXISTS hash_pkey                               RENAME TO pk_hash;
+ALTER INDEX IF EXISTS marker_pkey                             RENAME TO pk_marker;
+ALTER INDEX IF EXISTS region_pkey                             RENAME TO pk_region;
+ALTER INDEX IF EXISTS server_pkey                             RENAME TO pk_server;
+ALTER INDEX IF EXISTS version_pkey                            RENAME TO pk_version;
+
+ALTER INDEX IF EXISTS server_enabled_status_baseurl_score_key RENAME TO idx_server_enabled_status_baseurl_score;
+ALTER INDEX IF EXISTS server_identifier_key                   RENAME TO idx_server_identifier_unique;
+
+DROP TABLE IF EXISTS pfx2asn;
