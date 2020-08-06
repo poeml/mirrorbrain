@@ -234,8 +234,6 @@ class HashBag:
         if verbose:
             sys.stdout.write('Hashing %r... ' % self.src)
             sys.stdout.flush()
-        if self.do_chunked_with_zsync or self.do_zsync_hashes:
-            import zsync
 
         if self.do_zsync_hashes:
             self.zs_guess_zsync_params()
@@ -403,10 +401,11 @@ class HashBag:
                 self.zsums.append(c[0:self.zchecksum_len])
 
     def get_zsync_digest(self, buf, blocksize):
+        import zsync
         if len(buf) < blocksize:
             buf = buf + (b'\x00' * (blocksize - len(buf)))
         r = zsync.rsum06(buf)
-        return "%02x%02x%02x%02x" % (ord(r[3]), ord(r[2]), ord(r[1]), ord(r[0]))
+        return "%02x%02x%02x%02x" % (r[3], r[2], r[1], r[0])
 
     def calc_btih(self):
         """ calculate a bittorrent information hash (btih) """

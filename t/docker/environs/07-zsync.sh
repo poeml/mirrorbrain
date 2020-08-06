@@ -24,4 +24,7 @@ sed -i '/dbname = mirrorbrain/a zsync_hashes = 1' mb9*/mirrorbrain.conf
 mb9*/mb.sh makehashes $PWD/mb9/downloads
 # test with checksum of zsums receved for 100M empty file with 2.19.3
 test $file != .product/mb/.data/file100M || test 336c175872f11712eaa1f7a97d8942ab == $(pg9*/sql.sh -t -c "select md5(zsums) from files" mirrorbrain)
-pg9*/sql.sh -c "select sha1, zblocksize, zhashlens, length(zsums) from files" mirrorbrain
+pg9*/sql.sh -c "select path, sha1, length(sha1pieces) as sha1pieceslen, zblocksize, zhashlens, length(zsums) as zsumslen from files" mirrorbrain
+
+mb9*/mb.sh makehashes -v --zsync-mask '.*' $PWD/mb9/downloads
+pg9*/sql.sh -c "select path, sha1, length(sha1pieces) as sha1pieceslen, zblocksize, zhashlens, length(zsums) as zsumslen from files" mirrorbrain
