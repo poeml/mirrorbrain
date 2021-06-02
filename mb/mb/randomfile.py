@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 import sys
 import os
 import os.path
@@ -13,13 +11,13 @@ import os.path
 def find_first_file_in_tree(bdir):
     files = None
     for (path, dirs, files) in os.walk(bdir):
-        #print path
-        #print dirs 
-        #print files 
-        #print "----"
+        # print (path)
+        # print (dirs)
+        # print (files)
+        # print ("----")
         if files:
             break
-    #print '********'
+    # print ('********')
     if files:
         found = os.path.join(path, files[0])
         found = found[len(bdir):]
@@ -32,5 +30,4 @@ def find_first_file_in_tree(bdir):
 if __name__ == '__main__':
 
     bdir = sys.argv[1]
-    print find_first_file_in_tree(bdir)
-
+    print(find_first_file_in_tree(bdir))

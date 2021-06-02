@@ -18,7 +18,7 @@ null-rsync.1: null-rsync.1.ronn
 	$(RONN) --html $<
 
 install: null-rsync null-rsync.1
-	$(INSTALL) -d $(DESTDIR)$(bindir) 
+	$(INSTALL) -d $(DESTDIR)$(bindir)
 	$(INSTALL) -d $(DESTDIR)$(mandir)/man1
 	$(INSTALL) -d $(DESTDIR)$(docdir)/mirrorbrain-tools
 	$(INSTALL) null-rsync $(DESTDIR)$(bindir)

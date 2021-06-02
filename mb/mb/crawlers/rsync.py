@@ -8,32 +8,35 @@ import mb.core
 # >>> a.split(None, 4)
 # ['-rw-r--r--', '4405843968', '2007/09/27', '17:50:25', 'distribution/10.3/iso/dvd/openSUSE-10.3-GM- DVD-i386.iso']
 
+
 def get_filelist(url):
-    import urlparse
+    import urllib
     import subprocess
 
     print url
-    url = list(urlparse.urlparse(url))
-    if not ':' in url[1]: url[1] += ':873'
-    url = urlparse.urlunparse(url)
+    url = list(urllib.urlparse(url))
+    if not ':' in url[1]:
+        url[1] += ':873'
+    url = urllib.urlunparse(url)
     print url
     # old
     ###  child_stdin, child_stdout, child_stderr = os.popen3(['rsync', '-r', url])
-    ###  #child_stdin, child_stdout, child_stderr = os.popen3(['cat', 'buildservice-repos.txt'])
-    ###  child_stdin.close()
+    # child_stdin, child_stdout, child_stderr = os.popen3(['cat', 'buildservice-repos.txt'])
+    # child_stdin.close()
 
-    ###  # new
+    # new
     ###  p = subprocess.Popen(cmd, shell=True, bufsize=bufsize, stdin=None, stdout=PIPE, stderr=PIPE, close_fds=True)
     ###  (child_stdin, child_stdout, child_stderr) = (p.stdin, p.stdout, p.stderr)
 
     # newer
-    o = subprocess.Popen(['rsync', '-r', url], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, close_fds=True).stdout
+    o = subprocess.Popen(['rsync', '-r', url], stdout=subprocess.PIPE,
+                         stderr=subprocess.STDOUT, close_fds=True).stdout
     print 'done'
     #import time
-    #time.sleep(100)
+    # time.sleep(100)
 
     dirCollection = {}
-    ###  for line in child_stdout:
+    # for line in child_stdout:
     for line in o.readlines():
         print 'a line'
         try:
@@ -51,7 +54,7 @@ def get_filelist(url):
 
         elif mode.startswith('-'):
             d, p = os.path.split(name)
-            if not d: 
+            if not d:
                 d = '.'
             dirCollection[d].files.append(p)
 
@@ -61,9 +64,7 @@ def get_filelist(url):
         else:
             # something unknown...
             print 'skipping', line
-            
+
     err = child_stderr.read()
 
     return dirCollection, err
-
-

@@ -3,12 +3,12 @@
 ################################################################################
 # scanner.pl -- script that crawls through mirror file trees.
 #
-# Copyright 2006,2007,2008,2009,2010,2011,2012,2013,2014 
+# Copyright 2006,2007,2008,2009,2010,2011,2012,2013,2014
 #           Martin Polster, Juergen Weigert, Peter Poeml, Novell Inc.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License version 2
-# as published by the Free Software Foundation; 
+# as published by the Free Software Foundation;
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -45,12 +45,11 @@ use bytes;
 use Config::IniFiles;
 use Time::HiRes qw(gettimeofday);
 use Encode;
+use Digest::SHA qw(sha256_hex);
 
-my $version = '2.19.0';
-my $verbose = 1;
-my $sqlverbose = 0;
-
-#$DB::inhibit_exit = 0;
+my $version = '2.19.2';
+my $verbose = 2;
+my $sqlverbose = 1;
 
 $SIG{'PIPE'} = 'IGNORE';
 
@@ -81,15 +80,11 @@ my $enable_after_scan = 0;
 my $cfgfile = '/etc/mirrorbrain.conf';
 my $brain_instance = '';
 
-# FIXME: use DBI functions transaction handling
-my $do_transaction = 1;
-
 # save prepared statements
 my $sth_update;
 my $sth_insert_rel;
 my $sth_select_file;
 my $sth_insert_file;
-my $sth_mirr_addbypath;
 
 my $gig2 = 1<<31; # 2*1024*1024*1024 == 2^1 * 2^10 * 2^10 * 2^10 = 2^31
 
@@ -127,8 +122,8 @@ while (defined (my $arg = shift)) {
 	elsif ($arg =~ m{^-d})                 { $start_dir = shift; }
 	elsif ($arg =~ m{^--config})           { $cfgfile = shift; }
 	elsif ($arg =~ m{^-b})                 { $brain_instance = shift; }
-	elsif ($arg =~ m{^-l})                 { $list_only++; 
-						 $list_only++ if $arg =~ m{ll}; 
+	elsif ($arg =~ m{^-l})                 { $list_only++;
+						 $list_only++ if $arg =~ m{ll};
 						 $list_only++ if $arg =~ m{lll}; }
 	elsif ($arg =~ m{^-})		       { exit usage("unknown option '$arg'"); }
 }
@@ -138,7 +133,7 @@ while (defined (my $arg = shift)) {
 my $cfg = new Config::IniFiles( -file => $cfgfile );
 $cfg->SectionExists('general') or die 'no [general] section in config file';
 
-# if the instance wasn't specified with -b, we use the first of the defined 
+# if the instance wasn't specified with -b, we use the first of the defined
 # instances
 my @brain_instances = split(/, /, $cfg->val('general', 'instances'));
 $brain_instance = $brain_instances[0] unless $brain_instance;
@@ -146,7 +141,7 @@ $cfg->SectionExists($brain_instance) or die 'no [' . $brain_instance . '] sectio
 
 
 my $db_driver = 'mysql'; # backwards compatible default
-$db_driver = $cfg->val($brain_instance, 'dbdriver') 
+$db_driver = $cfg->val($brain_instance, 'dbdriver')
 		if $cfg->val($brain_instance, 'dbdriver');
 
 my $db_port = 'not set';
@@ -159,21 +154,21 @@ elsif($db_driver eq 'mysql') {
 }
 else { die 'unknown dbddriver "' . $db_driver . '" in config file'; }
 
-$db_port = $cfg->val($brain_instance, 'dbport') 
+$db_port = $cfg->val($brain_instance, 'dbport')
 		if $cfg->val($brain_instance, 'dbport');
 
 my $db_cred = { dbi => 'dbi:' .  $db_driver
-                              . ':dbname=' . $cfg->val( $brain_instance, 'dbname') 
+                              . ':dbname=' . $cfg->val( $brain_instance, 'dbname')
                               . ';host='   . $cfg->val( $brain_instance, 'dbhost')
                               . ';port='   . $db_port,
-                user => $cfg->val( $brain_instance, 'dbuser'), 
-                pass => $cfg->val( $brain_instance, 'dbpass'), 
+                user => $cfg->val( $brain_instance, 'dbuser'),
+                pass => $cfg->val( $brain_instance, 'dbpass'),
                 opt => { PrintError => 0 } };
 
 
 my %only_server_ids = map { $_ => 1 } @ARGV;
 
-exit usage("Please specify list of server IDs (or -a for all) to scan\n") 
+exit usage("Please specify list of server IDs (or -a for all) to scan\n")
   unless $all_servers or %only_server_ids or $list_only;
 
 exit usage("-a takes no parameters (or try without -a ).\n") if $all_servers and %only_server_ids;
@@ -220,7 +215,7 @@ exit mirror_list(\@scan_list, $list_only-1) if $list_only;
 
 ###################
 $start_dir =~ s{^/+}{};	# leading slash is implicit; leads to '' per default.
-$start_dir =~ s{/+$}{};	# trailing slashes likewise. 
+$start_dir =~ s{/+$}{};	# trailing slashes likewise.
 ##################
 
 # be sure not to parallelize if there is exactly one server to scan.
@@ -261,40 +256,31 @@ if ($parallel > 1) {
   exit 0;
 }
 
+my %db_files_hash_id_map;
+my @new_file_hashes;
 
-if($do_transaction) {
-  $dbh->{AutoCommit} = 0;
-  #$dbh->{RaiseError} = 1;
-}
+my $sql_server_files = "SELECT file_id, path_hash FROM server_files
+          JOIN files on file_id = id
+          WHERE ? = server_id";
+$sql_server_files = $sql_server_files . " AND path like '$start_dir/%'" if $start_dir;
+my $smh_server_files = $dbh->prepare($sql_server_files) or die "$sql_server_files: ".$DBI::errstr;
+
 
 for my $row (@scan_list) {
   print localtime(time) . " $row->{identifier}: starting\n" if $verbose > 0;
 
-  # already in a transaction? why??
-  #if($do_transaction) {
-  #  $dbh->begin_work or die "$DBI::errstr";
-  #}
+  print "$sql_server_files, $row->{id}\n" if $sqlverbose;
+  $smh_server_files->execute($row->{id}) or die "$sql_server_files: ".$DBI::errstr;
 
-  if(length $start_dir) {
-    $sql = "CREATE TEMPORARY TABLE temp1 AS 
-            SELECT id FROM filearr 
-            WHERE path LIKE '$start_dir/%' 
-                  AND $row->{id} = ANY(mirrors)";
-  } else {
-    $sql = "CREATE TEMPORARY TABLE temp1 AS 
-            SELECT id FROM filearr 
-            WHERE $row->{id} = ANY(mirrors)";
+  %db_files_hash_id_map = ();
+  @new_file_hashes      = ();
+
+  while ( my @r = $smh_server_files->fetchrow_array ) {
+    $db_files_hash_id_map{$r[1]} = $r[0];
   }
-  print "$sql\n" if $sqlverbose;
-  $dbh->do($sql) or die "$sql: ".$DBI::errstr;
+  $smh_server_files->finish;
 
-  $sql = "CREATE INDEX temp1_key ON temp1 (id);
-          ANALYZE temp1;
-          SELECT COUNT(*) FROM temp1";
-  print "$sql\n" if $sqlverbose;
-    
-  my $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
-  my $initial_file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
+  my $initial_file_count = keys %db_files_hash_id_map;
   if(length $start_dir) {
     print localtime(time) . " $row->{identifier}: files in '$start_dir' before scan: $initial_file_count\n"
       if $verbose > 0;
@@ -302,14 +288,6 @@ for my $row (@scan_list) {
     print localtime(time) . " $row->{identifier}: total files before scan: $initial_file_count\n"
       if $verbose > 0;
   }
-
-  if($do_transaction) {
-    $dbh->commit or die "$DBI::errstr";
-  }
-
-  #$sql = "SELECT COUNT(*) FROM filearr WHERE $row->{id} = ANY(mirrors)";
-  #print "$sql\n" if $sqlverbose;
-
 
   my $start = int(gettimeofday * 1000);
   my $file_count = rsync_readdir($row->{identifier}, $row->{id}, $row->{baseurl_rsync}, $start_dir);
@@ -322,41 +300,53 @@ for my $row (@scan_list) {
     $file_count = scalar http_readdir($row->{identifier}, $row->{id}, $row->{baseurl}, $start_dir);
   }
 
-  if($do_transaction) {
-    $dbh->commit or die "$DBI::errstr";
-  }
   my $duration = (int(gettimeofday * 1000) - $start) / 1000;
   if (!$duration) { $duration = 1; }
   if (!$file_count) { $file_count = 0; }
 
   my $fpm = int(60*$file_count/$duration);
 
-  print localtime(time) . " $row->{identifier}: scanned $file_count files (" 
-         . int($fpm/60) . "/s) in " 
+  print localtime(time) . " $row->{identifier}: scanned $file_count files ("
+         . int($fpm/60) . "/s) in "
          . int($duration) . "s\n" if $verbose > 0;
 
   $start = time();
+
   print localtime(time) . " $row->{identifier}: purging old files\n" if $verbose > 1;
-
-
-  #$sql = "SELECT COUNT(*) FROM temp1";
-  $sql = "SELECT COUNT(mirr_del_byid($row->{id}, id)) FROM temp1";
-  print "$sql\n" if $sqlverbose;
-  $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
-  my $purge_file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
+  my @purge_ids = sort { $a lt $b } values %db_files_hash_id_map;
+  my $purge_file_count = @purge_ids;
   print localtime(time) . " $row->{identifier}: files to be purged: $purge_file_count\n" if $verbose > 0;
+  # to this point save_file() would remove all relevant files from %db_files_hash_id_map
+  if ($purge_file_count) {
+    my $sql_values = join( ',', ("($row->{id}, ?)") x $purge_file_count );
+    $sql = "DELETE FROM server_files WHERE (server_id, file_id) in ($sql_values)";
+    my $smh = $dbh->prepare($sql) or die substr($sql,0,200) . "...: ".$DBI::errstr;
+    print substr($sql,0,200) . "...(". $purge_file_count .")\n" if $sqlverbose;
+    $smh->execute(@purge_ids) or die substr($sql,0,200) . "...: ".$DBI::errstr;
+    $smh->finish;
+  }
+  
+  my $new_file_count = @new_file_hashes;
+  print localtime(time) . " $row->{identifier}: files to be inserted: $new_file_count\n" if $verbose > 0;
+  if ($new_file_count) {
+    my $sql_values = join( ',', ('?') x $new_file_count );
+    $sql = "INSERT INTO server_files (server_id, file_id) SELECT ?, id FROM files WHERE encode(path_hash,'hex') IN ($sql_values) ORDER BY id";
+    my $smh = $dbh->prepare($sql) or die substr($sql,0,200) . "...: ".$DBI::errstr;
+    print substr($sql,0,200) . "...($row->{id},{". $new_file_count ."})\n" if $sqlverbose;
+    $smh->execute($row->{id}, @new_file_hashes) or die substr($sql,0,200) . "...($row->{id},{". $new_file_count ."}): ".$DBI::errstr;
+    $smh->finish;
+  }    
 
-
-  $sql = "SELECT COUNT(*) FROM filearr WHERE $row->{id} = ANY(mirrors);";
+  $sql = "SELECT COUNT(*) FROM server_files WHERE $row->{id} = server_id;";
   print "$sql\n" if $sqlverbose;
 
   if(length $start_dir) {
-    print localtime(time) . " $row->{identifier}: total files in '$start_dir' after scan: $file_count " . 
+    print localtime(time) . " $row->{identifier}: total files in '$start_dir' after scan: $file_count " .
           "(delta: " . ($file_count - $initial_file_count) . ")\n" if $verbose > -1;
   } else {
     $ary_ref = $dbh->selectall_arrayref($sql) or die $dbh->errstr();
     $file_count = defined($ary_ref->[0]) ? $ary_ref->[0][0] : 0;
-    print localtime(time) . " $row->{identifier}: total files after scan: $file_count " . 
+    print localtime(time) . " $row->{identifier}: total files after scan: $file_count " .
           "(delta: " . ($file_count - $initial_file_count) . ")\n" if $verbose > -1;
   }
 
@@ -380,14 +370,6 @@ for my $row (@scan_list) {
     print localtime(time) . " $row->{identifier}: now enabled.\n" if $verbose > 0;
   }
 
-  $sql = "DROP TABLE temp1";
-  print "$sql\n" if $sqlverbose;
-  $dbh->do($sql) or die "$sql: ".$DBI::errstr;
-
-  if($do_transaction) {
-    $dbh->commit or die "$DBI::errstr";
-  }
-
   print localtime(time) . " $row->{identifier}: done.\n" if $verbose > 0;
 }
 
@@ -405,7 +387,7 @@ sub usage
 
 scanner [options] [mirror_ids ...]
 
-  -b        MirrorBrain instance to use 
+  -b        MirrorBrain instance to use
             Default: the first which is defined in the config.
   -v        Be more verbose (Default: $verbose).
   -S        Show SQL statements.
@@ -417,23 +399,23 @@ scanner [options] [mirror_ids ...]
   -a        Scan all enabled mirrors. Alternative to providing a list of mirror_ids.
   -e        Enable mirror, after it was scanned. Useful with -f.
   -f        Force. Scan listed mirror_ids even if they are not enabled.
-  -d dir    Scan only in dir under mirror's baseurl. 
+  -d dir    Scan only in dir under mirror's baseurl.
             Default: start at baseurl.
 
   -j N      Run up to N scanner queries in parallel.
 
-  --exclude regexp 
+  --exclude regexp
             Define pattern(s) for path names to ignore. Paths matching this pattern
             will not be recursed into (thus saving resources) and also, when
             matching a file, not added into the database.
             This option is effective only for scans via HTTP/FTP. For rsync,
             use the --exclude-rsync option (due to different patterns used there).
-            Here, regular expressions are used. 
+            Here, regular expressions are used.
             Path names don't start with a slash; thus, if the regexp starts with a slash
             it will not match at the top-level directory.
             Option can be repeated.
             Default: @exclude_list
-  --exclude-rsync pattern 
+  --exclude-rsync pattern
             Similar like --exclude, but used (only) for rsync scans.
             For HTTP/FTP, use the --exclude option (due to different patterns
             used there).
@@ -462,7 +444,7 @@ sub mirror_list
       print "\t$row->{baseurl_rsync}$nl" if length($row->{baseurl_rsync}||'') > 0;
       print "\t$row->{baseurl_ftp}$nl"   if length($row->{baseurl_ftp}||'') > 0;
       print "\t$row->{baseurl}$nl"       if length($row->{baseurl}||'') > 0;
-      printf "\tscore=%d country=%s region=%s enabled=%d$nl", 
+      printf "\tscore=%d country=%s region=%s enabled=%d$nl",
            $row->{score}||0, $row->{country}||'', $row->{region}||'', $row->{enabled}||0;
       print "\n";
     }
@@ -512,7 +494,7 @@ sub fork_child
 {
   my ($idx, @args) = @_;
   if (my $p = fork()) {
-  # parent 
+  # parent
     print "worker $idx, pid=$p start.\n" if $verbose > 1;
     return $p;
   }
@@ -568,14 +550,14 @@ sub http_readdir
     return;
   }
   if($contents =~ s{^.*<(PRE|pre|table)>.*<(a href|A HREF)="\?(N=A|C=.*;O=)[^"]*">}{}s) {
-    ##     _                     _          
-    ##    / \   _ __   __ _  ___| |__   ___ 
+    ##     _                     _
+    ##    / \   _ __   __ _  ___| |__   ___
     ##   / _ \ | '_ \ / _` |/ __| '_ \ / _ \
     ##  / ___ \| |_) | (_| | (__| | | |  __/
     ## /_/   \_\ .__/ \__,_|\___|_| |_|\___|
-    ##         |_|                          
+    ##         |_|
     ## good, we know that one. It is a standard apache dir-listing.
-    ## 
+    ##
     ## bad, apache shows symlinks as a copy of the file or dir they point to.
     ## no way to avoid duplicate crawls except by defining top_include_dirs,
     ## scan_exclude or scan_exclude_rsync in /etc/mirrorbrain.conf.
@@ -626,16 +608,13 @@ sub http_readdir
       }
     }
     print "$identifier: committing http dir $name\n" if $verbose > 2;
-    if($do_transaction) {
-      $dbh->commit or die "$DBI::errstr";
-    }
   } elsif($contents =~ s{^.*<thead>.*>Name<.*<tbody>}{}s) {
-    ##  _ _       _     _   _             _ 
+    ##  _ _       _     _   _             _
     ## | (_) __ _| |__ | |_| |_ _ __   __| |
     ## | | |/ _` | '_ \| __| __| '_ \ / _` |
     ## | | | (_| | | | | |_| |_| |_) | (_| |
     ## |_|_|\__, |_| |_|\__|\__| .__/ \__,_|
-    ##      |___/              |_|          
+    ##      |___/              |_|
     ## Oh look, it's a lighttpd directory index!
     $contents =~ s{</tbody>.*$}{}s;
     for my $line (split "\n", $contents) {
@@ -682,17 +661,14 @@ sub http_readdir
       }
     }
     print "$identifier: committing http dir $name\n" if $verbose > 2;
-    if($do_transaction) {
-      $dbh->commit or die "$DBI::errstr";
-    }
  } elsif($contents =~ s{^<html>.*<head><title>Index of .*<h1>Index of .*</h1><hr><pre><a href="../">../</a>}{}s) {
-    ##              _            
+    ##              _
     ##  _ __   __ _(_)_ __ __  __
     ## | '_ \ / _` | | '_ \\ \/ /
-    ## | | | | (_| | | | | |>  < 
+    ## | | | | (_| | | | | |>  <
     ## |_| |_|\__, |_|_| |_/_/\_\
-    ##        |___/              
-    ## 
+    ##        |___/
+    ##
     ## Oh look, it's a nginx directory index!
     $contents =~ s{<pre><a href="../">../</a>.*</pre><hr></body>$}{}s;
     for my $line (split "\n", $contents) {
@@ -739,13 +715,10 @@ sub http_readdir
         }
       }
     }
-    print "$identifier: committing http dir $name\n" if $verbose > 2;
-    if($do_transaction) {
-      $dbh->commit or die "$DBI::errstr";
-    }
+    print "$identifier: finished http dir $name\n" if $verbose > 2;
  }
   else {
-    ## we come here, whenever we stumble into an automatic index.html 
+    ## we come here, whenever we stumble into an automatic index.html
     $contents = substr($contents, 0, 500);
     print "$identifier: unparseable HTML index in /$name\n" if $verbose;
     warn Dumper $contents, "$identifier: http_readdir: unknown HTML format" if $verbose > 1;
@@ -769,12 +742,12 @@ sub byte_size
 
 
 
-#    _____ _____ ____  
-#   |  ___|_   _|  _ \ 
+#    _____ _____ ____
+#   |  ___|_   _|  _ \
 #   | |_    | | | |_) |
-#   |  _|   | | |  __/ 
-#   |_|     |_| |_|    
-# 
+#   |  _|   | | |  __/
+#   |_|     |_| |_|
+#
 # $file_count = scalar ftp_readdir($row->{identifier}, $row->{id}, $row->{baseurl_ftp}, $ftp_timer, $start_dir);
 # first call: $ftp undefined
 sub ftp_readdir
@@ -823,7 +796,7 @@ sub ftp_readdir
       ftp_close($ftp);
       return;
     }
-  }  
+  }
 
   print "$identifier: ".join("\n", @$text)."\n" if $verbose > 2;
 
@@ -850,7 +823,7 @@ sub ftp_readdir
           next;
         }
       }
-  
+
       my $excluded = 0;
       my $s = "$name/$fname";
       if($type eq "d") {
@@ -897,11 +870,8 @@ sub ftp_readdir
       }
     }
   }
-  
+
   print "$identifier: committing ftp dir $name\n" if $verbose > 2;
-  if($do_transaction) {
-    $dbh->commit or die "$DBI::errstr";
-  }
 
   ftp_close($ftp) if $toplevel;
   return @r;
@@ -932,26 +902,8 @@ sub save_file
   # explicitely tell Perl that the filename is in UTF-8 encoding
   $path = decode_utf8($path);
 
-  my $sql = "SELECT mirr_add_bypath(?, ?);";
-  if (!defined $sth_mirr_addbypath) {
-    printf "\nPreparing add statement\n\n" if $sqlverbose;
-    $sth_mirr_addbypath = $dbh->prepare( $sql ) or die "$identifier: $DBI::errstr";
-
-  }
-
-  printf "$sql  <-- $serverid, $path \n" if $sqlverbose;
-  $sth_mirr_addbypath->execute( $serverid, $path ) or die "$identifier: $DBI::errstr"; 
-
-  my @data = $sth_mirr_addbypath->fetchrow_array();
-  #if ($sth_mirr_addbypath->rows > 0) {
-    my $fileid = $data[0];
-    #print "fileid: $fileid\n";
-    #}
-  $sth_mirr_addbypath->finish;
-
-  $sql = "DELETE FROM temp1 WHERE id = $fileid";
-  print "$sql\n" if $sqlverbose;
-  $dbh->do($sql) or die "$sql: ".$DBI::errstr;
+  my $hash = sha256_hex($path);
+  push @new_file_hashes, $hash unless delete $db_files_hash_id_map{$hash};
 
   return $path;
 }
@@ -966,7 +918,7 @@ sub delete_file
 
 
 
-sub cont 
+sub cont
 {
   my $url = shift;
 
@@ -986,66 +938,10 @@ sub cont
   }
 }
 
-
-# getfileid returns the id as inserted in table file.
-#
-sub getfileid
-{
-  my $path = shift;
-  my @data;
-  my $id;
-
-  # prepare statements once
-  my $sql_select_file = "SELECT id FROM file WHERE path = ? LIMIT 1;";
-  if (!defined $sth_select_file) {
-    printf "\nPreparing select_file statement: $sql_select_file\n\n" if $sqlverbose;
-    $sth_select_file = $dbh->prepare( $sql_select_file );
-  }
-
-  my $sql_insert_file = "INSERT INTO file (path) VALUES (?);";
-  if (!defined $sth_insert_file) {
-    printf "\nPreparing insert_file statement: $sql_insert_file\n\n" if $sqlverbose;
-    $sth_insert_file = $dbh->prepare( $sql_insert_file );
-  }
-
-
-  printf "select_file: $sql_select_file  <--- $path \n" if $sqlverbose;
-
-  $sth_select_file->execute( $path ) or die $sth_select_file->errstr;
-  @data = $sth_select_file->fetchrow_array();
-  if ($sth_select_file->rows > 0) {
-    $id = $data[0];
-
-    $sth_select_file->finish;
-    printf "select_id result: $id \n" if $sqlverbose;
-    return $id if defined $id;
-  }
-
-  
-  $sth_insert_file->execute( $path ) or die $sth_insert_file->err;
-
-  # now we still need the id
-  # FIXME: should use something like last_insert_id rather
-  printf "select_file (get the id after insertion): $sql_insert_file  <--- $path \n" if $sqlverbose;
-
-  $sth_select_file->execute( $path ) or die $sth_select_file->errstr;
-  @data = $sth_select_file->fetchrow_array();
-  if ($sth_select_file->rows > 0) {
-    $id = $data[0];
-
-    $sth_select_file->finish;
-    printf "select_id result: $id \n" if $sqlverbose;
-    return $id;
-  }
-  die "insert of $path failed - could not get last id\n";
-}
-
-
-
 # callback function
 sub rsync_cb
 {
-  my ($priv, $name, $len, $mode, $mtime, @info) = @_;
+  my ($priv, $name, $len, $mode, $mtime) = @_;
   return 0 if $name eq '.' or $name eq '..';
   my $r = 0;
 
@@ -1067,12 +963,9 @@ sub rsync_cb
         $priv->{counter}++;
         if (($priv->{counter} % 50) == 0) {
           print "$priv->{identifier}: commit after 50 files\n" if $verbose > 2;
-          if($do_transaction) {
-            $dbh->commit or die "$DBI::errstr";
-          }
         }
 
-        $r = [$name, $len, $mode, $mtime, @info];
+        $r = [$name, $len, $mode, $mtime];
         printf "%s: rsync ADD: %03o %12.0f %-25s %-50s\n", $priv->{identifier}, ($mode & 0777), $len, scalar(localtime $mtime), $name if $verbose > 2;
       }
     }
@@ -1117,7 +1010,9 @@ sub rsync_readdir
   $peer->{subdir} = $d if length $d;
   $peer->{counter} = 0;
   $path .= "/". $d if length $d;
-  rsync_get_filelist($identifier, $peer, $path, 0, \&rsync_cb, $peer);
+  eval{
+    rsync_get_filelist($identifier, $peer, $path, 0, \&rsync_cb, $peer, 1)
+  };
   return $peer->{counter};
 }
 
@@ -1154,7 +1049,7 @@ sub swrite
   local *SS = shift;
   my ($var, $len) = @_;
   $len = length($var) unless defined $len;
-  return if $len == (syswrite(SS, $var, $len) || 0); 
+  return if $len == (syswrite(SS, $var, $len) || 0);
   warn "syswrite: $!\n";
 }
 
@@ -1196,7 +1091,7 @@ sub muxread
 
 sub rsync_get_filelist
 {
-  my ($identifier, $peer, $syncroot, $norecurse, $callback, $priv) = @_;
+  my ($identifier, $peer, $syncroot, $norecurse, $callback, $priv, $sorted) = @_;
   my $syncaddr = $peer->{addr};
   my $syncport = $peer->{port};
 
@@ -1207,7 +1102,7 @@ sub rsync_get_filelist
     $peer->{have_md4} = 0;
     eval {
       # this causes funny messages, if perl-Digest-MD4 is not installed:
-      # __DIE__: (/usr/bin/scanner 311 main::rsync_readdir => /usr/bin/scanner 961 main::rsync_get_filelist => /usr/bin/scanner 1046 (eval)) 
+      # __DIE__: (/usr/bin/scanner 311 main::rsync_readdir => /usr/bin/scanner 961 main::rsync_get_filelist => /usr/bin/scanner 1046 (eval))
       # not sure whether it is worth installing it.
       # we never had it on mirrordb.opensuse.org, the main openSUSE scan host.
       require Digest::MD4;
@@ -1294,7 +1189,6 @@ sub rsync_get_filelist
     }
     $mtime = unpack('V', muxread($identifier, *S, 4)) unless $flags & 0x80;
     $mode = unpack('V', muxread($identifier, *S, 4)) unless $flags & 0x02;
-    my @info = ();
     my $mmode = $mode & 07777;
     if(($mode & 0170000) == 0100000) {
       $mmode |= 0x1000;
@@ -1302,18 +1196,23 @@ sub rsync_get_filelist
       $mmode |= 0x0000;
     } elsif (($mode & 0170000) == 0120000) {
       $mmode |= 0x2000;
-      my $ln = muxread($identifier, *S, unpack('V', muxread($identifier, *S, 4)));
-      @info = ($ln);
+      muxread($identifier, *S, unpack('V', muxread($identifier, *S, 4)));
     } else {
       print "$name: unknown mode: $mode\n";
       next;
     }
-    if($callback) {
-      my $r = &$callback($priv, $name, $len, $mmode, $mtime, @info);
-      push @filelist, $r if $r;
+    # sort and process buffer when folder changes
+    if ($callback && $sorted && !($mmode & 0x1000)) {
+        for my $file (sort {$a->[0] cmp $b->[0]} @filelist) {
+            &$callback($priv, $file->[0], $file->[1], $file->[2], $file->[3], $file->[4]);
+        }
+        @filelist = ();
+    }
+    if(!$sorted && $callback) {
+      &$callback($priv, $name, $len, $mmode, $mtime);
     }
     else {
-      push @filelist, [$name, $len, $mmode, $mtime, @info];
+      push @filelist, [$name, $len, $mmode, $mtime];
     }
   }
   my $io_error = unpack('V', muxread($identifier, *S, 4));
@@ -1325,7 +1224,15 @@ sub rsync_get_filelist
     swrite(*S, pack('V', -1));    # goodbye
   }
   close(S);
-  return @filelist;
+  if ($callback && $sorted) {
+    # sort and process remaining buffer
+    for my $file (sort {$a->[0] cmp $b->[0]} @filelist) {
+      &$callback($priv, $file->[0], $file->[1], $file->[2], $file->[3]);
+    }
+  }
+  return undef if $callback;
+  return @filelist unless $sorted;
+  return sort {$a->[0] cmp $b->[0]} @filelist;
 }
 
 
@@ -1380,15 +1287,15 @@ sub ftp_cont
   $ftp->cwd($path) or return "550 failed: ftp-cwd($path): $! $@";
 
   $ftp->dir();
-  # In an array context, returns a list of lines returned from the server. 
+  # In an array context, returns a list of lines returned from the server.
   # In a scalar context, returns a reference to a list.
   #
-  ## should use File::Listing to parse this 
+  ## should use File::Listing to parse this
   #
   # [
   #   'drwx-wx-wt    2 incoming 49           4096 Jul 03 23:00 incoming',
   #   '-rw-r--r--    1 root     root     16146417 Jul 04 23:12 ls-Ral.txt'
-  # ], 
+  # ],
 }
 
 

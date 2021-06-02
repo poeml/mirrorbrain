@@ -17,7 +17,7 @@ It merely serves to illustrate in which way mod_autoindex_mb differs from
 mod_autoindex.
 
 Only one module can be loaded at a time - either mod_autoindex or mod_autoindex_mb.
-The two modules can not usefully run side by side, because they share the same 
+The two modules can not usefully run side by side, because they share the same
 configuration directives.
 The module name differs, so that it can be explicit which module is loaded.
 

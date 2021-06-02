@@ -1,6 +1,7 @@
 # encoding: utf-8
-
-import sys, os, os.path
+import sys
+import os
+import os.path
 import mb
 import mb.util
 import mb.files
@@ -11,14 +12,14 @@ supported = ['txt', 'txt2', 'xhtml']
 
 
 def is_odd(n):
-    return (n % 2) == 1 
+    return (n % 2) == 1
 
 
 def genlist(conn, opts, mirrors, markers, format='txt2'):
     if format == 'txt':
         gen = txt(conn, opts, mirrors, markers)
     elif format == 'txt2':
-        gen =txt2(conn, opts, mirrors, markers)
+        gen = txt2(conn, opts, mirrors, markers)
     elif format == 'xhtml':
         gen = xhtml(conn, opts, mirrors, markers)
 
@@ -31,10 +32,10 @@ def genlist(conn, opts, mirrors, markers, format='txt2'):
         # make a tempfile because we might write in a directory not owned by
         # root. Also we can then atomically move the tempfile over an existing file,
         # without the risk that the webserver sends out incomplete content.
-        (fd, tmpfname) = tempfile.mkstemp(prefix = '.' + os.path.basename(fname),
-                                          dir = os.path.dirname(fname))
+        (fd, tmpfname) = tempfile.mkstemp(prefix='.' + os.path.basename(fname),
+                                          dir=os.path.dirname(fname))
         try:
-            os.chmod(tmpfname, 0644)
+            os.chmod(tmpfname, 0o0644)
             f = os.fdopen(fd, 'w')
 
             for i in gen:
@@ -44,19 +45,18 @@ def genlist(conn, opts, mirrors, markers, format='txt2'):
             try:
                 os.rename(tmpfname, fname)
             except:
-                print >>sys.stderr, 'could not rename file'
+                print('could not rename file', file=sys.stderr)
                 raise
         finally:
             if os.path.exists(tmpfname):
                 os.unlink(tmpfname)
 
 
-
 def txt(conn, opts, mirrors, markers):
     for mirror in mirrors:
         yield ''
         yield mirror.identifier
-        #yield mirror.identifier, mirror.baseurl, mirror.baseurlFtp, mirror.baseurlRsync, mirror.score
+        # yield mirror.identifier, mirror.baseurl, mirror.baseurlFtp, mirror.baseurlRsync, mirror.score
 
         for marker in markers:
             if mb.files.check_for_marker_files(conn, marker.markers, mirror.id):
@@ -79,7 +79,6 @@ def xhtml(conn, opts, mirrors, markers):
         if not os.path.exists(opts.inline_images_from):
             sys.exit('path %r does not exist' % opts.inline_images_from)
 
-
     html_header = """\
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
@@ -91,7 +90,7 @@ def xhtml(conn, opts, mirrors, markers):
     <title>%(title)s</title>
     <link type="text/css" rel="stylesheet" href="/mirrorbrain.css" />
     <link href="/favicon.ico" rel="shortcut icon" />
-  
+
     <meta http-equiv="Language" content="en" />
     <meta name="description" content="Download Mirrors" />
     <meta name="keywords" content="download metalink redirector mirror mirrors" />
@@ -101,7 +100,7 @@ def xhtml(conn, opts, mirrors, markers):
 
   <body>
 
-""" 
+"""
 
     html_footer = """\
 
@@ -145,7 +144,7 @@ def xhtml(conn, opts, mirrors, markers):
     <tbody>
 """
     row_template = """\
-      <td> <img src="%(img_link)s" 
+      <td> <img src="%(img_link)s"
                 width="16" height="11" alt="%(country_code)s" /> %(country_name)s</td>
       <td><a href="%(operatorUrl)s">%(operatorName)s</a></td>
       <td>%(http_link)s</td>
@@ -154,36 +153,33 @@ def xhtml(conn, opts, mirrors, markers):
       <td>%(prio)s</td>
 """
 
-
     import time
     utc = time.strftime("%a, %d %b %Y %H:%M:%S UTC", time.gmtime())
 
-
-    row_class = lambda x: is_odd(x) and ' class="odd"' or ''
-    col_class = lambda x: is_odd(x) and 'a' or 'b'
+    def row_class(x): return is_odd(x) and ' class="odd"' or ''
+    def col_class(x): return is_odd(x) and 'a' or 'b'
     #odd_id = lambda x: is_odd(x) and ' id="odd"' or ''
-    stars = lambda x: x < 50 and '*' \
-                   or x >=  50 and x < 100 and '**' \
-                   or x == 100             and '***' \
-                   or x  > 100             and '****'
 
+    def stars(x): return x < 50 and '*' \
+        or x >= 50 and x < 100 and '**' \
+        or x == 100 and '***' \
+        or x > 100 and '****'
 
     region_name = dict()
     for i in conn.Region.select():
         region_name[i.code] = i.name
-    
+
     # FIXME: we show FTP URLs as HTTP URLs if they are entered as such.
     # maybe suppress them if (HTTP != 'http://')
     # example: yandex.ru
-    href = lambda x, y: x and '<a href="%s">%s</a>' % (x, y)  or '' # 'n/a'
+    def href(x, y): return x and '<a href="%s">%s</a>' % (x, y) or ''  # 'n/a'
 
     def imgref(country_code):
         if not opts.inline_images_from:
             return 'flags/%s.%s' % (country_code, opts.image_type)
         else:
-            return mb.util.data_url(opts.inline_images_from, 
+            return mb.util.data_url(opts.inline_images_from,
                                     country_code + '.' + opts.image_type)
-
 
     last_region = 'we have not started yet...'
 
@@ -199,13 +195,13 @@ def xhtml(conn, opts, mirrors, markers):
     if opts.html_footer:
         html_footer = open(opts.html_footer).read()
 
-    yield html_header % { 'title': opts.title or 'Download Mirrors - Overview',
-                          'utc': utc }
-    yield table_start % { 'caption': opts.caption or 'All mirrors' }
+    yield html_header % {'title': opts.title or 'Download Mirrors - Overview',
+                         'utc': utc}
+    yield table_start % {'caption': opts.caption or 'All mirrors'}
     yield table_col_defs
     for i in range(1, markers_cnt + 1):
-        #yield '    <col id="subtree%i" />' % i
-        #yield '    <col%s />' % odd_id(i)
+        # yield '    <col id="subtree%i" />' % i
+        # yield '    <col%s />' % odd_id(i)
         # col ids need to be unique, thus we can't use them for an odd/even attribute.
         yield '    <col />'
 
@@ -214,7 +210,7 @@ def xhtml(conn, opts, mirrors, markers):
     for marker in markers:
         col_cnt += 1
         yield '        <th scope="col" class="%s">%s</th>' \
-                % (col_class(col_cnt), marker.subtreeName)
+            % (col_class(col_cnt), marker.subtreeName)
     yield table_header_end_template
 
     row_cnt = 0
@@ -223,14 +219,14 @@ def xhtml(conn, opts, mirrors, markers):
         region = mirror.region.lower()
         if region != last_region:
             # new region block
-            #if last_region != 'we have not started yet...':
+            # if last_region != 'we have not started yet...':
             #    yield table_end
             #
-            #yield '\n\n<h2>Mirrors in %s:</h2>\n' % region_name[region]
+            # yield '\n\n<h2>Mirrors in %s:</h2>\n' % region_name[region]
             yield row_start % row_class(0)
-            #yield '<td colspan="%s" class="newregion">      Mirrors in %s:</td>\n' \
+            # yield '<td colspan="%s" class="newregion">      Mirrors in %s:</td>\n' \
             yield '      <td colspan="%s" class="newregion">%s:</td>\n' \
-                     % (6 + markers_cnt, region_name[region])
+                % (6 + markers_cnt, region_name[region])
             yield row_end
         last_region = region
 
@@ -241,30 +237,29 @@ def xhtml(conn, opts, mirrors, markers):
             for marker in markers:
                 col_cnt += 1
                 yield '      <td class="%s">%s</td>\n' \
-                        % (col_class(0), marker.subtreeName)
-                        #% (col_class(col_cnt), marker.subtreeName)
+                    % (col_class(0), marker.subtreeName)
+                # % (col_class(col_cnt), marker.subtreeName)
             yield row_end
 
         country_name = conn.Country.select(
-                conn.Country.q.code == mirror.country.lower())[0].name
-        map = { 'country_code': mirror.country.lower(),
-                'country_name': country_name,
-                'img_link':   imgref(mirror.country.lower()),
-                'region':     region,
-                'identifier': mirror.identifier,
-                'operatorName': cgi.escape(mirror.operatorName),
-                'operatorUrl': mirror.operatorUrl,
-                'http_link':  href(mb.util.strip_auth(mirror.baseurl), 'HTTP'),
-                'ftp_link':   href(mb.util.strip_auth(mirror.baseurlFtp), 'FTP'),
-                'rsync_link': href(mb.util.strip_auth(mirror.baseurlRsync), 'rsync'),
-                'prio':       stars(mirror.score),
-                }
-        
+            conn.Country.q.code == mirror.country.lower())[0].name
+        map = {'country_code': mirror.country.lower(),
+               'country_name': country_name,
+               'img_link':   imgref(mirror.country.lower()),
+               'region':     region,
+               'identifier': mirror.identifier,
+               'operatorName': cgi.escape(mirror.operatorName),
+               'operatorUrl': mirror.operatorUrl,
+               'http_link':  href(mb.util.strip_auth(mirror.baseurl), 'HTTP'),
+               'ftp_link':   href(mb.util.strip_auth(mirror.baseurlFtp), 'FTP'),
+               'rsync_link': href(mb.util.strip_auth(mirror.baseurlRsync), 'rsync'),
+               'prio':       stars(mirror.score),
+               }
 
         row = []
         row.append(row_start % row_class(row_cnt))
         row.append(row_template % map)
-        
+
         empty = True
         col_cnt = 0
         for marker in markers:
@@ -276,8 +271,8 @@ def xhtml(conn, opts, mirrors, markers):
             else:
                 #checkmark = '-'
                 checkmark = ''
-            row.append('      <td class="%s">%s</td>\n' \
-                         % (col_class(col_cnt), checkmark))
+            row.append('      <td class="%s">%s</td>\n'
+                       % (col_class(col_cnt), checkmark))
 
         row.append(row_end)
 
@@ -286,4 +281,4 @@ def xhtml(conn, opts, mirrors, markers):
 
     yield table_end
 
-    yield html_footer % { 'utc': utc }
+    yield html_footer % {'utc': utc}

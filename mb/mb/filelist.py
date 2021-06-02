@@ -1,6 +1,5 @@
 
 
-
 def get_filelist(url):
 
     if url.startswith('rsync'):
@@ -18,5 +17,3 @@ def get_filelist(url):
     else:
         import sys
         sys.exit('unknown error... url is \'%s\'' % url)
-
-

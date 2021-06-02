@@ -42,16 +42,16 @@ world-writable locally.
 
   * `-v`, `--verbose`:
     Print debug messages to stderr.
-  
+
   * `-q`, `--quiet`:
     If lock can't be acquired immediately, silently quit without error.
-  
+
   * `--version`:
     Show program's version number and exit.
-  
+
   * `-h`, `--help`:
     Show command synopsis and exit.
-  
+
   * `--exclude`=<pattern>:
     Exclude files matching <pattern> (which is passed through to rsync)
 
@@ -63,10 +63,10 @@ You can simply substitute a usual rsync(1) call with null-rsync(1).
     null-rsync --exclude source rsync://mirrors.tds.net/debian/dists/jessie/main/ /tmp/sparse-debian-mirror
 
 
-## AUTHOR  
+## AUTHOR
 
-This program was written by Peter Pöml <peter@poeml.de> in 2009-2015. 
+This program was written by Peter Pöml <peter@poeml.de> in 2009-2015.
 
-## SEE ALSO  
+## SEE ALSO
 
 rsync(1)

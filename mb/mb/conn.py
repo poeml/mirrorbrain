@@ -1,6 +1,5 @@
-
 import sys
-import mberr
+import mb.mberr
 from sqlobject import *
 
 
@@ -13,8 +12,6 @@ baseurlFtp     : %(baseurlFtp)s
 baseurlRsync   : %(baseurlRsync)s
 region         : %(region)s
 country        : %(country)s
-asn            : %(asn)s
-prefix         : %(prefix)s
 lat,lng        : %(lat)s,%(lng)s
 regionOnly     : %(regionOnly)s
 countryOnly    : %(countryOnly)s
@@ -35,74 +32,74 @@ adminEmail     : %(adminEmail)s
 """
 
 
-server_editable_attrs = [ 'baseurl',
-                          'baseurlFtp',
-                          'baseurlRsync',
-                          'region',
-                          'country',
-                          'asn',
-                          'prefix',
-                          'lat',
-                          'lng',
-                          'regionOnly',
-                          'countryOnly',
-                          'asOnly',
-                          'prefixOnly',
-                          'otherCountries',
-                          'fileMaxsize',
-                          'score',
-                          'publicNotes',
-                          'enabled',
-                          'statusBaseurl',
-                          'admin',
-                          'adminEmail',
-                          'operatorName',
-                          'operatorUrl',
-                          'comment' ]
+server_editable_attrs = ['baseurl',
+                         'baseurlFtp',
+                         'baseurlRsync',
+                         'region',
+                         'country',
+                         'lat',
+                         'lng',
+                         'regionOnly',
+                         'countryOnly',
+                         'asOnly',
+                         'prefixOnly',
+                         'otherCountries',
+                         'fileMaxsize',
+                         'score',
+                         'publicNotes',
+                         'enabled',
+                         'statusBaseurl',
+                         'admin',
+                         'adminEmail',
+                         'operatorName',
+                         'operatorUrl',
+                         'comment']
+
 
 def server2dict(s):
-    return dict(identifier    = s.identifier,
-                id            = s.id,
-                baseurl       = s.baseurl,
-                baseurlFtp    = s.baseurlFtp,
-                baseurlRsync  = s.baseurlRsync,
-                region        = s.region,
-                country       = s.country,
-                asn           = s.asn,
-                prefix        = s.prefix,
-                regionOnly    = s.regionOnly,
-                countryOnly   = s.countryOnly,
-                asOnly        = s.asOnly,
-                prefixOnly    = s.prefixOnly,
-                ipv6Only      = s.ipv6Only,
-                otherCountries = s.otherCountries,
-                fileMaxsize   = s.fileMaxsize,
-                score         = s.score,
-                scanFpm       = s.scanFpm,
-                publicNotes   = s.publicNotes,
-                enabled       = s.enabled,
-                statusBaseurl = s.statusBaseurl,
-                comment       = s.comment,
-                admin         = s.admin,
-                adminEmail    = s.adminEmail,
-                lat           = s.lat,
-                lng           = s.lng,
-                operatorName  = s.operatorName,
-                operatorUrl   = s.operatorUrl)
+    return dict(identifier=s.identifier,
+                id=s.id,
+                baseurl=s.baseurl,
+                baseurlFtp=s.baseurlFtp,
+                baseurlRsync=s.baseurlRsync,
+                region=s.region,
+                country=s.country,
+                regionOnly=s.regionOnly,
+                countryOnly=s.countryOnly,
+                asOnly=s.asOnly,
+                prefixOnly=s.prefixOnly,
+                ipv6Only=s.ipv6Only,
+                otherCountries=s.otherCountries,
+                fileMaxsize=s.fileMaxsize,
+                score=s.score,
+                scanFpm=s.scanFpm,
+                publicNotes=s.publicNotes,
+                enabled=s.enabled,
+                statusBaseurl=s.statusBaseurl,
+                comment=s.comment,
+                admin=s.admin,
+                adminEmail=s.adminEmail,
+                lat=s.lat,
+                lng=s.lng,
+                operatorName=s.operatorName,
+                operatorUrl=s.operatorUrl,
+                Connections=s.connections)
 
 #
 # setup database connection
 #
 
+
 class Conn:
-    def __init__(self, config, version, debug = False):
+    def __init__(self, config, version, debug=False):
         dbdriver = config.get('dbdriver', 'mysql')
         if dbdriver in ['Pg', 'postgres', 'postgresql']:
             dbdriver, dbport = 'postgres', '5432'
-            try: 
+            try:
                 import psycopg2
-            except: 
-                sys.exit('To use mb with PostgreSQL, you need the pcycopg2 Python module installed.')
+            except:
+                sys.exit(
+                    'To use mb with PostgreSQL, you need the psycopg2 Python module installed.')
             try:
                 config['dbpass']
             except:
@@ -134,15 +131,13 @@ class Conn:
             sys.exit('database driver %r not known' % dbdriver)
 
         uri_str = dbdriver + '://%s:%s@%s:%s/%s'
-        #if options.loglevel == 'DEBUG':
+        # if options.loglevel == 'DEBUG':
         #    uri_str += '?debug=1'
-        self.uri = uri_str % (config['dbuser'], config['dbpass'], 
-                              config['dbhost'], config.get('dbport', dbport), 
+        self.uri = uri_str % (config['dbuser'], config['dbpass'],
+                              config['dbhost'], config.get('dbport', dbport),
                               config['dbname'])
 
         sqlhub.processConnection = connectionForURI(self.uri)
-
-
 
         # upgrade things in the database, if needed
         self.Version = None
@@ -152,21 +147,21 @@ class Conn:
                 class sqlmeta:
                     fromDatabase = True
             self.Version = Version
-            
+
             # 2.17.0 shipped with an SQL schema where the version table didn't contain an "id" column
             # sqlobject doesn't like that, so let's re-create the table properly...
             try:
-                dbversion = self.Version.select("""component = 'mirrorbrain'""")[0]
+                dbversion = self.Version.select(
+                    """component = 'mirrorbrain'""")[0]
             except (dberrors.ProgrammingError, psycopg2.ProgrammingError):
                 query = "drop table version;"
                 SQLObject._connection.query(query)
                 raise
 
-
         except (dberrors.ProgrammingError, psycopg2.ProgrammingError):
-            print 'Your database needs to be upgraded (to >2.18.0): creating "version" table...'
+            print('Your database needs to be upgraded (to >2.18.0): creating "version" table...')
 
-            query = """CREATE TABLE version ( 
+            query = """CREATE TABLE version (
                            "id" serial NOT NULL PRIMARY KEY,
                            "component" text NOT NULL,
                            "major" INTEGER NOT NULL,
@@ -178,30 +173,29 @@ class Conn:
 
             try:
                 # the following modification came with 2.17.0
-                print "checking server table if ipv6_only column exists...",
+                print("checking server table if ipv6_only column exists...",)
                 query = "ALTER TABLE server ADD COLUMN ipv6_only boolean NOT NULL default 'f';"
                 SQLObject._connection.query(query)
-                print "created."
+                print("created.")
             except (dberrors.ProgrammingError, psycopg2.ProgrammingError):
-                print "already there."
+                print("already there.")
 
         if self.Version:
             mbversion = self.Version.select("""component = 'mirrorbrain'""")[0]
 
             if mbversion.major < version.major \
-                    or (mbversion.major == version.major \
+                    or (mbversion.major == version.major
                         and mbversion.minor < version.minor) \
-                    or (mbversion.major == version.major \
-                        and mbversion.minor == version.minor \
+                    or (mbversion.major == version.major
+                        and mbversion.minor == version.minor
                         and mbversion.patchlevel < version.patchlevel):
 
-                print 'found database version %s.%s.%s, older than us: %s >>>>>>>> upgrading' \
-                        % (mbversion.major, mbversion.minor, mbversion.patchlevel, version)
+                print('found database version %s.%s.%s, older than us: %s >>>>>>>> upgrading'
+                      % (mbversion.major, mbversion.minor, mbversion.patchlevel, version))
                 query = "UPDATE version SET major=%s, minor=%s, patchlevel=%s WHERE component='mirrorbrain';" \
                         % (version.major, version.minor, version.patchlevel)
                 SQLObject._connection.query(query)
-                print "done."
-
+                print("done.")
 
         class Server(SQLObject):
             """the server table"""
@@ -209,11 +203,18 @@ class Conn:
                 fromDatabase = True
         self.Server = Server
 
-        class Filearr(SQLObject):
+        class Serverpfx(SQLObject):
+            """the serverpfx table"""
+            class sqlmeta:
+                idName = 'pfxid'
+                fromDatabase = True
+        self.Serverpfx = Serverpfx
+
+        class Files(SQLObject):
             """the file table"""
             class sqlmeta:
                 fromDatabase = True
-        self.Filearr = Filearr
+        self.Files = Files
 
         class Marker(SQLObject):
             """the marker table"""
@@ -247,85 +248,6 @@ class Conn:
             # to be installed as well
             pass
 
-        try:
-            class Hash(SQLObject):
-                """the hashes table"""
-                class sqlmeta:
-                    fromDatabase = True
-                    idName = 'file_id'
-            self.Hash = Hash
-        except (dberrors.ProgrammingError, psycopg2.ProgrammingError):
-            # This is what's raised if the table hasn't been installed yet
-            # Which is the case when coming from a 2.12.0 or earlier install
-            # XXX This feels like being totally the wrong place for a database migration.
-            #     maybe a separate module with upgrade procedures to be run would be better.
-            #     The main point is that this is a migration that we want to happen fully automatically.
-            # added 2.12.x -> 2.13.0
-            print >>sys.stderr
-            print >>sys.stderr, '>>> A database table for hashes does not exit. Creating...'
-            query = """
-            CREATE TABLE "hash" (
-                    "file_id" INTEGER REFERENCES filearr PRIMARY KEY,
-                    "mtime" INTEGER NOT NULL,
-                    "size" BIGINT NOT NULL,
-                    "md5"    BYTEA NOT NULL,
-                    "sha1"   BYTEA NOT NULL,
-                    "sha256" BYTEA NOT NULL,
-                    "sha1piecesize" INTEGER NOT NULL,
-                    "sha1pieces" BYTEA NOT NULL,
-                    "btih" BYTEA NOT NULL,
-                    "pgp" TEXT NOT NULL,
-                    "zblocksize" SMALLINT NOT NULL,
-                    "zhashlens" VARCHAR(8),
-                    "zsums" BYTEA NOT NULL
-            );
-            """
-            Filearr._connection.query(query)
-            query = """
-            CREATE VIEW hexhash AS 
-              SELECT file_id, mtime, size, 
-                     md5,
-                     encode(md5, 'hex') AS md5hex, 
-                     sha1,
-                     encode(sha1, 'hex') AS sha1hex, 
-                     sha256,
-                     encode(sha256, 'hex') AS sha256hex, 
-                     sha1piecesize, 
-                     sha1pieces,
-                     encode(sha1pieces, 'hex') AS sha1pieceshex,
-                     btih,
-                     encode(btih, 'hex') AS btihhex,
-                     pgp,
-                     zblocksize,
-                     zhashlens,
-                     zsums,
-                     encode(zsums, 'hex') AS zsumshex
-              FROM hash;
-            """
-            Filearr._connection.query(query)
-            # XXX and another thing that should not happen here, but in an
-            # "upgrade" module (that can be called at will)
-            # added 2.12.x -> 2.13.0
-            query = """
-            CREATE OR REPLACE FUNCTION mirr_get_nfiles(integer) RETURNS bigint AS '
-                SELECT count(*) FROM filearr WHERE $1 = ANY(mirrors)
-            ' LANGUAGE 'SQL';
-
-            CREATE OR REPLACE FUNCTION mirr_get_nfiles(text) RETURNS bigint AS '
-                SELECT count(*) FROM filearr WHERE (SELECT id from server where identifier = $1) = ANY(mirrors)
-            ' LANGUAGE 'SQL';
-            """
-            Filearr._connection.query(query)
-            print >>sys.stderr, '>>> Done.'
-            print >>sys.stderr 
-            # now try again
-            class Hash(SQLObject):
-                """the hashes table"""
-                class sqlmeta:
-                    fromDatabase = True
-                    idName = 'file_id'
-            self.Hash = Hash
-
         if debug:
             self.Server._connection.debug = True
 
@@ -336,8 +258,8 @@ def servertext2dict(s):
 
     new_attrs = dict()
     for a in mb.conn.server_editable_attrs:
-        m = re.search(r'^%s *: *(.*)' % a, 
-            s, re.MULTILINE)
+        m = re.search(r'^%s *: *(.*)' % a,
+                      s, re.MULTILINE)
         if m:
             if m.group(1) != 'None':
                 new_attrs[a] = m.group(1).rstrip()
@@ -357,7 +279,7 @@ def servertext2dict(s):
         new_attrs['lng'] = m.group(2)
 
     return new_attrs
-    
+
 
 def servers_match(server, match):
     servers = server.select("""identifier = '%s'""" % match)
@@ -368,4 +290,7 @@ def servers_match(server, match):
     return list(servers)
 
 
+def server_connections(serverpfx, serverid):
+    connections = serverpfx.select("""serverid = '%s'""" % serverid)
 
+    return list(connections)

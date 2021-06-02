@@ -30,23 +30,23 @@
 #     length of the sliding window: StatsDupWindow
 #   - arbitrary log lines can be ignored by regexp (StatsIgnoreMask)
 #   - IP addresses can be ignored by string prefix match (StatsIgnoreIP)
-#   - apply prefiltering to the request (regular expressions with substitution) 
+#   - apply prefiltering to the request (regular expressions with substitution)
 #     with one or more StatsPrefilter directives
 #   - parse the remaining request url into the values to be logged
 #     (StatsCount directive)
 #   - apply optional post-filtering to the parsed data (StatsPostfilter)
 #
-# 
+#
 # The script should serve as model implementation for the Apache module which
 # does the same in realtime.
 #
 #
-# Usage: 
+# Usage:
 # ./dlcount.py /var/log/apache2/download.services.openoffice.org/2009/11/download.services.openoffice.org-20091123-access_log.bz2 | sort -u
 #
 # Uncompressed, gzip or bzip2 compressed files are transparently opened.
-# 
-# 
+#
+#
 # This script uses Python generators, which means that it doesn't allocate
 # memory according to the log size. It rather works like a Unix pipe.
 # (The implementation of the generator pipeline is based on David Beazley's
@@ -54,13 +54,14 @@
 #
 
 
-__version__='0.91'
-__author__='Peter Poeml <poeml@cmdline.net>'
-__copyright__='Peter poeml <poeml@cmdline.net>'
-__license__='GPLv2'
-__url__='http://mirrorbrain.org/'
+__version__ = '0.91'
+__author__ = 'Peter Poeml <poeml@cmdline.net>'
+__copyright__ = 'Peter poeml <poeml@cmdline.net>'
+__license__ = 'GPLv2'
+__url__ = 'http://mirrorbrain.org/'
 
 
+try:
 import sys
 import os
 import os.path
@@ -69,9 +70,7 @@ import hashlib
 import time
 from datetime import datetime
 from optparse import OptionParser
-
-try:
-    set
+set
 except NameError:
     from sets import Set as set     # Python 2.3 fallback
 
@@ -85,39 +84,43 @@ except NameError:
         return out_value
 
 
-def gen_open(filenames): 
+def gen_open(filenames):
     """Open a sequence of filenames"""
-    import gzip, bz2 
-    for name in filenames: 
-        if name.endswith(".gz"): 
-             yield gzip.open(name) 
-        elif name.endswith(".bz2"): 
-             yield bz2.BZ2File(name) 
-        else: 
-             yield open(name) 
+    import gzip
+    import bz2
+    for name in filenames:
+        if name.endswith(".gz"):
+            yield gzip.open(name)
+        elif name.endswith(".bz2"):
+            yield bz2.BZ2File(name)
+        else:
+            yield open(name)
 
-def gen_cat(sources): 
-    """Concatenate items from one or more 
+
+def gen_cat(sources):
+    """Concatenate items from one or more
     source into a single sequence of items"""
-    for s in sources: 
-        for item in s: 
-            yield item 
+    for s in sources:
+        for item in s:
+            yield item
 
 
-def gen_grep(pat, lines): 
-    import re 
-    patc = re.compile(pat) 
-    for line in lines: 
-        if patc.search(line): yield line 
+def gen_grep(pat, lines):
+    import re
+    patc = re.compile(pat)
+    for line in lines:
+        if patc.search(line):
+            yield line
 
-def gen_fragments(lines, pat): 
+
+def gen_fragments(lines, pat):
     """Generate a sequence of line fragments, according to
     a given regular expression"""
-    for line in lines: 
+    for line in lines:
         m = pat.match(line)
         if m:
             yield m.groups()
-        #else:
+        # else:
         #    print 'no match for:'
         #    print line
 
@@ -129,15 +132,15 @@ class RingBuffer:
     Here is an example where the buffer size is 4. Ten integers, 0-9, are
     inserted, one at a time, at the end of the buffer. Each iteration, the first
     element is removed from the front of the buffer.
-    
+
     buf = RingBuffer(4)
     for i in xrange(10):
         buf.append(i)
         print buf.get()
-    
-    
+
+
     Here are the results:
-    
+
     [None, None, None, 0]
     [None, None, 0, 1]
     [None, 0, 1, 2]
@@ -148,9 +151,10 @@ class RingBuffer:
     [4, 5, 6, 7]
     [5, 6, 7, 8]
     [6, 7, 8, 9]
-    
+
     from http://www.saltycrane.com/blog/2007/11/python-circular-buffer/
     """
+
     def __init__(self, size):
         self.data = [None for i in xrange(size)]
 
@@ -164,14 +168,14 @@ class RingBuffer:
 
 def readconf(filename):
     """we'd need Apache's config parser here..."""
-    known_directives = ['StatsLogMask', 
-                        'StatsIgnoreMask', 
-                        'StatsIgnoreIP', 
-                        'StatsDupWindow', 
-                        'StatsPreFilter', 
-                        'StatsCount', 
+    known_directives = ['StatsLogMask',
+                        'StatsIgnoreMask',
+                        'StatsIgnoreIP',
+                        'StatsDupWindow',
+                        'StatsPreFilter',
+                        'StatsCount',
                         'StatsPostFilter']
-    known_directives_lower = [ i.lower() for i in known_directives ]
+    known_directives_lower = [i.lower() for i in known_directives]
     # regular expressions to parse arguments
     parse_1_in_quotes = re.compile(r'"(.*)"')
     parse_2_in_quotes = re.compile(r'"(.*)"\s+"(.*)"')
@@ -205,7 +209,6 @@ def readconf(filename):
         directive = word.lower()
         val = val
 
-
         # this is just a single integer
         if directive in ['statsdupwindow']:
             conf[directive] = int(val)
@@ -220,7 +223,7 @@ def readconf(filename):
         # these come with two args: a regexp and a substitution rule
         elif directive in ['statsprefilter', 'statscount', 'statspostfilter']:
             m = parse_2_in_quotes.match(val)
-            #print 'substitute %s by %s' % (m.group(1), m.group(2))
+            # print 'substitute %s by %s' % (m.group(1), m.group(2))
             regex = m.group(1).replace('\\"', '"')
             subst = m.group(2).replace('\\"', '"')
             regex_compiled = re.compile(regex)
@@ -239,12 +242,12 @@ def readconf(filename):
         conf['statslogmask'] = [(regex_compiled, regex)]
 
     #import pprint
-    #pprint.pprint(conf)
-    #sys.exit(0)
+    # pprint.pprint(conf)
+    # sys.exit(0)
 
     return conf
-    
-#class Countable():
+
+# class Countable():
 #    """This holds a result from a parsed log line
 #    which consists of a date and 5 attributes"""
 #    #def __init__(self, date, a0, a1, a2, a3, a4):
@@ -257,8 +260,10 @@ def readconf(filename):
 #        self.a4 = a4
 #        self.a5 = a5
 
+
 class Req():
     """This helps us in housekeeping while parsing a log line"""
+
     def __init__(self):
         # url_raw contains the original url, if needed
         self.url_raw = None
@@ -276,19 +281,20 @@ class Req():
         self.countable = False
 
     def __str__(self):
-        return '%-80s' % self.url 
+        return '%-80s' % self.url
+
     def as_tuple(self):
         return self.tuple
 #    def as_obj(self):
 #        return Countable(self.tuple)
 
 
-def gen_processreqs(reqs, conf, options): 
+def gen_processreqs(reqs, conf, options):
     """process a tuple of request data, and return the parsed in the form of a generator"""
 
     known = RingBuffer(conf['statsdupwindow'])
 
-    for req in reqs: 
+    for req in reqs:
         rq = Req()
         if len(req) == 7:
             (ip, tstamp_raw, url, status, referer, ua, country) = req
@@ -299,17 +305,19 @@ def gen_processreqs(reqs, conf, options):
         skip = False
         for r, mreg in conf['statsignoremask']:
             if r.match(url):
-                #print 'ignoring req %s because it matches %s' %(url, mreg)
+                # print 'ignoring req %s because it matches %s' %(url, mreg)
                 skip = True
                 break
-        if skip: continue
+        if skip:
+            continue
 
         for i in conf['statsignoreip']:
             if ip.startswith(i):
-                #print 'ignoring ip %s because it matches %s' %(ip, i)
+                # print 'ignoring ip %s because it matches %s' %(ip, i)
                 skip = True
                 break
-        if skip: continue
+        if skip:
+            continue
 
         # over a window of StatsDupWindow last requests, the same request must
         # not have occured already. If it did, ignore it. If it didn't, put
@@ -331,14 +339,13 @@ def gen_processreqs(reqs, conf, options):
         rq.ua = ua
         rq.country = country.lower()
 
-        tstamp_raw = tstamp_raw.split()[0] # split off timezone offset - we ignore it
+        tstamp_raw = tstamp_raw.split()[0]  # split off timezone offset - we ignore it
         rq.tstamp = time.strptime(tstamp_raw, '%d/%b/%Y:%H:%M:%S')
         rq.tstamp_raw = tstamp_raw
 
         # apply the prefiltering rules
         for r, s, mreg in conf['statsprefilter']:
             url = r.sub(s, url)
-
 
         matched = False
         for r, s, mreg in conf['statscount']:
@@ -370,7 +377,7 @@ def gen_processreqs(reqs, conf, options):
         rq.tuple = tuple(rq.tuple)
 
         rq.countable = True
-        #print rq
+        # print rq
         yield rq
 
 
@@ -384,7 +391,7 @@ def main():
     version = '%prog ' + __version__
 
     parser = OptionParser(usage=usage, version=version)
-    #parser.disable_interspersed_args()
+    # parser.disable_interspersed_args()
 
     parser.add_option('--db',
                       action="store_true", dest="db", default=False,
@@ -404,7 +411,6 @@ def main():
     (options, args) = parser.parse_args()
 
     usage = usage.replace('%prog', os.path.basename(sys.argv[0]))
-
 
     if len(args) < 2:
         sys.exit(usage)
@@ -431,15 +437,14 @@ def main():
         os.environ['DJANGO_SETTINGS_MODULE'] = 'downloadstats.settings'
         from downloadstats.stats.models import Counter
 
-        import downloadstats.settings 
+        import downloadstats.settings
         if downloadstats.settings.DEBUG:
             from django import db
-            #print 'you are runninng in DEBUG mode. This is not recommended, because\n' \
+            # print 'you are runninng in DEBUG mode. This is not recommended, because\n' \
             #      'Django then saves a copy of every SQL statement it has executed.\n' \
             #      'I'm installing a cleanup handler that\'ll help.'
             # see below, in the loop
             # http://docs.djangoproject.com/en/dev/faq/models/#why-is-django-leaking-memory
-
 
     start = time.time()
 
@@ -459,7 +464,6 @@ def main():
     print '%s distinct countables' % len(counterdict)
     start = time.time()
 
-
     if options.db:
         for key, val in counterdict.iteritems():
 
@@ -469,8 +473,8 @@ def main():
                 db.reset_queries()
 
             counter, created = Counter.objects.get_or_create(date=date,
-                    product=a0, osname=a1, version=a2, lang=a3, 
-                    country=a4)
+                                                             product=a0, osname=a1, version=a2, lang=a3,
+                                                             country=a4)
             if created:
                 # count is 1 for a new item
                 counter.count = val
@@ -487,4 +491,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

@@ -5,16 +5,16 @@ packaged just for conveniency.
 
 Needed by "mb" (and therefore required to be placed within $PATH) are:
 
-    geoiplookup_continent.c   
+    geoiplookup_continent.c
        A minimal clone of the "standard" geoiplookup tool (which comes with GeoIP),
        just that it can print out the continent, which the standard tool can't.
        Install it to /usr/bin/geoiplookup_continent
-  
+
     scanner.pl
        The scanner, for now written in Perl, which is integral part of MirrorBrain.
        Install it as /usr/bin/scanner. You don't execute it directly though.
        It's called for you when you use the command "mb scan".
-  
+
 
 Optional tools:
 

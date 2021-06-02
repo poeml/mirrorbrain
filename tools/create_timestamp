@@ -1,36 +1,36 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 # Securely write timestamped marker files
-# 
-# 
+#
+#
 # One thing that is special is that the files ending in "invisible" will be made
 # mode 0640, others 0644.
 #
 #
-# 
+#
 # Copyright 2008,2009 Peter Poeml <poeml@cmdline.net>, Novell Inc.
 # Copyright 2008-2014 Peter Poeml <poeml@cmdline.net>
-# 
+#
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License version 2
 # as published by the Free Software Foundation;
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
-
 
 
 import os
 import sys
 import time
 import tempfile
-import pwd, grp
+import pwd
+import grp
 
 epoch = int(time.time())
 utc = time.strftime("%a, %d %b %Y %H:%M:%S UTC", time.gmtime())
@@ -56,14 +56,14 @@ Thanks.
 
 if len(sys.argv) < 2:
     sys.exit("""Missing argument.
-Usage: 
+Usage:
 
   %s [username:groupname] timestampfile1 [timestampfile2...]
 """ % os.path.basename(sys.argv[0]))
 
 if not '/' in sys.argv[1] and ':' in sys.argv[1]:
     user, group = sys.argv[1].split(':')
-    user = pwd.getpwnam(user).pw_uid 
+    user = pwd.getpwnam(user).pw_uid
     group = grp.getgrnam(group).gr_gid
     tstamps = sys.argv[2:]
 else:
@@ -73,24 +73,23 @@ else:
 
 for tstamp in tstamps:
     # we might write in a directory not owned by root
-    (fd, tmpfilename) = tempfile.mkstemp(prefix = os.path.basename(tstamp), 
-                                         dir = os.path.dirname(tstamp))
+    (fd, tmpfilename) = tempfile.mkstemp(prefix=os.path.basename(tstamp),
+                                         dir=os.path.dirname(tstamp))
 
     if tstamp.endswith('invisible'):
-        mode = 0640
+        mode = 0o0640
     else:
-        mode = 0644
+        mode = 0o0644
 
-    os.chown(tmpfilename, 
-             user, 
+    os.chown(tmpfilename,
+             user,
              group)
 
     os.chmod(tmpfilename, mode)
-    
+
     f = os.fdopen(fd, 'w')
     f.write('%s\n%s\n\n' % (epoch, utc))
     f.write(explanation)
     f.close()
 
     os.rename(tmpfilename, tstamp)
-

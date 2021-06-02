@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 # push2mirrors -- rsync file to mirrors in parallel
 # Copyright 2010,2011,2012 Peter Poeml
@@ -6,16 +6,15 @@
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License version 2
 # as published by the Free Software Foundation;
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
-
 
 
 # See http://download.documentfoundation.org/mirroring.html for possible
@@ -62,8 +61,8 @@ def run_push(push):
     sys.stdout.write('%s: %s\n' % (push.name, ' '.join(push.cmd)))
 
     #rc = subprocess.call(push.cmd)
-    #if rc != 0:
-    #    print rc
+    # if rc != 0:
+    #    print (rc)
     p = Popen(push.cmd, shell=False, bufsize=BUFSIZE,
               stdin=PIPE, stdout=PIPE, stderr=PIPE, close_fds=True)
     (child_stdin, child_stdout, child_stderr) = (p.stdin, p.stdout, p.stderr)
@@ -77,8 +76,6 @@ def run_push(push):
     if rc_rsync != 0:
         sys.stdout.write("\n%s: rsync return code: %s\n" % (push.name, rc_rsync))
 
-
-
     # run the scanner
     cmd = 'mb scan %s' % push.name
     (rc_scan, out) = commands.getstatusoutput(cmd)
@@ -87,7 +84,6 @@ def run_push(push):
     for line in out.splitlines():
         if 'total files' in line:
             sys.stdout.write("\n%s: %s\n" % (push.name, line))
-
 
     sys.stdout.write("\n%s: ready!\n" % push.name)
 
@@ -99,7 +95,7 @@ def run_push(push):
 
 pushes = []
 pushes.append(Push('foo', 'rsync://mirror.foo.com/acme-upload/'))
-pushes.append(Push('bar', 'user@mirror.bar.com:/acme/')) # (rsync over ssh)
+pushes.append(Push('bar', 'user@mirror.bar.com:/acme/'))  # (rsync over ssh)
 pushes.append(Push('halifax', 'rsync://ftp.halifax.example.de/acme-push/'))
 pushes.append(Push('powermirror', 'rsync://myuser@ftp.powermirror.org:666/acme', 'Peter'))
 pushes.append(Push('bla.com', 'rsync://acme-update@acme.mirror.bla.com/acme-update', 'seeeeecret', '--address=192.0.43.10'))
@@ -108,9 +104,7 @@ pushes.append(Push('faraway', 'rsync://slow.far.cn/acme-update'))
 # TODO: make mirrors configurable outside of this script. E.g., look into MirrorBrain database.
 
 
-
-
-#for p in pushes:
+# for p in pushes:
 #    run_push(p)
 
 
@@ -120,6 +114,5 @@ else:
     pool_size = POOLSIZE
 p = Pool(pool_size)
 result = p.map_async(run_push, pushes)
-#print result.get(timeout=20)
-print result.get()
-
+# print result.get(timeout=20)
+print(result.get())
