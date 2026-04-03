@@ -55,8 +55,8 @@ def iplookup(conn, s):
         return a
     query = """SELECT pfx, asn \
                    FROM pfx2asn \
-                   WHERE pfx >>= ip4r('%s') \
-                   ORDER BY ip4r_size(pfx) \
+                   WHERE pfx >>= ipaddress('%s') \
+                   ORDER BY @ pfx \
                    LIMIT 1""" % a.ip
 
     try:
